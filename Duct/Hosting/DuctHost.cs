@@ -54,7 +54,7 @@ public sealed class DuctHost
         RequestRender();
     }
 
-    private void RequestRender()
+    internal void RequestRender()
     {
         if (_isRendering)
         {
