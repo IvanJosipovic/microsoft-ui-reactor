@@ -64,8 +64,8 @@ public static class UI
 
     // ── Input controls ──────────────────────────────────────────────
 
-    public static TextFieldElement TextField(string value, Action<string>? onChanged = null, string? placeholder = null) =>
-        new(value, onChanged, placeholder);
+    public static TextFieldElement TextField(string value, Action<string>? onChanged = null, string? placeholder = null, string? header = null) =>
+        new(value, onChanged, placeholder) { Header = header };
 
     public static PasswordBoxElement PasswordBox(string password, Action<string>? onPasswordChanged = null, string? placeholderText = null) =>
         new(password, onPasswordChanged, placeholderText);
@@ -94,8 +94,8 @@ public static class UI
     public static SliderElement Slider(double value, double min = 0, double max = 100, Action<double>? onChanged = null) =>
         new(value, min, max, onChanged);
 
-    public static ToggleSwitchElement ToggleSwitch(bool isOn, Action<bool>? onChanged = null, string? onContent = null, string? offContent = null) =>
-        new(isOn, onChanged, onContent, offContent);
+    public static ToggleSwitchElement ToggleSwitch(bool isOn, Action<bool>? onChanged = null, string? onContent = null, string? offContent = null, string? header = null) =>
+        new(isOn, onChanged, onContent, offContent) { Header = header };
 
     public static RatingControlElement RatingControl(double value = 0, Action<double>? onValueChanged = null) =>
         new(value, onValueChanged);
@@ -237,6 +237,10 @@ public static class UI
     public static MenuBarItemData Menu(string title, params MenuFlyoutItemBase[] items) => new(title, items);
 
     public static MenuFlyoutItemData MenuItem(string text, Action? onClick = null, string? icon = null) => new(text, onClick, icon);
+
+    public static ToggleMenuFlyoutItemData ToggleMenuItem(string text, bool isChecked = false, Action<bool>? onToggled = null, string? icon = null) => new(text, isChecked, onToggled, icon);
+
+    public static RadioMenuFlyoutItemData RadioMenuItem(string text, string groupName, bool isChecked = false, Action? onClick = null, string? icon = null) => new(text, groupName, isChecked, onClick, icon);
 
     public static MenuFlyoutSeparatorData MenuSeparator() => new();
 
@@ -432,6 +436,43 @@ public static class UI
     public static RichTextRun Run(string text) => new(text);
 
     public static RichTextHyperlink Hyperlink(string text, Uri navigateUri) => new(text, navigateUri);
+
+    // ── Icons ────────────────────────────────────────────────────────
+
+    public static SymbolIconData SymbolIcon(string symbol) => new(symbol);
+
+    public static FontIconData FontIcon(string glyph, string? fontFamily = null, double? fontSize = null) =>
+        new(glyph, fontFamily, fontSize);
+
+    public static BitmapIconData BitmapIcon(System.Uri source, bool showAsMonochrome = true) =>
+        new(source, showAsMonochrome);
+
+    public static PathIconData PathIcon(string data) => new(data);
+
+    public static ImageIconData ImageIcon(System.Uri source) => new(source);
+
+    // ── Keyboard Accelerators ───────────────────────────────────────
+
+    public static KeyboardAcceleratorData Accelerator(Windows.System.VirtualKey key, Windows.System.VirtualKeyModifiers modifiers = Windows.System.VirtualKeyModifiers.None) =>
+        new(key, modifiers);
+
+    // ── Brushes ─────────────────────────────────────────────────────
+
+    public static Microsoft.UI.Xaml.Media.AcrylicBrush AcrylicBrush(
+        Windows.UI.Color tintColor,
+        double tintOpacity = 0.8,
+        Windows.UI.Color? fallbackColor = null,
+        double? tintLuminosityOpacity = null)
+    {
+        var brush = new Microsoft.UI.Xaml.Media.AcrylicBrush
+        {
+            TintColor = tintColor,
+            TintOpacity = tintOpacity,
+        };
+        if (fallbackColor.HasValue) brush.FallbackColor = fallbackColor.Value;
+        if (tintLuminosityOpacity.HasValue) brush.TintLuminosityOpacity = tintLuminosityOpacity.Value;
+        return brush;
+    }
 
     // ── Internals ───────────────────────────────────────────────────
 

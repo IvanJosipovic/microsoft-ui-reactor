@@ -137,6 +137,9 @@ public static class ElementExtensions
     public static TextElement FontSize(this TextElement el, double size) =>
         el with { FontSize = size };
 
+    public static TextElement FontStyle(this TextElement el, Windows.UI.Text.FontStyle style) =>
+        el with { FontStyle = style };
+
     // ── Button sugar ────────────────────────────────────────────────
 
     public static ButtonElement Disabled(this ButtonElement el, bool disabled = true) =>
@@ -167,6 +170,11 @@ public static class ElementExtensions
     public static StackElement Spacing(this StackElement el, double spacing) =>
         el with { Spacing = spacing };
 
+    // ── TextField sugar ─────────────────────────────────────────────
+
+    public static TextFieldElement Header(this TextFieldElement el, string header) =>
+        el with { Header = header };
+
     // ── ComboBox sugar ──────────────────────────────────────────────
 
     public static ComboBoxElement Placeholder(this ComboBoxElement el, string text) =>
@@ -174,6 +182,9 @@ public static class ElementExtensions
 
     public static ComboBoxElement Editable(this ComboBoxElement el, bool editable = true) =>
         el with { IsEditable = editable };
+
+    public static ComboBoxElement Header(this ComboBoxElement el, string header) =>
+        el with { Header = header };
 
     // ── NumberBox sugar ─────────────────────────────────────────────
 
@@ -187,6 +198,14 @@ public static class ElementExtensions
 
     public static SliderElement StepFrequency(this SliderElement el, double step) =>
         el with { StepFrequency = step };
+
+    public static SliderElement Header(this SliderElement el, string header) =>
+        el with { Header = header };
+
+    // ── ToggleSwitch sugar ──────────────────────────────────────────
+
+    public static ToggleSwitchElement Header(this ToggleSwitchElement el, string header) =>
+        el with { Header = header };
 
     // ── RatingControl sugar ─────────────────────────────────────────
 
@@ -571,6 +590,56 @@ public static class ElementExtensions
             c.ChildrenTransitions.Clear();
             foreach (var t in transitions) c.ChildrenTransitions.Add(t);
         });
+
+    // ════════════════════════════════════════════════════════════════
+    //  ScrollView zoom/scroll modifiers
+    // ════════════════════════════════════════════════════════════════
+
+    public static ScrollViewElement ZoomMode(this ScrollViewElement el, WinUI.ZoomMode mode) =>
+        el with { ZoomMode = mode };
+
+    public static ScrollViewElement HorizontalScrollMode(this ScrollViewElement el, WinUI.ScrollMode mode) =>
+        el with { HorizontalScrollMode = mode };
+
+    public static ScrollViewElement VerticalScrollMode(this ScrollViewElement el, WinUI.ScrollMode mode) =>
+        el with { VerticalScrollMode = mode };
+
+    // ════════════════════════════════════════════════════════════════
+    //  AutomationProperties / ElementSoundMode / OnMount
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Sets AutomationProperties.Name on the element's control.
+    /// Usage: Button("Go", onClick).AutomationName("Navigate forward")
+    /// </summary>
+    public static T AutomationName<T>(this T el, string name) where T : Element =>
+        Modify(el, new ElementModifiers { AutomationName = name });
+
+    /// <summary>
+    /// Sets ElementSoundMode on the element's control.
+    /// Usage: Button("Play", onClick).SoundMode(ElementSoundMode.Off)
+    /// </summary>
+    public static T SoundMode<T>(this T el, ElementSoundMode mode) where T : Element =>
+        Modify(el, new ElementModifiers { ElementSoundMode = mode });
+
+    /// <summary>
+    /// Runs an action once when the element is first mounted (not on re-renders).
+    /// Use this instead of .Set() when attaching event handlers to avoid accumulation.
+    /// Usage: Button("Go", null).OnMount(fe => { ((Button)fe).Click += ...; })
+    /// </summary>
+    public static T OnMount<T>(this T el, Action<FrameworkElement> action) where T : Element =>
+        Modify(el, new ElementModifiers { OnMountAction = action });
+
+    // ════════════════════════════════════════════════════════════════
+    //  ThemeShadow / Translation modifiers
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Sets the Translation property (Vector3) on the element's control.
+    /// Commonly used with ThemeShadow for z-depth effects.
+    /// </summary>
+    public static T Translation<T>(this T el, float x, float y, float z) where T : Element =>
+        el.OnMount(fe => fe.Translation = new System.Numerics.Vector3(x, y, z));
 
     // ════════════════════════════════════════════════════════════════
     //  Internal

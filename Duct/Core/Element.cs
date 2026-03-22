@@ -92,6 +92,9 @@ public record ElementModifiers
     public Element? RichToolTip { get; init; }
     public Element? AttachedFlyout { get; init; }
     public Element? ContextFlyout { get; init; }
+    public string? AutomationName { get; init; }
+    public ElementSoundMode? ElementSoundMode { get; init; }
+    public Action<FrameworkElement>? OnMountAction { get; init; }
 
     public ElementModifiers Merge(ElementModifiers other)
     {
@@ -113,6 +116,9 @@ public record ElementModifiers
             RichToolTip = other.RichToolTip ?? RichToolTip,
             AttachedFlyout = other.AttachedFlyout ?? AttachedFlyout,
             ContextFlyout = other.ContextFlyout ?? ContextFlyout,
+            AutomationName = other.AutomationName ?? AutomationName,
+            ElementSoundMode = other.ElementSoundMode ?? ElementSoundMode,
+            OnMountAction = other.OnMountAction ?? OnMountAction,
         };
     }
 }
@@ -161,13 +167,46 @@ public record TreeViewNodeData(string Content, TreeViewNodeData[]? Children = nu
 public record MenuBarItemData(string Title, MenuFlyoutItemBase[] Items);
 
 public abstract record MenuFlyoutItemBase;
-public record MenuFlyoutItemData(string Text, Action? OnClick = null, string? Icon = null) : MenuFlyoutItemBase;
+public record MenuFlyoutItemData(string Text, Action? OnClick = null, string? Icon = null) : MenuFlyoutItemBase
+{
+    public IconData? IconElement { get; init; }
+    public KeyboardAcceleratorData[]? KeyboardAccelerators { get; init; }
+}
 public record MenuFlyoutSeparatorData() : MenuFlyoutItemBase;
-public record MenuFlyoutSubItemData(string Text, MenuFlyoutItemBase[] Items, string? Icon = null) : MenuFlyoutItemBase;
+public record MenuFlyoutSubItemData(string Text, MenuFlyoutItemBase[] Items, string? Icon = null) : MenuFlyoutItemBase
+{
+    public IconData? IconElement { get; init; }
+}
+public record ToggleMenuFlyoutItemData(string Text, bool IsChecked = false, Action<bool>? OnToggled = null, string? Icon = null) : MenuFlyoutItemBase
+{
+    public IconData? IconElement { get; init; }
+}
+public record RadioMenuFlyoutItemData(string Text, string GroupName, bool IsChecked = false, Action? OnClick = null, string? Icon = null) : MenuFlyoutItemBase
+{
+    public IconData? IconElement { get; init; }
+}
+
+// Keyboard accelerator data
+public record KeyboardAcceleratorData(Windows.System.VirtualKey Key, Windows.System.VirtualKeyModifiers Modifiers = Windows.System.VirtualKeyModifiers.None);
+
+// Icon data hierarchy — used to set icons on menu items, app bar buttons, etc.
+public abstract record IconData;
+public record SymbolIconData(string Symbol) : IconData;
+public record FontIconData(string Glyph, string? FontFamily = null, double? FontSize = null) : IconData;
+public record BitmapIconData(System.Uri Source, bool ShowAsMonochrome = true) : IconData;
+public record PathIconData(string Data) : IconData;
+public record ImageIconData(System.Uri Source) : IconData;
 
 public abstract record AppBarItemBase;
-public record AppBarButtonData(string Label, Action? OnClick = null, string? Icon = null) : AppBarItemBase;
-public record AppBarToggleButtonData(string Label, bool IsChecked = false, Action<bool>? OnToggled = null, string? Icon = null) : AppBarItemBase;
+public record AppBarButtonData(string Label, Action? OnClick = null, string? Icon = null) : AppBarItemBase
+{
+    public IconData? IconElement { get; init; }
+    public KeyboardAcceleratorData[]? KeyboardAccelerators { get; init; }
+}
+public record AppBarToggleButtonData(string Label, bool IsChecked = false, Action<bool>? OnToggled = null, string? Icon = null) : AppBarItemBase
+{
+    public IconData? IconElement { get; init; }
+}
 public record AppBarSeparatorData() : AppBarItemBase;
 
 // ════════════════════════════════════════════════════════════════════════
@@ -178,6 +217,7 @@ public record TextElement(string Content) : Element
 {
     public double? FontSize { get; init; }
     public FontWeight? Weight { get; init; }
+    public Windows.UI.Text.FontStyle? FontStyle { get; init; }
     public HorizontalAlignment? HorizontalAlignment { get; init; }
     internal Action<WinUI.TextBlock>[] Setters { get; init; } = [];
 }
@@ -257,6 +297,7 @@ public record TextFieldElement(
     string? Placeholder = null
 ) : Element
 {
+    public string? Header { get; init; }
     internal Action<WinUI.TextBox>[] Setters { get; init; } = [];
 }
 
@@ -537,6 +578,9 @@ public record ScrollViewElement(Element Child) : Element
     public Orientation Orientation { get; init; } = Orientation.Vertical;
     public ScrollBarVisibility HorizontalScrollBarVisibility { get; init; } = ScrollBarVisibility.Auto;
     public ScrollBarVisibility VerticalScrollBarVisibility { get; init; } = ScrollBarVisibility.Auto;
+    public WinUI.ScrollMode HorizontalScrollMode { get; init; } = WinUI.ScrollMode.Auto;
+    public WinUI.ScrollMode VerticalScrollMode { get; init; } = WinUI.ScrollMode.Auto;
+    public WinUI.ZoomMode ZoomMode { get; init; } = WinUI.ZoomMode.Disabled;
     internal Action<WinUI.ScrollViewer>[] Setters { get; init; } = [];
 }
 
@@ -674,6 +718,9 @@ public record TreeViewElement(
     public Action<TreeViewNodeData>? OnItemInvoked { get; init; }
     public Action<TreeViewNodeData>? OnExpanding { get; init; }
     public TreeViewSelectionMode SelectionMode { get; init; } = TreeViewSelectionMode.Single;
+    public bool CanDragItems { get; init; }
+    public bool AllowDrop { get; init; }
+    public bool CanReorderItems { get; init; }
     internal Action<WinUI.TreeView>[] Setters { get; init; } = [];
 }
 

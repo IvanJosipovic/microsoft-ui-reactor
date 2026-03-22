@@ -699,25 +699,25 @@ These gaps were found during the migration of 40 pages and represent areas where
 
 | Gap | Pages Affected | Workaround | Status |
 |-----|---------------|------------|--------|
-| **No ToggleMenuFlyoutItem / RadioMenuFlyoutItem** | MenuFlyoutPage, MenuBarPage | Remove DSL items and replace imperatively | approved |
-| **No MenuFlyoutSubItem (cascading menus)** | MenuFlyoutPage, MenuBarPage | Build entire flyout imperatively | approved |
-| **No KeyboardAccelerator support** | MenuFlyoutPage, MenuBarPage, AppBarButtonPage, CommandBarPage | `.Set()` with `.KeyboardAccelerators.Add()` | approved |
-| **No Icon types (BitmapIcon, FontIcon, PathIcon, ImageIcon)** as DSL elements | IconElementPage, AppBarButtonPage, AppBarToggleButtonPage, MenuFlyoutPage | `.Set()` to assign `.Icon` property | approved |
+| **No ToggleMenuFlyoutItem / RadioMenuFlyoutItem** | MenuFlyoutPage, MenuBarPage | Remove DSL items and replace imperatively | fixed |
+| **No MenuFlyoutSubItem (cascading menus)** | MenuFlyoutPage, MenuBarPage | Build entire flyout imperatively | fixed |
+| **No KeyboardAccelerator support** | MenuFlyoutPage, MenuBarPage, AppBarButtonPage, CommandBarPage | `.Set()` with `.KeyboardAccelerators.Add()` | fixed |
+| **No Icon types (BitmapIcon, FontIcon, PathIcon, ImageIcon)** as DSL elements | IconElementPage, AppBarButtonPage, AppBarToggleButtonPage, MenuFlyoutPage | `.Set()` to assign `.Icon` property | fixed |
 | **No DataTemplate declarative support** | FlipViewPage, TreeViewPage, SemanticZoomPage, SelectorBarPage | `XamlReader.Load` or imperative construction | fixed |
-| **No TextBox.Header / PlaceholderText in DSL** | TextBoxPage | `.Set(tb => { tb.Header = ...; tb.PlaceholderText = ...; })` | approved |
-| **No ScrollView ZoomMode / ScrollMode** | ScrollViewerPage | `.Set()` for zoom/scroll configuration | approved |
-| **No ThemeShadow / Translation modifier** | ThemeShadowPage | `.Set()` for shadow + Vector3 translation | approved |
-| **No AcrylicBrush DSL** | AcrylicPage | Brush created imperatively | approved |
-| **No FontStyle modifier** | TextBoxPage | `.Set(tb => tb.FontStyle = ...)` | approved |
+| **No TextBox.Header / PlaceholderText in DSL** | TextBoxPage | `.Set(tb => { tb.Header = ...; tb.PlaceholderText = ...; })` | fixed |
+| **No ScrollView ZoomMode / ScrollMode** | ScrollViewerPage | `.Set()` for zoom/scroll configuration | fixed |
+| **No ThemeShadow / Translation modifier** | ThemeShadowPage | `.Set()` for shadow + Vector3 translation | fixed |
+| **No AcrylicBrush DSL** | AcrylicPage | Brush created imperatively | fixed |
+| **No FontStyle modifier** | TextBoxPage | `.Set(tb => tb.FontStyle = ...)` | fixed |
 
 ### Low Priority — Nice-to-have improvements
 
 | Gap | Pages Affected | Notes | Status |
 |-----|---------------|-------|--------|
-| **AutomationProperties attached properties** | Many pages | Always requires `.Set()` — consider `.AutomationName()` modifier | approved |
-| **No ElementSoundMode modifier** | SoundPage | Rarely needed | approved |
-| **Event handler accumulation in .Set()** | Many pages | `.Set()` lambdas with `+=` can register duplicate handlers on re-render — need mount-only callback or dedup | approved |
-| **ToggleSwitch.Header / OffContent / OnContent** | SplitViewPage, others | Not in DSL signature | approved |
-| **ComboBox with typed ItemsSource** | Multiple pages | DSL only accepts `string[]` — typed enums require `.Set()` | approved |
-| **TreeView drag-and-drop / multi-selection** | TreeViewPage | Not exposed in DSL | approved |
+| **AutomationProperties attached properties** | Many pages | Always requires `.Set()` — consider `.AutomationName()` modifier | fixed |
+| **No ElementSoundMode modifier** | SoundPage | Rarely needed | fixed |
+| **Event handler accumulation in .Set()** | Many pages | `.Set()` lambdas with `+=` can register duplicate handlers on re-render — need mount-only callback or dedup | fixed |
+| **ToggleSwitch.Header / OffContent / OnContent** | SplitViewPage, others | Not in DSL signature | fixed |
+| **ComboBox with typed ItemsSource** | Multiple pages | DSL only accepts `string[]` — typed enums require `.Set()` | fixed |
+| **TreeView drag-and-drop / multi-selection** | TreeViewPage | Not exposed in DSL | fixed |
 | **ContentDialog is inherently imperative** | ContentDialogPage | `ShowAsync()` doesn't fit declarative model | skip |

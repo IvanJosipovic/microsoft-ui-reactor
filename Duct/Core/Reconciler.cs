@@ -405,6 +405,18 @@ public sealed partial class Reconciler : IDisposable
             else
                 fe.ContextFlyout = CreateFlyoutFromElement(m.ContextFlyout, requestRerender);
         }
+
+        // AutomationProperties.Name
+        if (m.AutomationName is not null)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(fe, m.AutomationName);
+
+        // ElementSoundMode (on Control, not FrameworkElement)
+        if (m.ElementSoundMode.HasValue && fe is WinUI.Control ctrl)
+            ctrl.ElementSoundMode = m.ElementSoundMode.Value;
+
+        // OnMountAction — only run on initial mount (oldM is null)
+        if (m.OnMountAction is not null && oldM is null)
+            m.OnMountAction(fe);
     }
 
     /// <summary>
