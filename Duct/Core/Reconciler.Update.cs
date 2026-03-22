@@ -196,6 +196,7 @@ public sealed partial class Reconciler
         if (tb.Text != n.Content) tb.Text = n.Content;
         if (n.FontSize.HasValue && tb.FontSize != n.FontSize.Value) tb.FontSize = n.FontSize.Value;
         if (n.Weight.HasValue) tb.FontWeight = n.Weight.Value;
+        if (n.FontStyle.HasValue) tb.FontStyle = n.FontStyle.Value;
         if (n.HorizontalAlignment.HasValue) tb.HorizontalAlignment = n.HorizontalAlignment.Value;
         ApplySetters(n.Setters, tb);
         return null;
@@ -267,7 +268,9 @@ public sealed partial class Reconciler
     private UIElement? UpdateTextField(TextFieldElement o, TextFieldElement n, TextBox tb)
     {
         if (o.Value != n.Value) tb.Text = n.Value;
-        tb.PlaceholderText = n.Placeholder ?? ""; SetElementTag(tb, n);
+        tb.PlaceholderText = n.Placeholder ?? "";
+        if (n.Header is not null) tb.Header = n.Header;
+        SetElementTag(tb, n);
         ApplySetters(n.Setters, tb);
         return null;
     }
@@ -454,7 +457,11 @@ public sealed partial class Reconciler
             if (childRepl is not null) return Mount(newEl, requestRerender);
         }
         else return Mount(newEl, requestRerender);
-        // No Tag set — ScrollViewer has no event handlers.
+        sv.HorizontalScrollBarVisibility = n.HorizontalScrollBarVisibility;
+        sv.VerticalScrollBarVisibility = n.VerticalScrollBarVisibility;
+        sv.HorizontalScrollMode = (WinUI.ScrollMode)n.HorizontalScrollMode;
+        sv.VerticalScrollMode = (WinUI.ScrollMode)n.VerticalScrollMode;
+        sv.ZoomMode = (WinUI.ZoomMode)n.ZoomMode;
         ApplySetters(n.Setters, sv);
         return null;
     }

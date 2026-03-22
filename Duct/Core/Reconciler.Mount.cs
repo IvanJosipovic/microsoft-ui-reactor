@@ -122,6 +122,7 @@ public sealed partial class Reconciler
         tb.Text = text.Content;
         if (text.FontSize.HasValue) tb.FontSize = text.FontSize.Value;
         if (text.Weight.HasValue) tb.FontWeight = text.Weight.Value;
+        if (text.FontStyle.HasValue) tb.FontStyle = text.FontStyle.Value;
         if (text.HorizontalAlignment.HasValue) tb.HorizontalAlignment = text.HorizontalAlignment.Value;
         ApplySetters(text.Setters, tb);
         return tb;
@@ -245,6 +246,7 @@ public sealed partial class Reconciler
     private TextBox MountTextField(TextFieldElement tf)
     {
         var textBox = new TextBox { Text = tf.Value, PlaceholderText = tf.Placeholder ?? "" };
+        if (tf.Header is not null) textBox.Header = tf.Header;
         SetElementTag(textBox, tf);
         textBox.TextChanged += (_, _) => (GetElementTag(textBox) as TextFieldElement)?.OnChanged?.Invoke(textBox.Text);
         ApplySetters(tf.Setters, textBox);
@@ -608,6 +610,9 @@ public sealed partial class Reconciler
         var sv = _pool.TryRent(typeof(WinUI.ScrollViewer)) as WinUI.ScrollViewer ?? new WinUI.ScrollViewer();
         sv.HorizontalScrollBarVisibility = scroll.HorizontalScrollBarVisibility;
         sv.VerticalScrollBarVisibility = scroll.VerticalScrollBarVisibility;
+        sv.HorizontalScrollMode = (WinUI.ScrollMode)scroll.HorizontalScrollMode;
+        sv.VerticalScrollMode = (WinUI.ScrollMode)scroll.VerticalScrollMode;
+        sv.ZoomMode = (WinUI.ZoomMode)scroll.ZoomMode;
         sv.Content = Mount(scroll.Child, requestRerender);
         SetElementTag(sv, scroll);
         ApplySetters(scroll.Setters, sv);
@@ -902,6 +907,9 @@ public sealed partial class Reconciler
         var treeView = new WinUI.TreeView
         {
             SelectionMode = tv.SelectionMode,
+            CanDragItems = tv.CanDragItems,
+            AllowDrop = tv.AllowDrop,
+            CanReorderItems = tv.CanReorderItems,
         };
 
         // Check if any node uses ContentElement for custom rendering
@@ -1277,7 +1285,10 @@ public sealed partial class Reconciler
             case AppBarButtonData cmd:
             {
                 var abb = new WinUI.AppBarButton { Label = cmd.Label };
-                if (cmd.Icon is not null) abb.Icon = new WinUI.SymbolIcon(ParseSymbol(cmd.Icon));
+                abb.Icon = ResolveIcon(cmd.IconElement, cmd.Icon);
+                if (cmd.KeyboardAccelerators is not null)
+                    foreach (var ka in cmd.KeyboardAccelerators)
+                        abb.KeyboardAccelerators.Add(new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = ka.Key, Modifiers = ka.Modifiers });
                 abb.Tag = cmd;
                 abb.Click += (s, _) => ((AppBarButtonData)((WinUI.AppBarButton)s!).Tag!).OnClick?.Invoke();
                 return abb;
@@ -1285,7 +1296,7 @@ public sealed partial class Reconciler
             case AppBarToggleButtonData toggle:
             {
                 var atb = new WinUI.AppBarToggleButton { Label = toggle.Label, IsChecked = toggle.IsChecked };
-                if (toggle.Icon is not null) atb.Icon = new WinUI.SymbolIcon(ParseSymbol(toggle.Icon));
+                atb.Icon = ResolveIcon(toggle.IconElement, toggle.Icon);
                 atb.Tag = toggle;
                 atb.Checked += (s, _) => ((AppBarToggleButtonData)((WinUI.AppBarToggleButton)s!).Tag!).OnToggled?.Invoke(true);
                 atb.Unchecked += (s, _) => ((AppBarToggleButtonData)((WinUI.AppBarToggleButton)s!).Tag!).OnToggled?.Invoke(false);
@@ -1319,23 +1330,83 @@ public sealed partial class Reconciler
             case MenuFlyoutItemData mfi:
             {
                 var flyoutItem = new WinUI.MenuFlyoutItem { Text = mfi.Text };
-                if (mfi.Icon is not null) flyoutItem.Icon = new WinUI.SymbolIcon(ParseSymbol(mfi.Icon));
+                flyoutItem.Icon = ResolveIcon(mfi.IconElement, mfi.Icon);
+                if (mfi.KeyboardAccelerators is not null)
+                    foreach (var ka in mfi.KeyboardAccelerators)
+                        flyoutItem.KeyboardAccelerators.Add(new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = ka.Key, Modifiers = ka.Modifiers });
                 flyoutItem.Tag = mfi;
                 flyoutItem.Click += (s, _) => ((MenuFlyoutItemData)((WinUI.MenuFlyoutItem)s!).Tag!).OnClick?.Invoke();
                 return flyoutItem;
+            }
+            case ToggleMenuFlyoutItemData toggle:
+            {
+                var toggleItem = new WinUI.ToggleMenuFlyoutItem { Text = toggle.Text, IsChecked = toggle.IsChecked };
+                toggleItem.Icon = ResolveIcon(toggle.IconElement, toggle.Icon);
+                toggleItem.Tag = toggle;
+                toggleItem.Click += (s, _) =>
+                {
+                    var ti = (WinUI.ToggleMenuFlyoutItem)s!;
+                    ((ToggleMenuFlyoutItemData)ti.Tag!).OnToggled?.Invoke(ti.IsChecked);
+                };
+                return toggleItem;
+            }
+            case RadioMenuFlyoutItemData radio:
+            {
+                var radioItem = new WinUI.RadioMenuFlyoutItem { Text = radio.Text, GroupName = radio.GroupName, IsChecked = radio.IsChecked };
+                radioItem.Tag = radio;
+                radioItem.Click += (s, _) => ((RadioMenuFlyoutItemData)((WinUI.RadioMenuFlyoutItem)s!).Tag!).OnClick?.Invoke();
+                return radioItem;
             }
             case MenuFlyoutSeparatorData:
                 return new WinUI.MenuFlyoutSeparator();
             case MenuFlyoutSubItemData sub:
             {
                 var subItem = new WinUI.MenuFlyoutSubItem { Text = sub.Text };
-                if (sub.Icon is not null) subItem.Icon = new WinUI.SymbolIcon(ParseSymbol(sub.Icon));
+                subItem.Icon = ResolveIcon(sub.IconElement, sub.Icon);
                 foreach (var child in sub.Items) subItem.Items.Add(CreateMenuFlyoutItem(child));
                 return subItem;
             }
             default:
                 return new WinUI.MenuFlyoutSeparator();
         }
+    }
+
+    private static WinUI.IconElement? ResolveIcon(IconData? iconData, string? iconSymbol)
+    {
+        if (iconData is not null)
+        {
+            return iconData switch
+            {
+                SymbolIconData sym => new WinUI.SymbolIcon(ParseSymbol(sym.Symbol)),
+                FontIconData fi => CreateFontIcon(fi),
+                BitmapIconData bi => new WinUI.BitmapIcon { UriSource = bi.Source, ShowAsMonochrome = bi.ShowAsMonochrome },
+                PathIconData pi => CreatePathIcon(pi),
+                ImageIconData ii => new WinUI.ImageIcon { Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(ii.Source) },
+                _ => null,
+            };
+        }
+        if (iconSymbol is not null) return new WinUI.SymbolIcon(ParseSymbol(iconSymbol));
+        return null;
+    }
+
+    private static WinUI.FontIcon CreateFontIcon(FontIconData fi)
+    {
+        var icon = new WinUI.FontIcon { Glyph = fi.Glyph };
+        if (fi.FontFamily is not null) icon.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily(fi.FontFamily);
+        if (fi.FontSize.HasValue) icon.FontSize = fi.FontSize.Value;
+        return icon;
+    }
+
+    private static WinUI.PathIcon CreatePathIcon(PathIconData pi)
+    {
+        var icon = new WinUI.PathIcon();
+        if (Microsoft.UI.Xaml.Markup.XamlReader.Load(
+            $"<Geometry xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'>{pi.Data}</Geometry>")
+            is Microsoft.UI.Xaml.Media.Geometry geo)
+        {
+            icon.Data = geo;
+        }
+        return icon;
     }
 
     private UIElement MountComponent(ComponentElement compElement, Action requestRerender)
