@@ -1,4 +1,4 @@
-using Duct.Yoga;
+using Duct.Flex;
 using Microsoft.UI.Xaml.Controls;
 
 namespace FlexPanelGallery.Pages;
@@ -17,13 +17,13 @@ public sealed partial class JustifyContentPage : Page
         {
             DemoPanel.JustifyContent = tag switch
             {
-                "FlexStart" => YogaJustify.FlexStart,
-                "Center" => YogaJustify.Center,
-                "FlexEnd" => YogaJustify.FlexEnd,
-                "SpaceBetween" => YogaJustify.SpaceBetween,
-                "SpaceAround" => YogaJustify.SpaceAround,
-                "SpaceEvenly" => YogaJustify.SpaceEvenly,
-                _ => YogaJustify.FlexStart,
+                "FlexStart" => FlexJustify.FlexStart,
+                "Center" => FlexJustify.Center,
+                "FlexEnd" => FlexJustify.FlexEnd,
+                "SpaceBetween" => FlexJustify.SpaceBetween,
+                "SpaceAround" => FlexJustify.SpaceAround,
+                "SpaceEvenly" => FlexJustify.SpaceEvenly,
+                _ => FlexJustify.FlexStart,
             };
         }
     }

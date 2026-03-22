@@ -1,4 +1,4 @@
-using Duct.Yoga;
+using Duct.Flex;
 using Microsoft.UI.Xaml.Controls;
 
 namespace FlexPanelGallery.Pages;
@@ -17,10 +17,10 @@ public sealed partial class WrapPage : Page
         {
             DemoPanel.Wrap = tag switch
             {
-                "NoWrap" => YogaWrap.NoWrap,
-                "Wrap" => YogaWrap.Wrap,
-                "WrapReverse" => YogaWrap.WrapReverse,
-                _ => YogaWrap.NoWrap,
+                "NoWrap" => FlexWrap.NoWrap,
+                "Wrap" => FlexWrap.Wrap,
+                "WrapReverse" => FlexWrap.WrapReverse,
+                _ => FlexWrap.NoWrap,
             };
         }
     }

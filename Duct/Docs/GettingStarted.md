@@ -129,16 +129,16 @@ FlexColumn(
 )
 
 // With justify/align and wrapping
-Flex(YogaFlexDirection.Row,
+Flex(FlexDirection.Row,
     Text("A").Flex(grow: 1),
     Text("B").Flex(grow: 2),
     Text("C").Flex(grow: 1)
-) with { JustifyContent = YogaJustify.SpaceBetween, Wrap = YogaWrap.Wrap }
+) with { JustifyContent = FlexJustify.SpaceBetween, Wrap = FlexWrap.Wrap }
 
 // Absolute positioning within a flex container
 Flex(
     Text("Normal flow"),
-    Text("Overlay").Flex(position: YogaPositionType.Absolute, top: 10, right: 10)
+    Text("Overlay").Flex(position: FlexPositionType.Absolute, top: 10, right: 10)
 )
 ```
 
@@ -221,7 +221,7 @@ Text("Value").RelativePanel(name: "value", rightOf: "label")
 // Flex attached properties (child grow/shrink/basis/positioning)
 Text("Grows").Flex(grow: 1)
 Text("Fixed").Flex(grow: 0, shrink: 0, basis: 200)
-Text("Overlay").Flex(position: YogaPositionType.Absolute, top: 0, right: 0)
+Text("Overlay").Flex(position: FlexPositionType.Absolute, top: 0, right: 0)
 ```
 
 ## State Management

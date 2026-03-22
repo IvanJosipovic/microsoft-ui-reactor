@@ -1,4 +1,5 @@
-using Duct.Yoga;
+using Duct.Layout;
+using Duct.Flex;
 using Xunit;
 
 namespace Duct.Tests.YogaGenerated;
@@ -13,15 +14,15 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(100f);
         root_child0.Height = YogaValue.Point(100f);
-        root_child0.PositionType = YogaPositionType.Static;
+        root_child0.PositionType = FlexPositionType.Static;
         root_child0.SetPosition(YogaEdge.Top, YogaValue.Point(50f));
         root_child0.SetPosition(YogaEdge.Left, YogaValue.Point(50f));
         root.InsertChild(root_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -30,7 +31,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0.LayoutY);
         Assert.Equal(100f, root_child0.LayoutWidth);
         Assert.Equal(100f, root_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -46,15 +47,15 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(100f);
         root_child0.Height = YogaValue.Point(100f);
-        root_child0.PositionType = YogaPositionType.Static;
+        root_child0.PositionType = FlexPositionType.Static;
         root_child0.SetPosition(YogaEdge.Bottom, YogaValue.Point(50f));
         root_child0.SetPosition(YogaEdge.Right, YogaValue.Point(50f));
         root.InsertChild(root_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -63,7 +64,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0.LayoutY);
         Assert.Equal(100f, root_child0.LayoutWidth);
         Assert.Equal(100f, root_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -79,7 +80,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -88,16 +89,16 @@ public class YogaStaticPositionTest
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
         root_child0_child0.SetMargin(YogaEdge.Left, YogaValue.Point(100f));
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Point(50f));
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Point(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -114,7 +115,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -138,25 +139,25 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
-        root_child0.FlexDirection = YogaFlexDirection.RowReverse;
+        root_child0.FlexDirection = FlexDirection.RowReverse;
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Point(50f));
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Point(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -173,7 +174,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -197,26 +198,26 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
-        root_child0.FlexDirection = YogaFlexDirection.RowReverse;
+        root_child0.FlexDirection = FlexDirection.RowReverse;
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
-        root_child0_child0.FlexDirection = YogaFlexDirection.ColumnReverse;
+        root_child0_child0.PositionType = FlexPositionType.Static;
+        root_child0_child0.FlexDirection = FlexDirection.ColumnReverse;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Point(50f));
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Point(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -233,7 +234,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -257,25 +258,25 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
-        root_child0.FlexDirection = YogaFlexDirection.Row;
+        root_child0.FlexDirection = FlexDirection.Row;
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Point(50f));
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Point(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -292,7 +293,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -316,26 +317,26 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
-        root_child0.FlexDirection = YogaFlexDirection.Row;
+        root_child0.FlexDirection = FlexDirection.Row;
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
-        root_child0_child0.FlexDirection = YogaFlexDirection.ColumnReverse;
+        root_child0_child0.PositionType = FlexPositionType.Static;
+        root_child0_child0.FlexDirection = FlexDirection.ColumnReverse;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Point(50f));
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Point(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -352,7 +353,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -376,25 +377,25 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
-        root_child0.FlexDirection = YogaFlexDirection.ColumnReverse;
+        root_child0.FlexDirection = FlexDirection.ColumnReverse;
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Point(50f));
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Point(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -411,7 +412,7 @@ public class YogaStaticPositionTest
         Assert.Equal(-50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -435,26 +436,26 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
-        root_child0.FlexDirection = YogaFlexDirection.ColumnReverse;
+        root_child0.FlexDirection = FlexDirection.ColumnReverse;
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
-        root_child0_child0.FlexDirection = YogaFlexDirection.ColumnReverse;
+        root_child0_child0.PositionType = FlexPositionType.Static;
+        root_child0_child0.FlexDirection = FlexDirection.ColumnReverse;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Point(50f));
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Point(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -471,7 +472,7 @@ public class YogaStaticPositionTest
         Assert.Equal(-50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -495,7 +496,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -504,34 +505,34 @@ public class YogaStaticPositionTest
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
         root_child0_child0.SetMargin(YogaEdge.Left, YogaValue.Point(100f));
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0_child0.Width = YogaValue.Point(100f);
         root_child0_child0_child0.SetMargin(YogaEdge.Left, YogaValue.Point(100f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
         var root_child0_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0_child0_child0.Width = YogaValue.Point(100f);
         root_child0_child0_child0_child0.SetMargin(YogaEdge.Left, YogaValue.Point(100f));
-        root_child0_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0_child0.InsertChild(root_child0_child0_child0_child0, 0);
         var root_child0_child0_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0_child0_child0_child0.Width = YogaValue.Point(100f);
         root_child0_child0_child0_child0_child0.SetMargin(YogaEdge.Left, YogaValue.Point(100f));
-        root_child0_child0_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0_child0_child0.InsertChild(root_child0_child0_child0_child0_child0, 0);
         var root_child0_child0_child0_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Point(50f));
         root_child0_child0_child0_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Point(50f));
         root_child0_child0_child0_child0_child0.InsertChild(root_child0_child0_child0_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -560,7 +561,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -596,7 +597,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -604,14 +605,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Percent(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -628,7 +629,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -652,7 +653,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -660,13 +661,13 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Percent(50f);
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -683,7 +684,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -707,7 +708,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -715,14 +716,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Percent(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -739,7 +740,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -763,7 +764,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -771,14 +772,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Percent(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -795,7 +796,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(100f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -819,7 +820,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -827,13 +828,13 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Percent(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -850,7 +851,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -874,7 +875,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -882,14 +883,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Percent(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -906,7 +907,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -930,7 +931,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -938,15 +939,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -963,7 +964,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -987,7 +988,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -995,14 +996,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Percent(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1019,7 +1020,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1043,7 +1044,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1051,15 +1052,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1076,7 +1077,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1100,7 +1101,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1108,15 +1109,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1133,7 +1134,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1157,7 +1158,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1165,14 +1166,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Percent(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1189,7 +1190,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1213,7 +1214,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1221,15 +1222,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1246,7 +1247,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1270,7 +1271,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1278,15 +1279,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1303,7 +1304,7 @@ public class YogaStaticPositionTest
         Assert.Equal(100f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1327,7 +1328,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1335,14 +1336,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Percent(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1359,7 +1360,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1383,7 +1384,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1391,15 +1392,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Top, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1416,7 +1417,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1440,7 +1441,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1448,15 +1449,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Bottom, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1473,7 +1474,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1497,7 +1498,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1505,14 +1506,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Bottom, YogaValue.Percent(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1529,7 +1530,7 @@ public class YogaStaticPositionTest
         Assert.Equal(-50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1553,7 +1554,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1561,15 +1562,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPosition(YogaEdge.Bottom, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1586,7 +1587,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1610,7 +1611,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1618,15 +1619,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetMargin(YogaEdge.All, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1643,7 +1644,7 @@ public class YogaStaticPositionTest
         Assert.Equal(100f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1667,7 +1668,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1675,14 +1676,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetMargin(YogaEdge.All, YogaValue.Percent(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1699,7 +1700,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1723,7 +1724,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1731,15 +1732,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetMargin(YogaEdge.All, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1756,7 +1757,7 @@ public class YogaStaticPositionTest
         Assert.Equal(50f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1780,7 +1781,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1788,15 +1789,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPadding(YogaEdge.All, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1813,7 +1814,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(200f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(200f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1837,7 +1838,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1845,14 +1846,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPadding(YogaEdge.All, YogaValue.Percent(50f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1869,7 +1870,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(100f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1893,7 +1894,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1901,15 +1902,15 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0_child0.SetPadding(YogaEdge.All, YogaValue.Percent(50f));
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1926,7 +1927,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(100f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1950,7 +1951,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -1958,14 +1959,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -1982,7 +1983,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -2006,7 +2007,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -2014,13 +2015,13 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -2037,7 +2038,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -2061,7 +2062,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(200f);
         root_child0.Height = YogaValue.Point(200f);
@@ -2069,14 +2070,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Point(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -2093,7 +2094,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -2117,7 +2118,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(400f);
         root_child0.Height = YogaValue.Point(400f);
@@ -2126,14 +2127,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Percent(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2150,7 +2151,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(200f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2174,7 +2175,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(400f);
         root_child0.Height = YogaValue.Point(400f);
@@ -2183,13 +2184,13 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Percent(50f);
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2206,7 +2207,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2230,7 +2231,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(400f);
         root_child0.Height = YogaValue.Point(400f);
@@ -2239,14 +2240,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Percent(50f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2263,7 +2264,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2287,7 +2288,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(400f);
         root_child0.Height = YogaValue.Point(400f);
@@ -2296,9 +2297,9 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0.Width = YogaValue.Percent(50f);
-        root_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0.InsertChild(root_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2311,7 +2312,7 @@ public class YogaStaticPositionTest
         Assert.Equal(100f, root_child0_child0.LayoutY);
         Assert.Equal(200f, root_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2331,7 +2332,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(400f);
         root_child0.Height = YogaValue.Point(400f);
@@ -2341,7 +2342,7 @@ public class YogaStaticPositionTest
         root_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0.Width = YogaValue.Percent(50f);
         root_child0.InsertChild(root_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2354,7 +2355,7 @@ public class YogaStaticPositionTest
         Assert.Equal(100f, root_child0_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2374,7 +2375,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(400f);
         root_child0.Height = YogaValue.Point(400f);
@@ -2383,9 +2384,9 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0.Width = YogaValue.Percent(50f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2398,7 +2399,7 @@ public class YogaStaticPositionTest
         Assert.Equal(100f, root_child0_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2418,7 +2419,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(400f);
         root_child0.Height = YogaValue.Point(400f);
@@ -2434,14 +2435,14 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Percent(61f);
         root_child0_child0_child0.Width = YogaValue.Percent(41f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2458,7 +2459,7 @@ public class YogaStaticPositionTest
         Assert.Equal(0f, root_child0_child0_child0.LayoutY);
         Assert.Equal(160f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(239f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -2482,7 +2483,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(500f);
         root_child0.Height = YogaValue.Point(500f);
@@ -2502,7 +2503,7 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(200f);
         root_child0_child0.Width = YogaValue.Point(200f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -2519,7 +2520,7 @@ public class YogaStaticPositionTest
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Percent(63f);
         root_child0_child0_child0.Width = YogaValue.Percent(41f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Point(2f));
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
@@ -2535,7 +2536,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2552,7 +2553,7 @@ public class YogaStaticPositionTest
         Assert.Equal(29f, root_child0_child0_child0.LayoutY);
         Assert.Equal(200f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(306f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2576,7 +2577,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(500f);
         root_child0.Height = YogaValue.Point(500f);
@@ -2596,7 +2597,7 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(200f);
         root_child0_child0.Width = YogaValue.Point(200f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -2613,7 +2614,7 @@ public class YogaStaticPositionTest
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Percent(63f);
         root_child0_child0_child0.Width = YogaValue.Percent(41f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
         root_child0_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(7f));
@@ -2627,7 +2628,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2644,7 +2645,7 @@ public class YogaStaticPositionTest
         Assert.Equal(29f, root_child0_child0_child0.LayoutY);
         Assert.Equal(200f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(306f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2668,7 +2669,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(500f);
         root_child0.Height = YogaValue.Point(500f);
@@ -2688,7 +2689,7 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(200f);
         root_child0_child0.Width = YogaValue.Point(200f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -2705,7 +2706,7 @@ public class YogaStaticPositionTest
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Percent(63f);
         root_child0_child0_child0.Width = YogaValue.Percent(41f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Percent(0f));
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -2720,7 +2721,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2737,7 +2738,7 @@ public class YogaStaticPositionTest
         Assert.Equal(29f, root_child0_child0_child0.LayoutY);
         Assert.Equal(200f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(306f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2761,7 +2762,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(500f);
         root_child0.Height = YogaValue.Point(500f);
@@ -2781,7 +2782,7 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(200f);
         root_child0_child0.Width = YogaValue.Point(200f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -2798,7 +2799,7 @@ public class YogaStaticPositionTest
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Percent(63f);
         root_child0_child0_child0.Width = YogaValue.Percent(41f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Start, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -2813,7 +2814,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2830,7 +2831,7 @@ public class YogaStaticPositionTest
         Assert.Equal(29f, root_child0_child0_child0.LayoutY);
         Assert.Equal(200f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(306f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2854,7 +2855,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(500f);
         root_child0.Height = YogaValue.Point(500f);
@@ -2874,7 +2875,7 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(200f);
         root_child0_child0.Width = YogaValue.Point(200f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -2891,7 +2892,7 @@ public class YogaStaticPositionTest
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Percent(63f);
         root_child0_child0_child0.Width = YogaValue.Percent(41f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.End, YogaValue.Point(4f));
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -2906,7 +2907,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2923,7 +2924,7 @@ public class YogaStaticPositionTest
         Assert.Equal(29f, root_child0_child0_child0.LayoutY);
         Assert.Equal(200f, root_child0_child0_child0.LayoutWidth);
         Assert.Equal(306f, root_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(513f, root.LayoutWidth);
@@ -2947,7 +2948,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -2963,7 +2964,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -2976,10 +2977,10 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Right, YogaValue.Point(9f));
         root_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(4f));
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
-        root_child0_child0.FlexDirection = YogaFlexDirection.RowReverse;
+        root_child0_child0.FlexDirection = FlexDirection.RowReverse;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.Height = YogaValue.Percent(12f);
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -3010,7 +3011,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child0.InsertChild(root_child0_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(69f, root.LayoutWidth);
@@ -3031,7 +3032,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child0_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(69f, root.LayoutWidth);
@@ -3059,7 +3060,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -3075,7 +3076,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -3088,10 +3089,10 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Right, YogaValue.Point(9f));
         root_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(4f));
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
-        root_child0_child0.FlexDirection = YogaFlexDirection.ColumnReverse;
+        root_child0_child0.FlexDirection = FlexDirection.ColumnReverse;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.Width = YogaValue.Percent(21f);
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -3122,7 +3123,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child0.InsertChild(root_child0_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(69f, root.LayoutWidth);
@@ -3143,7 +3144,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child0_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(69f, root.LayoutWidth);
@@ -3171,7 +3172,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -3187,7 +3188,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -3202,7 +3203,7 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.Width = YogaValue.Percent(21f);
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -3295,7 +3296,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child2.InsertChild(root_child0_child0_child2_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -3332,7 +3333,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child2_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child2_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child2_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -3376,7 +3377,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -3392,7 +3393,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -3407,7 +3408,7 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.Width = YogaValue.Percent(21f);
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Point(30f));
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
@@ -3501,7 +3502,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child2.InsertChild(root_child0_child0_child2_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -3538,7 +3539,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child2_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child2_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child2_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -3582,7 +3583,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -3598,7 +3599,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -3613,7 +3614,7 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Percent(23f));
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -3644,7 +3645,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child0.InsertChild(root_child0_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(69f, root.LayoutWidth);
@@ -3665,7 +3666,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child0_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(69f, root.LayoutWidth);
@@ -3693,7 +3694,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -3709,7 +3710,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -3724,7 +3725,7 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.SetPosition(YogaEdge.Left, YogaValue.Percent(23f));
         root_child0_child0_child0.SetPosition(YogaEdge.Right, YogaValue.Point(13f));
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
@@ -3756,7 +3757,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child0.InsertChild(root_child0_child0_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(69f, root.LayoutWidth);
@@ -3777,7 +3778,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child0_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(69f, root.LayoutWidth);
@@ -3805,7 +3806,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -3821,7 +3822,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -3834,10 +3835,10 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Right, YogaValue.Point(9f));
         root_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(4f));
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
-        root_child0_child0.JustifyContent = YogaJustify.Center;
+        root_child0_child0.JustifyContent = FlexJustify.Center;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.Width = YogaValue.Percent(21f);
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -3930,7 +3931,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child2.InsertChild(root_child0_child0_child2_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -3967,7 +3968,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child2_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child2_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child2_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -4011,7 +4012,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -4027,7 +4028,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -4040,10 +4041,10 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Right, YogaValue.Point(9f));
         root_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(4f));
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
-        root_child0_child0.JustifyContent = YogaJustify.FlexEnd;
+        root_child0_child0.JustifyContent = FlexJustify.FlexEnd;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.Width = YogaValue.Percent(21f);
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -4136,7 +4137,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child2.InsertChild(root_child0_child0_child2_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -4173,7 +4174,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child2_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child2_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child2_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -4217,7 +4218,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -4233,7 +4234,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -4246,10 +4247,10 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Right, YogaValue.Point(9f));
         root_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(4f));
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
-        root_child0_child0.AlignItems = YogaAlign.FlexStart;
+        root_child0_child0.AlignItems = FlexAlign.FlexStart;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.Width = YogaValue.Percent(21f);
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -4342,7 +4343,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child2.InsertChild(root_child0_child0_child2_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -4379,7 +4380,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child2_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child2_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child2_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -4423,7 +4424,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -4439,7 +4440,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -4452,10 +4453,10 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Right, YogaValue.Point(9f));
         root_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(4f));
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
-        root_child0_child0.AlignItems = YogaAlign.Center;
+        root_child0_child0.AlignItems = FlexAlign.Center;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.Width = YogaValue.Percent(21f);
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -4548,7 +4549,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child2.InsertChild(root_child0_child0_child2_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -4585,7 +4586,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child2_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child2_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child2_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -4629,7 +4630,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.SetMargin(YogaEdge.Top, YogaValue.Point(5f));
         root_child0.SetMargin(YogaEdge.Right, YogaValue.Point(9f));
@@ -4645,7 +4646,7 @@ public class YogaStaticPositionTest
         root_child0.SetPadding(YogaEdge.Left, YogaValue.Point(2f));
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(6f));
         root_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(3f));
         root_child0_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(9f));
@@ -4658,10 +4659,10 @@ public class YogaStaticPositionTest
         root_child0_child0.SetPadding(YogaEdge.Right, YogaValue.Point(9f));
         root_child0_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(4f));
         root_child0_child0.SetPadding(YogaEdge.Left, YogaValue.Point(1f));
-        root_child0_child0.AlignItems = YogaAlign.FlexEnd;
+        root_child0_child0.AlignItems = FlexAlign.FlexEnd;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0_child0.Width = YogaValue.Percent(21f);
         root_child0_child0_child0.SetMargin(YogaEdge.Top, YogaValue.Point(12f));
         root_child0_child0_child0.SetMargin(YogaEdge.Right, YogaValue.Point(4f));
@@ -4754,7 +4755,7 @@ public class YogaStaticPositionTest
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Bottom, YogaValue.Point(10f));
         root_child0_child0_child2_child0.SetPadding(YogaEdge.Left, YogaValue.Point(5f));
         root_child0_child0_child2.InsertChild(root_child0_child0_child2_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -4791,7 +4792,7 @@ public class YogaStaticPositionTest
         Assert.Equal(16f, root_child0_child0_child2_child0.LayoutY);
         Assert.Equal(100f, root_child0_child0_child2_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0_child2_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(215f, root.LayoutWidth);
@@ -4837,7 +4838,7 @@ public class YogaStaticPositionTest
         var root = new YogaNode(config);
         root.Height = YogaValue.Point(200f);
         root.Width = YogaValue.Point(100f);
-        root.PositionType = YogaPositionType.Static;
+        root.PositionType = FlexPositionType.Static;
         root.SetPadding(YogaEdge.Top, YogaValue.Point(1f));
         root.SetPadding(YogaEdge.Right, YogaValue.Point(11f));
         root.SetPadding(YogaEdge.Bottom, YogaValue.Point(4f));
@@ -4845,7 +4846,7 @@ public class YogaStaticPositionTest
         var root_child0 = new YogaNode(config);
         root_child0.Height = YogaValue.Percent(50f);
         root_child0.Width = YogaValue.Percent(50f);
-        root_child0.PositionType = YogaPositionType.Absolute;
+        root_child0.PositionType = FlexPositionType.Absolute;
         root_child0.SetBorder(YogaEdge.Top, 3f);
         root_child0.SetBorder(YogaEdge.Right, 2f);
         root_child0.SetBorder(YogaEdge.Bottom, 1f);
@@ -4859,7 +4860,7 @@ public class YogaStaticPositionTest
         root_child0.SetMargin(YogaEdge.Bottom, YogaValue.Point(1f));
         root_child0.SetMargin(YogaEdge.Left, YogaValue.Point(12f));
         root.InsertChild(root_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -4868,7 +4869,7 @@ public class YogaStaticPositionTest
         Assert.Equal(12f, root_child0.LayoutY);
         Assert.Equal(50f, root_child0.LayoutWidth);
         Assert.Equal(100f, root_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -4884,7 +4885,7 @@ public class YogaStaticPositionTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(400f);
         root_child0.Height = YogaValue.Point(400f);
@@ -4893,34 +4894,34 @@ public class YogaStaticPositionTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(100f);
-        root_child0_child0.PositionType = YogaPositionType.Static;
+        root_child0_child0.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child0, 0);
         var root_child0_child0_child0 = new YogaNode(config);
         root_child0_child0_child0.Height = YogaValue.Point(50f);
         root_child0_child0_child0.Width = YogaValue.Percent(10f);
-        root_child0_child0_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child0_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child0.InsertChild(root_child0_child0_child0, 0);
         var root_child0_child1 = new YogaNode(config);
         root_child0_child1.Height = YogaValue.Point(100f);
         root_child0_child1.Width = YogaValue.Point(100f);
-        root_child0_child1.PositionType = YogaPositionType.Static;
+        root_child0_child1.PositionType = FlexPositionType.Static;
         root_child0.InsertChild(root_child0_child1, 1);
         var root_child0_child1_child0 = new YogaNode(config);
         root_child0_child1_child0.Height = YogaValue.Point(50f);
         root_child0_child1_child0.Width = YogaValue.Percent(50f);
-        root_child0_child1_child0.PositionType = YogaPositionType.Absolute;
+        root_child0_child1_child0.PositionType = FlexPositionType.Absolute;
         root_child0_child1.InsertChild(root_child0_child1_child0, 0);
         var root_child0_child1_child1 = new YogaNode(config);
         root_child0_child1_child1.Height = YogaValue.Point(50f);
         root_child0_child1_child1.Width = YogaValue.Percent(50f);
-        root_child0_child1_child1.PositionType = YogaPositionType.Absolute;
+        root_child0_child1_child1.PositionType = FlexPositionType.Absolute;
         root_child0_child1.InsertChild(root_child0_child1_child1, 1);
         var root_child0_child2 = new YogaNode(config);
         root_child0_child2.Height = YogaValue.Point(50f);
         root_child0_child2.Width = YogaValue.Point(25f);
-        root_child0_child2.PositionType = YogaPositionType.Absolute;
+        root_child0_child2.PositionType = FlexPositionType.Absolute;
         root_child0.InsertChild(root_child0_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);
@@ -4953,7 +4954,7 @@ public class YogaStaticPositionTest
         Assert.Equal(100f, root_child0_child2.LayoutY);
         Assert.Equal(25f, root_child0_child2.LayoutWidth);
         Assert.Equal(50f, root_child0_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(400f, root.LayoutWidth);

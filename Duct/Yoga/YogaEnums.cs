@@ -1,22 +1,8 @@
 // C# port of Meta's Yoga layout engine enums.
 // Ported from yoga/enums/*.h
+// Public user-facing enums (FlexAlign, FlexDirection, etc.) have been moved to Duct.Flex.
 
-namespace Duct.Yoga;
-
-public enum YogaAlign
-{
-    Auto = 0,
-    FlexStart = 1,
-    Center = 2,
-    FlexEnd = 3,
-    Stretch = 4,
-    Baseline = 5,
-    SpaceBetween = 6,
-    SpaceAround = 7,
-    SpaceEvenly = 8,
-    Start = 9,
-    End = 10,
-}
+namespace Duct.Layout;
 
 public enum YogaBoxSizing
 {
@@ -28,13 +14,6 @@ public enum YogaDimension
 {
     Width = 0,
     Height = 1,
-}
-
-public enum YogaDirection
-{
-    Inherit = 0,
-    LTR = 1,
-    RTL = 2,
 }
 
 public enum YogaDisplay
@@ -87,33 +66,11 @@ public enum YogaExperimentalFeature
     FixFlexBasisFitContent = 1,
 }
 
-public enum YogaFlexDirection
-{
-    Column = 0,
-    ColumnReverse = 1,
-    Row = 2,
-    RowReverse = 3,
-}
-
 public enum YogaGutter
 {
     Column = 0,
     Row = 1,
     All = 2,
-}
-
-public enum YogaJustify
-{
-    Auto = 0,
-    FlexStart = 1,
-    Center = 2,
-    FlexEnd = 3,
-    SpaceBetween = 4,
-    SpaceAround = 5,
-    SpaceEvenly = 6,
-    Stretch = 7,
-    Start = 8,
-    End = 9,
 }
 
 public enum YogaLogLevel
@@ -146,13 +103,6 @@ public enum YogaOverflow
     Scroll = 2,
 }
 
-public enum YogaPositionType
-{
-    Static = 0,
-    Relative = 1,
-    Absolute = 2,
-}
-
 public enum YogaUnit
 {
     Undefined = 0,
@@ -162,13 +112,6 @@ public enum YogaUnit
     MaxContent = 4,
     FitContent = 5,
     Stretch = 6,
-}
-
-public enum YogaWrap
-{
-    NoWrap = 0,
-    Wrap = 1,
-    WrapReverse = 2,
 }
 
 /// <summary>

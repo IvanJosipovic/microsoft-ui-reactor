@@ -184,8 +184,8 @@ public record FlexAttached(
     double Grow = 0,
     double Shrink = 1,
     double? Basis = null,
-    Yoga.YogaAlign? AlignSelf = null,
-    Yoga.YogaPositionType Position = Yoga.YogaPositionType.Relative,
+    Flex.FlexAlign? AlignSelf = null,
+    Flex.FlexPositionType Position = Flex.FlexPositionType.Relative,
     double? Left = null,
     double? Top = null,
     double? Right = null,
@@ -650,11 +650,11 @@ public record GridElement(
 
 public record FlexElement(Element[] Children) : Element
 {
-    public Yoga.YogaFlexDirection Direction { get; init; } = Yoga.YogaFlexDirection.Row;
-    public Yoga.YogaJustify JustifyContent { get; init; } = Yoga.YogaJustify.FlexStart;
-    public Yoga.YogaAlign AlignItems { get; init; } = Yoga.YogaAlign.Stretch;
-    public Yoga.YogaAlign AlignContent { get; init; } = Yoga.YogaAlign.FlexStart;
-    public Yoga.YogaWrap Wrap { get; init; } = Yoga.YogaWrap.NoWrap;
+    public Flex.FlexDirection Direction { get; init; } = Flex.FlexDirection.Row;
+    public Flex.FlexJustify JustifyContent { get; init; } = Flex.FlexJustify.FlexStart;
+    public Flex.FlexAlign AlignItems { get; init; } = Flex.FlexAlign.Stretch;
+    public Flex.FlexAlign AlignContent { get; init; } = Flex.FlexAlign.FlexStart;
+    public Flex.FlexWrap Wrap { get; init; } = Flex.FlexWrap.NoWrap;
     public double ColumnGap { get; init; }
     public double RowGap { get; init; }
     internal Action<Flex.FlexPanel>[] Setters { get; init; } = [];

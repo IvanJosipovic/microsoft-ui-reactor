@@ -1,4 +1,5 @@
-using Duct.Yoga;
+using Duct.Layout;
+using Duct.Flex;
 using Xunit;
 
 namespace Duct.Tests.YogaGenerated;
@@ -13,8 +14,8 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(80f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -34,7 +35,7 @@ public class YogaGapTest
         root_child2.FlexShrink = 1f;
         root_child2.FlexBasis = YogaValue.Percent(0f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -51,7 +52,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(20f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -75,8 +76,8 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(80f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -89,7 +90,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Point(20f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -106,7 +107,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(20f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -130,8 +131,8 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(80f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -146,7 +147,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Point(20f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -163,7 +164,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(20f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -187,8 +188,8 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(80f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -210,7 +211,7 @@ public class YogaGapTest
         root_child2.FlexBasis = YogaValue.Percent(0f);
         root_child2.SetMargin(YogaEdge.Horizontal, YogaValue.Point(15f));
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -227,7 +228,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(2f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -251,9 +252,9 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
         root.Width = YogaValue.Point(80f);
         root.SetGap(YogaGutter.Column, 10f);
         root.SetGap(YogaGutter.Row, 20f);
@@ -293,7 +294,7 @@ public class YogaGapTest
         root_child8.Width = YogaValue.Point(20f);
         root_child8.Height = YogaValue.Point(20f);
         root.InsertChild(root_child8, 8);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -334,7 +335,7 @@ public class YogaGapTest
         Assert.Equal(80f, root_child8.LayoutY);
         Assert.Equal(20f, root_child8.LayoutWidth);
         Assert.Equal(20f, root_child8.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -382,16 +383,16 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
         root.Width = YogaValue.Point(80f);
         root.SetGap(YogaGutter.Column, 10f);
         root.SetGap(YogaGutter.Row, 20f);
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(20f);
         root_child0.Height = YogaValue.Point(20f);
-        root_child0.PositionType = YogaPositionType.Absolute;
+        root_child0.PositionType = FlexPositionType.Absolute;
         root.InsertChild(root_child0, 0);
         var root_child1 = new YogaNode(config);
         root_child1.Width = YogaValue.Point(20f);
@@ -405,7 +406,7 @@ public class YogaGapTest
         root_child3.Width = YogaValue.Point(20f);
         root_child3.Height = YogaValue.Point(20f);
         root.InsertChild(root_child3, 3);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -426,7 +427,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child3.LayoutY);
         Assert.Equal(20f, root_child3.LayoutWidth);
         Assert.Equal(20f, root_child3.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -454,8 +455,8 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -468,7 +469,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Point(20f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -485,7 +486,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(20f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -509,9 +510,9 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.JustifyContent = YogaJustify.Center;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.JustifyContent = FlexJustify.Center;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -524,7 +525,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Point(20f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -541,7 +542,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(20f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -565,9 +566,9 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.JustifyContent = YogaJustify.FlexEnd;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.JustifyContent = FlexJustify.FlexEnd;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -580,7 +581,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Point(20f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -597,7 +598,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(20f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -621,9 +622,9 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.JustifyContent = YogaJustify.SpaceBetween;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.JustifyContent = FlexJustify.SpaceBetween;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -636,7 +637,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Point(20f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -653,7 +654,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(20f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -677,9 +678,9 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.JustifyContent = YogaJustify.SpaceAround;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.JustifyContent = FlexJustify.SpaceAround;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -692,7 +693,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Point(20f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -709,7 +710,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(20f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -733,9 +734,9 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.JustifyContent = YogaJustify.SpaceEvenly;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.JustifyContent = FlexJustify.SpaceEvenly;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -748,7 +749,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Point(20f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -765,7 +766,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(20f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -789,9 +790,9 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -820,7 +821,7 @@ public class YogaGapTest
         root_child5.Width = YogaValue.Point(20f);
         root_child5.Height = YogaValue.Point(20f);
         root.InsertChild(root_child5, 5);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -849,7 +850,7 @@ public class YogaGapTest
         Assert.Equal(40f, root_child5.LayoutY);
         Assert.Equal(20f, root_child5.LayoutWidth);
         Assert.Equal(20f, root_child5.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -885,10 +886,10 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
-        root.AlignContent = YogaAlign.Center;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
+        root.AlignContent = FlexAlign.Center;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -917,7 +918,7 @@ public class YogaGapTest
         root_child5.Width = YogaValue.Point(20f);
         root_child5.Height = YogaValue.Point(20f);
         root.InsertChild(root_child5, 5);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -946,7 +947,7 @@ public class YogaGapTest
         Assert.Equal(60f, root_child5.LayoutY);
         Assert.Equal(20f, root_child5.LayoutWidth);
         Assert.Equal(20f, root_child5.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -982,10 +983,10 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
-        root.AlignContent = YogaAlign.FlexEnd;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
+        root.AlignContent = FlexAlign.FlexEnd;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -1014,7 +1015,7 @@ public class YogaGapTest
         root_child5.Width = YogaValue.Point(20f);
         root_child5.Height = YogaValue.Point(20f);
         root.InsertChild(root_child5, 5);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1043,7 +1044,7 @@ public class YogaGapTest
         Assert.Equal(80f, root_child5.LayoutY);
         Assert.Equal(20f, root_child5.LayoutWidth);
         Assert.Equal(20f, root_child5.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1079,10 +1080,10 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
-        root.AlignContent = YogaAlign.SpaceBetween;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
+        root.AlignContent = FlexAlign.SpaceBetween;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -1111,7 +1112,7 @@ public class YogaGapTest
         root_child5.Width = YogaValue.Point(20f);
         root_child5.Height = YogaValue.Point(20f);
         root.InsertChild(root_child5, 5);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1140,7 +1141,7 @@ public class YogaGapTest
         Assert.Equal(80f, root_child5.LayoutY);
         Assert.Equal(20f, root_child5.LayoutWidth);
         Assert.Equal(20f, root_child5.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1176,10 +1177,10 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
-        root.AlignContent = YogaAlign.SpaceAround;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
+        root.AlignContent = FlexAlign.SpaceAround;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
@@ -1208,7 +1209,7 @@ public class YogaGapTest
         root_child5.Width = YogaValue.Point(20f);
         root_child5.Height = YogaValue.Point(20f);
         root.InsertChild(root_child5, 5);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1237,7 +1238,7 @@ public class YogaGapTest
         Assert.Equal(70f, root_child5.LayoutY);
         Assert.Equal(20f, root_child5.LayoutWidth);
         Assert.Equal(20f, root_child5.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1273,13 +1274,13 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
         root.Width = YogaValue.Point(300f);
         root.Height = YogaValue.Point(300f);
         root.SetGap(YogaGutter.Column, 5f);
-        root.AlignContent = YogaAlign.Stretch;
+        root.AlignContent = FlexAlign.Stretch;
         var root_child0 = new YogaNode(config);
         root_child0.MinWidth = YogaValue.Point(60f);
         root_child0.FlexGrow = 1f;
@@ -1300,7 +1301,7 @@ public class YogaGapTest
         root_child4.MinWidth = YogaValue.Point(60f);
         root_child4.FlexGrow = 1f;
         root.InsertChild(root_child4, 4);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -1325,7 +1326,7 @@ public class YogaGapTest
         Assert.Equal(150f, root_child4.LayoutY);
         Assert.Equal(300f, root_child4.LayoutWidth);
         Assert.Equal(150f, root_child4.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -1357,8 +1358,8 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Height = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Column, 10f);
         var root_child0 = new YogaNode(config);
@@ -1370,7 +1371,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Point(30f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -1387,7 +1388,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(30f, root_child2.LayoutWidth);
         Assert.Equal(100f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(80f, root.LayoutWidth);
@@ -1411,14 +1412,14 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(200f);
         root.SetGap(YogaGutter.Column, 10f);
         root.SetGap(YogaGutter.Row, 20f);
-        root.AlignContent = YogaAlign.Stretch;
+        root.AlignContent = FlexAlign.Stretch;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(20f);
         root.InsertChild(root_child0, 0);
@@ -1437,7 +1438,7 @@ public class YogaGapTest
         var root_child5 = new YogaNode(config);
         root_child5.Width = YogaValue.Point(20f);
         root.InsertChild(root_child5, 5);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1466,7 +1467,7 @@ public class YogaGapTest
         Assert.Equal(110f, root_child5.LayoutY);
         Assert.Equal(20f, root_child5.LayoutWidth);
         Assert.Equal(90f, root_child5.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1502,14 +1503,14 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(200f);
         root.SetGap(YogaGutter.Column, 10f);
         root.SetGap(YogaGutter.Row, 20f);
-        root.AlignItems = YogaAlign.FlexEnd;
+        root.AlignItems = FlexAlign.FlexEnd;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(20f);
         root.InsertChild(root_child0, 0);
@@ -1528,7 +1529,7 @@ public class YogaGapTest
         var root_child5 = new YogaNode(config);
         root_child5.Width = YogaValue.Point(20f);
         root.InsertChild(root_child5, 5);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1557,7 +1558,7 @@ public class YogaGapTest
         Assert.Equal(20f, root_child5.LayoutY);
         Assert.Equal(20f, root_child5.LayoutWidth);
         Assert.Equal(0f, root_child5.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1593,7 +1594,7 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(200f);
         root.SetGap(YogaGutter.Row, 10f);
@@ -1615,7 +1616,7 @@ public class YogaGapTest
         root_child2.FlexBasis = YogaValue.Percent(0f);
         root_child2.SetMargin(YogaEdge.Vertical, YogaValue.Point(15f));
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1632,7 +1633,7 @@ public class YogaGapTest
         Assert.Equal(143f, root_child2.LayoutY);
         Assert.Equal(100f, root_child2.LayoutWidth);
         Assert.Equal(42f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1656,9 +1657,9 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.FlexWrap = YogaWrap.Wrap;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.FlexWrap = FlexWrap.Wrap;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(200f);
         root.SetGap(YogaGutter.Row, 10f);
@@ -1674,7 +1675,7 @@ public class YogaGapTest
         root_child2.Width = YogaValue.Point(60f);
         root_child2.SetMargin(YogaEdge.Vertical, YogaValue.Point(15f));
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1691,7 +1692,7 @@ public class YogaGapTest
         Assert.Equal(59f, root_child2.LayoutY);
         Assert.Equal(60f, root_child2.LayoutWidth);
         Assert.Equal(0f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1715,7 +1716,7 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(100f);
         root.SetGap(YogaGutter.Row, 10f);
         var root_child0 = new YogaNode(config);
@@ -1727,7 +1728,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Height = YogaValue.Point(30f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1744,7 +1745,7 @@ public class YogaGapTest
         Assert.Equal(50f, root_child2.LayoutY);
         Assert.Equal(100f, root_child2.LayoutWidth);
         Assert.Equal(30f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -1768,13 +1769,13 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(300f);
         root.Height = YogaValue.Point(700f);
         root.SetPadding(YogaEdge.All, YogaValue.Point(10f));
         root.SetGap(YogaGutter.All, YogaValue.Percent(10f));
-        root.FlexWrap = YogaWrap.Wrap;
+        root.FlexWrap = FlexWrap.Wrap;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(100f);
         root_child0.Height = YogaValue.Point(100f);
@@ -1795,7 +1796,7 @@ public class YogaGapTest
         root_child4.Width = YogaValue.Point(100f);
         root_child4.Height = YogaValue.Point(100f);
         root.InsertChild(root_child4, 4);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -1820,7 +1821,7 @@ public class YogaGapTest
         Assert.Equal(346f, root_child4.LayoutY);
         Assert.Equal(100f, root_child4.LayoutWidth);
         Assert.Equal(100f, root_child4.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -1852,11 +1853,11 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(300f);
         root.SetGap(YogaGutter.All, YogaValue.Percent(10f));
-        root.FlexWrap = YogaWrap.Wrap;
+        root.FlexWrap = FlexWrap.Wrap;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(100f);
         root_child0.Height = YogaValue.Point(100f);
@@ -1877,7 +1878,7 @@ public class YogaGapTest
         root_child4.Width = YogaValue.Point(100f);
         root_child4.Height = YogaValue.Point(100f);
         root.InsertChild(root_child4, 4);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -1902,7 +1903,7 @@ public class YogaGapTest
         Assert.Equal(200f, root_child4.LayoutY);
         Assert.Equal(100f, root_child4.LayoutWidth);
         Assert.Equal(100f, root_child4.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -1934,13 +1935,13 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(300f);
         root.Height = YogaValue.Point(700f);
         root.SetPadding(YogaEdge.All, YogaValue.Point(10f));
         root.SetGap(YogaGutter.All, YogaValue.Percent(10f));
-        root.FlexWrap = YogaWrap.Wrap;
+        root.FlexWrap = FlexWrap.Wrap;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(100f);
         root_child0.Height = YogaValue.Point(100f);
@@ -1966,7 +1967,7 @@ public class YogaGapTest
         root_child4.Height = YogaValue.Point(100f);
         root_child4.SetPadding(YogaEdge.All, YogaValue.Point(10f));
         root.InsertChild(root_child4, 4);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -1991,7 +1992,7 @@ public class YogaGapTest
         Assert.Equal(346f, root_child4.LayoutY);
         Assert.Equal(100f, root_child4.LayoutWidth);
         Assert.Equal(100f, root_child4.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2023,13 +2024,13 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(300f);
         root.Height = YogaValue.Point(700f);
         root.SetPadding(YogaEdge.All, YogaValue.Point(10f));
         root.SetGap(YogaGutter.All, YogaValue.Percent(10f));
-        root.FlexWrap = YogaWrap.Wrap;
+        root.FlexWrap = FlexWrap.Wrap;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(100f);
         root_child0.Height = YogaValue.Point(100f);
@@ -2050,7 +2051,7 @@ public class YogaGapTest
         root_child4.Width = YogaValue.Point(100f);
         root_child4.Height = YogaValue.Point(100f);
         root.InsertChild(root_child4, 4);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2075,7 +2076,7 @@ public class YogaGapTest
         Assert.Equal(346f, root_child4.LayoutY);
         Assert.Equal(100f, root_child4.LayoutWidth);
         Assert.Equal(100f, root_child4.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2107,13 +2108,13 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(300f);
         root.Height = YogaValue.Point(700f);
         root.SetMargin(YogaEdge.All, YogaValue.Point(10f));
         root.SetGap(YogaGutter.All, YogaValue.Percent(10f));
-        root.FlexWrap = YogaWrap.Wrap;
+        root.FlexWrap = FlexWrap.Wrap;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(100f);
         root_child0.Height = YogaValue.Point(100f);
@@ -2134,7 +2135,7 @@ public class YogaGapTest
         root_child4.Width = YogaValue.Point(100f);
         root_child4.Height = YogaValue.Point(100f);
         root.InsertChild(root_child4, 4);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(10f, root.LayoutX);
         Assert.Equal(10f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2159,7 +2160,7 @@ public class YogaGapTest
         Assert.Equal(340f, root_child4.LayoutY);
         Assert.Equal(100f, root_child4.LayoutWidth);
         Assert.Equal(100f, root_child4.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(10f, root.LayoutX);
         Assert.Equal(10f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2191,14 +2192,14 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(300f);
         root.Height = YogaValue.Point(700f);
         root.SetMargin(YogaEdge.All, YogaValue.Point(10f));
         root.SetPadding(YogaEdge.All, YogaValue.Point(10f));
         root.SetGap(YogaGutter.All, YogaValue.Percent(10f));
-        root.FlexWrap = YogaWrap.Wrap;
+        root.FlexWrap = FlexWrap.Wrap;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(100f);
         root_child0.Height = YogaValue.Point(100f);
@@ -2219,7 +2220,7 @@ public class YogaGapTest
         root_child4.Width = YogaValue.Point(100f);
         root_child4.Height = YogaValue.Point(100f);
         root.InsertChild(root_child4, 4);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(10f, root.LayoutX);
         Assert.Equal(10f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2244,7 +2245,7 @@ public class YogaGapTest
         Assert.Equal(346f, root_child4.LayoutY);
         Assert.Equal(100f, root_child4.LayoutWidth);
         Assert.Equal(100f, root_child4.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(10f, root.LayoutX);
         Assert.Equal(10f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2276,8 +2277,8 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(300f);
         root.Height = YogaValue.Point(300f);
         root.SetGap(YogaGutter.All, YogaValue.Percent(10f));
@@ -2296,7 +2297,7 @@ public class YogaGapTest
         root_child2.FlexShrink = 1f;
         root_child2.FlexBasis = YogaValue.Percent(0f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2313,7 +2314,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(80f, root_child2.LayoutWidth);
         Assert.Equal(300f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2337,8 +2338,8 @@ public class YogaGapTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.Width = YogaValue.Point(300f);
         root.Height = YogaValue.Point(300f);
         root.SetGap(YogaGutter.All, YogaValue.Percent(10f));
@@ -2353,7 +2354,7 @@ public class YogaGapTest
         var root_child2 = new YogaNode(config);
         root_child2.Width = YogaValue.Percent(10f);
         root.InsertChild(root_child2, 2);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2370,7 +2371,7 @@ public class YogaGapTest
         Assert.Equal(0f, root_child2.LayoutY);
         Assert.Equal(30f, root_child2.LayoutWidth);
         Assert.Equal(300f, root_child2.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2395,11 +2396,11 @@ public class YogaGapTest
         // TODO: GTEST_SKIP();
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
         root.MinWidth = YogaValue.Point(300f);
         root.SetGap(YogaGutter.All, YogaValue.Percent(10f));
-        root.FlexWrap = YogaWrap.Wrap;
+        root.FlexWrap = FlexWrap.Wrap;
         var root_child0 = new YogaNode(config);
         root_child0.Width = YogaValue.Point(100f);
         root_child0.Height = YogaValue.Point(100f);
@@ -2420,7 +2421,7 @@ public class YogaGapTest
         root_child4.Width = YogaValue.Point(100f);
         root_child4.Height = YogaValue.Point(100f);
         root.InsertChild(root_child4, 4);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -2445,7 +2446,7 @@ public class YogaGapTest
         Assert.Equal(200f, root_child4.LayoutY);
         Assert.Equal(100f, root_child4.LayoutWidth);
         Assert.Equal(100f, root_child4.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);

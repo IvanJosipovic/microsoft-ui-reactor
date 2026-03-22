@@ -2,7 +2,9 @@
 // Ported from yoga/algorithm/BoundAxis.h, Align.h, TrailingPosition.h, SizingMode.h,
 // Cache.cpp, Baseline.cpp, FlexLine.h/cpp, PixelGrid.cpp
 
-namespace Duct.Yoga;
+using Duct.Flex;
+
+namespace Duct.Layout;
 
 /// <summary>
 /// Sizing mode conversion between internal SizingMode and public MeasureMode.
@@ -31,33 +33,33 @@ internal static class SizingModeHelper
 /// </summary>
 internal static class AlignHelper
 {
-    public static YogaAlign ResolveChildAlignment(YogaNode node, YogaNode child)
+    public static FlexAlign ResolveChildAlignment(YogaNode node, YogaNode child)
     {
-        var align = child.Style.AlignSelf == YogaAlign.Auto
+        var align = child.Style.AlignSelf == FlexAlign.Auto
             ? node.Style.AlignItems
             : child.Style.AlignSelf;
 
-        if (node.Style.Display == YogaDisplay.Flex && align == YogaAlign.Baseline &&
+        if (node.Style.Display == YogaDisplay.Flex && align == FlexAlign.Baseline &&
             FlexDirectionHelper.IsColumn(node.Style.FlexDirection))
         {
-            return YogaAlign.FlexStart;
+            return FlexAlign.FlexStart;
         }
         return align;
     }
 
-    public static YogaAlign FallbackAlignment(YogaAlign align) => align switch
+    public static FlexAlign FallbackAlignment(FlexAlign align) => align switch
     {
-        YogaAlign.SpaceBetween or YogaAlign.Stretch => YogaAlign.FlexStart,
-        YogaAlign.SpaceAround or YogaAlign.SpaceEvenly => YogaAlign.FlexStart,
+        FlexAlign.SpaceBetween or FlexAlign.Stretch => FlexAlign.FlexStart,
+        FlexAlign.SpaceAround or FlexAlign.SpaceEvenly => FlexAlign.FlexStart,
         _ => align,
     };
 
     // NOTE: C++ has a TODO for justify-content: stretch support.
     // Stretch is deliberately NOT included in the fallback here to match C++ behavior.
-    public static YogaJustify FallbackAlignment(YogaJustify align) => align switch
+    public static FlexJustify FallbackAlignment(FlexJustify align) => align switch
     {
-        YogaJustify.SpaceBetween => YogaJustify.FlexStart,
-        YogaJustify.SpaceAround or YogaJustify.SpaceEvenly => YogaJustify.FlexStart,
+        FlexJustify.SpaceBetween => FlexJustify.FlexStart,
+        FlexJustify.SpaceAround or FlexJustify.SpaceEvenly => FlexJustify.FlexStart,
         _ => align,
     };
 
@@ -66,9 +68,9 @@ internal static class AlignHelper
     /// when the child specifies Auto. Used for grid containers.
     /// Ported from C++ Align.h resolveChildJustification().
     /// </summary>
-    public static YogaJustify ResolveChildJustification(YogaNode parent, YogaNode child)
+    public static FlexJustify ResolveChildJustification(YogaNode parent, YogaNode child)
     {
-        return child.Style.JustifySelf == YogaJustify.Auto
+        return child.Style.JustifySelf == FlexJustify.Auto
             ? parent.Style.JustifyItems
             : child.Style.JustifySelf;
     }
@@ -79,12 +81,12 @@ internal static class AlignHelper
 /// </summary>
 internal static class BoundAxisHelper
 {
-    public static float PaddingAndBorderForAxis(YogaNode node, YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public static float PaddingAndBorderForAxis(YogaNode node, FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => node.Style.ComputeInlineStartPaddingAndBorder(axis, direction, widthSize)
          + node.Style.ComputeInlineEndPaddingAndBorder(axis, direction, widthSize);
 
     public static float BoundAxisWithinMinAndMax(
-        YogaNode node, YogaDirection direction, YogaFlexDirection axis,
+        YogaNode node, FlexLayoutDirection direction, FlexDirection axis,
         float value, float axisSize, float widthSize)
     {
         float min, max;
@@ -107,7 +109,7 @@ internal static class BoundAxisHelper
     }
 
     public static float BoundAxis(
-        YogaNode node, YogaFlexDirection axis, YogaDirection direction,
+        YogaNode node, FlexDirection axis, FlexLayoutDirection direction,
         float value, float axisSize, float widthSize)
     {
         return YogaFloat.MaxOrDefined(
@@ -121,7 +123,7 @@ internal static class BoundAxisHelper
 /// </summary>
 internal static class TrailingPositionHelper
 {
-    public static float GetPositionOfOppositeEdge(float position, YogaFlexDirection axis,
+    public static float GetPositionOfOppositeEdge(float position, FlexDirection axis,
         YogaNode containingNode, YogaNode node)
     {
         return containingNode.Layout.GetMeasuredDimension(FlexDirectionHelper.Dimension(axis))
@@ -129,7 +131,7 @@ internal static class TrailingPositionHelper
              - position;
     }
 
-    public static void SetChildTrailingPosition(YogaNode node, YogaNode child, YogaFlexDirection axis)
+    public static void SetChildTrailingPosition(YogaNode node, YogaNode child, FlexDirection axis)
     {
         child.SetLayoutPosition(
             GetPositionOfOppositeEdge(
@@ -137,8 +139,8 @@ internal static class TrailingPositionHelper
             FlexDirectionHelper.FlexEndEdge(axis));
     }
 
-    public static bool NeedsTrailingPosition(YogaFlexDirection axis)
-        => axis == YogaFlexDirection.RowReverse || axis == YogaFlexDirection.ColumnReverse;
+    public static bool NeedsTrailingPosition(FlexDirection axis)
+        => axis == FlexDirection.RowReverse || axis == FlexDirection.ColumnReverse;
 }
 
 /// <summary>
@@ -162,8 +164,8 @@ internal static class BaselineHelper
         foreach (var child in node.GetLayoutChildren())
         {
             if (child.LineIndex > 0) break;
-            if (child.Style.PositionType == YogaPositionType.Absolute) continue;
-            if (AlignHelper.ResolveChildAlignment(node, child) == YogaAlign.Baseline ||
+            if (child.Style.PositionType == FlexPositionType.Absolute) continue;
+            if (AlignHelper.ResolveChildAlignment(node, child) == FlexAlign.Baseline ||
                 child.IsReferenceBaseline)
             {
                 baselineChild = child;
@@ -183,12 +185,12 @@ internal static class BaselineHelper
     {
         if (FlexDirectionHelper.IsColumn(node.Style.FlexDirection))
             return false;
-        if (node.Style.AlignItems == YogaAlign.Baseline)
+        if (node.Style.AlignItems == FlexAlign.Baseline)
             return true;
         foreach (var child in node.GetLayoutChildren())
         {
-            if (child.Style.PositionType != YogaPositionType.Absolute &&
-                child.Style.AlignSelf == YogaAlign.Baseline)
+            if (child.Style.PositionType != FlexPositionType.Absolute &&
+                child.Style.AlignSelf == FlexAlign.Baseline)
                 return true;
         }
         return false;
@@ -363,7 +365,7 @@ internal static class FlexLineHelper
     /// Assumes all children have their computedFlexBasis computed.
     /// </summary>
     public static FlexLine CalculateFlexLine(
-        YogaNode node, YogaDirection ownerDirection, float ownerWidth,
+        YogaNode node, FlexLayoutDirection ownerDirection, float ownerWidth,
         float mainAxisOwnerSize, float availableInnerWidth, float availableInnerMainDim,
         ref int childIndex, int lineCount)
     {
@@ -377,7 +379,7 @@ internal static class FlexLineHelper
         float sizeConsumedIncludingMinConstraint = 0;
         var direction = node.ResolveDirection(ownerDirection);
         var mainAxis = FlexDirectionHelper.ResolveDirection(node.Style.FlexDirection, direction);
-        bool isNodeFlexWrap = node.Style.FlexWrap != YogaWrap.NoWrap;
+        bool isNodeFlexWrap = node.Style.FlexWrap != FlexWrap.NoWrap;
         float gap = node.Style.ComputeGapForAxis(mainAxis, availableInnerMainDim);
 
         var layoutChildren = new List<YogaNode>(node.GetLayoutChildren());
@@ -386,7 +388,7 @@ internal static class FlexLineHelper
         {
             var child = layoutChildren[childIndex];
             if (child.Style.Display == YogaDisplay.None ||
-                child.Style.PositionType == YogaPositionType.Absolute)
+                child.Style.PositionType == FlexPositionType.Absolute)
                 continue;
 
             firstElementInLine ??= child;

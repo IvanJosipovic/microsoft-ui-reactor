@@ -1,7 +1,9 @@
 // C# port of Meta's Yoga layout engine Config.
 // Ported from yoga/config/Config.h, yoga/config/Config.cpp
 
-namespace Duct.Yoga;
+using Duct.Flex;
+
+namespace Duct.Layout;
 
 /// <summary>
 /// Configuration for the Yoga layout engine. Controls experimental features,

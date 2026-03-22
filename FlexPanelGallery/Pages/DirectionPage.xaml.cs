@@ -1,4 +1,4 @@
-using Duct.Yoga;
+using Duct.Flex;
 using Microsoft.UI.Xaml.Controls;
 
 namespace FlexPanelGallery.Pages;
@@ -17,11 +17,11 @@ public sealed partial class DirectionPage : Page
         {
             DemoPanel.Direction = tag switch
             {
-                "Row" => YogaFlexDirection.Row,
-                "RowReverse" => YogaFlexDirection.RowReverse,
-                "Column" => YogaFlexDirection.Column,
-                "ColumnReverse" => YogaFlexDirection.ColumnReverse,
-                _ => YogaFlexDirection.Row,
+                "Row" => FlexDirection.Row,
+                "RowReverse" => FlexDirection.RowReverse,
+                "Column" => FlexDirection.Column,
+                "ColumnReverse" => FlexDirection.ColumnReverse,
+                _ => FlexDirection.Row,
             };
         }
     }

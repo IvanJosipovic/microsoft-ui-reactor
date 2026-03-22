@@ -102,11 +102,11 @@ The ergonomic advantage is significant. Every WinUI3 developer understands panel
 │              Duct.Flex (Standalone)                   │
 │  FlexPanel : Panel                                   │
 │  FlexPanel attached DPs (Grow, Shrink, Basis, etc.)  │
-│  (depends on WinUI3 + Duct.Yoga only)               │
+│  (depends on WinUI3 + Duct.Layout only)              │
 └──────────────────────┬──────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────┐
-│              Duct.Yoga (Standalone)                   │
+│              Duct.Layout (Standalone)                  │
 │  Pure C# port of Yoga layout engine                  │
 │  YogaNode, YogaConfig, enums, algorithm              │
 │  (zero external dependencies)                        │
@@ -117,9 +117,9 @@ Each layer is a separate namespace (potentially separate project/assembly if ext
 
 ---
 
-## Layer 1: Duct.Yoga — Pure C# Yoga Port
+## Layer 1: Duct.Layout — Pure C# Yoga Port
 
-### Namespace: `Duct.Yoga`
+### Namespace: `Duct.Layout`
 
 ### What to port
 
@@ -145,15 +145,15 @@ The Yoga C++ source at `yoga/` is ~11,700 lines. The C# port targets:
 ### Key types
 
 ```csharp
-namespace Duct.Yoga;
+namespace Duct.Layout;
 
 // ── Enums ──────────────────────────────────────────────
-public enum YogaDirection { Inherit, LTR, RTL }
-public enum YogaFlexDirection { Column, ColumnReverse, Row, RowReverse }
-public enum YogaJustify { FlexStart, Center, FlexEnd, SpaceBetween, SpaceAround, SpaceEvenly }
-public enum YogaAlign { Auto, FlexStart, Center, FlexEnd, Stretch, Baseline, SpaceBetween, SpaceAround, SpaceEvenly }
-public enum YogaWrap { NoWrap, Wrap, WrapReverse }
-public enum YogaPositionType { Static, Relative, Absolute }
+public enum FlexLayoutDirection { Inherit, LTR, RTL }
+public enum FlexDirection { Column, ColumnReverse, Row, RowReverse }
+public enum FlexJustify { FlexStart, Center, FlexEnd, SpaceBetween, SpaceAround, SpaceEvenly }
+public enum FlexAlign { Auto, FlexStart, Center, FlexEnd, Stretch, Baseline, SpaceBetween, SpaceAround, SpaceEvenly }
+public enum FlexWrap { NoWrap, Wrap, WrapReverse }
+public enum FlexPositionType { Static, Relative, Absolute }
 public enum YogaOverflow { Visible, Hidden, Scroll }
 public enum YogaDisplay { Flex, None }
 public enum YogaUnit { Undefined, Point, Percent, Auto }
@@ -184,13 +184,13 @@ public sealed class YogaNode
     public YogaNode? Owner { get; }
 
     // Style properties (all setters mark node dirty)
-    public YogaFlexDirection FlexDirection { get; set; }
-    public YogaJustify JustifyContent { get; set; }
-    public YogaAlign AlignItems { get; set; }
-    public YogaAlign AlignSelf { get; set; }
-    public YogaAlign AlignContent { get; set; }
-    public YogaWrap FlexWrap { get; set; }
-    public YogaPositionType PositionType { get; set; }
+    public FlexDirection FlexDirection { get; set; }
+    public FlexJustify JustifyContent { get; set; }
+    public FlexAlign AlignItems { get; set; }
+    public FlexAlign AlignSelf { get; set; }
+    public FlexAlign AlignContent { get; set; }
+    public FlexWrap FlexWrap { get; set; }
+    public FlexPositionType PositionType { get; set; }
     public YogaDisplay Display { get; set; }
     public float FlexGrow { get; set; }
     public float FlexShrink { get; set; }
@@ -214,7 +214,7 @@ public sealed class YogaNode
     public BaselineFunc? BaselineFunction { get; set; }
 
     // Layout computation
-    public void CalculateLayout(float availableWidth, float availableHeight, YogaDirection direction);
+    public void CalculateLayout(float availableWidth, float availableHeight, FlexLayoutDirection direction);
 
     // Layout results (read after CalculateLayout)
     public float LayoutX { get; }
@@ -257,12 +257,12 @@ namespace Duct.Flex;
 public class FlexPanel : Panel
 {
     // ── Container properties (DependencyProperty) ─────────
-    public YogaFlexDirection Direction { get; set; }          // default: Row
-    public YogaJustify JustifyContent { get; set; }           // default: FlexStart
-    public YogaAlign AlignItems { get; set; }                 // default: Stretch
-    public YogaAlign AlignContent { get; set; }               // default: FlexStart
-    public YogaWrap Wrap { get; set; }                        // default: NoWrap
-    public YogaDirection LayoutDirection { get; set; }        // default: LTR
+    public FlexDirection Direction { get; set; }          // default: Row
+    public FlexJustify JustifyContent { get; set; }           // default: FlexStart
+    public FlexAlign AlignItems { get; set; }                 // default: Stretch
+    public FlexAlign AlignContent { get; set; }               // default: FlexStart
+    public FlexWrap Wrap { get; set; }                        // default: NoWrap
+    public FlexLayoutDirection LayoutDirection { get; set; }        // default: LTR
     public double ColumnGap { get; set; }                     // default: 0
     public double RowGap { get; set; }                        // default: 0
     public Thickness FlexPadding { get; set; }                // default: 0 (Yoga-computed padding)
@@ -356,11 +356,11 @@ The FlexPanel maintains a `Dictionary<UIElement, YogaNode>` to avoid recreating 
 // In Element.cs
 public record FlexElement(Element[] Children) : Element
 {
-    public YogaFlexDirection Direction { get; init; } = YogaFlexDirection.Row;
-    public YogaJustify JustifyContent { get; init; } = YogaJustify.FlexStart;
-    public YogaAlign AlignItems { get; init; } = YogaAlign.Stretch;
-    public YogaAlign AlignContent { get; init; } = YogaAlign.FlexStart;
-    public YogaWrap Wrap { get; init; } = YogaWrap.NoWrap;
+    public FlexDirection Direction { get; init; } = FlexDirection.Row;
+    public FlexJustify JustifyContent { get; init; } = FlexJustify.FlexStart;
+    public FlexAlign AlignItems { get; init; } = FlexAlign.Stretch;
+    public FlexAlign AlignContent { get; init; } = FlexAlign.FlexStart;
+    public FlexWrap Wrap { get; init; } = FlexWrap.NoWrap;
     public double ColumnGap { get; init; }
     public double RowGap { get; init; }
     internal Action<FlexPanel>[] Setters { get; init; } = [];
@@ -375,8 +375,8 @@ public record FlexAttached(
     double Grow = 0,
     double Shrink = 1,
     double? Basis = null,           // null = auto
-    YogaAlign? AlignSelf = null,    // null = inherit from container
-    YogaPositionType Position = YogaPositionType.Relative,
+    FlexAlign? AlignSelf = null,    // null = inherit from container
+    FlexPositionType Position = FlexPositionType.Relative,
     double? Left = null,
     double? Top = null,
     double? Right = null,
@@ -394,8 +394,8 @@ public static class FlexExtensions
         double grow = 0,
         double shrink = 1,
         double? basis = null,
-        YogaAlign? alignSelf = null,
-        YogaPositionType position = YogaPositionType.Relative,
+        FlexAlign? alignSelf = null,
+        FlexPositionType position = FlexPositionType.Relative,
         double? left = null,
         double? top = null,
         double? right = null,
@@ -414,16 +414,16 @@ public static FlexElement Flex(
     new(children.Where(c => c is not null).ToArray()!);
 
 public static FlexElement Flex(
-    YogaFlexDirection direction,
+    FlexDirection direction,
     params Element?[] children) =>
     new(children.Where(c => c is not null).ToArray()!) { Direction = direction };
 
 // Overloads for common combos
 public static FlexElement FlexRow(params Element?[] children) =>
-    Flex(YogaFlexDirection.Row, children);
+    Flex(FlexDirection.Row, children);
 
 public static FlexElement FlexColumn(params Element?[] children) =>
-    Flex(YogaFlexDirection.Column, children);
+    Flex(FlexDirection.Column, children);
 ```
 
 ### Duct usage example
@@ -434,17 +434,17 @@ FlexRow(
     Image("logo.png").Width(48).Height(48),
     HStack(Text("Home"), Text("About")).Flex(grow: 1),
     Button("Sign In", onClick).Flex(shrink: 0)
-) { JustifyContent = YogaJustify.SpaceBetween, AlignItems = YogaAlign.Center }
+) { JustifyContent = FlexJustify.SpaceBetween, AlignItems = FlexAlign.Center }
 
 // Wrapping tag cloud
 Flex(
     tags.Select(t => Text(t).Flex(grow: 1)).ToArray()
-) { Direction = YogaFlexDirection.Row, Wrap = YogaWrap.Wrap, ColumnGap = 8, RowGap = 8 }
+) { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, ColumnGap = 8, RowGap = 8 }
 
 // Absolute overlay
 Flex(
     Text("Background content").Flex(grow: 1),
-    Text("Overlay badge").Flex(position: YogaPositionType.Absolute, top: 8, right: 8)
+    Text("Overlay badge").Flex(position: FlexPositionType.Absolute, top: 8, right: 8)
 )
 ```
 

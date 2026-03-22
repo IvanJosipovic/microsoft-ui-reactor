@@ -1,4 +1,5 @@
-using Duct.Yoga;
+using Duct.Layout;
+using Duct.Flex;
 using Xunit;
 
 namespace Duct.Tests.YogaGenerated;
@@ -13,8 +14,8 @@ public class YogaDisplayContentsTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.FlexDirection = YogaFlexDirection.Row;
-        root.PositionType = YogaPositionType.Absolute;
+        root.FlexDirection = FlexDirection.Row;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(100f);
         root.Height = YogaValue.Point(100f);
         var root_child0 = new YogaNode(config);
@@ -32,7 +33,7 @@ public class YogaDisplayContentsTest
         root_child0_child1.FlexBasis = YogaValue.Percent(0f);
         root_child0_child1.Height = YogaValue.Point(20f);
         root_child0.InsertChild(root_child0_child1, 1);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);
@@ -49,7 +50,7 @@ public class YogaDisplayContentsTest
         Assert.Equal(0f, root_child0_child1.LayoutY);
         Assert.Equal(50f, root_child0_child1.LayoutWidth);
         Assert.Equal(20f, root_child0_child1.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(100f, root.LayoutWidth);

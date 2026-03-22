@@ -2,7 +2,9 @@
 // Ported from yoga/style/Style.h
 // Simplifies C++ StyleValuePool to plain fields (memory compaction less important in managed code).
 
-namespace Duct.Yoga;
+using Duct.Flex;
+
+namespace Duct.Layout;
 
 /// <summary>
 /// Stores all CSS-like style properties for a YogaNode.
@@ -21,16 +23,16 @@ internal sealed class YogaStyle
     public const float WebDefaultFlexShrink = 1.0f;
 
     // Enum properties
-    public YogaDirection Direction = YogaDirection.Inherit;
-    public YogaFlexDirection FlexDirection = YogaFlexDirection.Column;
-    public YogaJustify JustifyContent = YogaJustify.FlexStart;
-    public YogaJustify JustifyItems = YogaJustify.Stretch;
-    public YogaJustify JustifySelf = YogaJustify.Auto;
-    public YogaAlign AlignContent = YogaAlign.FlexStart;
-    public YogaAlign AlignItems = YogaAlign.Stretch;
-    public YogaAlign AlignSelf = YogaAlign.Auto;
-    public YogaPositionType PositionType = YogaPositionType.Relative;
-    public YogaWrap FlexWrap = YogaWrap.NoWrap;
+    public FlexLayoutDirection Direction = FlexLayoutDirection.Inherit;
+    public FlexDirection FlexDirection = FlexDirection.Column;
+    public FlexJustify JustifyContent = FlexJustify.FlexStart;
+    public FlexJustify JustifyItems = FlexJustify.Stretch;
+    public FlexJustify JustifySelf = FlexJustify.Auto;
+    public FlexAlign AlignContent = FlexAlign.FlexStart;
+    public FlexAlign AlignItems = FlexAlign.Stretch;
+    public FlexAlign AlignSelf = FlexAlign.Auto;
+    public FlexPositionType PositionType = FlexPositionType.Relative;
+    public FlexWrap FlexWrap = FlexWrap.NoWrap;
     public YogaOverflow Overflow = YogaOverflow.Visible;
     public YogaDisplay Display = YogaDisplay.Flex;
     public YogaBoxSizing BoxSizing = YogaBoxSizing.BorderBox;
@@ -93,11 +95,11 @@ internal sealed class YogaStyle
     }
 
     /// <summary>Resolve the left edge value considering Start/End/Left/Horizontal/All fallbacks.</summary>
-    private YogaValue ComputeLeftEdge(YogaValue[] edges, YogaDirection layoutDirection)
+    private YogaValue ComputeLeftEdge(YogaValue[] edges, FlexLayoutDirection layoutDirection)
     {
-        if (layoutDirection == YogaDirection.LTR && edges[(int)YogaEdge.Start].IsDefined)
+        if (layoutDirection == FlexLayoutDirection.LTR && edges[(int)YogaEdge.Start].IsDefined)
             return edges[(int)YogaEdge.Start];
-        if (layoutDirection == YogaDirection.RTL && edges[(int)YogaEdge.End].IsDefined)
+        if (layoutDirection == FlexLayoutDirection.RTL && edges[(int)YogaEdge.End].IsDefined)
             return edges[(int)YogaEdge.End];
         if (edges[(int)YogaEdge.Left].IsDefined)
             return edges[(int)YogaEdge.Left];
@@ -113,11 +115,11 @@ internal sealed class YogaStyle
         return edges[(int)YogaEdge.All];
     }
 
-    private YogaValue ComputeRightEdge(YogaValue[] edges, YogaDirection layoutDirection)
+    private YogaValue ComputeRightEdge(YogaValue[] edges, FlexLayoutDirection layoutDirection)
     {
-        if (layoutDirection == YogaDirection.LTR && edges[(int)YogaEdge.End].IsDefined)
+        if (layoutDirection == FlexLayoutDirection.LTR && edges[(int)YogaEdge.End].IsDefined)
             return edges[(int)YogaEdge.End];
-        if (layoutDirection == YogaDirection.RTL && edges[(int)YogaEdge.Start].IsDefined)
+        if (layoutDirection == FlexLayoutDirection.RTL && edges[(int)YogaEdge.Start].IsDefined)
             return edges[(int)YogaEdge.Start];
         if (edges[(int)YogaEdge.Right].IsDefined)
             return edges[(int)YogaEdge.Right];
@@ -133,7 +135,7 @@ internal sealed class YogaStyle
         return edges[(int)YogaEdge.All];
     }
 
-    private YogaValue ComputeEdge(YogaValue[] edges, YogaPhysicalEdge edge, YogaDirection direction)
+    private YogaValue ComputeEdge(YogaValue[] edges, YogaPhysicalEdge edge, FlexLayoutDirection direction)
     {
         return edge switch
         {
@@ -147,16 +149,16 @@ internal sealed class YogaStyle
 
     // ── Position queries ──
 
-    public YogaValue ComputePosition(YogaPhysicalEdge edge, YogaDirection direction)
+    public YogaValue ComputePosition(YogaPhysicalEdge edge, FlexLayoutDirection direction)
         => ComputeEdge(Position, edge, direction);
 
-    public YogaValue ComputeMargin(YogaPhysicalEdge edge, YogaDirection direction)
+    public YogaValue ComputeMargin(YogaPhysicalEdge edge, FlexLayoutDirection direction)
         => ComputeEdge(Margin, edge, direction);
 
-    public YogaValue ComputePadding(YogaPhysicalEdge edge, YogaDirection direction)
+    public YogaValue ComputePadding(YogaPhysicalEdge edge, FlexLayoutDirection direction)
         => ComputeEdge(Padding, edge, direction);
 
-    public YogaValue ComputeBorder(YogaPhysicalEdge edge, YogaDirection direction)
+    public YogaValue ComputeBorder(YogaPhysicalEdge edge, FlexLayoutDirection direction)
         => ComputeEdge(Border, edge, direction);
 
     // ── Inset queries ──
@@ -177,114 +179,114 @@ internal sealed class YogaStyle
 
     // ── Flex-direction-aware computed values ──
 
-    public bool IsFlexStartPositionDefined(YogaFlexDirection axis, YogaDirection direction)
+    public bool IsFlexStartPositionDefined(FlexDirection axis, FlexLayoutDirection direction)
         => ComputePosition(FlexDirectionHelper.FlexStartEdge(axis), direction).IsDefined;
 
-    public bool IsFlexStartPositionAuto(YogaFlexDirection axis, YogaDirection direction)
+    public bool IsFlexStartPositionAuto(FlexDirection axis, FlexLayoutDirection direction)
         => ComputePosition(FlexDirectionHelper.FlexStartEdge(axis), direction).IsAuto;
 
-    public bool IsInlineStartPositionDefined(YogaFlexDirection axis, YogaDirection direction)
+    public bool IsInlineStartPositionDefined(FlexDirection axis, FlexLayoutDirection direction)
         => ComputePosition(FlexDirectionHelper.InlineStartEdge(axis, direction), direction).IsDefined;
 
-    public bool IsInlineStartPositionAuto(YogaFlexDirection axis, YogaDirection direction)
+    public bool IsInlineStartPositionAuto(FlexDirection axis, FlexLayoutDirection direction)
         => ComputePosition(FlexDirectionHelper.InlineStartEdge(axis, direction), direction).IsAuto;
 
-    public bool IsFlexEndPositionDefined(YogaFlexDirection axis, YogaDirection direction)
+    public bool IsFlexEndPositionDefined(FlexDirection axis, FlexLayoutDirection direction)
         => ComputePosition(FlexDirectionHelper.FlexEndEdge(axis), direction).IsDefined;
 
-    public bool IsFlexEndPositionAuto(YogaFlexDirection axis, YogaDirection direction)
+    public bool IsFlexEndPositionAuto(FlexDirection axis, FlexLayoutDirection direction)
         => ComputePosition(FlexDirectionHelper.FlexEndEdge(axis), direction).IsAuto;
 
-    public bool IsInlineEndPositionDefined(YogaFlexDirection axis, YogaDirection direction)
+    public bool IsInlineEndPositionDefined(FlexDirection axis, FlexLayoutDirection direction)
         => ComputePosition(FlexDirectionHelper.InlineEndEdge(axis, direction), direction).IsDefined;
 
-    public bool IsInlineEndPositionAuto(YogaFlexDirection axis, YogaDirection direction)
+    public bool IsInlineEndPositionAuto(FlexDirection axis, FlexLayoutDirection direction)
         => ComputePosition(FlexDirectionHelper.InlineEndEdge(axis, direction), direction).IsAuto;
 
     // ── Computed position values ──
 
-    public float ComputeFlexStartPosition(YogaFlexDirection axis, YogaDirection direction, float axisSize)
+    public float ComputeFlexStartPosition(FlexDirection axis, FlexLayoutDirection direction, float axisSize)
         => YogaFloat.UnwrapOrDefault(ComputePosition(FlexDirectionHelper.FlexStartEdge(axis), direction).Resolve(axisSize));
 
-    public float ComputeInlineStartPosition(YogaFlexDirection axis, YogaDirection direction, float axisSize)
+    public float ComputeInlineStartPosition(FlexDirection axis, FlexLayoutDirection direction, float axisSize)
         => YogaFloat.UnwrapOrDefault(ComputePosition(FlexDirectionHelper.InlineStartEdge(axis, direction), direction).Resolve(axisSize));
 
-    public float ComputeFlexEndPosition(YogaFlexDirection axis, YogaDirection direction, float axisSize)
+    public float ComputeFlexEndPosition(FlexDirection axis, FlexLayoutDirection direction, float axisSize)
         => YogaFloat.UnwrapOrDefault(ComputePosition(FlexDirectionHelper.FlexEndEdge(axis), direction).Resolve(axisSize));
 
-    public float ComputeInlineEndPosition(YogaFlexDirection axis, YogaDirection direction, float axisSize)
+    public float ComputeInlineEndPosition(FlexDirection axis, FlexLayoutDirection direction, float axisSize)
         => YogaFloat.UnwrapOrDefault(ComputePosition(FlexDirectionHelper.InlineEndEdge(axis, direction), direction).Resolve(axisSize));
 
     // ── Computed margin values ──
 
-    public float ComputeFlexStartMargin(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeFlexStartMargin(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => YogaFloat.UnwrapOrDefault(ComputeMargin(FlexDirectionHelper.FlexStartEdge(axis), direction).Resolve(widthSize));
 
-    public float ComputeInlineStartMargin(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeInlineStartMargin(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => YogaFloat.UnwrapOrDefault(ComputeMargin(FlexDirectionHelper.InlineStartEdge(axis, direction), direction).Resolve(widthSize));
 
-    public float ComputeFlexEndMargin(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeFlexEndMargin(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => YogaFloat.UnwrapOrDefault(ComputeMargin(FlexDirectionHelper.FlexEndEdge(axis), direction).Resolve(widthSize));
 
-    public float ComputeInlineEndMargin(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeInlineEndMargin(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => YogaFloat.UnwrapOrDefault(ComputeMargin(FlexDirectionHelper.InlineEndEdge(axis, direction), direction).Resolve(widthSize));
 
     // ── Computed border values (clamped to >= 0) ──
 
-    public float ComputeFlexStartBorder(YogaFlexDirection axis, YogaDirection direction)
+    public float ComputeFlexStartBorder(FlexDirection axis, FlexLayoutDirection direction)
         => YogaFloat.MaxOrDefined(ComputeBorder(FlexDirectionHelper.FlexStartEdge(axis), direction).Resolve(0), 0);
 
-    public float ComputeInlineStartBorder(YogaFlexDirection axis, YogaDirection direction)
+    public float ComputeInlineStartBorder(FlexDirection axis, FlexLayoutDirection direction)
         => YogaFloat.MaxOrDefined(ComputeBorder(FlexDirectionHelper.InlineStartEdge(axis, direction), direction).Resolve(0), 0);
 
-    public float ComputeFlexEndBorder(YogaFlexDirection axis, YogaDirection direction)
+    public float ComputeFlexEndBorder(FlexDirection axis, FlexLayoutDirection direction)
         => YogaFloat.MaxOrDefined(ComputeBorder(FlexDirectionHelper.FlexEndEdge(axis), direction).Resolve(0), 0);
 
-    public float ComputeInlineEndBorder(YogaFlexDirection axis, YogaDirection direction)
+    public float ComputeInlineEndBorder(FlexDirection axis, FlexLayoutDirection direction)
         => YogaFloat.MaxOrDefined(ComputeBorder(FlexDirectionHelper.InlineEndEdge(axis, direction), direction).Resolve(0), 0);
 
     // ── Computed padding values (clamped to >= 0) ──
 
-    public float ComputeFlexStartPadding(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeFlexStartPadding(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => YogaFloat.MaxOrDefined(ComputePadding(FlexDirectionHelper.FlexStartEdge(axis), direction).Resolve(widthSize), 0);
 
-    public float ComputeInlineStartPadding(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeInlineStartPadding(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => YogaFloat.MaxOrDefined(ComputePadding(FlexDirectionHelper.InlineStartEdge(axis, direction), direction).Resolve(widthSize), 0);
 
-    public float ComputeFlexEndPadding(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeFlexEndPadding(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => YogaFloat.MaxOrDefined(ComputePadding(FlexDirectionHelper.FlexEndEdge(axis), direction).Resolve(widthSize), 0);
 
-    public float ComputeInlineEndPadding(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeInlineEndPadding(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => YogaFloat.MaxOrDefined(ComputePadding(FlexDirectionHelper.InlineEndEdge(axis, direction), direction).Resolve(widthSize), 0);
 
     // ── Combined padding + border ──
 
-    public float ComputeInlineStartPaddingAndBorder(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeInlineStartPaddingAndBorder(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => ComputeInlineStartPadding(axis, direction, widthSize) + ComputeInlineStartBorder(axis, direction);
 
-    public float ComputeFlexStartPaddingAndBorder(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeFlexStartPaddingAndBorder(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => ComputeFlexStartPadding(axis, direction, widthSize) + ComputeFlexStartBorder(axis, direction);
 
-    public float ComputeInlineEndPaddingAndBorder(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeInlineEndPaddingAndBorder(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => ComputeInlineEndPadding(axis, direction, widthSize) + ComputeInlineEndBorder(axis, direction);
 
-    public float ComputeFlexEndPaddingAndBorder(YogaFlexDirection axis, YogaDirection direction, float widthSize)
+    public float ComputeFlexEndPaddingAndBorder(FlexDirection axis, FlexLayoutDirection direction, float widthSize)
         => ComputeFlexEndPadding(axis, direction, widthSize) + ComputeFlexEndBorder(axis, direction);
 
-    public float ComputePaddingAndBorderForDimension(YogaDirection direction, YogaDimension dimension, float widthSize)
+    public float ComputePaddingAndBorderForDimension(FlexLayoutDirection direction, YogaDimension dimension, float widthSize)
     {
-        var flexDir = dimension == YogaDimension.Width ? YogaFlexDirection.Row : YogaFlexDirection.Column;
+        var flexDir = dimension == YogaDimension.Width ? FlexDirection.Row : FlexDirection.Column;
         return ComputeFlexStartPaddingAndBorder(flexDir, direction, widthSize)
              + ComputeFlexEndPaddingAndBorder(flexDir, direction, widthSize);
     }
 
-    public float ComputeBorderForAxis(YogaFlexDirection axis)
-        => ComputeInlineStartBorder(axis, YogaDirection.LTR) + ComputeInlineEndBorder(axis, YogaDirection.LTR);
+    public float ComputeBorderForAxis(FlexDirection axis)
+        => ComputeInlineStartBorder(axis, FlexLayoutDirection.LTR) + ComputeInlineEndBorder(axis, FlexLayoutDirection.LTR);
 
-    public float ComputeMarginForAxis(YogaFlexDirection axis, float widthSize)
-        => ComputeInlineStartMargin(axis, YogaDirection.LTR, widthSize) + ComputeInlineEndMargin(axis, YogaDirection.LTR, widthSize);
+    public float ComputeMarginForAxis(FlexDirection axis, float widthSize)
+        => ComputeInlineStartMargin(axis, FlexLayoutDirection.LTR, widthSize) + ComputeInlineEndMargin(axis, FlexLayoutDirection.LTR, widthSize);
 
-    public float ComputeGapForAxis(YogaFlexDirection axis, float ownerSize)
+    public float ComputeGapForAxis(FlexDirection axis, float ownerSize)
     {
         var gap = FlexDirectionHelper.IsRow(axis) ? ComputeColumnGap() : ComputeRowGap();
         return YogaFloat.MaxOrDefined(gap.Resolve(ownerSize), 0);
@@ -292,21 +294,21 @@ internal sealed class YogaStyle
 
     // ── Auto margin queries ──
 
-    public bool FlexStartMarginIsAuto(YogaFlexDirection axis, YogaDirection direction)
+    public bool FlexStartMarginIsAuto(FlexDirection axis, FlexLayoutDirection direction)
         => ComputeMargin(FlexDirectionHelper.FlexStartEdge(axis), direction).IsAuto;
 
-    public bool FlexEndMarginIsAuto(YogaFlexDirection axis, YogaDirection direction)
+    public bool FlexEndMarginIsAuto(FlexDirection axis, FlexLayoutDirection direction)
         => ComputeMargin(FlexDirectionHelper.FlexEndEdge(axis), direction).IsAuto;
 
-    public bool InlineStartMarginIsAuto(YogaFlexDirection axis, YogaDirection direction)
+    public bool InlineStartMarginIsAuto(FlexDirection axis, FlexLayoutDirection direction)
         => ComputeMargin(FlexDirectionHelper.InlineStartEdge(axis, direction), direction).IsAuto;
 
-    public bool InlineEndMarginIsAuto(YogaFlexDirection axis, YogaDirection direction)
+    public bool InlineEndMarginIsAuto(FlexDirection axis, FlexLayoutDirection direction)
         => ComputeMargin(FlexDirectionHelper.InlineEndEdge(axis, direction), direction).IsAuto;
 
     // ── Resolved min/max dimensions (accounting for box-sizing) ──
 
-    public float ResolvedMinDimension(YogaDirection direction, YogaDimension axis, float referenceLength, float ownerWidth)
+    public float ResolvedMinDimension(FlexLayoutDirection direction, YogaDimension axis, float referenceLength, float ownerWidth)
     {
         float value = MinDimensions[(int)axis].Resolve(referenceLength);
         if (BoxSizing == YogaBoxSizing.BorderBox)
@@ -319,7 +321,7 @@ internal sealed class YogaStyle
         return value + pb;
     }
 
-    public float ResolvedMaxDimension(YogaDirection direction, YogaDimension axis, float referenceLength, float ownerWidth)
+    public float ResolvedMaxDimension(FlexLayoutDirection direction, YogaDimension axis, float referenceLength, float ownerWidth)
     {
         float value = MaxDimensions[(int)axis].Resolve(referenceLength);
         if (BoxSizing == YogaBoxSizing.BorderBox)

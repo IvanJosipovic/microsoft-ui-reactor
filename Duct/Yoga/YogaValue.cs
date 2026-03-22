@@ -2,7 +2,9 @@
 // Ported from yoga/YGValue.h, yoga/numeric/FloatOptional.h, yoga/numeric/Comparison.h,
 // yoga/style/StyleLength.h, yoga/style/StyleSizeLength.h
 
-namespace Duct.Yoga;
+using Duct.Flex;
+
+namespace Duct.Layout;
 
 /// <summary>
 /// Represents a CSS-like value with a unit (point, percent, auto, etc.).

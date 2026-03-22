@@ -1,7 +1,9 @@
 // C# port of Meta's Yoga layout engine LayoutResults.
 // Ported from yoga/node/LayoutResults.h, yoga/node/CachedMeasurement.h
 
-namespace Duct.Yoga;
+using Duct.Flex;
+
+namespace Duct.Layout;
 
 /// <summary>
 /// Cached measurement entry for avoiding redundant measure calls.
@@ -48,14 +50,14 @@ internal sealed class LayoutResults
     // Cache invalidation tracking
     public uint GenerationCount;
     public uint ConfigVersion;
-    public YogaDirection LastOwnerDirection = YogaDirection.Inherit;
+    public FlexLayoutDirection LastOwnerDirection = FlexLayoutDirection.Inherit;
 
     public uint NextCachedMeasurementsIndex;
     public readonly CachedMeasurement[] CachedMeasurements = new CachedMeasurement[MaxCachedMeasurements];
     public CachedMeasurement CachedLayout;
 
     // Direction and overflow
-    private YogaDirection _direction = YogaDirection.Inherit;
+    private FlexLayoutDirection _direction = FlexLayoutDirection.Inherit;
     private bool _hadOverflow;
 
     // Dimensions
@@ -76,7 +78,7 @@ internal sealed class LayoutResults
         CachedLayout = new CachedMeasurement();
     }
 
-    public YogaDirection Direction
+    public FlexLayoutDirection Direction
     {
         get => _direction;
         set => _direction = value;
@@ -118,9 +120,9 @@ internal sealed class LayoutResults
         ComputedFlexBasis = float.NaN;
         GenerationCount = 0;
         ConfigVersion = 0;
-        LastOwnerDirection = YogaDirection.Inherit;
+        LastOwnerDirection = FlexLayoutDirection.Inherit;
         NextCachedMeasurementsIndex = 0;
-        _direction = YogaDirection.Inherit;
+        _direction = FlexLayoutDirection.Inherit;
         _hadOverflow = false;
 
         _dimensions[0] = float.NaN;

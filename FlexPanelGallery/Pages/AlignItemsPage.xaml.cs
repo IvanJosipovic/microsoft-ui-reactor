@@ -1,4 +1,4 @@
-using Duct.Yoga;
+using Duct.Flex;
 using Microsoft.UI.Xaml.Controls;
 
 namespace FlexPanelGallery.Pages;
@@ -17,12 +17,12 @@ public sealed partial class AlignItemsPage : Page
         {
             DemoPanel.AlignItems = tag switch
             {
-                "Stretch" => YogaAlign.Stretch,
-                "FlexStart" => YogaAlign.FlexStart,
-                "Center" => YogaAlign.Center,
-                "FlexEnd" => YogaAlign.FlexEnd,
-                "Baseline" => YogaAlign.Baseline,
-                _ => YogaAlign.Stretch,
+                "Stretch" => FlexAlign.Stretch,
+                "FlexStart" => FlexAlign.FlexStart,
+                "Center" => FlexAlign.Center,
+                "FlexEnd" => FlexAlign.FlexEnd,
+                "Baseline" => FlexAlign.Baseline,
+                _ => FlexAlign.Stretch,
             };
         }
     }

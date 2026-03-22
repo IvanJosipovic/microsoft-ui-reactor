@@ -1,7 +1,9 @@
 // C# port of Meta's Yoga layout engine Node.
 // Ported from yoga/node/Node.h, yoga/node/Node.cpp
 
-namespace Duct.Yoga;
+using Duct.Flex;
+
+namespace Duct.Layout;
 
 /// <summary>
 /// Size returned by measure functions.
@@ -70,8 +72,8 @@ public sealed class YogaNode
         _config = config ?? throw new ArgumentNullException(nameof(config));
         if (config.UseWebDefaults)
         {
-            _style.FlexDirection = YogaFlexDirection.Row;
-            _style.AlignContent = YogaAlign.Stretch;
+            _style.FlexDirection = FlexDirection.Row;
+            _style.AlignContent = FlexAlign.Stretch;
         }
     }
 
@@ -175,13 +177,13 @@ public sealed class YogaNode
 
     // ── Public style property accessors ──
 
-    public YogaFlexDirection FlexDirection { get => _style.FlexDirection; set { _style.FlexDirection = value; MarkDirtyAndPropagate(); } }
-    public YogaJustify JustifyContent { get => _style.JustifyContent; set { _style.JustifyContent = value; MarkDirtyAndPropagate(); } }
-    public YogaAlign AlignItems { get => _style.AlignItems; set { _style.AlignItems = value; MarkDirtyAndPropagate(); } }
-    public YogaAlign AlignSelf { get => _style.AlignSelf; set { _style.AlignSelf = value; MarkDirtyAndPropagate(); } }
-    public YogaAlign AlignContent { get => _style.AlignContent; set { _style.AlignContent = value; MarkDirtyAndPropagate(); } }
-    public YogaWrap FlexWrap { get => _style.FlexWrap; set { _style.FlexWrap = value; MarkDirtyAndPropagate(); } }
-    public YogaPositionType PositionType { get => _style.PositionType; set { _style.PositionType = value; MarkDirtyAndPropagate(); } }
+    public FlexDirection FlexDirection { get => _style.FlexDirection; set { _style.FlexDirection = value; MarkDirtyAndPropagate(); } }
+    public FlexJustify JustifyContent { get => _style.JustifyContent; set { _style.JustifyContent = value; MarkDirtyAndPropagate(); } }
+    public FlexAlign AlignItems { get => _style.AlignItems; set { _style.AlignItems = value; MarkDirtyAndPropagate(); } }
+    public FlexAlign AlignSelf { get => _style.AlignSelf; set { _style.AlignSelf = value; MarkDirtyAndPropagate(); } }
+    public FlexAlign AlignContent { get => _style.AlignContent; set { _style.AlignContent = value; MarkDirtyAndPropagate(); } }
+    public FlexWrap FlexWrap { get => _style.FlexWrap; set { _style.FlexWrap = value; MarkDirtyAndPropagate(); } }
+    public FlexPositionType PositionType { get => _style.PositionType; set { _style.PositionType = value; MarkDirtyAndPropagate(); } }
     public YogaDisplay Display
     {
         get => _style.Display;
@@ -343,11 +345,11 @@ public sealed class YogaNode
 
     // ── Computed helpers ──
 
-    internal float DimensionWithMargin(YogaFlexDirection axis, float widthSize)
+    internal float DimensionWithMargin(FlexDirection axis, float widthSize)
         => Layout.GetMeasuredDimension(FlexDirectionHelper.Dimension(axis))
            + _style.ComputeMarginForAxis(axis, widthSize);
 
-    internal bool IsLayoutDimensionDefined(YogaFlexDirection axis)
+    internal bool IsLayoutDimensionDefined(FlexDirection axis)
     {
         float value = Layout.GetMeasuredDimension(FlexDirectionHelper.Dimension(axis));
         return YogaFloat.IsDefined(value) && value >= 0;
@@ -359,7 +361,7 @@ public sealed class YogaNode
         return YogaFloat.IsDefined(usedValue) && usedValue >= 0;
     }
 
-    internal float GetResolvedDimension(YogaDirection direction, YogaDimension dimension, float referenceLength, float ownerWidth)
+    internal float GetResolvedDimension(FlexLayoutDirection direction, YogaDimension dimension, float referenceLength, float ownerWidth)
     {
         float value = ProcessedDimensions[(int)dimension].Resolve(referenceLength);
         if (_style.BoxSizing == YogaBoxSizing.BorderBox)
@@ -380,7 +382,7 @@ public sealed class YogaNode
         return YogaValue.Auto;
     }
 
-    internal float ResolveFlexBasis(YogaDirection direction, YogaFlexDirection flexDirection, float referenceLength, float ownerWidth)
+    internal float ResolveFlexBasis(FlexLayoutDirection direction, FlexDirection flexDirection, float referenceLength, float ownerWidth)
     {
         float value = ProcessFlexBasis().Resolve(referenceLength);
         if (_style.BoxSizing == YogaBoxSizing.BorderBox)
@@ -409,10 +411,10 @@ public sealed class YogaNode
         }
     }
 
-    internal YogaDirection ResolveDirection(YogaDirection ownerDirection)
+    internal FlexLayoutDirection ResolveDirection(FlexLayoutDirection ownerDirection)
     {
-        if (_style.Direction == YogaDirection.Inherit)
-            return ownerDirection != YogaDirection.Inherit ? ownerDirection : YogaDirection.LTR;
+        if (_style.Direction == FlexLayoutDirection.Inherit)
+            return ownerDirection != FlexLayoutDirection.Inherit ? ownerDirection : FlexLayoutDirection.LTR;
         return _style.Direction;
     }
 
@@ -437,12 +439,12 @@ public sealed class YogaNode
     }
 
     internal bool IsNodeFlexible()
-        => _style.PositionType != YogaPositionType.Absolute
+        => _style.PositionType != FlexPositionType.Absolute
            && (ResolveFlexGrow() != 0 || ResolveFlexShrink() != 0);
 
-    internal float RelativePosition(YogaFlexDirection axis, YogaDirection direction, float axisSize)
+    internal float RelativePosition(FlexDirection axis, FlexLayoutDirection direction, float axisSize)
     {
-        if (_style.PositionType == YogaPositionType.Static)
+        if (_style.PositionType == FlexPositionType.Static)
             return 0;
         if (_style.IsInlineStartPositionDefined(axis, direction) &&
             !_style.IsInlineStartPositionAuto(axis, direction))
@@ -452,9 +454,9 @@ public sealed class YogaNode
         return -1 * _style.ComputeInlineEndPosition(axis, direction, axisSize);
     }
 
-    internal void SetPosition(YogaDirection direction, float ownerWidth, float ownerHeight)
+    internal void SetPosition(FlexLayoutDirection direction, float ownerWidth, float ownerHeight)
     {
-        var directionRespectingRoot = _owner != null ? direction : YogaDirection.LTR;
+        var directionRespectingRoot = _owner != null ? direction : FlexLayoutDirection.LTR;
         var mainAxis = FlexDirectionHelper.ResolveDirection(_style.FlexDirection, directionRespectingRoot);
         var crossAxis = FlexDirectionHelper.ResolveCrossDirection(mainAxis, directionRespectingRoot);
 
@@ -480,14 +482,14 @@ public sealed class YogaNode
 
     // ── Layout result setters (used by algorithm) ──
 
-    internal void SetLayoutDirection(YogaDirection direction) => Layout.Direction = direction;
+    internal void SetLayoutDirection(FlexLayoutDirection direction) => Layout.Direction = direction;
     internal void SetLayoutMargin(float margin, YogaPhysicalEdge edge) => Layout.SetMargin(edge, margin);
     internal void SetLayoutBorder(float border, YogaPhysicalEdge edge) => Layout.SetBorder(edge, border);
     internal void SetLayoutPadding(float padding, YogaPhysicalEdge edge) => Layout.SetPadding(edge, padding);
     internal void SetLayoutPosition(float position, YogaPhysicalEdge edge) => Layout.SetPosition(edge, position);
     internal void SetLayoutMeasuredDimension(float measuredDimension, YogaDimension dimension) => Layout.SetMeasuredDimension(dimension, measuredDimension);
     internal void SetLayoutHadOverflow(bool hadOverflow) => Layout.HadOverflow = hadOverflow;
-    internal void SetLayoutLastOwnerDirection(YogaDirection direction) => Layout.LastOwnerDirection = direction;
+    internal void SetLayoutLastOwnerDirection(FlexLayoutDirection direction) => Layout.LastOwnerDirection = direction;
     internal void SetLayoutComputedFlexBasis(float value) => Layout.ComputedFlexBasis = value;
     internal void SetLayoutComputedFlexBasisGeneration(uint gen) => Layout.ComputedFlexBasisGeneration = gen;
 
@@ -502,7 +504,7 @@ public sealed class YogaNode
     /// <summary>
     /// Calculate the layout for this node and all its children.
     /// </summary>
-    public void CalculateLayout(float availableWidth = float.NaN, float availableHeight = float.NaN, YogaDirection direction = YogaDirection.LTR)
+    public void CalculateLayout(float availableWidth = float.NaN, float availableHeight = float.NaN, FlexLayoutDirection direction = FlexLayoutDirection.LTR)
     {
         YogaAlgorithm.CalculateLayout(this, availableWidth, availableHeight, direction);
     }

@@ -1,9 +1,10 @@
-// Standalone FlexPanel for WinUI3, powered by Duct.Yoga.
+// Standalone FlexPanel for WinUI3, powered by Duct.Layout (Yoga engine).
 // No dependency on Duct.Core — usable in any WinUI3 app.
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Duct.Yoga;
+using Duct.Layout;
+using Duct.Flex;
 using Windows.Foundation;
 
 namespace Duct.Flex;
@@ -21,28 +22,28 @@ public class FlexPanel : Panel
     // ── Container dependency properties ──
 
     public static readonly DependencyProperty DirectionProperty =
-        DependencyProperty.Register(nameof(Direction), typeof(YogaFlexDirection), typeof(FlexPanel),
-            new PropertyMetadata(YogaFlexDirection.Row, OnContainerPropertyChanged));
+        DependencyProperty.Register(nameof(Direction), typeof(FlexDirection), typeof(FlexPanel),
+            new PropertyMetadata(FlexDirection.Row, OnContainerPropertyChanged));
 
     public static readonly DependencyProperty JustifyContentProperty =
-        DependencyProperty.Register(nameof(JustifyContent), typeof(YogaJustify), typeof(FlexPanel),
-            new PropertyMetadata(YogaJustify.FlexStart, OnContainerPropertyChanged));
+        DependencyProperty.Register(nameof(JustifyContent), typeof(FlexJustify), typeof(FlexPanel),
+            new PropertyMetadata(FlexJustify.FlexStart, OnContainerPropertyChanged));
 
     public static readonly DependencyProperty AlignItemsProperty =
-        DependencyProperty.Register(nameof(AlignItems), typeof(YogaAlign), typeof(FlexPanel),
-            new PropertyMetadata(YogaAlign.Stretch, OnContainerPropertyChanged));
+        DependencyProperty.Register(nameof(AlignItems), typeof(FlexAlign), typeof(FlexPanel),
+            new PropertyMetadata(FlexAlign.Stretch, OnContainerPropertyChanged));
 
     public static readonly DependencyProperty AlignContentProperty =
-        DependencyProperty.Register(nameof(AlignContent), typeof(YogaAlign), typeof(FlexPanel),
-            new PropertyMetadata(YogaAlign.FlexStart, OnContainerPropertyChanged));
+        DependencyProperty.Register(nameof(AlignContent), typeof(FlexAlign), typeof(FlexPanel),
+            new PropertyMetadata(FlexAlign.FlexStart, OnContainerPropertyChanged));
 
     public static readonly DependencyProperty WrapProperty =
-        DependencyProperty.Register(nameof(Wrap), typeof(YogaWrap), typeof(FlexPanel),
-            new PropertyMetadata(YogaWrap.NoWrap, OnContainerPropertyChanged));
+        DependencyProperty.Register(nameof(Wrap), typeof(FlexWrap), typeof(FlexPanel),
+            new PropertyMetadata(FlexWrap.NoWrap, OnContainerPropertyChanged));
 
     public static readonly DependencyProperty LayoutDirectionProperty =
-        DependencyProperty.Register(nameof(LayoutDirection), typeof(YogaDirection), typeof(FlexPanel),
-            new PropertyMetadata(YogaDirection.LTR, OnContainerPropertyChanged));
+        DependencyProperty.Register(nameof(LayoutDirection), typeof(FlexLayoutDirection), typeof(FlexPanel),
+            new PropertyMetadata(FlexLayoutDirection.LTR, OnContainerPropertyChanged));
 
     public static readonly DependencyProperty ColumnGapProperty =
         DependencyProperty.Register(nameof(ColumnGap), typeof(double), typeof(FlexPanel),
@@ -56,39 +57,39 @@ public class FlexPanel : Panel
         DependencyProperty.Register(nameof(FlexPadding), typeof(Thickness), typeof(FlexPanel),
             new PropertyMetadata(default(Thickness), OnContainerPropertyChanged));
 
-    public YogaFlexDirection Direction
+    public FlexDirection Direction
     {
-        get => (YogaFlexDirection)GetValue(DirectionProperty);
+        get => (FlexDirection)GetValue(DirectionProperty);
         set => SetValue(DirectionProperty, value);
     }
 
-    public YogaJustify JustifyContent
+    public FlexJustify JustifyContent
     {
-        get => (YogaJustify)GetValue(JustifyContentProperty);
+        get => (FlexJustify)GetValue(JustifyContentProperty);
         set => SetValue(JustifyContentProperty, value);
     }
 
-    public YogaAlign AlignItems
+    public FlexAlign AlignItems
     {
-        get => (YogaAlign)GetValue(AlignItemsProperty);
+        get => (FlexAlign)GetValue(AlignItemsProperty);
         set => SetValue(AlignItemsProperty, value);
     }
 
-    public YogaAlign AlignContent
+    public FlexAlign AlignContent
     {
-        get => (YogaAlign)GetValue(AlignContentProperty);
+        get => (FlexAlign)GetValue(AlignContentProperty);
         set => SetValue(AlignContentProperty, value);
     }
 
-    public YogaWrap Wrap
+    public FlexWrap Wrap
     {
-        get => (YogaWrap)GetValue(WrapProperty);
+        get => (FlexWrap)GetValue(WrapProperty);
         set => SetValue(WrapProperty, value);
     }
 
-    public YogaDirection LayoutDirection
+    public FlexLayoutDirection LayoutDirection
     {
-        get => (YogaDirection)GetValue(LayoutDirectionProperty);
+        get => (FlexLayoutDirection)GetValue(LayoutDirectionProperty);
         set => SetValue(LayoutDirectionProperty, value);
     }
 
@@ -131,12 +132,12 @@ public class FlexPanel : Panel
             new PropertyMetadata(double.NaN, OnChildPropertyChanged));
 
     public static readonly DependencyProperty AlignSelfProperty =
-        DependencyProperty.RegisterAttached("AlignSelf", typeof(YogaAlign), typeof(FlexPanel),
-            new PropertyMetadata(YogaAlign.Auto, OnChildPropertyChanged));
+        DependencyProperty.RegisterAttached("AlignSelf", typeof(FlexAlign), typeof(FlexPanel),
+            new PropertyMetadata(FlexAlign.Auto, OnChildPropertyChanged));
 
     public static readonly DependencyProperty PositionProperty =
-        DependencyProperty.RegisterAttached("Position", typeof(YogaPositionType), typeof(FlexPanel),
-            new PropertyMetadata(YogaPositionType.Relative, OnChildPropertyChanged));
+        DependencyProperty.RegisterAttached("Position", typeof(FlexPositionType), typeof(FlexPanel),
+            new PropertyMetadata(FlexPositionType.Relative, OnChildPropertyChanged));
 
     public static readonly DependencyProperty LeftProperty =
         DependencyProperty.RegisterAttached("Left", typeof(double), typeof(FlexPanel),
@@ -164,11 +165,11 @@ public class FlexPanel : Panel
     public static void SetBasis(UIElement el, double value) => el.SetValue(BasisProperty, value);
     public static double GetBasis(UIElement el) => (double)el.GetValue(BasisProperty);
 
-    public static void SetAlignSelf(UIElement el, YogaAlign value) => el.SetValue(AlignSelfProperty, value);
-    public static YogaAlign GetAlignSelf(UIElement el) => (YogaAlign)el.GetValue(AlignSelfProperty);
+    public static void SetAlignSelf(UIElement el, FlexAlign value) => el.SetValue(AlignSelfProperty, value);
+    public static FlexAlign GetAlignSelf(UIElement el) => (FlexAlign)el.GetValue(AlignSelfProperty);
 
-    public static void SetPosition(UIElement el, YogaPositionType value) => el.SetValue(PositionProperty, value);
-    public static YogaPositionType GetPosition(UIElement el) => (YogaPositionType)el.GetValue(PositionProperty);
+    public static void SetPosition(UIElement el, FlexPositionType value) => el.SetValue(PositionProperty, value);
+    public static FlexPositionType GetPosition(UIElement el) => (FlexPositionType)el.GetValue(PositionProperty);
 
     public static void SetLeft(UIElement el, double value) => el.SetValue(LeftProperty, value);
     public static double GetLeft(UIElement el) => (double)el.GetValue(LeftProperty);

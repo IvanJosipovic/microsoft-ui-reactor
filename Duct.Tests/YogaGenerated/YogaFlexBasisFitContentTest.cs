@@ -1,4 +1,5 @@
-using Duct.Yoga;
+using Duct.Layout;
+using Duct.Flex;
 using Xunit;
 
 namespace Duct.Tests.YogaGenerated;
@@ -13,7 +14,7 @@ public class YogaFlexBasisFitContentTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(200f);
         root.Height = YogaValue.Point(300f);
         var root_child0 = new YogaNode(config);
@@ -22,7 +23,7 @@ public class YogaFlexBasisFitContentTest
         root_child0_child0.Height = YogaValue.Point(500f);
         root_child0_child0.Width = YogaValue.Point(50f);
         root_child0.InsertChild(root_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -35,7 +36,7 @@ public class YogaFlexBasisFitContentTest
         Assert.Equal(0f, root_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0.LayoutWidth);
         Assert.Equal(500f, root_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -55,17 +56,17 @@ public class YogaFlexBasisFitContentTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(300f);
         root.Height = YogaValue.Point(200f);
-        root.FlexDirection = YogaFlexDirection.Row;
+        root.FlexDirection = FlexDirection.Row;
         var root_child0 = new YogaNode(config);
         root.InsertChild(root_child0, 0);
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Width = YogaValue.Point(500f);
         root_child0_child0.Height = YogaValue.Point(50f);
         root_child0.InsertChild(root_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -78,7 +79,7 @@ public class YogaFlexBasisFitContentTest
         Assert.Equal(0f, root_child0_child0.LayoutY);
         Assert.Equal(500f, root_child0_child0.LayoutWidth);
         Assert.Equal(50f, root_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(300f, root.LayoutWidth);
@@ -98,7 +99,7 @@ public class YogaFlexBasisFitContentTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(200f);
         root.Height = YogaValue.Point(300f);
         var root_child0 = new YogaNode(config);
@@ -107,7 +108,7 @@ public class YogaFlexBasisFitContentTest
         root_child0_child0.Height = YogaValue.Point(100f);
         root_child0_child0.Width = YogaValue.Point(50f);
         root_child0.InsertChild(root_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -120,7 +121,7 @@ public class YogaFlexBasisFitContentTest
         Assert.Equal(0f, root_child0_child0.LayoutY);
         Assert.Equal(50f, root_child0_child0.LayoutWidth);
         Assert.Equal(100f, root_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -140,7 +141,7 @@ public class YogaFlexBasisFitContentTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(200f);
         root.Height = YogaValue.Point(300f);
         var root_child0 = new YogaNode(config);
@@ -153,7 +154,7 @@ public class YogaFlexBasisFitContentTest
         var root_child1_child0 = new YogaNode(config);
         root_child1_child0.Height = YogaValue.Point(500f);
         root_child1.InsertChild(root_child1_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -174,7 +175,7 @@ public class YogaFlexBasisFitContentTest
         Assert.Equal(0f, root_child1_child0.LayoutY);
         Assert.Equal(200f, root_child1_child0.LayoutWidth);
         Assert.Equal(500f, root_child1_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -202,7 +203,7 @@ public class YogaFlexBasisFitContentTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(200f);
         root.Height = YogaValue.Point(300f);
         root.Overflow = YogaOverflow.Scroll;
@@ -211,7 +212,7 @@ public class YogaFlexBasisFitContentTest
         var root_child0_child0 = new YogaNode(config);
         root_child0_child0.Height = YogaValue.Point(500f);
         root_child0.InsertChild(root_child0_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -224,7 +225,7 @@ public class YogaFlexBasisFitContentTest
         Assert.Equal(0f, root_child0_child0.LayoutY);
         Assert.Equal(200f, root_child0_child0.LayoutWidth);
         Assert.Equal(500f, root_child0_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -244,7 +245,7 @@ public class YogaFlexBasisFitContentTest
     {
         var config = new YogaConfig();
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(200f);
         root.Height = YogaValue.Point(300f);
         var root_child0 = new YogaNode(config);
@@ -255,7 +256,7 @@ public class YogaFlexBasisFitContentTest
         var root_child1_child0 = new YogaNode(config);
         root_child1_child0.Height = YogaValue.Point(500f);
         root_child1.InsertChild(root_child1_child0, 0);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -272,7 +273,7 @@ public class YogaFlexBasisFitContentTest
         Assert.Equal(0f, root_child1_child0.LayoutY);
         Assert.Equal(200f, root_child1_child0.LayoutWidth);
         Assert.Equal(500f, root_child1_child0.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -297,7 +298,7 @@ public class YogaFlexBasisFitContentTest
         var config = new YogaConfig();
         config.SetExperimentalFeatureEnabled(YogaExperimentalFeature.FixFlexBasisFitContent, true);
         var root = new YogaNode(config);
-        root.PositionType = YogaPositionType.Absolute;
+        root.PositionType = FlexPositionType.Absolute;
         root.Width = YogaValue.Point(200f);
         root.Height = YogaValue.Point(300f);
         root.Overflow = YogaOverflow.Scroll;
@@ -309,7 +310,7 @@ public class YogaFlexBasisFitContentTest
         var root_child0_child1 = new YogaNode(config);
         root_child0_child1.FlexBasis = YogaValue.Point(300f);
         root_child0.InsertChild(root_child0_child1, 1);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.LTR);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.LTR);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);
@@ -326,7 +327,7 @@ public class YogaFlexBasisFitContentTest
         Assert.Equal(200f, root_child0_child1.LayoutY);
         Assert.Equal(200f, root_child0_child1.LayoutWidth);
         Assert.Equal(300f, root_child0_child1.LayoutHeight);
-        root.CalculateLayout(float.NaN, float.NaN, YogaDirection.RTL);
+        root.CalculateLayout(float.NaN, float.NaN, FlexLayoutDirection.RTL);
         Assert.Equal(0f, root.LayoutX);
         Assert.Equal(0f, root.LayoutY);
         Assert.Equal(200f, root.LayoutWidth);

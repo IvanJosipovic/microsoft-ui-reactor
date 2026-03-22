@@ -1,5 +1,5 @@
 using Duct.Core;
-using Duct.Yoga;
+using Duct.Flex;
 
 namespace Duct;
 
@@ -12,8 +12,8 @@ public static class FlexExtensions
         double grow = 0,
         double shrink = 1,
         double? basis = null,
-        YogaAlign? alignSelf = null,
-        YogaPositionType position = YogaPositionType.Relative,
+        FlexAlign? alignSelf = null,
+        FlexPositionType position = FlexPositionType.Relative,
         double? left = null,
         double? top = null,
         double? right = null,

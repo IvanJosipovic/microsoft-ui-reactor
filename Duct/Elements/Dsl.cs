@@ -168,14 +168,14 @@ public static class UI
     public static FlexElement Flex(params Element?[] children) =>
         new(FilterChildren(children));
 
-    public static FlexElement Flex(Yoga.YogaFlexDirection direction, params Element?[] children) =>
+    public static FlexElement Flex(Duct.Flex.FlexDirection direction, params Element?[] children) =>
         new(FilterChildren(children)) { Direction = direction };
 
     public static FlexElement FlexRow(params Element?[] children) =>
-        new(FilterChildren(children)) { Direction = Yoga.YogaFlexDirection.Row };
+        new(FilterChildren(children)) { Direction = Duct.Flex.FlexDirection.Row };
 
     public static FlexElement FlexColumn(params Element?[] children) =>
-        new(FilterChildren(children)) { Direction = Yoga.YogaFlexDirection.Column };
+        new(FilterChildren(children)) { Direction = Duct.Flex.FlexDirection.Column };
 
     // ── Grid ────────────────────────────────────────────────────────
 

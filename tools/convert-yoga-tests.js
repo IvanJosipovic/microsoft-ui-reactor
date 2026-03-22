@@ -10,40 +10,40 @@ const outputDir = process.argv[3] || 'C:/Users/andersonch/Code/patch/Duct.Tests/
 
 // Enum mappings: C++ enum value → C# expression
 const enumMap = {
-  'YGFlexDirectionRow': 'YogaFlexDirection.Row',
-  'YGFlexDirectionRowReverse': 'YogaFlexDirection.RowReverse',
-  'YGFlexDirectionColumn': 'YogaFlexDirection.Column',
-  'YGFlexDirectionColumnReverse': 'YogaFlexDirection.ColumnReverse',
-  'YGJustifyFlexStart': 'YogaJustify.FlexStart',
-  'YGJustifyCenter': 'YogaJustify.Center',
-  'YGJustifyFlexEnd': 'YogaJustify.FlexEnd',
-  'YGJustifySpaceBetween': 'YogaJustify.SpaceBetween',
-  'YGJustifySpaceAround': 'YogaJustify.SpaceAround',
-  'YGJustifySpaceEvenly': 'YogaJustify.SpaceEvenly',
-  'YGAlignAuto': 'YogaAlign.Auto',
-  'YGAlignFlexStart': 'YogaAlign.FlexStart',
-  'YGAlignCenter': 'YogaAlign.Center',
-  'YGAlignFlexEnd': 'YogaAlign.FlexEnd',
-  'YGAlignStretch': 'YogaAlign.Stretch',
-  'YGAlignBaseline': 'YogaAlign.Baseline',
-  'YGAlignSpaceBetween': 'YogaAlign.SpaceBetween',
-  'YGAlignSpaceAround': 'YogaAlign.SpaceAround',
-  'YGAlignSpaceEvenly': 'YogaAlign.SpaceEvenly',
-  'YGWrapNoWrap': 'YogaWrap.NoWrap',
-  'YGWrapWrap': 'YogaWrap.Wrap',
-  'YGWrapWrapReverse': 'YogaWrap.WrapReverse',
-  'YGPositionTypeAbsolute': 'YogaPositionType.Absolute',
-  'YGPositionTypeRelative': 'YogaPositionType.Relative',
-  'YGPositionTypeStatic': 'YogaPositionType.Static',
+  'YGFlexDirectionRow': 'FlexDirection.Row',
+  'YGFlexDirectionRowReverse': 'FlexDirection.RowReverse',
+  'YGFlexDirectionColumn': 'FlexDirection.Column',
+  'YGFlexDirectionColumnReverse': 'FlexDirection.ColumnReverse',
+  'YGJustifyFlexStart': 'FlexJustify.FlexStart',
+  'YGJustifyCenter': 'FlexJustify.Center',
+  'YGJustifyFlexEnd': 'FlexJustify.FlexEnd',
+  'YGJustifySpaceBetween': 'FlexJustify.SpaceBetween',
+  'YGJustifySpaceAround': 'FlexJustify.SpaceAround',
+  'YGJustifySpaceEvenly': 'FlexJustify.SpaceEvenly',
+  'YGAlignAuto': 'FlexAlign.Auto',
+  'YGAlignFlexStart': 'FlexAlign.FlexStart',
+  'YGAlignCenter': 'FlexAlign.Center',
+  'YGAlignFlexEnd': 'FlexAlign.FlexEnd',
+  'YGAlignStretch': 'FlexAlign.Stretch',
+  'YGAlignBaseline': 'FlexAlign.Baseline',
+  'YGAlignSpaceBetween': 'FlexAlign.SpaceBetween',
+  'YGAlignSpaceAround': 'FlexAlign.SpaceAround',
+  'YGAlignSpaceEvenly': 'FlexAlign.SpaceEvenly',
+  'YGWrapNoWrap': 'FlexWrap.NoWrap',
+  'YGWrapWrap': 'FlexWrap.Wrap',
+  'YGWrapWrapReverse': 'FlexWrap.WrapReverse',
+  'YGPositionTypeAbsolute': 'FlexPositionType.Absolute',
+  'YGPositionTypeRelative': 'FlexPositionType.Relative',
+  'YGPositionTypeStatic': 'FlexPositionType.Static',
   'YGDisplayFlex': 'YogaDisplay.Flex',
   'YGDisplayNone': 'YogaDisplay.None',
   'YGDisplayContents': 'YogaDisplay.Contents',
   'YGOverflowVisible': 'YogaOverflow.Visible',
   'YGOverflowHidden': 'YogaOverflow.Hidden',
   'YGOverflowScroll': 'YogaOverflow.Scroll',
-  'YGDirectionLTR': 'YogaDirection.LTR',
-  'YGDirectionRTL': 'YogaDirection.RTL',
-  'YGDirectionInherit': 'YogaDirection.Inherit',
+  'YGDirectionLTR': 'FlexLayoutDirection.LTR',
+  'YGDirectionRTL': 'FlexLayoutDirection.RTL',
+  'YGDirectionInherit': 'FlexLayoutDirection.Inherit',
   'YGEdgeLeft': 'YogaEdge.Left',
   'YGEdgeTop': 'YogaEdge.Top',
   'YGEdgeRight': 'YogaEdge.Right',
@@ -184,7 +184,7 @@ function convertFile(inputPath) {
 
   if (tests.length === 0) return null;
 
-  let output = `using Duct.Yoga;\nusing Xunit;\n\nnamespace Duct.Tests.YogaGenerated;\n\n`;
+  let output = `using Duct.Layout;\nusing Duct.Flex;\nusing Xunit;\n\nnamespace Duct.Tests.YogaGenerated;\n\n`;
   output += `/// <summary>\n/// Ported from yoga/tests/generated/${fileName}.cpp\n/// </summary>\n`;
   output += `public class ${className}\n{\n`;
 
@@ -359,7 +359,7 @@ for (const file of files) {
             measuredWidth = text.Length * widthPerChar;
 
         float measuredHeight;
-        float effectiveWidth = node.FlexDirection == YogaFlexDirection.Column
+        float effectiveWidth = node.FlexDirection == FlexDirection.Column
             ? measuredWidth
             : Math.Max(LongestWordWidth(text, widthPerChar), measuredWidth);
 

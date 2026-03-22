@@ -1,79 +1,81 @@
 // C# port of Meta's Yoga layout engine FlexDirection utilities.
 // Ported from yoga/algorithm/FlexDirection.h
 
-namespace Duct.Yoga;
+using Duct.Flex;
+
+namespace Duct.Layout;
 
 /// <summary>
 /// Direction-aware utility functions for resolving flex axes to physical edges.
 /// </summary>
 internal static class FlexDirectionHelper
 {
-    public static bool IsRow(YogaFlexDirection flexDirection)
-        => flexDirection == YogaFlexDirection.Row || flexDirection == YogaFlexDirection.RowReverse;
+    public static bool IsRow(FlexDirection flexDirection)
+        => flexDirection == FlexDirection.Row || flexDirection == FlexDirection.RowReverse;
 
-    public static bool IsColumn(YogaFlexDirection flexDirection)
-        => flexDirection == YogaFlexDirection.Column || flexDirection == YogaFlexDirection.ColumnReverse;
+    public static bool IsColumn(FlexDirection flexDirection)
+        => flexDirection == FlexDirection.Column || flexDirection == FlexDirection.ColumnReverse;
 
     /// <summary>Apply RTL transformation to flex direction.</summary>
-    public static YogaFlexDirection ResolveDirection(YogaFlexDirection flexDirection, YogaDirection direction)
+    public static FlexDirection ResolveDirection(FlexDirection flexDirection, FlexLayoutDirection direction)
     {
-        if (direction == YogaDirection.RTL)
+        if (direction == FlexLayoutDirection.RTL)
         {
-            if (flexDirection == YogaFlexDirection.Row) return YogaFlexDirection.RowReverse;
-            if (flexDirection == YogaFlexDirection.RowReverse) return YogaFlexDirection.Row;
+            if (flexDirection == FlexDirection.Row) return FlexDirection.RowReverse;
+            if (flexDirection == FlexDirection.RowReverse) return FlexDirection.Row;
         }
         return flexDirection;
     }
 
     /// <summary>Get the perpendicular (cross) direction.</summary>
-    public static YogaFlexDirection ResolveCrossDirection(YogaFlexDirection flexDirection, YogaDirection direction)
+    public static FlexDirection ResolveCrossDirection(FlexDirection flexDirection, FlexLayoutDirection direction)
         => IsColumn(flexDirection)
-            ? ResolveDirection(YogaFlexDirection.Row, direction)
-            : YogaFlexDirection.Column;
+            ? ResolveDirection(FlexDirection.Row, direction)
+            : FlexDirection.Column;
 
     /// <summary>Get the physical edge at the flex-start of an axis.</summary>
-    public static YogaPhysicalEdge FlexStartEdge(YogaFlexDirection flexDirection) => flexDirection switch
+    public static YogaPhysicalEdge FlexStartEdge(FlexDirection flexDirection) => flexDirection switch
     {
-        YogaFlexDirection.Column => YogaPhysicalEdge.Top,
-        YogaFlexDirection.ColumnReverse => YogaPhysicalEdge.Bottom,
-        YogaFlexDirection.Row => YogaPhysicalEdge.Left,
-        YogaFlexDirection.RowReverse => YogaPhysicalEdge.Right,
+        FlexDirection.Column => YogaPhysicalEdge.Top,
+        FlexDirection.ColumnReverse => YogaPhysicalEdge.Bottom,
+        FlexDirection.Row => YogaPhysicalEdge.Left,
+        FlexDirection.RowReverse => YogaPhysicalEdge.Right,
         _ => throw new ArgumentOutOfRangeException(nameof(flexDirection)),
     };
 
     /// <summary>Get the physical edge at the flex-end of an axis.</summary>
-    public static YogaPhysicalEdge FlexEndEdge(YogaFlexDirection flexDirection) => flexDirection switch
+    public static YogaPhysicalEdge FlexEndEdge(FlexDirection flexDirection) => flexDirection switch
     {
-        YogaFlexDirection.Column => YogaPhysicalEdge.Bottom,
-        YogaFlexDirection.ColumnReverse => YogaPhysicalEdge.Top,
-        YogaFlexDirection.Row => YogaPhysicalEdge.Right,
-        YogaFlexDirection.RowReverse => YogaPhysicalEdge.Left,
+        FlexDirection.Column => YogaPhysicalEdge.Bottom,
+        FlexDirection.ColumnReverse => YogaPhysicalEdge.Top,
+        FlexDirection.Row => YogaPhysicalEdge.Right,
+        FlexDirection.RowReverse => YogaPhysicalEdge.Left,
         _ => throw new ArgumentOutOfRangeException(nameof(flexDirection)),
     };
 
     /// <summary>Get the inline-start edge (direction-aware).</summary>
-    public static YogaPhysicalEdge InlineStartEdge(YogaFlexDirection flexDirection, YogaDirection direction)
+    public static YogaPhysicalEdge InlineStartEdge(FlexDirection flexDirection, FlexLayoutDirection direction)
     {
         if (IsRow(flexDirection))
-            return direction == YogaDirection.RTL ? YogaPhysicalEdge.Right : YogaPhysicalEdge.Left;
+            return direction == FlexLayoutDirection.RTL ? YogaPhysicalEdge.Right : YogaPhysicalEdge.Left;
         return YogaPhysicalEdge.Top;
     }
 
     /// <summary>Get the inline-end edge (direction-aware).</summary>
-    public static YogaPhysicalEdge InlineEndEdge(YogaFlexDirection flexDirection, YogaDirection direction)
+    public static YogaPhysicalEdge InlineEndEdge(FlexDirection flexDirection, FlexLayoutDirection direction)
     {
         if (IsRow(flexDirection))
-            return direction == YogaDirection.RTL ? YogaPhysicalEdge.Left : YogaPhysicalEdge.Right;
+            return direction == FlexLayoutDirection.RTL ? YogaPhysicalEdge.Left : YogaPhysicalEdge.Right;
         return YogaPhysicalEdge.Bottom;
     }
 
     /// <summary>Get the dimension (Width or Height) for a flex direction.</summary>
-    public static YogaDimension Dimension(YogaFlexDirection flexDirection) => flexDirection switch
+    public static YogaDimension Dimension(FlexDirection flexDirection) => flexDirection switch
     {
-        YogaFlexDirection.Column => YogaDimension.Height,
-        YogaFlexDirection.ColumnReverse => YogaDimension.Height,
-        YogaFlexDirection.Row => YogaDimension.Width,
-        YogaFlexDirection.RowReverse => YogaDimension.Width,
+        FlexDirection.Column => YogaDimension.Height,
+        FlexDirection.ColumnReverse => YogaDimension.Height,
+        FlexDirection.Row => YogaDimension.Width,
+        FlexDirection.RowReverse => YogaDimension.Width,
         _ => throw new ArgumentOutOfRangeException(nameof(flexDirection)),
     };
 }
