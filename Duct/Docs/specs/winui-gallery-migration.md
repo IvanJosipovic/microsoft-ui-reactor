@@ -595,7 +595,7 @@ Only needed once most pages are migrated and the shell itself is being converted
 
 - [x] **Proof of concept**: Migrate one simple control page (`ButtonPage`) end-to-end.
 - [x] **Build Duct ControlExample component**: Wrap the existing XAML `ControlExample` custom control using Feature 1, so migrated pages can reuse it.
-- [x] **Migrate simple pages in batches**: Pages with 1-3 `ControlExample` sections and minimal interactivity (105/107 pages migrated).
+- [x] **Migrate simple pages in batches**: Pages with 1-3 `ControlExample` sections and minimal interactivity (105 control pages migrated).
     - [x] AcrylicPage (3 examples, default/custom/luminosity acrylic brush)
     - [x] AnimatedVisualPlayerPage (1 example, Lottie animation with play/pause/stop/reverse)
     - [x] AnnotatedScrollBarPage (1 example, ScrollView + ItemsRepeater + label sections)
@@ -701,54 +701,68 @@ Only needed once most pages are migrated and the shell itself is being converted
     - [x] WebView2Page (1 example, basic WebView2 navigation)
     - [x] XamlCompInteropPage (5 examples, composition animations + Spring/Expression)
     - [x] XamlUICommandPage (1 example, XamlUICommand with KeyboardAccelerator)
-- [ ] **Migrate complex pages**: Pages with heavy state, custom controls, or responsive layouts (after Phase 2 features land).
-- [ ] **Migrate shell**: NavigationView, TitleBar, search (after Phase 3 features land).
+- [x] **Migrate shell pages**: Application-level pages migrated to Duct components.
+    - [x] AllControlsPage (flat grid of all controls, responsive layout)
+    - [x] SectionPage (category page with async data loading)
+    - [x] HomePage (SelectorBar tabs, recent/favorites, HomePageHeader XAML embed)
+    - [x] SearchResultsPage (multi-token search, filter NavigationView, dynamic results)
+    - [x] SettingsPage (CommunityToolkit SettingsCard/SettingsExpander, theme/nav/sound settings)
+    - [x] ItemPage (PageHeader embed, Frame navigation to control pages, theme toggle, reflection cleanup)
+- [ ] **Migrate shell**: NavigationView chrome, TitleBar, search box (after Phase 3 features land).
 
 ---
 
 ## Duct Framework Gaps (discovered during migration)
 
-These gaps were found during the migration of 105 pages and represent areas where the Duct DSL forced workarounds via `.Set()`, `.OnMount()`, or full imperative construction. Gaps from earlier batches that have been fixed are removed. Ordered by impact.
+These gaps were found during the migration of 105 control pages and 6 shell pages, representing areas where the Duct DSL forced workarounds via `.Set()`, `.OnMount()`, or full imperative construction. Fixed gaps have been removed. Ordered by impact.
 
 ### High Priority — Missing DSL elements (required full imperative construction)
 
-| Gap | Pages Affected | Workaround | Status |
-|-----|---------------|------------|--------|
-| **No SwipeControl / SwipeItem elements** | SwipeControlPage, StandardUICommandPage | Entire SwipeControl built imperatively via `.OnMount()` — items, icons, gesture modes all manual | Fixed |
-| **No ItemsView element** | ItemsViewPage | GridView used as stand-in; real ItemsView with LinedFlowLayout/UniformGridLayout not expressible | Fixed |
-| **No AnimatedIcon element** | AnimatedIconPage | Built imperatively — visual state transitions not expressible | Fixed |
-| **No ParallaxView element** | ParallaxViewPage | Built imperatively via `.Set()` | Fixed |
-| **No MapControl element** | MapControlPage | Added imperatively to parent StackPanel | Fixed |
-| **No Frame element** | ConnectedAnimationPage, CompactSizingPage, PageTransitionPage | Frame navigation built imperatively; blocks connected animation and page transition demos | Fixed |
-| **No ContentIsland / ChildSiteLink / composition hosting** | ContentIslandPage | Entire page is imperative — 3D model loading, composition tree | skip |
-| **No CaptureElement / MediaCapture** | CaptureElementPreviewPage | Camera capture + snapshot gallery entirely imperative | skip |
+| Gap | Pages Affected | Workaround |
+|-----|---------------|------------|
+| **No ContentIsland / ChildSiteLink / composition hosting** | ContentIslandPage | Entire page is imperative — 3D model loading, composition tree (skip) |
+| **No CaptureElement / MediaCapture** | CaptureElementPreviewPage | Camera capture + snapshot gallery entirely imperative (skip) |
+| **No SettingsCard / SettingsExpander DSL elements** | SettingsPage | CommunityToolkit controls built entirely imperatively via Border + `.Set()` — header, description, icons, nested cards all manual |
+| **No way to embed existing XAML UserControls as Duct elements** | HomePage, ItemPage | HomePageHeader, PageHeader embedded via Border + `.Set()` workaround; requires RegisterType for clean integration |
 
 ### Medium Priority — Missing DSL properties/modifiers
 
-| Gap | Pages Affected | Workaround | Status |
-|-----|---------------|------------|--------|
-| **No Storyboard / DoubleAnimation / EasingFunction DSL** | EasingFunctionPage | Animations built imperatively with TranslateTransform + Storyboard | skip |
-| **No TransitionCollection DSL** | ThemeTransitionPage, ImplicitTransitionPage | `.Set()` to attach RepositionThemeTransition, AddDeleteThemeTransition, etc. | Fixed |
-| **No Composition animation DSL (SpringVector3, ExpressionAnimation)** | XamlCompInteropPage | All composition animations + StartAnimation() imperative | |
-| **No ConnectedAnimationService DSL** | ConnectedAnimationPage | PrepareAnimationForConnectedAnimation / TryStartConnectedAnimation imperative | |
-| **No TabView.TabItemsSource / DataTemplate binding** | TabViewPage | Data-bound tab scenario uses XamlReader.Load for DataTemplate | |
-| **No TabView.TabStripHeader / TabStripFooter** | TabViewPage | `.Set()` to assign header/footer content | |
-| **No TabView.Resources for theme dictionaries** | TabViewPage | Accent-colored tab strip built imperatively with ResourceDictionary | |
-| **No NavigationView.FooterMenuItems in DSL** | NavigationViewPage | Footer items added imperatively via `.Set()` | |
-| **No NavigationView.MenuItemsSource / MenuItemTemplate** | NavigationViewPage | Data-binding scenario uses NavItem array instead | |
-| **No XamlUICommand / StandardUICommand DSL** | XamlUICommandPage, StandardUICommandPage | Command binding + KeyboardAccelerator entirely imperative | |
-| **No RichEditBox document API (ITextDocument)** | RichEditBoxPage, ClipboardPage | Formatting, file open/save, SetText/GetText all via `.Set()` | |
-| **No PointerEntered / PointerExited event DSL** | XamlCompInteropPage | Pointer events set imperatively; no declarative handler props | |
-| **No Polygon DSL element** | ShapePage, LinePage | Polygon/Polyline/Path built imperatively (Rectangle/Ellipse/Line exist) | |
-| **No WrapPanel layout element** | ContentIslandPage | Built imperatively | |
-| **No TeachingTip DSL element** | TeachingTipPage | TeachingTip created imperatively, attached to parent Grid via `.Set()` | |
+| Gap | Pages Affected | Workaround |
+|-----|---------------|------------|
+| **No Storyboard / DoubleAnimation / EasingFunction DSL** | EasingFunctionPage | Animations built imperatively (skip) |
+| **No Composition animation DSL (SpringVector3, ExpressionAnimation)** | XamlCompInteropPage | All composition animations + StartAnimation() imperative |
+| **No ConnectedAnimationService DSL** | ConnectedAnimationPage | PrepareAnimationForConnectedAnimation / TryStartConnectedAnimation imperative |
+| **No TabView.TabItemsSource / DataTemplate binding** | TabViewPage | Data-bound tab scenario uses XamlReader.Load for DataTemplate |
+| **No TabView.TabStripHeader / TabStripFooter** | TabViewPage | `.Set()` to assign header/footer content |
+| **No TabView.Resources for theme dictionaries** | TabViewPage | Accent-colored tab strip built imperatively with ResourceDictionary |
+| **No NavigationView.FooterMenuItems in DSL** | NavigationViewPage | Footer items added imperatively via `.Set()` |
+| **No NavigationView.MenuItemsSource / MenuItemTemplate** | NavigationViewPage, SearchResultsPage | Data-binding scenario uses NavItem array; dynamic menu items from list require `.Set()` |
+| **No XamlUICommand / StandardUICommand DSL** | XamlUICommandPage, StandardUICommandPage | Command binding + KeyboardAccelerator entirely imperative |
+| **No RichEditBox document API (ITextDocument)** | RichEditBoxPage, ClipboardPage | Formatting, file open/save, SetText/GetText all via `.Set()` |
+| **No PointerEntered / PointerExited event DSL** | XamlCompInteropPage | Pointer events set imperatively; no declarative handler props |
+| **No Polygon DSL element** | ShapePage, LinePage | Polygon/Polyline/Path built imperatively (Rectangle/Ellipse/Line exist) |
+| **No WrapPanel layout element** | ContentIslandPage | Built imperatively |
+| **No TeachingTip DSL element** | TeachingTipPage | TeachingTip created imperatively, attached to parent Grid via `.Set()` |
+| **No GridView IsItemClickEnabled / ItemClick in DSL** | AllControlsPage, SectionPage, HomePage, SearchResultsPage | `GridView<T>` doesn't expose click-to-navigate; must wire up `.Set(gv => gv.ItemClick += ...)` |
+| **No GridView ContainerContentChanging in DSL** | AllControlsPage, SectionPage, HomePage, SearchResultsPage | Needed for disabling items not included in build; requires `.Set()` |
+| **No GridView ItemContainerStyle in DSL** | AllControlsPage, SectionPage | Custom item styles require `.Set()` on the GridView Resources |
+| **No implicit show/hide animations (Community Toolkit)** | HomePage | `animations:Implicit.ShowAnimations` / `HideAnimations` not expressible |
+| **No SwitchPresenter equivalent** | HomePage | CommunityToolkit SwitchPresenter replaced with conditional rendering (`If`/ternary) |
+| **No NavigationView.SelectedItem programmatic set** | SearchResultsPage, SectionPage | Must reach into App.MainWindow.NavigationView imperatively |
+| **No visual tree traversal (GetDescendantsOfType)** | ItemPage | Theme toggle on SampleThemeListener descendants requires imperative tree walk |
+| **`.CornerRadius()` only accepts `double`, not `CornerRadius` struct** | ControlItemTemplateHelper | Cannot pass theme resource `CornerRadius` values; must use `.Set()` instead |
+| **`.WithBorder()` only accepts `(string, double)`, not `(Brush, Thickness)`** | ControlItemTemplateHelper | Cannot pass theme resource brushes; must use `.Set()` for border properties |
 
 ### Low Priority — Nice-to-have improvements
 
-| Gap | Pages Affected | Notes | Status |
-|-----|---------------|-------|--------|
-| **ContentDialog is inherently imperative** | ContentDialogPage | `ShowAsync()` doesn't fit declarative model | skip |
-| **StoragePicker needs XamlRoot access** | StoragePickersPage | `ContentIslandEnvironment.AppWindowId` requires imperative access via `.Set()` | |
-| **No ComboBox with ComboBoxItem children (Content + Tag)** | StoragePickersPage | Typed combo items with separate display/value require `.Set()` | |
-| **SplitView.PaneBackground / PanePlacement not in DSL** | SplitViewPage | Must use `.Set()` for these properties | |
-| **No ContextFlyout on TabViewItems** | TabViewPage | Requires imperative `.Set()` | |
+| Gap | Pages Affected | Notes |
+|-----|---------------|-------|
+| **ContentDialog is inherently imperative** | ContentDialogPage, SettingsPage | `ShowAsync()` doesn't fit declarative model (skip) |
+| **StoragePicker needs XamlRoot access** | StoragePickersPage | `ContentIslandEnvironment.AppWindowId` requires imperative access via `.Set()` |
+| **No ComboBox with ComboBoxItem children (Content + Tag)** | StoragePickersPage, SettingsPage | Typed combo items with separate display/value require `.Set()` |
+| **SplitView.PaneBackground / PanePlacement not in DSL** | SplitViewPage | Must use `.Set()` for these properties |
+| **No ContextFlyout on TabViewItems** | TabViewPage | Requires imperative `.Set()` |
+| **SelectorBarItem icon takes string glyph, not Symbol enum** | HomePage | Must use glyph codes like `"\uE823"` instead of `Symbol.Clock` |
+| **No HorizontalScrollContainer (Gallery custom control)** | HomePage | Gallery-specific control must be embedded imperatively |
+| **No ElementSoundPlayer DSL** | SettingsPage | Sound/spatial audio state management is entirely imperative |
+| **No Clipboard API integration** | SettingsPage | Copy-to-clipboard requires imperative DataPackage construction |
