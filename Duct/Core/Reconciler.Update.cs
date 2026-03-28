@@ -114,12 +114,12 @@ public sealed partial class Reconciler
                 => UpdateScrollView(o, n, sv, newEl, requestRerender),
             (BorderElement o, BorderElement n, WinUI.Border b)
                 => UpdateBorder(o, n, b, newEl, requestRerender),
-            (ExpanderElement, ExpanderElement n, WinUI.Expander exp)
-                => UpdateExpander(n, exp),
+            (ExpanderElement o, ExpanderElement n, WinUI.Expander exp)
+                => UpdateExpander(o, n, exp, requestRerender),
             (SplitViewElement, SplitViewElement, WinUI.SplitView)
                 => Mount(newEl, requestRerender),
-            (NavigationViewElement, NavigationViewElement n, WinUI.NavigationView nv)
-                => UpdateNavigationView(n, nv, requestRerender),
+            (NavigationViewElement o, NavigationViewElement n, WinUI.NavigationView nv)
+                => UpdateNavigationView(o, n, nv, requestRerender),
             (TabViewElement, TabViewElement, WinUI.TabView)
                 => Mount(newEl, requestRerender),
             (BreadcrumbBarElement, BreadcrumbBarElement n, WinUI.BreadcrumbBar bcb)
@@ -684,7 +684,10 @@ public sealed partial class Reconciler
 
     private UIElement? UpdateStack(StackElement o, StackElement n, WinUI.StackPanel sp, Action requestRerender)
     {
-        sp.Spacing = n.Spacing;
+        if (o.Orientation != n.Orientation) sp.Orientation = n.Orientation;
+        if (o.Spacing != n.Spacing) sp.Spacing = n.Spacing;
+        if (n.HorizontalAlignment.HasValue && n.HorizontalAlignment != o.HorizontalAlignment) sp.HorizontalAlignment = n.HorizontalAlignment.Value;
+        if (n.VerticalAlignment.HasValue && n.VerticalAlignment != o.VerticalAlignment) sp.VerticalAlignment = n.VerticalAlignment.Value;
         ReconcileChildren(o.Children, n.Children, sp, requestRerender);
         // No Tag set — StackPanel has no event handlers. Avoids expensive COM call.
         ApplySetters(n.Setters, sp);
@@ -730,18 +733,54 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateExpander(ExpanderElement n, WinUI.Expander exp)
+    private UIElement? UpdateExpander(ExpanderElement o, ExpanderElement n, WinUI.Expander exp, Action requestRerender)
     {
         exp.Header = n.Header; exp.IsExpanded = n.IsExpanded;
-        exp.ExpandDirection = n.ExpandDirection; SetElementTag(exp, n);
+        exp.ExpandDirection = n.ExpandDirection;
+
+        // Reconcile content child
+        if (exp.Content is UIElement existingContent && CanUpdate(o.Content, n.Content))
+        {
+            var replacement = Update(o.Content, n.Content, existingContent, requestRerender);
+            if (replacement is not null)
+                exp.Content = replacement;
+        }
+        else
+        {
+            if (exp.Content is UIElement oldContent)
+                Unmount(oldContent);
+            exp.Content = Mount(n.Content, requestRerender);
+        }
+
+        SetElementTag(exp, n);
         ApplySetters(n.Setters, exp);
         return null;
     }
 
-    private UIElement? UpdateNavigationView(NavigationViewElement n, WinUI.NavigationView nv, Action requestRerender)
+    private UIElement? UpdateNavigationView(NavigationViewElement o, NavigationViewElement n, WinUI.NavigationView nv, Action requestRerender)
     {
         nv.IsPaneOpen = n.IsPaneOpen; nv.IsBackEnabled = n.IsBackEnabled;
-        if (n.Content is not null) nv.Content = Mount(n.Content, requestRerender);
+
+        // Reconcile content child instead of always remounting
+        if (n.Content is not null && o.Content is not null
+            && nv.Content is UIElement existingContent && CanUpdate(o.Content, n.Content))
+        {
+            var replacement = Update(o.Content, n.Content, existingContent, requestRerender);
+            if (replacement is not null)
+                nv.Content = replacement;
+        }
+        else if (n.Content is not null)
+        {
+            if (nv.Content is UIElement oldContent)
+                Unmount(oldContent);
+            nv.Content = Mount(n.Content, requestRerender);
+        }
+        else if (n.Content is null && nv.Content is UIElement staleContent)
+        {
+            Unmount(staleContent);
+            nv.Content = null;
+        }
+
         SetElementTag(nv, n);
         ApplySetters(n.Setters, nv);
         return null;
@@ -1161,6 +1200,9 @@ public sealed partial class Reconciler
     /// Recursively diff TreeViewNode lists, reusing existing nodes where Content matches.
     /// Only adds/removes/updates nodes that actually changed, minimizing COM interop calls.
     /// Also reconciles ContentElement changes on existing nodes.
+    ///
+    /// Algorithm: Snapshot existing live nodes into a Content→node map. Clear the live list,
+    /// then rebuild it in new order — reusing matched nodes and creating fresh ones.
     /// </summary>
     private void DiffTreeViewNodes(
         IList<WinUI.TreeViewNode> liveNodes,
@@ -1168,69 +1210,56 @@ public sealed partial class Reconciler
         TreeViewNodeData[] newData,
         Action requestRerender)
     {
-        // Build lookup from old data Content → index for matching
-        var oldByContent = new Dictionary<string, int>(oldData.Length);
-        for (int i = 0; i < oldData.Length; i++)
-            oldByContent.TryAdd(oldData[i].Content, i);
+        // Snapshot: map old Content → (live node, old data index).
+        // Use the old data array for indexing since liveNodes mirrors it 1:1.
+        var liveByContent = new Dictionary<string, (WinUI.TreeViewNode Node, int OldIdx)>(oldData.Length);
+        for (int i = 0; i < oldData.Length && i < liveNodes.Count; i++)
+            liveByContent.TryAdd(oldData[i].Content, (liveNodes[i], i));
 
-        int liveIdx = 0;
+        // Detach all live nodes so we can re-insert in new order
+        liveNodes.Clear();
+
         for (int i = 0; i < newData.Length; i++)
         {
             var nd = newData[i];
 
-            if (oldByContent.TryGetValue(nd.Content, out var oldIdx)
-                && liveIdx < liveNodes.Count)
+            if (liveByContent.Remove(nd.Content, out var match))
             {
-                // Reuse existing node — update expand state + diff children
-                var liveNode = liveNodes[liveIdx];
+                var liveNode = match.Node;
+                var oldNodeData = oldData[match.OldIdx];
 
                 if (liveNode.IsExpanded != nd.IsExpanded)
                     liveNode.IsExpanded = nd.IsExpanded;
 
-                // Reconcile ContentElement if present
-                var oldNodeData = oldIdx < oldData.Length ? oldData[oldIdx] : null;
                 ReconcileTreeNodeContent(liveNode, oldNodeData, nd, requestRerender);
 
                 // Diff children
-                var oldChildren = oldNodeData?.Children;
+                var oldChildren = oldNodeData.Children;
                 var newChildren = nd.Children;
 
-                if (ReferenceEquals(oldChildren, newChildren))
+                if (!ReferenceEquals(oldChildren, newChildren))
                 {
-                    // No change
-                }
-                else if (newChildren is null)
-                {
-                    liveNode.Children.Clear();
-                }
-                else if (oldChildren is null)
-                {
-                    liveNode.Children.Clear();
-                    foreach (var child in newChildren)
-                        liveNode.Children.Add(CreateTreeNode(child));
-                }
-                else
-                {
-                    DiffTreeViewNodes(liveNode.Children, oldChildren, newChildren, requestRerender);
+                    if (newChildren is null)
+                        liveNode.Children.Clear();
+                    else if (oldChildren is null)
+                    {
+                        liveNode.Children.Clear();
+                        foreach (var child in newChildren)
+                            liveNode.Children.Add(CreateTreeNode(child));
+                    }
+                    else
+                        DiffTreeViewNodes(liveNode.Children, oldChildren, newChildren, requestRerender);
                 }
 
-                liveIdx++;
+                liveNodes.Add(liveNode);
             }
             else
             {
-                // New node — insert at position
-                var newNode = CreateTreeNode(nd);
-                if (liveIdx < liveNodes.Count)
-                    liveNodes.Insert(liveIdx, newNode);
-                else
-                    liveNodes.Add(newNode);
-                liveIdx++;
+                // New node
+                liveNodes.Add(CreateTreeNode(nd));
             }
         }
-
-        // Remove excess nodes from the end
-        while (liveNodes.Count > newData.Length)
-            liveNodes.RemoveAt(liveNodes.Count - 1);
+        // Unmatched old nodes are simply not re-added — they're dropped.
     }
 
     /// <summary>

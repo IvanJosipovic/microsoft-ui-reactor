@@ -240,9 +240,10 @@ public sealed partial class Reconciler : IDisposable
         // reconcile the child inside the wrapper, not the wrapper itself.
         var existingChild = (control as Border)?.Child;
         var newControl = Reconcile(node.RenderedElement, newChildElement, existingChild, requestRerender);
-        if (newControl is not null && newControl != existingChild && control is Border border)
+        if (control is Border border)
         {
-            border.Child = newControl;
+            if (newControl != existingChild)
+                border.Child = newControl; // handles both replacement and null (child removed)
         }
 
         node.RenderedElement = newChildElement;
@@ -335,6 +336,10 @@ public sealed partial class Reconciler : IDisposable
         {
             UnmountRecursive(ucChild);
         }
+        else if (control is WinUI.ContentControl cc && cc.Content is UIElement ccChild)
+        {
+            UnmountRecursive(ccChild);
+        }
     }
 
     /// <summary>
@@ -388,6 +393,10 @@ public sealed partial class Reconciler : IDisposable
         else if (control is WinUI.UserControl uc && uc.Content is UIElement ucChild)
         {
             UnmountAndCollect(ucChild, toPool);
+        }
+        else if (control is WinUI.ContentControl cc && cc.Content is UIElement ccChild)
+        {
+            UnmountAndCollect(ccChild, toPool);
         }
 
         if (control is FrameworkElement poolCandidate)
