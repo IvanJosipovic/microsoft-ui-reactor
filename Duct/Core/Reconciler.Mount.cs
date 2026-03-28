@@ -4,8 +4,6 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using WinUI = Microsoft.UI.Xaml.Controls;
 using WinPrim = Microsoft.UI.Xaml.Controls.Primitives;
 using WinShapes = Microsoft.UI.Xaml.Shapes;
-using System.Security.Cryptography;
-
 namespace Duct.Core;
 
 public sealed partial class Reconciler

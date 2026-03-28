@@ -35,7 +35,6 @@ public class ElementTests
         var el = Heading("Title");
         Assert.Equal("Title", el.Content);
         Assert.Equal(28, el.FontSize);
-        // Compare weight value directly to avoid WinUI activation factory COMException
         Assert.NotNull(el.Weight);
         Assert.Equal(700, el.Weight!.Value.Weight);
     }

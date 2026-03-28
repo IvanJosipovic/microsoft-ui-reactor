@@ -120,7 +120,10 @@ internal static class ChildReconciler
             {
                 var replacement = reconciler.UpdateChild(oldChildren[prefixLen], newChildren[prefixLen], children.Get(prefixLen), requestRerender);
                 if (replacement is not null)
+                {
+                    reconciler.UnmountChild(children.Get(prefixLen));
                     children.Replace(prefixLen, replacement);
+                }
             }
             prefixLen++;
         }
@@ -138,7 +141,10 @@ internal static class ChildReconciler
             {
                 var replacement = reconciler.UpdateChild(oldChildren[oldIdx], newChildren[newLen - 1 - suffixLen], children.Get(panelIdx), requestRerender);
                 if (replacement is not null)
+                {
+                    reconciler.UnmountChild(children.Get(panelIdx));
                     children.Replace(panelIdx, replacement);
+                }
             }
             suffixLen++;
         }
@@ -324,7 +330,10 @@ internal static class ChildReconciler
                         children.Get(targetPanelIdx),
                         requestRerender);
                     if (replacement is not null)
+                    {
+                        reconciler.UnmountChild(children.Get(targetPanelIdx));
                         children.Replace(targetPanelIdx, replacement);
+                    }
                 }
             }
             else
@@ -338,7 +347,10 @@ internal static class ChildReconciler
                         children.Get(targetPanelIdx),
                         requestRerender);
                     if (replacement is not null)
+                    {
+                        reconciler.UnmountChild(children.Get(targetPanelIdx));
                         children.Replace(targetPanelIdx, replacement);
+                    }
                 }
             }
         }
@@ -422,7 +434,10 @@ internal static class ChildReconciler
                         children.Get(targetPanelIdx),
                         requestRerender);
                     if (replacement is not null)
+                    {
+                        reconciler.UnmountChild(children.Get(targetPanelIdx));
                         children.Replace(targetPanelIdx, replacement);
+                    }
                 }
             }
             else
@@ -441,7 +456,10 @@ internal static class ChildReconciler
                         children.Get(targetPanelIdx),
                         requestRerender);
                     if (replacement is not null)
+                    {
+                        reconciler.UnmountChild(children.Get(targetPanelIdx));
                         children.Replace(targetPanelIdx, replacement);
+                    }
                 }
             }
         }
