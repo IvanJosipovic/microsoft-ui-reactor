@@ -38,53 +38,53 @@ struct BoxedElement {
 struct EmptyElement {};
 
 struct TextElement {
-    std::string content;
+    std::wstring content;
     std::optional<double> font_size;
     std::optional<FontWeight> font_weight;
 };
 
 struct HeadingElement {
-    std::string content;
+    std::wstring content;
 };
 
 struct SubHeadingElement {
-    std::string content;
+    std::wstring content;
 };
 
 struct CaptionElement {
-    std::string content;
+    std::wstring content;
 };
 
 struct ButtonElement {
-    std::string label;
+    std::wstring label;
     std::function<void()> on_click;
 };
 
 struct TextFieldElement {
-    std::string value;
-    std::function<void(std::string)> on_changed;
-    std::optional<std::string> placeholder;
-    std::optional<std::string> header;
+    std::wstring value;
+    std::function<void(std::wstring)> on_changed;
+    std::optional<std::wstring> placeholder;
+    std::optional<std::wstring> header;
 };
 
 struct CheckBoxElement {
     bool is_checked = false;
     std::function<void(bool)> on_changed;
-    std::optional<std::string> label;
+    std::optional<std::wstring> label;
 };
 
 struct ToggleSwitchElement {
     bool is_on = false;
     std::function<void(bool)> on_changed;
-    std::optional<std::string> on_content;
-    std::optional<std::string> off_content;
+    std::optional<std::wstring> on_content;
+    std::optional<std::wstring> off_content;
 };
 
 struct RadioButtonElement {
     bool is_checked = false;
     std::function<void(bool)> on_changed;
-    std::optional<std::string> label;
-    std::optional<std::string> group_name;
+    std::optional<std::wstring> label;
+    std::optional<std::wstring> group_name;
 };
 
 struct SliderElement {
@@ -101,7 +101,7 @@ struct ProgressElement {
 
 struct ComboBoxElement {
     int selected_index = -1;
-    std::vector<std::string> items;
+    std::vector<std::wstring> items;
     std::function<void(int)> on_changed;
 };
 
@@ -125,7 +125,7 @@ struct ScrollViewElement {
 };
 
 struct ImageElement {
-    std::string uri;
+    std::wstring uri;
 };
 
 struct ComponentElement {
@@ -146,19 +146,19 @@ struct ListViewElement {
 
 // Menu flyout item definition
 struct MenuFlyoutItemDef {
-    std::string label;
+    std::wstring label;
     std::function<void()> on_click;
 };
 
 // Flyout button: a button that shows a flyout when clicked
 struct FlyoutButtonElement {
-    std::string label;
+    std::wstring label;
     std::vector<Element> flyout_children; // content inside the flyout
 };
 
 // Menu flyout button: a button that shows a menu flyout
 struct MenuFlyoutButtonElement {
-    std::string label;
+    std::wstring label;
     std::vector<MenuFlyoutItemDef> items;
 };
 
@@ -192,7 +192,7 @@ using ElementData = std::variant<
 // The main Element type
 struct Element {
     ElementData data;
-    std::optional<std::string> key;
+    std::optional<std::wstring> key;
     std::shared_ptr<ElementModifiers> modifiers;
 
     // Default: empty element
@@ -236,8 +236,8 @@ struct Element {
 
     // Appearance
     Element opacity(double o) const;
-    Element background(std::string color) const;
-    Element foreground(std::string color) const;
+    Element background(std::wstring color) const;
+    Element foreground(std::wstring color) const;
     Element corner_radius(double r) const;
 
     // State
@@ -252,17 +252,17 @@ struct Element {
     Element visible(bool v) const;
 
     // Key
-    Element with_key(std::string k) const;
+    Element with_key(std::wstring k) const;
 
     // Grid attached properties
     Element grid(int row, int col) const;
     Element grid(int row, int col, int row_span, int col_span) const;
 
     // Transitions
-    Element transition(std::string property, double duration_ms = 300) const;
+    Element transition(std::wstring property, double duration_ms = 300) const;
 
     // Context menu (right-click)
-    Element context_menu(std::vector<std::pair<std::string, std::function<void()>>> items) const;
+    Element context_menu(std::vector<std::pair<std::wstring, std::function<void()>>> items) const;
 
     // Context menu callback storage (separate from modifiers since functions aren't comparable)
     std::vector<std::function<void()>> context_menu_callbacks;

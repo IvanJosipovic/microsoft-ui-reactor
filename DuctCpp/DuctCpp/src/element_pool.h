@@ -23,7 +23,7 @@ public:
     template <typename T>
     T acquire() {
         auto type_name = winrt::name_of<T>();
-        std::string key(type_name.begin(), type_name.end());
+        std::wstring key(type_name.begin(), type_name.end());
 
         auto it = pools_.find(key);
         if (it != pools_.end() && !it->second.empty()) {
@@ -49,7 +49,7 @@ private:
     static void reset_control(xaml::UIElement control);
 
     /// Pool storage: runtime class name → vector of controls
-    std::unordered_map<std::string, std::vector<xaml::UIElement>> pools_;
+    std::unordered_map<std::wstring, std::vector<xaml::UIElement>> pools_;
 };
 
 } // namespace duct

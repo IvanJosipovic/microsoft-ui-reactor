@@ -231,6 +231,7 @@ private:
         if (a.type() == typeid(float)) return std::any_cast<float>(a) == std::any_cast<float>(b);
         if (a.type() == typeid(bool)) return std::any_cast<bool>(a) == std::any_cast<bool>(b);
         if (a.type() == typeid(std::string)) return std::any_cast<std::string>(a) == std::any_cast<std::string>(b);
+        if (a.type() == typeid(std::wstring)) return std::any_cast<std::wstring>(a) == std::any_cast<std::wstring>(b);
         if (a.type() == typeid(size_t)) return std::any_cast<size_t>(a) == std::any_cast<size_t>(b);
 
         // Unknown type — assume changed

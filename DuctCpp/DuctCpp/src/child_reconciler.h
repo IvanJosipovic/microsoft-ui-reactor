@@ -133,7 +133,7 @@ private:
     static bool key_match(const Element& a, const Element& b);
 
     // Get effective key for an element (explicit key or positional fallback)
-    static std::string get_key(const Element& element, int positional_index);
+    static std::wstring get_key(const Element& element, int positional_index);
 
     // Find the current position of an item by its old index (via tag matching)
     static int find_item_by_old_index(

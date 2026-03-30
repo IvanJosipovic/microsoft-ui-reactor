@@ -55,7 +55,7 @@ static CliOptions g_cli_options;
 // ─── Stock Data Source ────────────────────────────────────────────────────────
 
 struct StockItem {
-    std::string symbol;
+    std::wstring symbol;
     double prev_price;
     double current_price;
     bool is_up;
@@ -78,11 +78,11 @@ public:
         for (int i = 0; i < TotalItems; i++) {
             int row = i / Columns;
             int col = i % Columns;
-            char c1 = static_cast<char>('A' + (row % 26));
-            char c2 = static_cast<char>('A' + (col / 3 % 26));
-            char c3 = static_cast<char>('A' + (col % 26));
+            wchar_t c1 = static_cast<wchar_t>(L'A' + (row % 26));
+            wchar_t c2 = static_cast<wchar_t>(L'A' + (col / 3 % 26));
+            wchar_t c3 = static_cast<wchar_t>(L'A' + (col % 26));
 
-            std::string symbol = { c1, c2, c3 };
+            std::wstring symbol = { c1, c2, c3 };
             double price = std::round((10.0 + price_dist(rng_) * 990.0) * 100.0) / 100.0;
             items_[i] = { symbol, price, price, true };
         }
@@ -118,8 +118,8 @@ public:
 
     const std::vector<StockItem>& items() const { return items_; }
 
-    static std::string format_cell(const StockItem& item) {
-        return std::format("{} {:.2f}", item.symbol, item.current_price);
+    static std::wstring format_cell(const StockItem& item) {
+        return std::format(L"{} {:.2f}", item.symbol, item.current_price);
     }
 
 private:
@@ -275,9 +275,9 @@ public:
 
         auto [percent, set_percent] = use_state(g_cli_options.percent);
         auto [running, set_running] = use_state(false);
-        auto [fps, set_fps] = use_state<std::string>("FPS: --");
-        auto [update_ms, set_update_ms] = use_state<std::string>("Update: -- ms");
-        auto [mem, set_mem] = use_state<std::string>("Mem: -- MB");
+        auto [fps, set_fps] = use_state<std::wstring>(L"FPS: --");
+        auto [update_ms, set_update_ms] = use_state<std::wstring>(L"Update: -- ms");
+        auto [mem, set_mem] = use_state<std::wstring>(L"Mem: -- MB");
 
         auto perf_ref = use_ref<std::shared_ptr<PerfTracker>>(nullptr);
         auto timer_ref = use_ref<winrt::Microsoft::UI::Dispatching::DispatcherQueueTimer>(nullptr);
@@ -318,9 +318,9 @@ public:
 
                     perf->end_update();
 
-                    set_fps(std::format("FPS: {:.0f}", perf->current_fps()));
-                    set_update_ms(std::format("Update: {:.1f} ms", perf->last_update_ms()));
-                    set_mem(std::format("Mem: {} MB", perf->current_memory_mb()));
+                    set_fps(std::format(L"FPS: {:.0f}", perf->current_fps()));
+                    set_update_ms(std::format(L"Update: {:.1f} ms", perf->last_update_ms()));
+                    set_mem(std::format(L"Mem: {} MB", perf->current_memory_mb()));
                 });
 
                 timer.Start();
@@ -382,15 +382,15 @@ public:
 
         // Pre-compute grid definitions
         // 70 columns of 64px, 70 rows of 18px
-        std::string col_defs;
+        std::wstring col_defs;
         for (int i = 0; i < StockDataSource::Columns; i++) {
-            if (i > 0) col_defs += ' ';
-            col_defs += "64";
+            if (i > 0) col_defs += L' ';
+            col_defs += L"64";
         }
-        std::string row_defs;
+        std::wstring row_defs;
         for (int i = 0; i < StockDataSource::Rows; i++) {
-            if (i > 0) row_defs += ' ';
-            row_defs += "18";
+            if (i > 0) row_defs += L' ';
+            row_defs += L"18";
         }
 
         std::vector<Element> children;
@@ -404,7 +404,7 @@ public:
             children.push_back(
                 text(StockDataSource::format_cell(item))
                     .font_size(8)
-                    .foreground(item.is_up ? "#32CD32" : "#FF0000")
+                    .foreground(item.is_up ? L"#32CD32" : L"#FF0000")
                     .padding(2, 1, 2, 1)
                     .grid(r, c)
             );
@@ -412,8 +412,8 @@ public:
 
         return vstack({
             hstack(12, {
-                button(running ? "Stop" : "Start", [=] { set_running(!running); }),
-                text("Update %:").v_align(VerticalAlignment::Center),
+                button(running ? L"Stop" : L"Start", [=] { set_running(!running); }),
+                text(L"Update %:").v_align(VerticalAlignment::Center),
                 slider(percent, 0, 100, [=](double v) { set_percent(v); }).width(200),
                 text(fps).v_align(VerticalAlignment::Center).width(100),
                 text(update_ms).v_align(VerticalAlignment::Center).width(120),

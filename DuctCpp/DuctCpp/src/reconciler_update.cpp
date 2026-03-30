@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "reconciler.h"
+#include <sstream>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
 
@@ -8,13 +9,9 @@
 
 namespace duct {
 
-// Helper: convert std::string to winrt::hstring
-static winrt::hstring to_hstring(const std::string& s) {
-    if (s.empty()) return L"";
-    int size = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
-    std::wstring ws(size, 0);
-    MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), ws.data(), size);
-    return winrt::hstring(ws);
+// Direct wstring to hstring — no conversion needed
+static winrt::hstring to_hstring(const std::wstring& s) {
+    return winrt::hstring(s);
 }
 
 // Helper: update the shared callback stored in a control's Tag
@@ -45,7 +42,7 @@ xaml::UIElement Reconciler::update(
             auto tb = control.as<controls::TextBlock>();
             auto& old_data = std::get<TextElement>(old_el.data);
             if (old_data.content != new_data.content) {
-                OutputDebugStringA(("UPDATE text: '" + old_data.content + "' -> '" + new_data.content + "'\n").c_str());
+                OutputDebugStringW((L"UPDATE text: '" + old_data.content + L"' -> '" + new_data.content + L"'\n").c_str());
                 tb.Text(to_hstring(new_data.content));
             }
             if (old_data.font_size != new_data.font_size && new_data.font_size) tb.FontSize(*new_data.font_size);
@@ -89,7 +86,7 @@ xaml::UIElement Reconciler::update(
                 tb.PlaceholderText(to_hstring(*new_data.placeholder));
             if (old_data.header != new_data.header && new_data.header)
                 tb.Header(winrt::box_value(to_hstring(*new_data.header)));
-            update_callback<std::function<void(std::string)>>(control, new_data.on_changed);
+            update_callback<std::function<void(std::wstring)>>(control, new_data.on_changed);
         }
         else if constexpr (std::is_same_v<T, CheckBoxElement>) {
             auto cb = control.as<controls::CheckBox>();
@@ -167,12 +164,12 @@ xaml::UIElement Reconciler::update(
                 grid.RowDefinitions().Clear();
                 if (!new_data.definition.columns.empty()) {
                     // Re-parse
-                    std::istringstream iss(new_data.definition.columns);
-                    std::string token;
+                    std::wistringstream iss(new_data.definition.columns);
+                    std::wstring token;
                     while (iss >> token) {
                         controls::ColumnDefinition cd;
-                        if (token == "Auto") cd.Width({ 0, xaml::GridUnitType::Auto });
-                        else if (token.back() == '*') {
+                        if (token == L"Auto") cd.Width({ 0, xaml::GridUnitType::Auto });
+                        else if (token.back() == L'*') {
                             double val = (token.size() == 1) ? 1.0 : std::stod(token.substr(0, token.size()-1));
                             cd.Width({ val, xaml::GridUnitType::Star });
                         } else cd.Width({ std::stod(token), xaml::GridUnitType::Pixel });
@@ -180,12 +177,12 @@ xaml::UIElement Reconciler::update(
                     }
                 }
                 if (!new_data.definition.rows.empty()) {
-                    std::istringstream iss(new_data.definition.rows);
-                    std::string token;
+                    std::wistringstream iss(new_data.definition.rows);
+                    std::wstring token;
                     while (iss >> token) {
                         controls::RowDefinition rd;
-                        if (token == "Auto") rd.Height({ 0, xaml::GridUnitType::Auto });
-                        else if (token.back() == '*') {
+                        if (token == L"Auto") rd.Height({ 0, xaml::GridUnitType::Auto });
+                        else if (token.back() == L'*') {
                             double val = (token.size() == 1) ? 1.0 : std::stod(token.substr(0, token.size()-1));
                             rd.Height({ val, xaml::GridUnitType::Star });
                         } else rd.Height({ std::stod(token), xaml::GridUnitType::Pixel });

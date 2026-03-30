@@ -10,7 +10,7 @@ void ElementPool::release(xaml::UIElement control) {
 
     // Get the runtime class name as pool key
     auto type_name = winrt::get_class_name(control);
-    std::string key = winrt::to_string(type_name);
+    std::wstring key(type_name);
 
     auto& pool = pools_[key];
     if (pool.size() >= kMaxPoolSizePerType) return; // Pool is full

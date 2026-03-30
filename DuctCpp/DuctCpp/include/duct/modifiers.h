@@ -35,15 +35,15 @@ struct GridAttached {
 
 // Grid definition
 struct GridDefinition {
-    std::string columns;
-    std::string rows;
+    std::wstring columns;
+    std::wstring rows;
 
     bool operator==(const GridDefinition&) const = default;
 };
 
 // Implicit transition definition
 struct ImplicitTransition {
-    std::string property; // "Opacity", "Translation", "Scale", "Rotation"
+    std::wstring property; // "Opacity", "Translation", "Scale", "Rotation"
     double duration_ms = 300;
 
     bool operator==(const ImplicitTransition&) const = default;
@@ -51,7 +51,7 @@ struct ImplicitTransition {
 
 // Context menu item definition (for right-click menus attached to any element)
 struct ContextMenuItemDef {
-    std::string label;
+    std::wstring label;
     // Note: std::function is not equality-comparable, so we compare by label only
     bool operator==(const ContextMenuItemDef& o) const { return label == o.label; }
 };
@@ -65,11 +65,11 @@ struct ElementModifiers {
     std::optional<HorizontalAlignment> h_align;
     std::optional<VerticalAlignment> v_align;
     std::optional<double> opacity;
-    std::optional<std::string> background;
-    std::optional<std::string> foreground;
+    std::optional<std::wstring> background;
+    std::optional<std::wstring> foreground;
     std::optional<double> corner_radius;
     std::optional<bool> is_enabled;
-    std::optional<std::string> tooltip;
+    std::optional<std::wstring> tooltip;
     std::optional<double> font_size;
     std::optional<FontWeight> font_weight;
     std::optional<Visibility> visibility;

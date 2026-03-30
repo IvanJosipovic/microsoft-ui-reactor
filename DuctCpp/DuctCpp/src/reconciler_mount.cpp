@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "reconciler.h"
+#include <sstream>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
 
@@ -10,13 +11,9 @@ namespace duct {
 
 namespace media = winrt::Microsoft::UI::Xaml::Media;
 
-// Helper: convert std::string to winrt::hstring
-static winrt::hstring to_hstring(const std::string& s) {
-    if (s.empty()) return L"";
-    int size = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
-    std::wstring ws(size, 0);
-    MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), ws.data(), size);
-    return winrt::hstring(ws);
+// Direct wstring to hstring — no conversion needed (wstring is already UTF-16)
+static winrt::hstring to_hstring(const std::wstring& s) {
+    return winrt::hstring(s);
 }
 
 // Construct a Color struct directly (avoids ColorHelper activation)
@@ -25,9 +22,9 @@ static winrt::Windows::UI::Color make_color(uint8_t a, uint8_t r, uint8_t g, uin
 }
 
 // Parse a color string to an ARGB value
-static winrt::Windows::UI::Color parse_color(const std::string& color) {
+static winrt::Windows::UI::Color parse_color(const std::wstring& color) {
     // Support hex colors: #RRGGBB or #AARRGGBB
-    if (color.size() >= 7 && color[0] == '#') {
+    if (color.size() >= 7 && color[0] == L'#') {
         uint8_t a = 255, r, g, b;
         if (color.size() == 9) {
             a = static_cast<uint8_t>(std::stoul(color.substr(1, 2), nullptr, 16));
@@ -42,30 +39,30 @@ static winrt::Windows::UI::Color parse_color(const std::string& color) {
         return make_color(a, r, g, b);
     }
     // Named colors — common subset
-    if (color == "red") return make_color(255, 255, 0, 0);
-    if (color == "green") return make_color(255, 0, 128, 0);
-    if (color == "blue") return make_color(255, 0, 0, 255);
-    if (color == "white") return make_color(255, 255, 255, 255);
-    if (color == "black") return make_color(255, 0, 0, 0);
-    if (color == "gray" || color == "grey") return make_color(255, 128, 128, 128);
-    if (color == "transparent") return make_color(0, 0, 0, 0);
-    if (color == "yellow") return make_color(255, 255, 255, 0);
-    if (color == "orange") return make_color(255, 255, 165, 0);
-    if (color == "purple") return make_color(255, 128, 0, 128);
-    if (color == "cyan") return make_color(255, 0, 255, 255);
-    if (color == "magenta") return make_color(255, 255, 0, 255);
+    if (color == L"red") return make_color(255, 255, 0, 0);
+    if (color == L"green") return make_color(255, 0, 128, 0);
+    if (color == L"blue") return make_color(255, 0, 0, 255);
+    if (color == L"white") return make_color(255, 255, 255, 255);
+    if (color == L"black") return make_color(255, 0, 0, 0);
+    if (color == L"gray" || color == L"grey") return make_color(255, 128, 128, 128);
+    if (color == L"transparent") return make_color(0, 0, 0, 0);
+    if (color == L"yellow") return make_color(255, 255, 255, 0);
+    if (color == L"orange") return make_color(255, 255, 165, 0);
+    if (color == L"purple") return make_color(255, 128, 0, 128);
+    if (color == L"cyan") return make_color(255, 0, 255, 255);
+    if (color == L"magenta") return make_color(255, 255, 0, 255);
 
     // Default: transparent
     return make_color(0, 0, 0, 0);
 }
 
 // Brush cache: color string → SolidColorBrush (parsed once, reused)
-static std::unordered_map<std::string, media::SolidColorBrush>& brush_cache() {
-    static std::unordered_map<std::string, media::SolidColorBrush> cache;
+static std::unordered_map<std::wstring, media::SolidColorBrush>& brush_cache() {
+    static std::unordered_map<std::wstring, media::SolidColorBrush> cache;
     return cache;
 }
 
-static media::SolidColorBrush parse_brush(const std::string& color) {
+static media::SolidColorBrush parse_brush(const std::wstring& color) {
     auto& cache = brush_cache();
     auto it = cache.find(color);
     if (it != cache.end()) return it->second;
@@ -195,7 +192,7 @@ void Reconciler::apply_modifiers(xaml::UIElement control,
     // Implicit transitions
     if (mods->transitions) {
         for (const auto& t : *mods->transitions) {
-            if (t.property == "Opacity") {
+            if (t.property == L"Opacity") {
                 auto st = winrt::Microsoft::UI::Xaml::ScalarTransition();
                 st.Duration(std::chrono::milliseconds(static_cast<int>(t.duration_ms)));
                 control.OpacityTransition(st);
@@ -339,7 +336,7 @@ void Reconciler::apply_modifiers_diff(xaml::UIElement control,
 
     if (n.transitions != o.transitions && n.transitions) {
         for (const auto& t : *n.transitions) {
-            if (t.property == "Opacity") {
+            if (t.property == L"Opacity") {
                 auto st = winrt::Microsoft::UI::Xaml::ScalarTransition();
                 st.Duration(std::chrono::milliseconds(static_cast<int>(t.duration_ms)));
                 control.OpacityTransition(st);
@@ -357,22 +354,21 @@ static winrt::Windows::UI::Text::FontWeight to_winrt_font_weight(FontWeight fw) 
     }
 }
 
-// Helper: parse grid definitions like "* 2* Auto 100"
-static void parse_grid_defs(const std::string& defs,
+// Helper: parse grid definitions like L"* 2* Auto 100"
+static void parse_grid_defs(const std::wstring& defs,
                              winrt::Windows::Foundation::Collections::IVector<controls::ColumnDefinition> cols,
                              bool is_columns) {
-    // Simple tokenizer
-    std::istringstream iss(defs);
-    std::string token;
+    std::wistringstream iss(defs);
+    std::wstring token;
     while (iss >> token) {
         if (is_columns) {
             controls::ColumnDefinition cd;
-            if (token == "Auto") {
+            if (token == L"Auto") {
                 cd.Width({ 0, xaml::GridUnitType::Auto });
-            } else if (token.back() == '*') {
+            } else if (token.back() == L'*') {
                 double val = (token.size() == 1) ? 1.0 : std::stod(token.substr(0, token.size() - 1));
                 cd.Width({ val, xaml::GridUnitType::Star });
-            } else if (token == "*") {
+            } else if (token == L"*") {
                 cd.Width({ 1.0, xaml::GridUnitType::Star });
             } else {
                 cd.Width({ std::stod(token), xaml::GridUnitType::Pixel });
@@ -382,18 +378,18 @@ static void parse_grid_defs(const std::string& defs,
     }
 }
 
-static void parse_row_defs(const std::string& defs,
+static void parse_row_defs(const std::wstring& defs,
                             winrt::Windows::Foundation::Collections::IVector<controls::RowDefinition> rows) {
-    std::istringstream iss(defs);
-    std::string token;
+    std::wistringstream iss(defs);
+    std::wstring token;
     while (iss >> token) {
         controls::RowDefinition rd;
-        if (token == "Auto") {
+        if (token == L"Auto") {
             rd.Height({ 0, xaml::GridUnitType::Auto });
-        } else if (token.back() == '*') {
+        } else if (token.back() == L'*') {
             double val = (token.size() == 1) ? 1.0 : std::stod(token.substr(0, token.size() - 1));
             rd.Height({ val, xaml::GridUnitType::Star });
-        } else if (token == "*") {
+        } else if (token == L"*") {
             rd.Height({ 1.0, xaml::GridUnitType::Star });
         } else {
             rd.Height({ std::stod(token), xaml::GridUnitType::Pixel });
@@ -465,13 +461,13 @@ xaml::UIElement Reconciler::mount(const Element& el, std::function<void()> reque
             tb.Text(to_hstring(data.value));
             if (data.placeholder) tb.PlaceholderText(to_hstring(*data.placeholder));
             if (data.header) tb.Header(winrt::box_value(to_hstring(*data.header)));
-            auto cb = std::make_shared<std::function<void(std::string)>>(data.on_changed);
+            auto cb = std::make_shared<std::function<void(std::wstring)>>(data.on_changed);
             tb.Tag(winrt::box_value(reinterpret_cast<uint64_t>(cb.get())));
             tb.TextChanged([cb](winrt::Windows::Foundation::IInspectable const& sender,
                                 controls::TextChangedEventArgs const&) {
                 if (*cb) {
                     auto box = sender.as<controls::TextBox>();
-                    (*cb)(winrt::to_string(box.Text()));
+                    (*cb)(std::wstring(box.Text()));
                 }
             });
             return tb;

@@ -33,9 +33,9 @@ bool ChildReconciler::key_match(const Element& a, const Element& b) {
     return a.key == b.key;
 }
 
-std::string ChildReconciler::get_key(const Element& element, int positional_index) {
+std::wstring ChildReconciler::get_key(const Element& element, int positional_index) {
     if (element.key.has_value()) return *element.key;
-    return "__pos_" + std::to_string(positional_index) + "_" + std::to_string(element.data.index());
+    return L"__pos_" + std::to_wstring(positional_index) + L"_" + std::to_wstring(element.data.index());
 }
 
 // --- Main Entry Point ---
@@ -208,7 +208,7 @@ void ChildReconciler::reconcile_keyed_middle(
     std::function<void()> request_rerender)
 {
     // Build old key → index map
-    std::unordered_map<std::string, int> old_key_map;
+    std::unordered_map<std::wstring, int> old_key_map;
     old_key_map.reserve(old_mid_len);
     for (int i = 0; i < old_mid_len; i++) {
         auto key = get_key(*old_children[old_start + i], old_start + i);

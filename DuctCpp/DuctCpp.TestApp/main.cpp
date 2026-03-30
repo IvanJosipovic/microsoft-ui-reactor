@@ -33,8 +33,8 @@ class TransitionsDemo;
 
 // ─── Helper: tab button ────────────────────────────────────────────────────────
 
-static Element tab_button(const std::string& label, const std::string& current,
-                           std::function<void(std::string)> set_current) {
+static Element tab_button(const std::wstring& label, const std::wstring& current,
+                           std::function<void(std::wstring)> set_current) {
     return button(label, [=] { set_current(label); })
         .disabled(label == current);
 }
@@ -44,37 +44,37 @@ static Element tab_button(const std::string& label, const std::string& current,
 class DemoApp : public Component {
 public:
     Element render() override {
-        auto [current_tab, set_tab] = use_state<std::string>("Counter");
+        auto [current_tab, set_tab] = use_state<std::wstring>(L"Counter");
 
         auto content = [&]() -> Element {
-            if (current_tab == "Counter") return component<CounterDemo>();
-            if (current_tab == "Todo List") return component<TodoDemo>();
-            if (current_tab == "Conditional UI") return component<ConditionalDemo>();
-            if (current_tab == "Form") return component<FormDemo>();
-            if (current_tab == "Dynamic List") return component<DynamicListDemo>();
-            if (current_tab == "Perf Stress") return component<PerfStressDemo>();
-            if (current_tab == "Virtualization") return component<VirtualizationDemo>();
-            if (current_tab == "Flyout") return component<FlyoutDemo>();
-            if (current_tab == "DataTemplate") return component<DataTemplateDemo>();
-            if (current_tab == "FlexPanel") return text("FlexPanel not ported — see C# version");
-            if (current_tab == "Transitions") return component<TransitionsDemo>();
-            return text("Select a tab");
+            if (current_tab == L"Counter") return component<CounterDemo>();
+            if (current_tab == L"Todo List") return component<TodoDemo>();
+            if (current_tab == L"Conditional UI") return component<ConditionalDemo>();
+            if (current_tab == L"Form") return component<FormDemo>();
+            if (current_tab == L"Dynamic List") return component<DynamicListDemo>();
+            if (current_tab == L"Perf Stress") return component<PerfStressDemo>();
+            if (current_tab == L"Virtualization") return component<VirtualizationDemo>();
+            if (current_tab == L"Flyout") return component<FlyoutDemo>();
+            if (current_tab == L"DataTemplate") return component<DataTemplateDemo>();
+            if (current_tab == L"FlexPanel") return text(L"FlexPanel not ported — see C# version");
+            if (current_tab == L"Transitions") return component<TransitionsDemo>();
+            return text(L"Select a tab");
         }();
 
         return vstack(12, {
             // Tab bar
             hstack(8, {
-                tab_button("Counter", current_tab, set_tab),
-                tab_button("Todo List", current_tab, set_tab),
-                tab_button("Conditional UI", current_tab, set_tab),
-                tab_button("Form", current_tab, set_tab),
-                tab_button("Dynamic List", current_tab, set_tab),
-                tab_button("Perf Stress", current_tab, set_tab),
-                tab_button("Virtualization", current_tab, set_tab),
-                tab_button("Flyout", current_tab, set_tab),
-                tab_button("DataTemplate", current_tab, set_tab),
-                tab_button("FlexPanel", current_tab, set_tab),
-                tab_button("Transitions", current_tab, set_tab)
+                tab_button(L"Counter", current_tab, set_tab),
+                tab_button(L"Todo List", current_tab, set_tab),
+                tab_button(L"Conditional UI", current_tab, set_tab),
+                tab_button(L"Form", current_tab, set_tab),
+                tab_button(L"Dynamic List", current_tab, set_tab),
+                tab_button(L"Perf Stress", current_tab, set_tab),
+                tab_button(L"Virtualization", current_tab, set_tab),
+                tab_button(L"Flyout", current_tab, set_tab),
+                tab_button(L"DataTemplate", current_tab, set_tab),
+                tab_button(L"FlexPanel", current_tab, set_tab),
+                tab_button(L"Transitions", current_tab, set_tab)
             }).margin(16, 16, 16, 0),
 
             // Content area with padding
@@ -92,28 +92,28 @@ public:
         auto [step, set_step] = use_state(1);
 
         auto count_message = [&]() -> Element {
-            if (count == 0) return text("Try clicking the buttons!").opacity(0.6);
-            if (count > 0 && count < 10) return text("Going up...");
-            if (count >= 10 && count < 50) return text("Getting bigger!").semi_bold();
-            if (count >= 50) return text("That's a LOT!").bold().font_size(20);
-            if (count < 0 && count > -10) return text("Going negative...");
-            return text("Way down there!").bold();
+            if (count == 0) return text(L"Try clicking the buttons!").opacity(0.6);
+            if (count > 0 && count < 10) return text(L"Going up...");
+            if (count >= 10 && count < 50) return text(L"Getting bigger!").semi_bold();
+            if (count >= 50) return text(L"That's a LOT!").bold().font_size(20);
+            if (count < 0 && count > -10) return text(L"Going negative...");
+            return text(L"Way down there!").bold();
         }();
 
         return vstack(12, {
-            heading("Counter"),
-            text(std::format("Current count: {}", count)).font_size(24).semi_bold(),
+            heading(L"Counter"),
+            text(std::format(L"Current count: {}", count)).font_size(24).semi_bold(),
 
             hstack(8, {
-                button(std::format("- {}", step), [=] { set_count(count - step); }),
-                button("Reset", [=] { set_count(0); }).disabled(count == 0),
-                button(std::format("+ {}", step), [=] { set_count(count + step); })
+                button(std::format(L"- {}", step), [=] { set_count(count - step); }),
+                button(L"Reset", [=] { set_count(0); }).disabled(count == 0),
+                button(std::format(L"+ {}", step), [=] { set_count(count + step); })
             }),
 
             hstack(8, {
-                text("Step size:"),
+                text(L"Step size:"),
                 slider(step, 1, 10, set_step).width(200),
-                text(std::format("{}", step))
+                text(std::format(L"{}", step))
             }),
 
             count_message
@@ -124,7 +124,7 @@ public:
 // ─── Todo list demo ────────────────────────────────────────────────────────────
 
 struct TodoItem {
-    std::string text;
+    std::wstring text;
     bool done;
 };
 
@@ -133,11 +133,11 @@ public:
     Element render() override {
         auto [items, update_items] = use_reducer<std::vector<TodoItem>>(
             std::vector<TodoItem>{
-                {"Build Duct library", true},
-                {"Write test app", true},
-                {"Add more features", false},
+                {L"Build Duct library", true},
+                {L"Write test app", true},
+                {L"Add more features", false},
             });
-        auto [new_text, set_new_text] = use_state<std::string>("");
+        auto [new_text, set_new_text] = use_state<std::wstring>(L"");
 
         int done_count = 0;
         for (const auto& item : items) {
@@ -159,39 +159,39 @@ public:
                             });
                         },
                         {.label = item.text}),
-                    button("x", [=] {
+                    button(L"x", [=] {
                         update_items([=](std::vector<TodoItem> list) {
                             list.erase(list.begin() + i);
                             return list;
                         });
                     })
-                }).with_key(std::format("todo-{}", i))
+                }).with_key(std::format(L"todo-{}", i))
             );
         }
 
         bool new_text_empty = new_text.empty() ||
-            new_text.find_first_not_of(' ') == std::string::npos;
+            new_text.find_first_not_of(L' ') == std::wstring::npos;
 
         return vstack(12, {
-            heading("Todo List"),
-            text(std::format("{}/{} completed", done_count, total_count)),
+            heading(L"Todo List"),
+            text(std::format(L"{}/{} completed", done_count, total_count)),
 
             // Add new item
             hstack(8, {
-                text_field(new_text, set_new_text, {.placeholder = "What needs to be done?"}).width(300),
-                button("Add", [=] {
+                text_field(new_text, set_new_text, {.placeholder = L"What needs to be done?"}).width(300),
+                button(L"Add", [=] {
                     if (!new_text_empty) {
                         // Trim whitespace
                         auto trimmed = new_text;
-                        auto start = trimmed.find_first_not_of(' ');
-                        auto end = trimmed.find_last_not_of(' ');
-                        if (start != std::string::npos)
+                        auto start = trimmed.find_first_not_of(L' ');
+                        auto end = trimmed.find_last_not_of(L' ');
+                        if (start != std::wstring::npos)
                             trimmed = trimmed.substr(start, end - start + 1);
                         update_items([=](std::vector<TodoItem> list) {
                             list.push_back({trimmed, false});
                             return list;
                         });
-                        set_new_text("");
+                        set_new_text(L"");
                     }
                 }).disabled(new_text_empty)
             }),
@@ -201,7 +201,7 @@ public:
 
             // Conditional: show "All done!" when everything is checked
             when(total_count > 0 && done_count == total_count,
-                [] { return text("All done!").bold().font_size(18); })
+                [] { return text(L"All done!").bold().font_size(18); })
         });
     }
 };
@@ -223,40 +223,40 @@ public:
         Element advanced_section = show_advanced
             ? border(
                 vstack(8, {
-                    text("Advanced Settings").semi_bold(),
-                    check_box(enable_feature_a, set_feature_a, {.label = "Enable Feature A"}),
-                    check_box(enable_feature_b, set_feature_b, {.label = "Enable Feature B"}),
+                    text(L"Advanced Settings").semi_bold(),
+                    check_box(enable_feature_a, set_feature_a, {.label = L"Enable Feature A"}),
+                    check_box(enable_feature_b, set_feature_b, {.label = L"Enable Feature B"}),
 
                     enable_feature_a
                         ? border(
                             vstack(4, {
-                                text("Feature A Configuration").semi_bold(),
-                                text("This sub-tree only exists when Feature A is checked."),
+                                text(L"Feature A Configuration").semi_bold(),
+                                text(L"This sub-tree only exists when Feature A is checked."),
                                 slider(50, 0, 100).width(200)
                             })
-                          ).corner_radius(4).background("#e8f5e9").padding(12)
+                          ).corner_radius(4).background(L"#e8f5e9").padding(12)
                         : empty(),
 
                     enable_feature_b
                         ? border(
                             vstack(4, {
-                                text("Feature B Configuration").semi_bold(),
-                                text("This sub-tree only exists when Feature B is checked."),
-                                toggle_switch(false, nullptr, {.on_content = "On", .off_content = "Off"})
+                                text(L"Feature B Configuration").semi_bold(),
+                                text(L"This sub-tree only exists when Feature B is checked."),
+                                toggle_switch(false, nullptr, {.on_content = L"On", .off_content = L"Off"})
                             })
-                          ).corner_radius(4).background("#e3f2fd").padding(12)
+                          ).corner_radius(4).background(L"#e3f2fd").padding(12)
                         : empty()
                 })
-              ).corner_radius(8).background("#f5f5f5").padding(16)
-            : text("Check the box above to reveal advanced options.").opacity(0.6);
+              ).corner_radius(8).background(L"#f5f5f5").padding(16)
+            : text(L"Check the box above to reveal advanced options.").opacity(0.6);
 
         // Section 2: View mode content
         Element view_content;
         switch (view_mode) {
         case ViewMode::Simple:
             view_content = vstack(4, {
-                text("Simple view - just a summary."),
-                text(std::format("{} items in the list.", item_count))
+                text(L"Simple view - just a summary."),
+                text(std::format(L"{} items in the list.", item_count))
             });
             break;
         case ViewMode::Detailed: {
@@ -264,14 +264,14 @@ public:
             for (int i = 1; i <= item_count; i++) {
                 detail_items.push_back(
                     hstack(4, {
-                        text(std::format("Item {}", i)).width(80),
+                        text(std::format(L"Item {}", i)).width(80),
                         progress(static_cast<double>(i) / item_count).width(150)
                     })
                 );
             }
             view_content = vstack(4, std::move(detail_items));
             view_content = vstack(4, {
-                text("Detailed view - shows every item:").semi_bold(),
+                text(L"Detailed view - shows every item:").semi_bold(),
                 std::move(view_content)
             });
             break;
@@ -280,16 +280,16 @@ public:
             std::vector<Element> custom_items;
             for (int i = 1; i <= item_count; i++) {
                 custom_items.push_back(
-                    border(text(std::format("Custom item {}", i)))
-                        .corner_radius(4).background("#fff3e0").padding(8, 4)
+                    border(text(std::format(L"Custom item {}", i)))
+                        .corner_radius(4).background(L"#fff3e0").padding(8, 4)
                 );
             }
             view_content = vstack(8, {
-                text("Custom view - configure the list:").semi_bold(),
+                text(L"Custom view - configure the list:").semi_bold(),
                 hstack(8, {
-                    text("Item count:"),
+                    text(L"Item count:"),
                     slider(item_count, 1, 10, set_item_count).width(200),
-                    text(std::format("{}", item_count))
+                    text(std::format(L"{}", item_count))
                 }),
                 vstack(4, std::move(custom_items))
             });
@@ -298,44 +298,44 @@ public:
         }
 
         // Computed summary
-        std::string features_str;
-        if (enable_feature_a) features_str += "A";
-        if (enable_feature_b) features_str += "B";
-        if (features_str.empty()) features_str = "none";
+        std::wstring features_str;
+        if (enable_feature_a) features_str += L"A";
+        if (enable_feature_b) features_str += L"B";
+        if (features_str.empty()) features_str = L"none";
 
-        std::string view_mode_str = view_mode == ViewMode::Simple ? "Simple"
-            : view_mode == ViewMode::Detailed ? "Detailed" : "Custom";
+        std::wstring view_mode_str = view_mode == ViewMode::Simple ? L"Simple"
+            : view_mode == ViewMode::Detailed ? L"Detailed" : L"Custom";
 
         return scroll_view(vstack(16, {
-            heading("Conditional UI"),
-            text("Every piece of UI below is driven by plain C++ expressions."),
-            text("Check the boxes and watch entire sub-trees appear and disappear."),
+            heading(L"Conditional UI"),
+            text(L"Every piece of UI below is driven by plain C++ expressions."),
+            text(L"Check the boxes and watch entire sub-trees appear and disappear."),
 
-            sub_heading("1. Checkbox toggles a sub-tree"),
-            check_box(show_advanced, set_show_advanced, {.label = "Show advanced options"}),
+            sub_heading(L"1. Checkbox toggles a sub-tree"),
+            check_box(show_advanced, set_show_advanced, {.label = L"Show advanced options"}),
             advanced_section,
 
-            sub_heading("2. Switch expression picks a sub-tree"),
+            sub_heading(L"2. Switch expression picks a sub-tree"),
             hstack(8, {
-                button("Simple", [=] { set_view_mode([](auto) { return ViewMode::Simple; }); })
+                button(L"Simple", [=] { set_view_mode([](auto) { return ViewMode::Simple; }); })
                     .disabled(view_mode == ViewMode::Simple),
-                button("Detailed", [=] { set_view_mode([](auto) { return ViewMode::Detailed; }); })
+                button(L"Detailed", [=] { set_view_mode([](auto) { return ViewMode::Detailed; }); })
                     .disabled(view_mode == ViewMode::Detailed),
-                button("Custom", [=] { set_view_mode([](auto) { return ViewMode::Custom; }); })
+                button(L"Custom", [=] { set_view_mode([](auto) { return ViewMode::Custom; }); })
                     .disabled(view_mode == ViewMode::Custom)
             }),
             view_content,
 
-            sub_heading("3. Computed UI from expressions"),
-            text("The UI below is generated by a C++ expression - no templates needed:"),
+            sub_heading(L"3. Computed UI from expressions"),
+            text(L"The UI below is generated by a C++ expression - no templates needed:"),
             vstack(4, {
-                text(std::format("Advanced: {}, Features: {}, View: {}",
-                    show_advanced ? "ON" : "OFF", features_str, view_mode_str))
+                text(std::format(L"Advanced: {}, Features: {}, View: {}",
+                    show_advanced ? L"ON" : L"OFF", features_str, view_mode_str))
                     .opacity(0.7),
                 when(show_advanced && enable_feature_a && enable_feature_b,
                     [] { return border(
-                        text("Warning: Both features enabled simultaneously may cause conflicts.")
-                    ).corner_radius(4).background("#fff9c4").padding(12); })
+                        text(L"Warning: Both features enabled simultaneously may cause conflicts.")
+                    ).corner_radius(4).background(L"#fff9c4").padding(12); })
             })
         }));
     }
@@ -346,8 +346,8 @@ public:
 class FormDemo : public Component {
 public:
     Element render() override {
-        auto [name, set_name] = use_state<std::string>("");
-        auto [email, set_email] = use_state<std::string>("");
+        auto [name, set_name] = use_state<std::wstring>(L"");
+        auto [email, set_email] = use_state<std::wstring>(L"");
         auto [agree_to_terms, set_agree] = use_state(false);
         auto [dark_mode, set_dark_mode] = use_state(false);
         auto [font_sz, set_font_sz] = use_state(14.0);
@@ -355,46 +355,46 @@ public:
 
         if (submitted) {
             return vstack(12, {
-                heading("Form Submitted!"),
-                text(std::format("Name: {}", name)),
-                text(std::format("Email: {}", email)),
-                text(std::format("Dark mode: {}", dark_mode ? "Yes" : "No")),
-                text(std::format("Font size: {:.0f}px", font_sz)),
-                button("Back", [=] { set_submitted(false); })
+                heading(L"Form Submitted!"),
+                text(std::format(L"Name: {}", name)),
+                text(std::format(L"Email: {}", email)),
+                text(std::format(L"Dark mode: {}", dark_mode ? L"Yes" : L"No")),
+                text(std::format(L"Font size: {:.0f}px", font_sz)),
+                button(L"Back", [=] { set_submitted(false); })
             });
         }
 
-        bool is_valid = !name.empty() && name.find_first_not_of(' ') != std::string::npos
-            && !email.empty() && email.find_first_not_of(' ') != std::string::npos
+        bool is_valid = !name.empty() && name.find_first_not_of(L' ') != std::wstring::npos
+            && !email.empty() && email.find_first_not_of(L' ') != std::wstring::npos
             && agree_to_terms;
 
         return vstack(16, {
-            heading("Registration Form"),
+            heading(L"Registration Form"),
 
             vstack(8, {
-                text("Name"),
-                text_field(name, set_name, {.placeholder = "Enter your name"}).width(300)
+                text(L"Name"),
+                text_field(name, set_name, {.placeholder = L"Enter your name"}).width(300)
             }),
 
             vstack(8, {
-                text("Email"),
-                text_field(email, set_email, {.placeholder = "you@example.com"}).width(300)
+                text(L"Email"),
+                text_field(email, set_email, {.placeholder = L"you@example.com"}).width(300)
             }),
 
-            toggle_switch(dark_mode, set_dark_mode, {.on_content = "Dark", .off_content = "Light"}),
+            toggle_switch(dark_mode, set_dark_mode, {.on_content = L"Dark", .off_content = L"Light"}),
 
             hstack(8, {
-                text("Font size:"),
+                text(L"Font size:"),
                 slider(font_sz, 10, 30, set_font_sz).width(200),
-                text(std::format("{:.0f}px", font_sz))
+                text(std::format(L"{:.0f}px", font_sz))
             }),
 
-            check_box(agree_to_terms, set_agree, {.label = "I agree to the terms"}),
+            check_box(agree_to_terms, set_agree, {.label = L"I agree to the terms"}),
 
             when(!is_valid,
-                [] { return text("Please fill all fields and agree to terms").opacity(0.6); }),
+                [] { return text(L"Please fill all fields and agree to terms").opacity(0.6); }),
 
-            button("Submit", [=] { set_submitted(true); }).disabled(!is_valid)
+            button(L"Submit", [=] { set_submitted(true); }).disabled(!is_valid)
         });
     }
 };
@@ -412,34 +412,34 @@ public:
         for (int i = 0; i < count; i++) {
             std::vector<Element> row;
             if (show_indices)
-                row.push_back(text(std::format("#{}", i + 1)).semi_bold());
-            row.push_back(text(std::format("Item {}", i + 1)));
-            row.push_back(text("(created dynamically)").opacity(0.5));
+                row.push_back(text(std::format(L"#{}", i + 1)).semi_bold());
+            row.push_back(text(std::format(L"Item {}", i + 1)));
+            row.push_back(text(L"(created dynamically)").opacity(0.5));
 
             items.push_back(
                 border(hstack(8, std::move(row)))
-                    .corner_radius(4).background("#f0f0f0").padding(12, 8)
+                    .corner_radius(4).background(L"#f0f0f0").padding(12, 8)
             );
         }
 
         return vstack(12, {
-            heading("Dynamic List"),
-            text("Demonstrates conditional and list rendering"),
+            heading(L"Dynamic List"),
+            text(L"Demonstrates conditional and list rendering"),
 
             hstack(8, {
-                button("Remove", [=] { set_count(std::max(0, count - 1)); }).disabled(count == 0),
-                text(std::format("{} items", count)),
-                button("Add", [=] { set_count(count + 1); })
+                button(L"Remove", [=] { set_count(std::max(0, count - 1)); }).disabled(count == 0),
+                text(std::format(L"{} items", count)),
+                button(L"Add", [=] { set_count(count + 1); })
             }),
 
-            check_box(show_indices, set_show_indices, {.label = "Show indices"}),
+            check_box(show_indices, set_show_indices, {.label = L"Show indices"}),
 
             vstack(4, std::move(items)),
 
             when(count == 0,
-                [] { return text("No items. Click Add to create some.").opacity(0.6); }),
+                [] { return text(L"No items. Click Add to create some.").opacity(0.6); }),
             when(count >= 10,
-                [] { return text("That's a lot of items!").bold(); })
+                [] { return text(L"That's a lot of items!").bold(); })
         });
     }
 };
@@ -447,12 +447,12 @@ public:
 // ─── Performance stress test ───────────────────────────────────────────────────
 
 // Sort state colors: 0=default, 1=pivot, 2=comparing, 3=swapped, 4=final
-static const std::string bar_colors[] = {
-    "#4fc3f7", "#81c784", "#fff176", "#ff8a65", "#ba68c8",
-    "#4dd0e1", "#aed581", "#ffd54f", "#e57373", "#9575cd",
+static const std::wstring bar_colors[] = {
+    L"#4fc3f7", L"#81c784", L"#fff176", L"#ff8a65", L"#ba68c8",
+    L"#4dd0e1", L"#aed581", L"#ffd54f", L"#e57373", L"#9575cd",
 };
 
-static Element legend_item(const std::string& color, const std::string& label) {
+static Element legend_item(const std::wstring& color, const std::wstring& label) {
     return hstack(4, {
         border(empty()).background(color).corner_radius(2).size(12, 12),
         text(label).font_size(12).opacity(0.7)
@@ -628,7 +628,7 @@ public:
         auto [sorted, set_sorted] = use_state(false);
         auto [total_swaps, set_total_swaps] = use_state(0);
         auto [step_count, set_step_count] = use_state(0);
-        auto [render_stats, set_render_stats] = use_state<std::string>("");
+        auto [render_stats, set_render_stats] = use_state<std::wstring>(L"");
         auto [hist_bars, set_hist_bars] = use_reducer<std::vector<int>>(std::vector<int>(10, 0));
         auto [total_sort_ms, set_total_sort_ms] = use_state(0.0);
 
@@ -686,7 +686,7 @@ public:
                 set_sort_colors([cols = state->colors](auto) { return cols; });
                 set_total_swaps(state->total_swaps);
                 set_step_count(state->step_count);
-                set_render_stats(std::format("Avg: {:.1f}ms  P95: {:.1f}ms  Max: {:.1f}ms",
+                set_render_stats(std::format(L"Avg: {:.1f}ms  P95: {:.1f}ms  Max: {:.1f}ms",
                     tracker->avg(), tracker->p95(), tracker->max_val()));
                 set_hist_bars([h = tracker->histogram()](auto) { return h; });
 
@@ -715,14 +715,14 @@ public:
                 double height_pct = sort_values[i] / max_val * 200;
                 int color_idx = sort_colors[i] % 5; // 0-4 for sort states
 
-                static const std::string state_colors[] = {
-                    "#4fc3f7", "#81c784", "#fff176", "#ff8a65", "#ba68c8"
+                static const std::wstring state_colors[] = {
+                    L"#4fc3f7", L"#81c784", L"#fff176", L"#ff8a65", L"#ba68c8"
                 };
                 auto& bar_color = state_colors[color_idx];
 
-                static const std::string all_colors[] = {
-                    "#4fc3f7", "#81c784", "#fff176", "#ff8a65", "#ba68c8",
-                    "#4dd0e1", "#aed581", "#ffd54f", "#e57373", "#9575cd",
+                static const std::wstring all_colors[] = {
+                    L"#4fc3f7", L"#81c784", L"#fff176", L"#ff8a65", L"#ba68c8",
+                    L"#4dd0e1", L"#aed581", L"#ffd54f", L"#e57373", L"#9575cd",
                 };
 
                 // Determine pivot/active state for opacity (matching C#)
@@ -740,13 +740,13 @@ public:
                 Element bar_content = vstack(0, {
                     // Top: small colored indicator pip (changes with sort state)
                     border(empty())
-                        .background(is_pivot ? "#ffffff" : is_active ? "#ffeb3b" : all_colors[(color_idx + 1) % 10])
+                        .background(is_pivot ? L"#ffffff" : is_active ? L"#ffeb3b" : all_colors[(color_idx + 1) % 10])
                         .corner_radius(1)
                         .width(std::min(bar_width - 1, 6.0))
                         .height(2),
                     // Middle: value label (only when bars are wide enough)
                     bar_width >= 10
-                        ? text(std::format("{}", val)).font_size(std::min(7.0, bar_width * 0.8))
+                        ? text(std::format(L"{}", val)).font_size(std::min(7.0, bar_width * 0.8))
                         : empty(),
                     // Bottom: progress-like fill showing relative position
                     border(empty())
@@ -773,7 +773,7 @@ public:
             bars = hstack(0, std::move(bar_elements))
                 .height(220).v_align(VerticalAlignment::Bottom);
         } else {
-            bars = text("Click 'Start Sort' to begin").opacity(0.5).height(220);
+            bars = text(L"Click 'Start Sort' to begin").opacity(0.5).height(220);
         }
 
         // Start sort action
@@ -804,16 +804,16 @@ public:
                     hbars.push_back(
                         vstack(0, {
                             border(empty())
-                                .background(h > 0 ? "#64b5f6" : "#333")
+                                .background(h > 0 ? L"#64b5f6" : L"#333")
                                 .width(16).height(std::max(1.0, h))
                                 .v_align(VerticalAlignment::Bottom),
-                            text(std::format("{:.0f}", max_time * (i + 1) / hist_bars.size()))
+                            text(std::format(L"{:.0f}", max_time * (i + 1) / hist_bars.size()))
                                 .font_size(7).opacity(0.5)
                         }).v_align(VerticalAlignment::Bottom)
                     );
                 }
                 histogram_ui = vstack(4, {
-                    text("Render time distribution (ms)").font_size(11).opacity(0.7),
+                    text(L"Render time distribution (ms)").font_size(11).opacity(0.7),
                     hstack(2, std::move(hbars)).height(60).v_align(VerticalAlignment::Bottom)
                 });
             }
@@ -824,38 +824,38 @@ public:
         // (We can't easily record post-reconcile time here, but element construction time is useful)
 
         return scroll_view(vstack(12, {
-            heading("Performance Stress Test"),
-            text("Quicksort visualization - stresses tree diffing with many simultaneous changes."),
+            heading(L"Performance Stress Test"),
+            text(L"Quicksort visualization - stresses tree diffing with many simultaneous changes."),
 
             hstack(12, {
                 vstack(4, {
-                    text("Elements:"),
+                    text(L"Elements:"),
                     hstack(8, {
-                        button("10", [=] { set_element_count(10); }).disabled(running || element_count == 10),
-                        button("50", [=] { set_element_count(50); }).disabled(running || element_count == 50),
-                        button("100", [=] { set_element_count(100); }).disabled(running || element_count == 100),
-                        button("250", [=] { set_element_count(250); }).disabled(running || element_count == 250),
-                        button("500", [=] { set_element_count(500); }).disabled(running || element_count == 500),
-                        button("1000", [=] { set_element_count(1000); }).disabled(running || element_count == 1000)
+                        button(L"10", [=] { set_element_count(10); }).disabled(running || element_count == 10),
+                        button(L"50", [=] { set_element_count(50); }).disabled(running || element_count == 50),
+                        button(L"100", [=] { set_element_count(100); }).disabled(running || element_count == 100),
+                        button(L"250", [=] { set_element_count(250); }).disabled(running || element_count == 250),
+                        button(L"500", [=] { set_element_count(500); }).disabled(running || element_count == 500),
+                        button(L"1000", [=] { set_element_count(1000); }).disabled(running || element_count == 1000)
                     })
                 }),
                 vstack(4, {
-                    text("Tick interval:"),
+                    text(L"Tick interval:"),
                     hstack(8, {
                         slider(tick_ms, 0, 100, set_tick_ms).width(150),
-                        text(std::format("{}ms", tick_ms))
+                        text(std::format(L"{}ms", tick_ms))
                     })
                 })
             }),
 
             hstack(12, {
-                check_box(show_labels, [=](bool v) { set_show_labels(v); }, {.label = "Show value labels"}),
-                check_box(show_borders, [=](bool v) { set_show_borders(v); }, {.label = "Show bar gaps"})
+                check_box(show_labels, [=](bool v) { set_show_labels(v); }, {.label = L"Show value labels"}),
+                check_box(show_borders, [=](bool v) { set_show_borders(v); }, {.label = L"Show bar gaps"})
             }),
 
             hstack(8, {
-                button("Start Sort", start_sort).disabled(running),
-                button("Reset", [=] {
+                button(L"Start Sort", start_sort).disabled(running),
+                button(L"Reset", [=] {
                     sort_ref->current = nullptr;
                     set_sort_values([](auto) { return std::vector<int>{}; });
                     set_sort_colors([](auto) { return std::vector<int>{}; });
@@ -863,35 +863,35 @@ public:
                     set_step_count(0);
                     set_total_sort_ms(0);
                     set_sorted(false);
-                    set_render_stats("");
+                    set_render_stats(L"");
                     set_hist_bars([](auto) { return std::vector<int>(10, 0); });
                 }).disabled(running)
             }),
 
             // Render time stats
             !render_stats.empty()
-                ? text(render_stats).font_size(13).foreground("#64b5f6")
+                ? text(render_stats).font_size(13).foreground(L"#64b5f6")
                 : empty(),
 
             sorted
-                ? text(std::format("Sorted in {:.0f} ms  ({} swaps, {} steps)", total_sort_ms, total_swaps, step_count))
+                ? text(std::format(L"Sorted in {:.0f} ms  ({} swaps, {} steps)", total_sort_ms, total_swaps, step_count))
                     .bold().font_size(16)
                 : (running
-                    ? text(std::format("Sorting... step {}, {} swaps", step_count, total_swaps))
+                    ? text(std::format(L"Sorting... step {}, {} swaps", step_count, total_swaps))
                         .font_size(14).opacity(0.8)
                     : empty()),
 
-            border(bars).corner_radius(8).background("#1a1a2e").padding(8),
+            border(bars).corner_radius(8).background(L"#1a1a2e").padding(8),
 
             // Mini histogram
             histogram_ui,
 
             hstack(16, {
-                legend_item("#4fc3f7", "Default"),
-                legend_item("#81c784", "Pivot"),
-                legend_item("#fff176", "Comparing"),
-                legend_item("#ff8a65", "Swapped"),
-                legend_item("#ba68c8", "Final position")
+                legend_item(L"#4fc3f7", L"Default"),
+                legend_item(L"#81c784", L"Pivot"),
+                legend_item(L"#fff176", L"Comparing"),
+                legend_item(L"#ff8a65", L"Swapped"),
+                legend_item(L"#ba68c8", L"Final position")
             }).margin(0, 8, 0, 0)
         }));
     }
@@ -910,11 +910,11 @@ public:
             items.push_back(
                 hstack(12, {
                     border(
-                        text(std::format("{}", i)).font_size(12)
-                    ).background("#e3f2fd").corner_radius(4).size(48, 32),
+                        text(std::format(L"{}", i)).font_size(12)
+                    ).background(L"#e3f2fd").corner_radius(4).size(48, 32),
                     vstack(2, {
-                        text(std::format("Item {}", i)).semi_bold(),
-                        text(std::format("Description for item {} - this row tests scrolling", i))
+                        text(std::format(L"Item {}", i)).semi_bold(),
+                        text(std::format(L"Description for item {} - this row tests scrolling", i))
                             .font_size(12).opacity(0.6)
                     })
                 }).padding(4, 2)
@@ -922,22 +922,22 @@ public:
         }
 
         return vstack(12, {
-            heading("Virtualization Test"),
-            text("Uses ListView for virtualized item rendering."),
+            heading(L"Virtualization Test"),
+            text(L"Uses ListView for virtualized item rendering."),
 
             hstack(8, {
-                text("Items:"),
-                button("100", [=] { set_item_count(100); }).disabled(item_count == 100),
-                button("500", [=] { set_item_count(500); }).disabled(item_count == 500),
-                button("1000", [=] { set_item_count(1000); }).disabled(item_count == 1000),
-                button("5000", [=] { set_item_count(5000); }).disabled(item_count == 5000)
+                text(L"Items:"),
+                button(L"100", [=] { set_item_count(100); }).disabled(item_count == 100),
+                button(L"500", [=] { set_item_count(500); }).disabled(item_count == 500),
+                button(L"1000", [=] { set_item_count(1000); }).disabled(item_count == 1000),
+                button(L"5000", [=] { set_item_count(5000); }).disabled(item_count == 5000)
             }),
 
             selected >= 0
-                ? text(std::format("Selected: item {}", selected)).foreground("#1976d2")
-                : text("No selection").opacity(0.6),
+                ? text(std::format(L"Selected: item {}", selected)).foreground(L"#1976d2")
+                : text(L"No selection").opacity(0.6),
 
-            text(std::format("{} items", item_count)).opacity(0.6),
+            text(std::format(L"{} items", item_count)).opacity(0.6),
 
             list_view(std::move(items), {
                 .selected_index = selected >= 0 ? std::optional(selected) : std::nullopt,
@@ -953,64 +953,64 @@ class FlyoutDemo : public Component {
 public:
     Element render() override {
         auto [tick, set_tick] = use_state(0);
-        auto [color, set_color] = use_state<std::string>("Red");
-        auto [last_action, set_last_action] = use_state<std::string>("None");
+        auto [color, set_color] = use_state<std::wstring>(L"Red");
+        auto [last_action, set_last_action] = use_state<std::wstring>(L"None");
 
-        auto color_hex = [&]() -> std::string {
-            if (color == "Red") return "#e57373";
-            if (color == "Orange") return "#ffb74d";
-            if (color == "Yellow") return "#fff176";
-            if (color == "Green") return "#81c784";
-            if (color == "Blue") return "#64b5f6";
-            if (color == "Purple") return "#ba68c8";
-            return "#e0e0e0";
+        auto color_hex = [&]() -> std::wstring {
+            if (color == L"Red") return L"#e57373";
+            if (color == L"Orange") return L"#ffb74d";
+            if (color == L"Yellow") return L"#fff176";
+            if (color == L"Green") return L"#81c784";
+            if (color == L"Blue") return L"#64b5f6";
+            if (color == L"Purple") return L"#ba68c8";
+            return L"#e0e0e0";
         }();
 
         return scroll_view(vstack(16, {
-            heading("Flyout Attachments"),
-            text("Flyout and MenuFlyout element types."),
-            text(std::format("Timer tick: {}", tick)).opacity(0.6),
+            heading(L"Flyout Attachments"),
+            text(L"Flyout and MenuFlyout element types."),
+            text(std::format(L"Timer tick: {}", tick)).opacity(0.6),
 
-            sub_heading("1. Content Flyout (Color Picker)"),
-            flyout_button("Pick Color", {
-                text("Choose a color:").semi_bold(),
+            sub_heading(L"1. Content Flyout (Color Picker)"),
+            flyout_button(L"Pick Color", {
+                text(L"Choose a color:").semi_bold(),
                 hstack(8, {
-                    button("Red", [=] { set_color("Red"); }),
-                    button("Orange", [=] { set_color("Orange"); }),
-                    button("Yellow", [=] { set_color("Yellow"); })
+                    button(L"Red", [=] { set_color(L"Red"); }),
+                    button(L"Orange", [=] { set_color(L"Orange"); }),
+                    button(L"Yellow", [=] { set_color(L"Yellow"); })
                 }),
                 hstack(8, {
-                    button("Green", [=] { set_color("Green"); }),
-                    button("Blue", [=] { set_color("Blue"); }),
-                    button("Purple", [=] { set_color("Purple"); })
+                    button(L"Green", [=] { set_color(L"Green"); }),
+                    button(L"Blue", [=] { set_color(L"Blue"); }),
+                    button(L"Purple", [=] { set_color(L"Purple"); })
                 })
             }),
 
             hstack(8, {
-                text(std::format("Selected: {}", color)),
+                text(std::format(L"Selected: {}", color)),
                 border(empty()).background(color_hex).corner_radius(4).size(24, 24)
             }),
 
-            sub_heading("2. Menu Flyout"),
-            menu_flyout_button("File Menu", {
-                {"New",  [=] { set_last_action("New file"); }},
-                {"Open", [=] { set_last_action("Open file"); }},
-                {"Save", [=] { set_last_action("Save file"); }},
-                {"Exit", [=] { set_last_action("Exit"); }}
+            sub_heading(L"2. Menu Flyout"),
+            menu_flyout_button(L"File Menu", {
+                {L"New",  [=] { set_last_action(L"New file"); }},
+                {L"Open", [=] { set_last_action(L"Open file"); }},
+                {L"Save", [=] { set_last_action(L"Save file"); }},
+                {L"Exit", [=] { set_last_action(L"Exit"); }}
             }),
-            text(std::format("Last action: {}", last_action)).opacity(0.7),
+            text(std::format(L"Last action: {}", last_action)).opacity(0.7),
 
-            sub_heading("3. Context Menu (right-click)"),
+            sub_heading(L"3. Context Menu (right-click)"),
             border(
                 vstack(8, {
-                    text("Right-click this area for context menu").semi_bold(),
-                    text(std::format("Color: {} | Action: {}", color, last_action))
+                    text(L"Right-click this area for context menu").semi_bold(),
+                    text(std::format(L"Color: {} | Action: {}", color, last_action))
                 })
-            ).corner_radius(8).background("#f5f5f5").padding(24)
+            ).corner_radius(8).background(L"#f5f5f5").padding(24)
              .context_menu({
-                {"Cut",   [=] { set_last_action("Cut"); }},
-                {"Copy",  [=] { set_last_action("Copy"); }},
-                {"Paste", [=] { set_last_action("Paste"); }}
+                {L"Cut",   [=] { set_last_action(L"Cut"); }},
+                {L"Copy",  [=] { set_last_action(L"Copy"); }},
+                {L"Paste", [=] { set_last_action(L"Paste"); }}
              })
         }));
     }
@@ -1020,36 +1020,36 @@ public:
 
 struct Animal {
     int id;
-    std::string name;
-    std::string species;
-    std::string emoji;
+    std::wstring name;
+    std::wstring species;
+    std::wstring emoji;
 };
 
 class DataTemplateDemo : public Component {
 public:
     Element render() override {
-        auto [filter, set_filter] = use_state<std::string>("");
+        auto [filter, set_filter] = use_state<std::wstring>(L"");
         auto [selected_idx, set_selected_idx] = use_state(-1);
 
         static const std::vector<Animal> all_animals = {
-            {1, "Luna", "Cat", "[cat]"},
-            {2, "Max", "Dog", "[dog]"},
-            {3, "Bella", "Cat", "[cat]"},
-            {4, "Charlie", "Dog", "[dog]"},
-            {5, "Oliver", "Rabbit", "[rabbit]"},
-            {6, "Lucy", "Cat", "[cat]"},
-            {7, "Buddy", "Dog", "[dog]"},
-            {8, "Daisy", "Hamster", "[hamster]"},
-            {9, "Rocky", "Dog", "[dog]"},
-            {10, "Coco", "Parrot", "[parrot]"},
+            {1, L"Luna", L"Cat", L"[cat]"},
+            {2, L"Max", L"Dog", L"[dog]"},
+            {3, L"Bella", L"Cat", L"[cat]"},
+            {4, L"Charlie", L"Dog", L"[dog]"},
+            {5, L"Oliver", L"Rabbit", L"[rabbit]"},
+            {6, L"Lucy", L"Cat", L"[cat]"},
+            {7, L"Buddy", L"Dog", L"[dog]"},
+            {8, L"Daisy", L"Hamster", L"[hamster]"},
+            {9, L"Rocky", L"Dog", L"[dog]"},
+            {10, L"Coco", L"Parrot", L"[parrot]"},
         };
 
         // Filter animals
         std::vector<const Animal*> filtered;
         for (const auto& a : all_animals) {
             if (filter.empty() ||
-                a.name.find(filter) != std::string::npos ||
-                a.species.find(filter) != std::string::npos) {
+                a.name.find(filter) != std::wstring::npos ||
+                a.species.find(filter) != std::wstring::npos) {
                 filtered.push_back(&a);
             }
         }
@@ -1057,11 +1057,11 @@ public:
         // Build ListView items with per-species colored template
         std::vector<Element> items;
         for (const auto* a : filtered) {
-            auto bg = a->species == "Cat" ? "#fff3e0"
-                : a->species == "Dog" ? "#e3f2fd"
-                : a->species == "Rabbit" ? "#f3e5f5"
-                : a->species == "Hamster" ? "#fff9c4"
-                : "#e8f5e9";
+            auto bg = a->species == L"Cat" ? L"#fff3e0"
+                : a->species == L"Dog" ? L"#e3f2fd"
+                : a->species == L"Rabbit" ? L"#f3e5f5"
+                : a->species == L"Hamster" ? L"#fff9c4"
+                : L"#e8f5e9";
 
             items.push_back(
                 border(
@@ -1071,28 +1071,28 @@ public:
                             text(a->name).semi_bold(),
                             text(a->species).font_size(12).opacity(0.7)
                         }),
-                        text(std::format("#{}", a->id)).opacity(0.3)
+                        text(std::format(L"#{}", a->id)).opacity(0.3)
                     })
                 ).corner_radius(8).background(bg).padding(12, 8)
             );
         }
 
         Element selected_info = selected_idx >= 0 && selected_idx < static_cast<int>(filtered.size())
-            ? text(std::format("Selected: {} the {}", filtered[selected_idx]->name, filtered[selected_idx]->species))
-                .foreground("#1976d2")
-            : text("No selection").opacity(0.6);
+            ? text(std::format(L"Selected: {} the {}", filtered[selected_idx]->name, filtered[selected_idx]->species))
+                .foreground(L"#1976d2")
+            : text(L"No selection").opacity(0.6);
 
         return vstack(16, {
-            heading("DataTemplate Demo"),
-            text("ListView with per-species colored item templates."),
+            heading(L"DataTemplate Demo"),
+            text(L"ListView with per-species colored item templates."),
 
             hstack(12, {
-                text_field(filter, set_filter, {.placeholder = "Filter animals..."}).width(200)
+                text_field(filter, set_filter, {.placeholder = L"Filter animals..."}).width(200)
             }),
-            text(std::format("{} animals shown", filtered.size())).opacity(0.6),
+            text(std::format(L"{} animals shown", filtered.size())).opacity(0.6),
             selected_info,
 
-            sub_heading("Animal List"),
+            sub_heading(L"Animal List"),
             list_view(std::move(items), {
                 .selected_index = selected_idx >= 0 ? std::optional(selected_idx) : std::nullopt,
                 .on_selection_changed = set_selected_idx
@@ -1115,35 +1115,35 @@ public:
             for (int i = 0; i < item_count; i++) {
                 items.push_back(
                     border(
-                        text(std::format("Item {}", i + 1))
-                    ).corner_radius(8).background("#e3f2fd").padding(16, 12)
-                     .transition("Opacity", 300)
+                        text(std::format(L"Item {}", i + 1))
+                    ).corner_radius(8).background(L"#e3f2fd").padding(16, 12)
+                     .transition(L"Opacity", 300)
                 );
             }
         }
 
         return scroll_view(vstack(16, {
-            heading("Transitions"),
-            text("Implicit transitions using ScalarTransition for smooth animations."),
+            heading(L"Transitions"),
+            text(L"Implicit transitions using ScalarTransition for smooth animations."),
 
-            sub_heading("1. Opacity (animated)"),
+            sub_heading(L"1. Opacity (animated)"),
             hstack(8, {
-                text("Opacity:"),
+                text(L"Opacity:"),
                 slider(opacity_val, 0, 1, set_opacity_val).width(200),
-                text(std::format("{:.1f}", opacity_val))
+                text(std::format(L"{:.1f}", opacity_val))
             }),
             border(
-                text("This text fades smoothly").font_size(20)
-            ).corner_radius(8).background("#f5f5f5").padding(24)
+                text(L"This text fades smoothly").font_size(20)
+            ).corner_radius(8).background(L"#f5f5f5").padding(24)
              .opacity(opacity_val)
-             .transition("Opacity", 500),
+             .transition(L"Opacity", 500),
 
-            sub_heading("2. Show/Hide Items"),
+            sub_heading(L"2. Show/Hide Items"),
             hstack(8, {
-                button(show_items ? "Hide Items" : "Show Items",
+                button(show_items ? L"Hide Items" : L"Show Items",
                     [=] { set_show_items(!show_items); }),
-                button("Add", [=] { set_item_count(item_count + 1); }),
-                button("Remove", [=] { set_item_count(std::max(0, item_count - 1)); })
+                button(L"Add", [=] { set_item_count(item_count + 1); }),
+                button(L"Remove", [=] { set_item_count(std::max(0, item_count - 1)); })
                     .disabled(item_count == 0)
             }),
 
