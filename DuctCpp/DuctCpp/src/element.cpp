@@ -110,12 +110,12 @@ Element Element::opacity(double o) const {
     e.modifiers->opacity = o;
     return e;
 }
-Element Element::background(std::string color) const {
+Element Element::background(std::wstring color) const {
     auto e = with_mods();
     e.modifiers->background = std::move(color);
     return e;
 }
-Element Element::foreground(std::string color) const {
+Element Element::foreground(std::wstring color) const {
     auto e = with_mods();
     e.modifiers->foreground = std::move(color);
     return e;
@@ -158,7 +158,7 @@ Element Element::visible(bool v) const {
 }
 
 // --- Key ---
-Element Element::with_key(std::string k) const {
+Element Element::with_key(std::wstring k) const {
     Element copy = *this;
     copy.key = std::move(k);
     return copy;
@@ -177,7 +177,7 @@ Element Element::grid(int row, int col, int row_span, int col_span) const {
 }
 
 // --- Transitions ---
-Element Element::transition(std::string property, double duration_ms) const {
+Element Element::transition(std::wstring property, double duration_ms) const {
     auto e = with_mods();
     if (!e.modifiers->transitions) {
         e.modifiers->transitions = std::vector<ImplicitTransition>{};
@@ -187,7 +187,7 @@ Element Element::transition(std::string property, double duration_ms) const {
 }
 
 // --- Context menu ---
-Element Element::context_menu(std::vector<std::pair<std::string, std::function<void()>>> items) const {
+Element Element::context_menu(std::vector<std::pair<std::wstring, std::function<void()>>> items) const {
     auto e = with_mods();
     std::vector<ContextMenuItemDef> defs;
     std::vector<std::function<void()>> callbacks;

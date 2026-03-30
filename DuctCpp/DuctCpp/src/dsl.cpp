@@ -4,25 +4,25 @@
 namespace duct {
 
 // --- Text elements ---
-Element text(std::string content) {
+Element text(std::wstring content) {
     return Element(TextElement{ std::move(content) });
 }
-Element heading(std::string content) {
+Element heading(std::wstring content) {
     return Element(HeadingElement{ std::move(content) });
 }
-Element sub_heading(std::string content) {
+Element sub_heading(std::wstring content) {
     return Element(SubHeadingElement{ std::move(content) });
 }
-Element caption(std::string content) {
+Element caption(std::wstring content) {
     return Element(CaptionElement{ std::move(content) });
 }
 
 // --- Interactive ---
-Element button(std::string label, std::function<void()> on_click) {
+Element button(std::wstring label, std::function<void()> on_click) {
     return Element(ButtonElement{ std::move(label), std::move(on_click) });
 }
 
-Element text_field(std::string value, std::function<void(std::string)> on_changed, TextFieldOptions opts) {
+Element text_field(std::wstring value, std::function<void(std::wstring)> on_changed, TextFieldOptions opts) {
     return Element(TextFieldElement{
         std::move(value),
         std::move(on_changed),
@@ -69,7 +69,7 @@ Element progress_indeterminate() {
     return Element(ProgressElement{ 0.0, true });
 }
 
-Element combo_box(int selected_index, std::vector<std::string> items, std::function<void(int)> on_changed) {
+Element combo_box(int selected_index, std::vector<std::wstring> items, std::function<void(int)> on_changed) {
     return Element(ComboBoxElement{ selected_index, std::move(items), std::move(on_changed) });
 }
 
@@ -118,7 +118,7 @@ Element scroll_view(Element child) {
 }
 
 // --- Image ---
-Element image(std::string uri) {
+Element image(std::wstring uri) {
     return Element(ImageElement{ std::move(uri) });
 }
 
@@ -148,13 +148,13 @@ Element list_view(std::vector<Element> items, ListViewOptions opts) {
 }
 
 // --- Flyout button ---
-Element flyout_button(std::string label, std::initializer_list<Element> flyout_children) {
+Element flyout_button(std::wstring label, std::initializer_list<Element> flyout_children) {
     return Element(FlyoutButtonElement{
         std::move(label),
         std::vector<Element>(flyout_children)
     });
 }
-Element flyout_button(std::string label, std::vector<Element> flyout_children) {
+Element flyout_button(std::wstring label, std::vector<Element> flyout_children) {
     return Element(FlyoutButtonElement{
         std::move(label),
         std::move(flyout_children)
@@ -162,7 +162,7 @@ Element flyout_button(std::string label, std::vector<Element> flyout_children) {
 }
 
 // --- Menu flyout button ---
-Element menu_flyout_button(std::string label, std::vector<MenuItemDef> items) {
+Element menu_flyout_button(std::wstring label, std::vector<MenuItemDef> items) {
     std::vector<MenuFlyoutItemDef> defs;
     for (auto& item : items) {
         defs.push_back(MenuFlyoutItemDef{ std::move(item.label), std::move(item.on_click) });

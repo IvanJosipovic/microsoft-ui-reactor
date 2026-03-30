@@ -121,19 +121,19 @@ void test_use_state_multiple_hooks() {
         // Render 1
         ctx.begin_render();
         auto [a1, set_a] = ctx.use_state<int>(10);
-        auto [b1, set_b] = ctx.use_state<std::string>(std::string("hello"));
+        auto [b1, set_b] = ctx.use_state<std::wstring>(std::wstring(L"hello"));
         ASSERT_EQ(a1, 10);
-        ASSERT_EQ(b1, std::string("hello"));
+        ASSERT_EQ(b1, std::wstring(L"hello"));
 
         // Mutate only the string
-        set_b(std::string("world"));
+        set_b(std::wstring(L"world"));
 
         // Render 2
         ctx.begin_render();
         auto [a2, set_a2] = ctx.use_state<int>(10);
-        auto [b2, set_b2] = ctx.use_state<std::string>(std::string("hello"));
+        auto [b2, set_b2] = ctx.use_state<std::wstring>(std::wstring(L"hello"));
         ASSERT_EQ(a2, 10);       // unchanged
-        ASSERT_EQ(b2, std::string("world")); // updated
+        ASSERT_EQ(b2, std::wstring(L"world")); // updated
     END_TEST
 }
 
@@ -183,21 +183,21 @@ void test_use_reducer_vector() {
         duct::RenderContext ctx;
 
         ctx.begin_render();
-        auto [items1, dispatch1] = ctx.use_reducer<std::vector<std::string>>(
-            std::vector<std::string>{"a", "b"});
+        auto [items1, dispatch1] = ctx.use_reducer<std::vector<std::wstring>>(
+            std::vector<std::wstring>{L"a", L"b"});
         ASSERT_EQ(items1.size(), 2u);
 
         // Add an item
-        dispatch1([](std::vector<std::string> prev) {
-            prev.push_back("c");
+        dispatch1([](std::vector<std::wstring> prev) {
+            prev.push_back(L"c");
             return prev;
         });
 
         ctx.begin_render();
-        auto [items2, dispatch2] = ctx.use_reducer<std::vector<std::string>>(
-            std::vector<std::string>{});
+        auto [items2, dispatch2] = ctx.use_reducer<std::vector<std::wstring>>(
+            std::vector<std::wstring>{});
         ASSERT_EQ(items2.size(), 3u);
-        ASSERT_EQ(items2[2], std::string("c"));
+        ASSERT_EQ(items2[2], std::wstring(L"c"));
     END_TEST
 }
 
@@ -303,7 +303,7 @@ void test_use_memo_skips_recompute_same_deps() {
         auto val1 = ctx.use_memo<int>([&]() {
             compute_count++;
             return 10;
-        }, { std::any(std::string("a")) });
+        }, { std::any(std::wstring(L"a")) });
         ASSERT_EQ(val1, 10);
         ASSERT_EQ(compute_count, 1);
 
@@ -312,7 +312,7 @@ void test_use_memo_skips_recompute_same_deps() {
         auto val2 = ctx.use_memo<int>([&]() {
             compute_count++;
             return 20;
-        }, { std::any(std::string("a")) });
+        }, { std::any(std::wstring(L"a")) });
         ASSERT_EQ(val2, 10); // cached
         ASSERT_EQ(compute_count, 1);
 
@@ -321,7 +321,7 @@ void test_use_memo_skips_recompute_same_deps() {
         auto val3 = ctx.use_memo<int>([&]() {
             compute_count++;
             return 30;
-        }, { std::any(std::string("b")) });
+        }, { std::any(std::wstring(L"b")) });
         ASSERT_EQ(val3, 30); // recomputed
         ASSERT_EQ(compute_count, 2);
     END_TEST
@@ -560,8 +560,8 @@ void test_positional_add_remove_update() {
 
         // Start with 2 text elements
         std::vector<duct::Element> old_children = {
-            duct::Element(duct::TextElement{"A"}),
-            duct::Element(duct::TextElement{"B"}),
+            duct::Element(duct::TextElement{L"A"}),
+            duct::Element(duct::TextElement{L"B"}),
         };
 
         // Mount initial
@@ -573,9 +573,9 @@ void test_positional_add_remove_update() {
 
         // Update to 3 elements (add one, change existing)
         std::vector<duct::Element> new_children = {
-            duct::Element(duct::TextElement{"A-updated"}),
-            duct::Element(duct::TextElement{"B"}),
-            duct::Element(duct::TextElement{"C"}),
+            duct::Element(duct::TextElement{L"A-updated"}),
+            duct::Element(duct::TextElement{L"B"}),
+            duct::Element(duct::TextElement{L"C"}),
         };
 
         duct::ChildReconciler::reconcile(old_children, new_children, children, reconciler, noop);
@@ -583,7 +583,7 @@ void test_positional_add_remove_update() {
 
         // Now reduce to 1 element
         std::vector<duct::Element> fewer_children = {
-            duct::Element(duct::TextElement{"only-one"}),
+            duct::Element(duct::TextElement{L"only-one"}),
         };
 
         duct::ChildReconciler::reconcile(new_children, fewer_children, children, reconciler, noop);
@@ -605,9 +605,9 @@ void test_positional_empty_to_many() {
 
         std::vector<duct::Element> old_children = {};
         std::vector<duct::Element> new_children = {
-            duct::Element(duct::TextElement{"A"}),
-            duct::Element(duct::TextElement{"B"}),
-            duct::Element(duct::TextElement{"C"}),
+            duct::Element(duct::TextElement{L"A"}),
+            duct::Element(duct::TextElement{L"B"}),
+            duct::Element(duct::TextElement{L"C"}),
         };
 
         duct::ChildReconciler::reconcile(old_children, new_children, children, reconciler, noop);
@@ -628,8 +628,8 @@ void test_positional_many_to_empty() {
         auto noop = [](){};
 
         std::vector<duct::Element> old_children = {
-            duct::Element(duct::TextElement{"A"}),
-            duct::Element(duct::TextElement{"B"}),
+            duct::Element(duct::TextElement{L"A"}),
+            duct::Element(duct::TextElement{L"B"}),
         };
         for (auto& el : old_children) {
             auto ctrl = reconciler.mount(el, noop);
@@ -657,9 +657,9 @@ void test_keyed_reorder() {
 
         // [A, B, C] keyed
         std::vector<duct::Element> old_children = {
-            duct::Element(duct::TextElement{"A"}).with_key("a"),
-            duct::Element(duct::TextElement{"B"}).with_key("b"),
-            duct::Element(duct::TextElement{"C"}).with_key("c"),
+            duct::Element(duct::TextElement{L"A"}).with_key(L"a"),
+            duct::Element(duct::TextElement{L"B"}).with_key(L"b"),
+            duct::Element(duct::TextElement{L"C"}).with_key(L"c"),
         };
         for (auto& el : old_children) {
             auto ctrl = reconciler.mount(el, noop);
@@ -669,9 +669,9 @@ void test_keyed_reorder() {
 
         // Reorder to [C, A, B]
         std::vector<duct::Element> new_children = {
-            duct::Element(duct::TextElement{"C"}).with_key("c"),
-            duct::Element(duct::TextElement{"A"}).with_key("a"),
-            duct::Element(duct::TextElement{"B"}).with_key("b"),
+            duct::Element(duct::TextElement{L"C"}).with_key(L"c"),
+            duct::Element(duct::TextElement{L"A"}).with_key(L"a"),
+            duct::Element(duct::TextElement{L"B"}).with_key(L"b"),
         };
 
         duct::ChildReconciler::reconcile(old_children, new_children, children, reconciler, noop);
@@ -692,8 +692,8 @@ void test_keyed_insert_middle() {
         auto noop = [](){};
 
         std::vector<duct::Element> old_children = {
-            duct::Element(duct::TextElement{"A"}).with_key("a"),
-            duct::Element(duct::TextElement{"C"}).with_key("c"),
+            duct::Element(duct::TextElement{L"A"}).with_key(L"a"),
+            duct::Element(duct::TextElement{L"C"}).with_key(L"c"),
         };
         for (auto& el : old_children) {
             auto ctrl = reconciler.mount(el, noop);
@@ -703,9 +703,9 @@ void test_keyed_insert_middle() {
 
         // Insert B between A and C
         std::vector<duct::Element> new_children = {
-            duct::Element(duct::TextElement{"A"}).with_key("a"),
-            duct::Element(duct::TextElement{"B"}).with_key("b"),
-            duct::Element(duct::TextElement{"C"}).with_key("c"),
+            duct::Element(duct::TextElement{L"A"}).with_key(L"a"),
+            duct::Element(duct::TextElement{L"B"}).with_key(L"b"),
+            duct::Element(duct::TextElement{L"C"}).with_key(L"c"),
         };
 
         duct::ChildReconciler::reconcile(old_children, new_children, children, reconciler, noop);
@@ -726,9 +726,9 @@ void test_keyed_remove_middle() {
         auto noop = [](){};
 
         std::vector<duct::Element> old_children = {
-            duct::Element(duct::TextElement{"A"}).with_key("a"),
-            duct::Element(duct::TextElement{"B"}).with_key("b"),
-            duct::Element(duct::TextElement{"C"}).with_key("c"),
+            duct::Element(duct::TextElement{L"A"}).with_key(L"a"),
+            duct::Element(duct::TextElement{L"B"}).with_key(L"b"),
+            duct::Element(duct::TextElement{L"C"}).with_key(L"c"),
         };
         for (auto& el : old_children) {
             auto ctrl = reconciler.mount(el, noop);
@@ -738,8 +738,8 @@ void test_keyed_remove_middle() {
 
         // Remove B
         std::vector<duct::Element> new_children = {
-            duct::Element(duct::TextElement{"A"}).with_key("a"),
-            duct::Element(duct::TextElement{"C"}).with_key("c"),
+            duct::Element(duct::TextElement{L"A"}).with_key(L"a"),
+            duct::Element(duct::TextElement{L"C"}).with_key(L"c"),
         };
 
         duct::ChildReconciler::reconcile(old_children, new_children, children, reconciler, noop);
@@ -761,9 +761,9 @@ void test_mixed_keyed_unkeyed() {
 
         // Mix of keyed and unkeyed — reconciler should use keyed path
         std::vector<duct::Element> old_children = {
-            duct::Element(duct::TextElement{"A"}).with_key("a"),
-            duct::Element(duct::TextElement{"B"}), // no key
-            duct::Element(duct::TextElement{"C"}).with_key("c"),
+            duct::Element(duct::TextElement{L"A"}).with_key(L"a"),
+            duct::Element(duct::TextElement{L"B"}), // no key
+            duct::Element(duct::TextElement{L"C"}).with_key(L"c"),
         };
         for (auto& el : old_children) {
             auto ctrl = reconciler.mount(el, noop);
@@ -773,9 +773,9 @@ void test_mixed_keyed_unkeyed() {
 
         // Update with different mix
         std::vector<duct::Element> new_children = {
-            duct::Element(duct::TextElement{"A"}).with_key("a"),
-            duct::Element(duct::TextElement{"C"}).with_key("c"),
-            duct::Element(duct::TextElement{"D"}), // no key, new
+            duct::Element(duct::TextElement{L"A"}).with_key(L"a"),
+            duct::Element(duct::TextElement{L"C"}).with_key(L"c"),
+            duct::Element(duct::TextElement{L"D"}), // no key, new
         };
 
         duct::ChildReconciler::reconcile(old_children, new_children, children, reconciler, noop);
@@ -797,9 +797,9 @@ void test_empty_elements_filtered() {
 
         std::vector<duct::Element> old_children = {};
         std::vector<duct::Element> new_children = {
-            duct::Element(duct::TextElement{"A"}),
+            duct::Element(duct::TextElement{L"A"}),
             duct::Element{}, // EmptyElement — should be filtered
-            duct::Element(duct::TextElement{"B"}),
+            duct::Element(duct::TextElement{L"B"}),
         };
 
         duct::ChildReconciler::reconcile(old_children, new_children, children, reconciler, noop);
@@ -814,10 +814,10 @@ void test_empty_elements_filtered() {
 void test_hello_world_element_tree() {
     TEST("Hello World: text element renders correct tree")
         using namespace duct;
-        auto el = text("Hello from DuctCpp!");
+        auto el = text(L"Hello from DuctCpp!");
         ASSERT_TRUE(std::holds_alternative<TextElement>(el.data));
         auto& t = std::get<TextElement>(el.data);
-        ASSERT_EQ(t.content, std::string("Hello from DuctCpp!"));
+        ASSERT_EQ(t.content, std::wstring(L"Hello from DuctCpp!"));
     END_TEST
 }
 
@@ -832,9 +832,9 @@ void test_counter_use_state_and_button() {
                 // Build the same tree structure as CounterDemo
                 return duct::Element(duct::StackElement{
                     duct::Orientation::Vertical, 12, {
-                        duct::Element(duct::TextElement{std::to_string(count)}),
+                        duct::Element(duct::TextElement{std::to_wstring(count)}),
                         duct::Element(duct::ButtonElement{
-                            "+1", [=]{ set_count(count + 1); }
+                            L"+1", [=]{ set_count(count + 1); }
                         })
                     }
                 });
@@ -883,7 +883,7 @@ void test_nested_component_own_state() {
                 auto [val, set_val] = use_state<int>(100);
                 child_val = val;
                 child_setter = set_val;
-                return duct::Element(duct::TextElement{std::to_string(val)});
+                return duct::Element(duct::TextElement{std::to_wstring(val)});
             }
             int child_val = -1;
             std::function<void(int)> child_setter;
@@ -897,7 +897,7 @@ void test_nested_component_own_state() {
                 // Mount child as ComponentElement
                 return duct::Element(duct::StackElement{
                     duct::Orientation::Vertical, 0, {
-                        duct::Element(duct::TextElement{std::to_string(parent_val)}),
+                        duct::Element(duct::TextElement{std::to_wstring(parent_val)}),
                         duct::Element(duct::ComponentElement{
                             std::make_shared<ChildComponent>(),
                             std::type_index(typeid(ChildComponent))
