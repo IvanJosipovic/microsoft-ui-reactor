@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Duct.Core;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -26,9 +27,19 @@ public static class DuctApp
     internal static DuctAppOptions Options = new();
     public static DuctHost? ActiveHost;
 
+    // Unpackaged WinUI apps (WindowsPackageType=None) don't inherit DPI awareness from an
+    // MSIX manifest, so the process defaults to DPI-unaware and Windows applies blurry bitmap
+    // scaling. Setting PerMonitorV2 awareness before any window is created tells the OS the
+    // app will handle DPI itself, producing crisp rendering at any scale factor.
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetProcessDpiAwarenessContext(nint value);
+
+    private static readonly nint DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4;
+
     public static void Run<TRoot>(string title = "Duct App", int width = 1024, int height = 768, bool fullScreen = false, Action<DuctHost>? configure = null)
         where TRoot : Component, new()
     {
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         WinRT.ComWrappersSupport.InitializeComWrappers();
         Options = new DuctAppOptions(
             RootFactory: () => new TRoot(),
@@ -48,6 +59,7 @@ public static class DuctApp
 
     public static void Run(string title, Func<RenderContext, Element> rootRender, int width = 1024, int height = 768, bool fullScreen = false)
     {
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         WinRT.ComWrappersSupport.InitializeComWrappers();
         Options = new DuctAppOptions(
             RootRenderFunc: rootRender,
@@ -122,8 +134,7 @@ public partial class DuctApplication : Application, IXamlMetadataProvider
         if (opts.FullScreen)
             window.AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen);
         else
-            ;// TODO: resizing the window causes it to blur:
-             // window.AppWindow.Resize(new Windows.Graphics.SizeInt32(opts.WindowWidth, opts.WindowHeight)); 
+            window.AppWindow.Resize(new Windows.Graphics.SizeInt32(opts.WindowWidth, opts.WindowHeight)); 
 
         var host = new DuctHost(window);
         DuctApp.ActiveHost = host;
