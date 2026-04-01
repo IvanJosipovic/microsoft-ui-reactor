@@ -1302,6 +1302,27 @@ public record EllipseElement() : Element
     internal Action<WinShapes.Ellipse>[] Setters { get; init; } = [];
 }
 
+public record LineElement() : Element
+{
+    public double X1 { get; init; }
+    public double Y1 { get; init; }
+    public double X2 { get; init; }
+    public double Y2 { get; init; }
+    public Brush? Stroke { get; init; }
+    public double StrokeThickness { get; init; } = 1;
+    internal Action<WinShapes.Line>[] Setters { get; init; } = [];
+}
+
+public record PathElement() : Element
+{
+    public Geometry? Data { get; init; }
+    public Brush? Fill { get; init; }
+    public Brush? Stroke { get; init; }
+    public double StrokeThickness { get; init; } = 1;
+    public Transform? RenderTransform { get; init; }
+    internal Action<WinShapes.Path>[] Setters { get; init; } = [];
+}
+
 // ════════════════════════════════════════════════════════════════════════
 //  Additional layout elements
 // ════════════════════════════════════════════════════════════════════════

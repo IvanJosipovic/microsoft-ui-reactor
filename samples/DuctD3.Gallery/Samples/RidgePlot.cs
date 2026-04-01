@@ -1,8 +1,9 @@
+using Duct.Core;
 using Duct.D3;
+using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -15,23 +16,26 @@ public class RidgePlot : GallerySample
         "the characteristic layered appearance.";
     public override string Category => "Areas";
 
-    public override string SourceCode => @"
-double rowHeight = plotH / rows;
-double overlap = rowHeight * 0.45;
+    public override string SourceCode => """
+        double rowHeight = plotH / rows;
+        double overlap = rowHeight * 0.45;
 
-for (int r = 0; r < rows; r++)
-{
-    double baselineY = marginTop + r * (rowHeight - overlap) + rowHeight;
-    var yScale = new LinearScale([0, peak], [baselineY, baselineY - rowHeight]);
+        for (int r = 0; r < rows; r++)
+        {
+            double baselineY = marginTop + r * (rowStep - overlap) + rowStep + overlap;
+            var yScale = new LinearScale([0, peak], [baselineY, baselineY - rowStep * 1.2]);
 
-    var area = AreaGenerator.Create<(double x, double y)>(
-        d => xScale.Map(d.x),
-        _ => baselineY,       // baseline
-        d => yScale.Map(d.y));
-    string? path = area.Generate(distribution);
-}";
+            var area = AreaGenerator.Create<(double x, double y)>(
+                d => xScale.Map(d.x),
+                _ => baselineY,
+                d => yScale.Map(d.y));
+            string? path = area.Generate(distribution);
+            D3Path(path, fill: Brush(D3Color.Parse("#ffffff"), 0.85))
+            D3Path(path, fill: Brush(Palette[r], 0.55))
+        }
+        """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 400;
         const double marginLeft = 80, marginTop = 25, marginRight = 20, marginBottom = 20;
@@ -74,60 +78,45 @@ for (int r = 0; r < rows; r++)
         double rowStep = plotH / rows;
         double overlap = rowStep * 0.45;
 
-        var canvas = new Canvas { Width = W, Height = H };
-
         // Draw rows from back (bottom) to front (top) so front overlaps back
-        for (int r = rows - 1; r >= 0; r--)
-        {
-            double baselineY = marginTop + r * (rowStep - overlap) + rowStep + overlap;
-
-            var yScale = new LinearScale([0, globalPeak * 1.1],
-                [baselineY, baselineY - rowStep * 1.2]);
-
-            var pts = new (double x, double y)[points];
-            for (int i = 0; i < points; i++)
-                pts[i] = (i, distributions[r][i]);
-
-            // Area fill
-            var area = AreaGenerator.Create<(double x, double y)>(
-                d => xScale.Map(d.x),
-                _ => baselineY,
-                d => yScale.Map(d.y));
-            string? areaPath = area.Generate(pts);
-
-            if (areaPath != null)
+        return D3Canvas(W, H,
+        [
+            .. Enumerable.Range(0, rows).Reverse().SelectMany(r =>
             {
-                // White background to occlude rows behind
-                canvas.Children.Add(G.MakePath(areaPath,
-                    fill: G.Brush(D3Color.Parse("#ffffff"), 0.85)));
-                // Colored fill
-                canvas.Children.Add(G.MakePath(areaPath,
-                    fill: G.Brush(G.Palette[r], 0.55)));
-            }
+                double baselineY = marginTop + r * (rowStep - overlap) + rowStep + overlap;
 
-            // Stroke line on top
-            var line = LineGenerator.Create<(double x, double y)>(
-                d => xScale.Map(d.x),
-                d => yScale.Map(d.y))
-                .SetCurve(D3Curve.Natural);
-            string? linePath = line.Generate(pts);
-            if (linePath != null)
-            {
-                canvas.Children.Add(G.MakePath(linePath,
-                    stroke: G.Brush(G.Palette[r]), strokeWidth: 1.5));
-            }
+                var yScale = new LinearScale([0, globalPeak * 1.1],
+                    [baselineY, baselineY - rowStep * 1.2]);
 
-            // Baseline
-            G.AddLine(canvas, marginLeft, baselineY, marginLeft + plotW, baselineY,
-                G.Gray(210), 0.5);
+                var pts = Enumerable.Range(0, points)
+                    .Select(i => (x: (double)i, y: distributions[r][i]))
+                    .ToArray();
 
-            // Row label
-            G.AddText(canvas, 4, baselineY - rowStep * 0.5 - 6, labels[r], 11, G.Gray(80));
-        }
+                var area = AreaGenerator.Create<(double x, double y)>(
+                    d => xScale.Map(d.x),
+                    _ => baselineY,
+                    d => yScale.Map(d.y));
+                string? areaPath = area.Generate(pts);
 
-        // Title
-        G.AddText(canvas, marginLeft, 4, "Ridgeline Plot", 14, G.Gray(40));
+                var line = LineGenerator.Create<(double x, double y)>(
+                    d => xScale.Map(d.x),
+                    d => yScale.Map(d.y))
+                    .SetCurve(D3Curve.Natural);
+                string? linePath = line.Generate(pts);
 
-        return canvas;
+                return (Element[])
+                [
+                    .. (areaPath != null ? new Element[]
+                    {
+                        D3Path(areaPath, fill: Brush(D3Color.Parse("#ffffff"), 0.85)),
+                        D3Path(areaPath, fill: Brush(Palette[r], 0.55)),
+                    } : Array.Empty<Element>()),
+                    .. (linePath != null ? new[] { D3Path(linePath, stroke: Brush(Palette[r]), strokeWidth: 1.5) } : Array.Empty<Element>()),
+                    D3Line(marginLeft, baselineY, marginLeft + plotW, baselineY) with { Stroke = Gray(210), StrokeThickness = 0.5 },
+                    D3Text(4, baselineY - rowStep * 0.5 - 6, labels[r], 11, Gray(80)),
+                ];
+            }),
+            D3Text(marginLeft, 4, "Ridgeline Plot", 14, Gray(40)),
+        ]);
     }
 }

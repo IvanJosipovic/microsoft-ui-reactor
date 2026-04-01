@@ -1,9 +1,11 @@
+using Duct;
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -21,24 +23,22 @@ public sealed class ForceDirectedGraphSample : GallerySample
             .CollisionRadius(14)
             .InitializePositions().Run(300);
 
-        foreach (var link in sim.Links)
-        {
+        var edges = sim.Links.Select(link => {
             var s = sim.Nodes[link.Source];
             var t = sim.Nodes[link.Target];
-            G.AddLine(canvas, s.X, s.Y, t.X, t.Y, edgeStroke, 1.2);
-        }
-        for (int i = 0; i < sim.Nodes.Count; i++)
-        {
-            var n = sim.Nodes[i];
-            var fill = G.Brush(G.Palette[categories[i] % G.Palette.Length]);
-            G.AddEllipse(canvas, n.X, n.Y, 10, fill, white, 1.5);
-        }
+            return D3Line(s.X, s.Y, t.X, t.Y) with
+                { Stroke = edgeStroke, StrokeThickness = 1.2 };
+        });
+        var nodes = sim.Nodes.Select((n, i) =>
+            D3Circle(n.X, n.Y, 10) with
+                { Fill = Brush(Palette[categories[i]]), Stroke = white });
+
+        return D3Canvas(W, H, [..edges, ..nodes, ..labels]);
         """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 500;
-        var canvas = new Canvas { Width = W, Height = H };
 
         // -- data: 15 nodes in 4 categories --
         string[] labels =
@@ -75,32 +75,32 @@ public sealed class ForceDirectedGraphSample : GallerySample
             .InitializePositions()
             .Run(300);
 
-        // -- draw edges --
-        var edgeStroke = G.Gray(180);
-        foreach (var link in sim.Links)
-        {
-            var s = sim.Nodes[link.Source];
-            var t = sim.Nodes[link.Target];
-            G.AddLine(canvas, s.X, s.Y, t.X, t.Y, edgeStroke, 1.2);
-        }
+        // -- draw --
+        var edgeStroke = Gray(180);
+        var white = Brush("#ffffff");
 
-        // -- draw nodes --
-        var white = G.Brush("#ffffff");
-        for (int i = 0; i < sim.Nodes.Count; i++)
-        {
-            var n = sim.Nodes[i];
-            int cat = categories[i];
-            var fill = G.Brush(G.Palette[cat % G.Palette.Length]);
-            G.AddEllipse(canvas, n.X, n.Y, 10, fill, white, 1.5);
-
-            // label offset below node
-            G.AddText(canvas, n.X - 16, n.Y + 12, labels[i], 9, G.Gray(60),
-                      TextAlignment.Center, 32);
-        }
-
-        // -- title --
-        G.AddText(canvas, 12, 6, "Force-Directed Graph", 14, G.Brush("#333333"));
-
-        return canvas;
+        return D3Canvas(W, H,
+        [
+            .. sim.Links.Select(link =>
+            {
+                var s = sim.Nodes[link.Source];
+                var t = sim.Nodes[link.Target];
+                return D3Line(s.X, s.Y, t.X, t.Y) with { Stroke = edgeStroke, StrokeThickness = 1.2 };
+            }),
+            .. sim.Nodes.Select((n, i) => new Element[]
+            {
+                D3Circle(n.X, n.Y, 10) with
+                {
+                    Fill = Brush(Palette[categories[i] % Palette.Length]),
+                    Stroke = white,
+                    StrokeThickness = 1.5,
+                },
+                Text(labels[i]).FontSize(9).Foreground(Gray(60))
+                    .Width(32)
+                    .Set(tb => tb.TextAlignment = TextAlignment.Center)
+                    .Canvas(n.X - 16, n.Y + 12),
+            }).SelectMany(e => e),
+            D3Text(12, 6, "Force-Directed Graph", 14, Brush("#333333")),
+        ]);
     }
 }

@@ -1,9 +1,11 @@
+using Duct;
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -20,28 +22,25 @@ public sealed class TidyTreeSample : GallerySample
         var root = layout.Hierarchy(data, n => n.Children);
         layout.Layout(root);
 
-        foreach (var node in nodes)
-            foreach (var child in node.Children)
-            {
-                double my = (node.Y + child.Y) / 2;
+        D3Canvas(W, H,
+            [..nodes.SelectMany(n => n.Children.Select(child => {
+                double my = (n.Y + child.Y) / 2;
                 var pb = new PathBuilder(3);
-                pb.MoveTo(node.X, node.Y);
-                pb.BezierCurveTo(node.X, my, child.X, my, child.X, child.Y);
-                canvas.Children.Add(G.MakePath(pb.ToString(), linkStroke, null, 1.5));
-            }
-        foreach (var node in nodes)
-        {
-            bool isLeaf = node.Children.Count == 0;
-            G.AddEllipse(canvas, node.X, node.Y, isLeaf ? 4 : 5, fill, stroke);
-        }
+                pb.MoveTo(n.X, n.Y);
+                pb.BezierCurveTo(n.X, my, child.X, my, child.X, child.Y);
+                return D3Path(pb.ToString(), linkStroke, null, 1.5);
+            })),
+             ..nodes.Select(n => D3Circle(n.X, n.Y, isLeaf ? 4 : 5)
+                with { Fill = fill, Stroke = stroke }),
+             ..labels]
+        )
         """;
 
     record FsNode(string Name, FsNode[]? Children = null);
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 500;
-        var canvas = new Canvas { Width = W, Height = H };
 
         // File system hierarchy data
         var data = new FsNode("project", [
@@ -81,43 +80,40 @@ public sealed class TidyTreeSample : GallerySample
         var nodes = new List<TreeNode<FsNode>>();
         Collect(root, nodes);
 
-        // Draw links as vertical bezier curves
-        var linkStroke = G.Gray(180);
-        foreach (var node in nodes)
-        {
-            foreach (var child in node.Children)
-            {
-                double my = (node.Y + child.Y) / 2;
-                var pb = new PathBuilder(3);
-                pb.MoveTo(node.X, node.Y);
-                pb.BezierCurveTo(node.X, my, child.X, my, child.X, child.Y);
-                var path = G.MakePath(pb.ToString(), linkStroke, null, 1.5);
-                canvas.Children.Add(path);
-            }
-        }
+        var linkStroke = Gray(180);
 
-        // Draw nodes
-        foreach (var node in nodes)
-        {
-            bool isLeaf = node.Children.Count == 0;
-            double r = isLeaf ? 4 : 5;
-            var fill = isLeaf ? G.Brush(G.Palette[0]) : G.Brush("#555555");
-            var stroke = isLeaf ? null : G.Gray(80);
-            G.AddEllipse(canvas, node.X, node.Y, r, fill, stroke, 1.5);
+        return D3Canvas(W, H,
+            [.. nodes.SelectMany(node =>
+                node.Children.Select(child =>
+                {
+                    double my = (node.Y + child.Y) / 2;
+                    var pb = new PathBuilder(3);
+                    pb.MoveTo(node.X, node.Y);
+                    pb.BezierCurveTo(node.X, my, child.X, my, child.X, child.Y);
+                    return D3Path(pb.ToString(), linkStroke, null, 1.5);
+                })),
+             .. nodes.SelectMany(node =>
+             {
+                 bool isLeaf = node.Children.Count == 0;
+                 double r = isLeaf ? 4 : 5;
+                 var fill = isLeaf ? Brush(Palette[0]) : Brush("#555555");
+                 var stroke = isLeaf ? null : (Microsoft.UI.Xaml.Media.Brush?)Gray(80);
 
-            // Label
-            if (isLeaf)
-            {
-                G.AddText(canvas, node.X + 8, node.Y - 7, node.Data.Name, 9, G.Gray(60));
-            }
-            else
-            {
-                G.AddText(canvas, node.X - 4, node.Y - 18, node.Data.Name, 10,
-                    G.Brush("#333333"), TextAlignment.Center);
-            }
-        }
+                 Element label = isLeaf
+                     ? D3Text(node.X + 8, node.Y - 7, node.Data.Name, 9, Gray(60))
+                     : (Text(node.Data.Name) with { FontSize = 10 })
+                         .Foreground(Brush("#333333"))
+                         .Set(tb => tb.TextAlignment = TextAlignment.Center)
+                         .Canvas(node.X - 4, node.Y - 18);
 
-        return canvas;
+                 return new Element[]
+                 {
+                     D3Circle(node.X, node.Y, r) with { Fill = fill, Stroke = stroke, StrokeThickness = 1.5 },
+                     label,
+                 };
+             }),
+            ]
+        );
     }
 
     static void Collect(TreeNode<FsNode> node, List<TreeNode<FsNode>> list)

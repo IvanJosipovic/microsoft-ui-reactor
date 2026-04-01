@@ -1,9 +1,9 @@
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -22,27 +22,21 @@ public sealed class SankeyDiagramSample : GallerySample
         foreach (var link in graph.Links)
         {
             string? pathData = SankeyLayout.LinkPath(link);
-            if (pathData == null) continue;
-            var path = G.MakePath(pathData, fill: G.Brush(color, 0.35));
-            path.RenderTransform = new TranslateTransform { X = pad, Y = pad };
-            canvas.Children.Add(path);
+            D3PathTranslated(pathData, pad, pad, fill: Brush(color, 0.35))
         }
         foreach (var node in graph.Nodes)
         {
-            var fill = G.Brush(G.Palette[ci % G.Palette.Length]);
-            double nh = node.Y1 - node.Y0;
-            G.AddRect(canvas, pad + node.X0, pad + node.Y0,
-                node.X1 - node.X0, nh, fill, 2);
+            D3Rect(pad + node.X0, pad + node.Y0, nw, nh)
+                with { Fill = fill, RadiusX = 2, RadiusY = 2 }
         }
         """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 500;
         const double pad = 40;
         double plotW = W - pad * 2;
         double plotH = H - pad * 2;
-        var canvas = new Canvas { Width = W, Height = H };
 
         // -- nodes: 5 sources -> 3 intermediate -> 2 outputs --
         var graph = new SankeyGraph
@@ -95,42 +89,39 @@ public sealed class SankeyDiagramSample : GallerySample
         for (int i = 0; i < graph.Nodes.Count; i++)
             nodeColors[graph.Nodes[i].Id] = i;
 
-        // -- draw links --
-        foreach (var link in graph.Links)
-        {
-            string? pathData = SankeyLayout.LinkPath(link);
-            if (pathData == null) continue;
+        return D3Canvas(W, H,
+            [.. graph.Links
+                .Select(link => (pathData: SankeyLayout.LinkPath(link), link.SourceId))
+                .Where(t => t.pathData != null)
+                .Select(t =>
+                {
+                    int ci = nodeColors.GetValueOrDefault(t.SourceId, 0);
+                    var color = Palette[ci % Palette.Length];
+                    return D3PathTranslated(t.pathData!, pad, pad,
+                        fill: Brush(color, 0.35));
+                }),
+             .. graph.Nodes.SelectMany(node =>
+             {
+                 int ci = nodeColors[node.Id];
+                 var fill = Brush(Palette[ci % Palette.Length]);
+                 double nh = node.Y1 - node.Y0;
+                 bool isOutput = node.SourceLinks.Count == 0;
+                 double labelY = pad + node.Y0 + nh / 2 - 7;
+                 string labelText = node.Label ?? node.Id;
 
-            int ci = nodeColors.GetValueOrDefault(link.SourceId, 0);
-            var color = G.Palette[ci % G.Palette.Length];
-            var path = G.MakePath(pathData, fill: G.Brush(color, 0.35));
-            path.RenderTransform = new TranslateTransform { X = pad, Y = pad };
-            canvas.Children.Add(path);
-        }
+                 var label = isOutput
+                     ? D3TextRight(pad + node.X0 - 6 - 90, labelY, labelText, 90, 10, Gray(40))
+                     : D3Text(pad + node.X1 + 6, labelY, labelText, 10, Gray(40));
 
-        // -- draw nodes --
-        foreach (var node in graph.Nodes)
-        {
-            int ci = nodeColors[node.Id];
-            var fill = G.Brush(G.Palette[ci % G.Palette.Length]);
-            double nh = node.Y1 - node.Y0;
-            G.AddRect(canvas, pad + node.X0, pad + node.Y0, node.X1 - node.X0, nh, fill, 2);
-
-            // Label: right side for source/intermediate, left side for outputs
-            bool isOutput = node.SourceLinks.Count == 0;
-            double tx = isOutput
-                ? pad + node.X0 - 6
-                : pad + node.X1 + 6;
-            var align = isOutput ? TextAlignment.Right : TextAlignment.Left;
-            double tw = isOutput ? 90 : 0;
-            double labelX = isOutput ? tx - 90 : tx;
-            G.AddText(canvas, labelX, pad + node.Y0 + nh / 2 - 7,
-                      node.Label ?? node.Id, 10, G.Gray(40), align, isOutput ? 90 : null);
-        }
-
-        // -- title --
-        G.AddText(canvas, 12, 6, "Sankey Diagram — Energy Flow", 14, G.Brush("#333333"));
-
-        return canvas;
+                 return new Element[]
+                 {
+                     D3Rect(pad + node.X0, pad + node.Y0, node.X1 - node.X0, nh) with
+                         { Fill = fill, RadiusX = 2, RadiusY = 2 },
+                     label,
+                 };
+             }),
+             D3Text(12, 6, "Sankey Diagram \u2014 Energy Flow", 14, Brush("#333333")),
+            ]
+        );
     }
 }

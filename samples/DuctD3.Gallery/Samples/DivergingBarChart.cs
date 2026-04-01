@@ -1,8 +1,9 @@
+using Duct.Core;
 using Duct.D3;
+using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -18,10 +19,11 @@ public class DivergingBarChartSample : GallerySample
             .SetRange(0, plotH).SetPaddingInner(0.2).SetPaddingOuter(0.1);
 
         double zeroX = left + xs.Map(0);
-        G.AddLine(canvas, zeroX, top, zeroX, top + plotH, G.Gray(80), 1.5);
+        D3Line(zeroX, top, zeroX, top + plotH)
+            with { Stroke = Gray(80), StrokeThickness = 1.5 };
 
-        var posBrush = G.Brush(G.Palette[0]);
-        var negBrush = G.Brush(G.Palette[3]);
+        var posBrush = Brush(Palette[0]);
+        var negBrush = Brush(Palette[3]);
 
         for (int i = 0; i < items.Length; i++)
         {
@@ -32,18 +34,17 @@ public class DivergingBarChartSample : GallerySample
                 ? xs.Map(v) - xs.Map(0)
                 : xs.Map(0) - xs.Map(v);
             var fill = v >= 0 ? posBrush : negBrush;
-            G.AddRect(canvas, barStart, y, barWidth, band.Bandwidth, fill, 2);
+            D3Rect(barStart, y, barWidth, band.Bandwidth)
+                with { Fill = fill, RadiusX = 2, RadiusY = 2 };
         }
         """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 400;
         const double left = 110, top = 30, right = 30, bottom = 40;
         double plotW = W - left - right;
         double plotH = H - top - bottom;
-
-        var canvas = new Canvas { Width = W, Height = H };
 
         // Sample data — sentiment scores (-100 to +100)
         string[] items = ["Product Quality", "Customer Service", "Pricing",
@@ -67,68 +68,56 @@ public class DivergingBarChartSample : GallerySample
         var band = BandScale.Create(items).SetRange(0, plotH).SetPaddingInner(0.2).SetPaddingOuter(0.1);
 
         // Vertical grid lines
-        var gridBrush = G.Gray(128, 40);
-        foreach (var t in xs.Ticks(8))
-            G.AddLine(canvas, left + xs.Map(t), top, left + xs.Map(t), top + plotH, gridBrush);
+        var gridBrush = Gray(128, 40);
+        var gridLines = xs.Ticks(8).Select(t =>
+            D3Line(left + xs.Map(t), top, left + xs.Map(t), top + plotH) with { Stroke = gridBrush, StrokeThickness = 1 });
 
         // Zero line
         double zeroX = left + xs.Map(0);
-        G.AddLine(canvas, zeroX, top, zeroX, top + plotH, G.Gray(80), 1.5);
 
-        // Bars
-        var posBrush = G.Brush(G.Palette[0]);
-        var negBrush = G.Brush(G.Palette[3]);
-
-        for (int i = 0; i < items.Length; i++)
-        {
-            double y = top + band.Map(items[i]);
-            double v = scores[i];
-            double barStart, barWidth;
-
-            if (v >= 0)
-            {
-                barStart = zeroX;
-                barWidth = xs.Map(v) - xs.Map(0);
-            }
-            else
-            {
-                barStart = left + xs.Map(v);
-                barWidth = xs.Map(0) - xs.Map(v);
-            }
-
-            var fill = v >= 0 ? posBrush : negBrush;
-            G.AddRect(canvas, barStart, y, barWidth, band.Bandwidth, fill, 2);
-
-            // Value label
-            double labelX = v >= 0 ? barStart + barWidth + 4 : barStart - 30;
-            G.AddText(canvas, labelX, y + band.Bandwidth / 2 - 7,
-                      (v >= 0 ? "+" : "") + v.ToString("F0"), 10, G.Gray(60));
-        }
+        // Bars + value labels
+        var posBrush = Brush(Palette[0]);
+        var negBrush = Brush(Palette[3]);
 
         // Axes
-        var axisBrush = G.Gray(100, 180);
-        G.AddLine(canvas, left, top + plotH, left + plotW, top + plotH, axisBrush);
+        var axisBrush = Gray(100, 180);
 
-        // X axis tick labels
-        foreach (var t in xs.Ticks(8))
-            G.AddText(canvas, left + xs.Map(t) - 12, top + plotH + 6, G.Fmt(t), 10, axisBrush);
+        return D3Canvas(W, H,
+            [.. gridLines,
+             D3Line(zeroX, top, zeroX, top + plotH) with { Stroke = Gray(80), StrokeThickness = 1.5 },
 
-        // Y axis labels (item names)
-        for (int i = 0; i < items.Length; i++)
-        {
-            double cy = top + band.Map(items[i]) + band.Bandwidth / 2 - 7;
-            G.AddText(canvas, 2, cy, items[i], 10, G.Gray(60), TextAlignment.Right, left - 6);
-        }
+             // Bars + value labels
+             .. items.SelectMany((item, i) =>
+             {
+                 double y = top + band.Map(item);
+                 double v = scores[i];
+                 double barStart = v >= 0 ? zeroX : left + xs.Map(v);
+                 double barWidth = v >= 0 ? xs.Map(v) - xs.Map(0) : xs.Map(0) - xs.Map(v);
+                 var fill = v >= 0 ? posBrush : negBrush;
+                 double labelX = v >= 0 ? barStart + barWidth + 4 : barStart - 30;
+                 return new Element[]
+                 {
+                     D3Rect(barStart, y, barWidth, band.Bandwidth) with { Fill = fill, RadiusX = 2, RadiusY = 2 },
+                     D3Text(labelX, y + band.Bandwidth / 2 - 7, (v >= 0 ? "+" : "") + v.ToString("F0"), 10, Gray(60)),
+                 };
+             }),
 
-        // Title
-        G.AddText(canvas, left, 4, "Customer Sentiment Scores", 13, G.Gray(40));
+             D3Line(left, top + plotH, left + plotW, top + plotH) with { Stroke = axisBrush, StrokeThickness = 1 },
+             .. xs.Ticks(8).Select(t =>
+                 D3Text(left + xs.Map(t) - 12, top + plotH + 6, Fmt(t), 10, axisBrush)),
 
-        // Legend
-        G.AddRect(canvas, left + plotW - 120, top + 2, 12, 12, posBrush, 2);
-        G.AddText(canvas, left + plotW - 104, top + 1, "Positive", 10, G.Gray(60));
-        G.AddRect(canvas, left + plotW - 50, top + 2, 12, 12, negBrush, 2);
-        G.AddText(canvas, left + plotW - 34, top + 1, "Negative", 10, G.Gray(60));
+             // Y axis labels
+             .. items.Select((item, i) =>
+                 D3TextRight(2, top + band.Map(item) + band.Bandwidth / 2 - 7, item, left - 6, 10, Gray(60))),
 
-        return canvas;
+             // Legend
+             D3Rect(left + plotW - 120, top + 2, 12, 12) with { Fill = posBrush, RadiusX = 2, RadiusY = 2 },
+             D3Text(left + plotW - 104, top + 1, "Positive", 10, Gray(60)),
+             D3Rect(left + plotW - 50, top + 2, 12, 12) with { Fill = negBrush, RadiusX = 2, RadiusY = 2 },
+             D3Text(left + plotW - 34, top + 1, "Negative", 10, Gray(60)),
+
+             D3Text(left, 4, "Customer Sentiment Scores", 13, Gray(40)),
+            ]
+        );
     }
 }

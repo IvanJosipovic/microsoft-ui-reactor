@@ -395,6 +395,11 @@ public static class UI
 
     public static EllipseElement Ellipse() => new();
 
+    public static LineElement Line(double x1, double y1, double x2, double y2) =>
+        new() { X1 = x1, Y1 = y1, X2 = x2, Y2 = y2 };
+
+    public static PathElement Path() => new();
+
     // ── Additional layout ───────────────────────────────────────────
 
     public static RelativePanelElement RelativePanel(params Element?[] children) => new(FilterChildren(children));

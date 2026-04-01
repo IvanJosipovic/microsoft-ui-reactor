@@ -1,9 +1,9 @@
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -22,15 +22,16 @@ public sealed class DonutChartSample : GallerySample
             .SetSortValues(null).SetPadAngle(0.02);
         var arc = new ArcGenerator().SetOuterRadius(150).SetInnerRadius(80);
         var arcs = pie.Generate(data);
-        // Draw slices and place labels at centroids
+        var slices = arcs.Select((a, i) =>
+            D3PathTranslated(arc.Generate(a), cx, cy,
+                fill: Brush(Palette[i % Palette.Length])));
+        D3Canvas(width, height, [..slices, ..labels, ..centerText, title]);
         """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double width = 700, height = 400;
         double cx = width / 2, cy = height / 2;
-
-        var canvas = new Canvas { Width = width, Height = height };
 
         var data = new (string Name, double Value)[]
         {
@@ -44,31 +45,24 @@ public sealed class DonutChartSample : GallerySample
         var arc = new ArcGenerator().SetOuterRadius(150).SetInnerRadius(80);
         var arcs = pie.Generate(data);
 
-        for (int i = 0; i < arcs.Length; i++)
-        {
-            var a = arcs[i];
-            var pathData = arc.Generate(a);
-            if (pathData == null) continue;
+        var labelArc = new ArcGenerator().SetOuterRadius(185).SetInnerRadius(185);
+        double total = data.Sum(d => d.Value);
 
-            var path = G.MakePath(pathData, fill: G.Brush(G.Palette[i % G.Palette.Length]));
-            path.RenderTransform = new TranslateTransform { X = cx, Y = cy };
-            canvas.Children.Add(path);
-
-            // Label at centroid of a slightly larger arc for readability
-            var labelArc = new ArcGenerator().SetOuterRadius(185).SetInnerRadius(185);
-            var (ox, oy) = labelArc.Centroid(a.StartAngle, a.EndAngle);
-            G.AddText(canvas, cx + ox - 24, cy + oy - 7,
-                $"{a.Data.Name}", 10, G.Brush(G.Palette[i % G.Palette.Length]));
-        }
-
-        // Center label
-        double total = 0;
-        foreach (var d in data) total += d.Value;
-        G.AddText(canvas, cx - 24, cy - 12, $"${total:N0}", 14, G.Gray(40));
-        G.AddText(canvas, cx - 16, cy + 6, "/ month", 10, G.Gray(120));
-
-        G.AddText(canvas, cx - 80, 10, "Monthly Expenses", 16, G.Gray(40));
-
-        return canvas;
+        return D3Canvas(width, height,
+        [
+            .. arcs.Select((a, i) => (a, i, pathData: arc.Generate(a)))
+                .Where(t => t.pathData != null)
+                .SelectMany(t => new Element[]
+                {
+                    D3PathTranslated(t.pathData!, cx, cy,
+                        fill: Brush(Palette[t.i % Palette.Length])),
+                    D3Text(cx + labelArc.Centroid(t.a.StartAngle, t.a.EndAngle).x - 24,
+                           cy + labelArc.Centroid(t.a.StartAngle, t.a.EndAngle).y - 7,
+                        $"{t.a.Data.Name}", 10, Brush(Palette[t.i % Palette.Length])),
+                }),
+            D3Text(cx - 24, cy - 12, $"${total:N0}", 14, Gray(40)),
+            D3Text(cx - 16, cy + 6, "/ month", 10, Gray(120)),
+            D3Text(cx - 80, 10, "Monthly Expenses", 16, Gray(40)),
+        ]);
     }
 }

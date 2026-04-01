@@ -1,8 +1,9 @@
+using Duct.Core;
 using Duct.D3;
+using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -18,15 +19,15 @@ foreach (var (series, color) in seriesData.Zip(colors))
     var line = LineGenerator.Create<(double x, double y)>(
         d => xs.Map(d.x), d => ys.Map(d.y));
     var pathData = line.Generate(series);
-    canvas.Children.Add(G.MakePath(pathData, G.Brush(color), strokeWidth: 2));
+    D3Path(pathData, stroke: Brush(color), strokeWidth: 2)
 }";
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
-        const double canvasW = 700, canvasH = 400;
+        const double W = 700, H = 400;
         const double left = 50, top = 20, right = 120, bottom = 40;
-        double width = canvasW - left - right;
-        double height = canvasH - top - bottom;
+        double width = W - left - right;
+        double height = H - top - bottom;
 
         // Monthly average temperatures (12 months)
         string[] months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -36,7 +37,7 @@ foreach (var (series, color) in seriesData.Zip(colors))
         double[] tokyo   = [5.8, 6.4, 9.4, 14.6, 19.0, 22.4, 25.9, 27.1, 23.5, 18.2, 13.0, 7.9];
 
         string[] labels = ["New York", "London", "Tokyo"];
-        var colors = new[] { G.Palette[0], G.Palette[1], G.Palette[2] };
+        var colors = new[] { Palette[0], Palette[1], Palette[2] };
         var allSeries = new[] { newYork, london, tokyo };
 
         // Find global extent
@@ -47,16 +48,13 @@ foreach (var (series, color) in seriesData.Zip(colors))
         var ys = new LinearScale([yMax + 3, yMin - 3], [top, top + height]);
         ys.Nice();
 
-        var canvas = new Canvas { Width = canvasW, Height = canvasH };
-
-        G.DrawGrid(canvas, ys, left, width);
-        G.DrawAxes(canvas, xs, ys, left, top, width, height);
-
         // Draw month labels on x-axis
+        var monthLabels = new Element[12];
         for (int i = 0; i < 12; i++)
-            G.AddText(canvas, xs.Map(i) - 10, top + height + 4, months[i], 10, G.Gray(100));
+            monthLabels[i] = D3Text(xs.Map(i) - 10, top + height + 4, months[i], 10, Gray(100));
 
         // Draw each series
+        var lines = new Element[allSeries.Length];
         for (int s = 0; s < allSeries.Length; s++)
         {
             var series = allSeries[s];
@@ -67,21 +65,26 @@ foreach (var (series, color) in seriesData.Zip(colors))
             var line = LineGenerator.Create<(double x, double y)>(
                 d => xs.Map(d.x), d => ys.Map(d.y));
             var pathData = line.Generate(data);
-            canvas.Children.Add(G.MakePath(pathData, G.Brush(colors[s]), strokeWidth: 2));
+            lines[s] = D3Path(pathData, stroke: Brush(colors[s]), strokeWidth: 2);
         }
 
         // Legend
-        double legendX = canvasW - right + 10;
+        double legendX = W - right + 10;
+        var legend = new Element[labels.Length * 2];
         for (int s = 0; s < labels.Length; s++)
         {
             double ly = top + 10 + s * 22;
-            G.AddRect(canvas, legendX, ly, 14, 14, G.Brush(colors[s]), rx: 2);
-            G.AddText(canvas, legendX + 20, ly, labels[s], 11, G.Gray(60));
+            legend[s * 2] = D3Rect(legendX, ly, 14, 14) with { Fill = Brush(colors[s]), RadiusX = 2, RadiusY = 2 };
+            legend[s * 2 + 1] = D3Text(legendX + 20, ly, labels[s], 11, Gray(60));
         }
 
-        // Y-axis label
-        G.AddText(canvas, 2, top - 14, "\u00b0C", 11, G.Gray(80));
-
-        return canvas;
+        return D3Canvas(W, H,
+            [.. D3Grid(ys, left, width),
+             .. D3Axes(xs, ys, left, top, width, height),
+             .. monthLabels,
+             .. lines,
+             .. legend,
+             D3Text(2, top - 14, "\u00b0C", 11, Gray(80))]
+        );
     }
 }

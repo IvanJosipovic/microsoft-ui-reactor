@@ -1,9 +1,8 @@
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -15,35 +14,23 @@ public sealed class BoxPlotSample : GallerySample
 
     public override string SourceCode => """
         var ys = new LinearScale([yMin, yMax], [top + ph, top]).Nice();
-        G.DrawGrid(canvas, ys, left, pw);
-
-        for (int g = 0; g < groups.Length; g++)
-        {
-            var sorted = groupData[g];
-            double min = sorted[0], max = sorted[^1];
-            double q1 = D3Statistics.QuantileSorted(sorted, 0.25);
-            double median = D3Statistics.QuantileSorted(sorted, 0.5);
-            double q3 = D3Statistics.QuantileSorted(sorted, 0.75);
-
-            double cx = left + g * groupWidth + groupWidth / 2;
-            // Whiskers, caps, box (Q1-Q3), and median line
-            G.AddLine(canvas, cx, ys.Map(min), cx, ys.Map(q1), stroke, 1.5);
-            G.AddLine(canvas, cx, ys.Map(q3), cx, ys.Map(max), stroke, 1.5);
-            G.AddRect(canvas, bx, ys.Map(q3), boxWidth,
-                ys.Map(q1) - ys.Map(q3), fill, 2);
-            G.AddLine(canvas, bx, ys.Map(median), bx + boxWidth,
-                ys.Map(median), stroke, 2.5);
-        }
+        D3Canvas(width, height,
+            [..D3Grid(ys, left, pw),
+             ..groupData.SelectMany((sorted, g) => new Element[] {
+                 D3Line(cx, ys.Map(min), cx, ys.Map(q1)) with { Stroke = stroke },
+                 D3Rect(bx, boxY, boxWidth, boxH) with { Fill = fill, RadiusX = 2 },
+                 D3Line(bx, ys.Map(median), bx+boxWidth, ys.Map(median)) with { Stroke = ... },
+             }),
+            ]
+        )
         """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double width = 700, height = 400;
         const double left = 50, top = 30, right = 20, bottom = 40;
         double pw = width - left - right;
         double ph = height - top - bottom;
-
-        var canvas = new Canvas { Width = width, Height = height };
 
         var groups = new[] { "A", "B", "C", "D" };
         var rng = new Random(55);
@@ -67,62 +54,58 @@ public sealed class BoxPlotSample : GallerySample
         double yMax = groupData.Max(d => d[^1]);
         var ys = new LinearScale([yMin, yMax], [top + ph, top]).Nice();
 
-        G.DrawGrid(canvas, ys, left, pw);
-
-        // Y axis
-        G.AddLine(canvas, left, top, left, top + ph, G.Gray(100, 180));
-        foreach (var t in ys.Ticks(6))
-            G.AddText(canvas, 0, ys.Map(t) - 7, G.Fmt(t), 10, G.Gray(100), TextAlignment.Right, left - 6);
-
         double groupWidth = pw / groups.Length;
         double boxWidth = groupWidth * 0.5;
 
-        for (int g = 0; g < groups.Length; g++)
-        {
-            var sorted = groupData[g];
-            double min = sorted[0];
-            double max = sorted[^1];
-            double q1 = D3Statistics.QuantileSorted(sorted, 0.25);
-            double median = D3Statistics.QuantileSorted(sorted, 0.5);
-            double q3 = D3Statistics.QuantileSorted(sorted, 0.75);
+        return D3Canvas(width, height,
+            [.. D3Grid(ys, left, pw),
+             // Y axis
+             D3Line(left, top, left, top + ph) with { Stroke = Gray(100, 180), StrokeThickness = 1 },
+             .. ys.Ticks(6).Select(t =>
+                 D3TextRight(0, ys.Map(t) - 7, Fmt(t), left - 6, 10, Gray(100))),
+             // Box plots per group
+             .. groupData.SelectMany((sorted, g) =>
+             {
+                 double min = sorted[0];
+                 double max = sorted[^1];
+                 double q1 = D3Statistics.QuantileSorted(sorted, 0.25);
+                 double median = D3Statistics.QuantileSorted(sorted, 0.5);
+                 double q3 = D3Statistics.QuantileSorted(sorted, 0.75);
 
-            double cx = left + g * groupWidth + groupWidth / 2;
-            double bx = cx - boxWidth / 2;
+                 double cx = left + g * groupWidth + groupWidth / 2;
+                 double bx = cx - boxWidth / 2;
 
-            var color = G.Palette[g % G.Palette.Length];
-            var fill = G.Brush(color, 0.35);
-            var stroke = G.Brush(color);
+                 var color = Palette[g % Palette.Length];
+                 var fill = Brush(color, 0.35);
+                 var stroke = Brush(color);
 
-            // Whisker: min to Q1
-            G.AddLine(canvas, cx, ys.Map(min), cx, ys.Map(q1), stroke, 1.5);
-            // Whisker: Q3 to max
-            G.AddLine(canvas, cx, ys.Map(q3), cx, ys.Map(max), stroke, 1.5);
+                 double boxY = ys.Map(q3);
+                 double boxH = ys.Map(q1) - ys.Map(q3);
 
-            // Min cap
-            G.AddLine(canvas, cx - boxWidth * 0.3, ys.Map(min), cx + boxWidth * 0.3, ys.Map(min), stroke, 1.5);
-            // Max cap
-            G.AddLine(canvas, cx - boxWidth * 0.3, ys.Map(max), cx + boxWidth * 0.3, ys.Map(max), stroke, 1.5);
-
-            // Box: Q1 to Q3
-            double boxY = ys.Map(q3);
-            double boxH = ys.Map(q1) - ys.Map(q3);
-            G.AddRect(canvas, bx, boxY, boxWidth, boxH, fill, 2);
-
-            // Box outline (left, right, top, bottom)
-            G.AddLine(canvas, bx, boxY, bx + boxWidth, boxY, stroke, 1.5);
-            G.AddLine(canvas, bx, boxY + boxH, bx + boxWidth, boxY + boxH, stroke, 1.5);
-            G.AddLine(canvas, bx, boxY, bx, boxY + boxH, stroke, 1.5);
-            G.AddLine(canvas, bx + boxWidth, boxY, bx + boxWidth, boxY + boxH, stroke, 1.5);
-
-            // Median line
-            G.AddLine(canvas, bx, ys.Map(median), bx + boxWidth, ys.Map(median), stroke, 2.5);
-
-            // Group label
-            G.AddText(canvas, cx - 8, top + ph + 8, $"Group {groups[g]}", 11, G.Gray(60));
-        }
-
-        G.AddText(canvas, left, 6, "Box Plot (four groups)", 14, G.Gray(40));
-
-        return canvas;
+                 return new Element[]
+                 {
+                     // Whisker: min to Q1
+                     D3Line(cx, ys.Map(min), cx, ys.Map(q1)) with { Stroke = stroke, StrokeThickness = 1.5 },
+                     // Whisker: Q3 to max
+                     D3Line(cx, ys.Map(q3), cx, ys.Map(max)) with { Stroke = stroke, StrokeThickness = 1.5 },
+                     // Min cap
+                     D3Line(cx - boxWidth * 0.3, ys.Map(min), cx + boxWidth * 0.3, ys.Map(min)) with { Stroke = stroke, StrokeThickness = 1.5 },
+                     // Max cap
+                     D3Line(cx - boxWidth * 0.3, ys.Map(max), cx + boxWidth * 0.3, ys.Map(max)) with { Stroke = stroke, StrokeThickness = 1.5 },
+                     // Box: Q1 to Q3
+                     D3Rect(bx, boxY, boxWidth, boxH) with { Fill = fill, RadiusX = 2, RadiusY = 2 },
+                     // Box outline
+                     D3Line(bx, boxY, bx + boxWidth, boxY) with { Stroke = stroke, StrokeThickness = 1.5 },
+                     D3Line(bx, boxY + boxH, bx + boxWidth, boxY + boxH) with { Stroke = stroke, StrokeThickness = 1.5 },
+                     D3Line(bx, boxY, bx, boxY + boxH) with { Stroke = stroke, StrokeThickness = 1.5 },
+                     D3Line(bx + boxWidth, boxY, bx + boxWidth, boxY + boxH) with { Stroke = stroke, StrokeThickness = 1.5 },
+                     // Median line
+                     D3Line(bx, ys.Map(median), bx + boxWidth, ys.Map(median)) with { Stroke = stroke, StrokeThickness = 2.5 },
+                     // Group label
+                     D3Text(cx - 8, top + ph + 8, $"Group {groups[g]}", 11, Gray(60)),
+                 };
+             }),
+             D3Text(left, 6, "Box Plot (four groups)", 14, Gray(40))]
+        );
     }
 }

@@ -7,6 +7,7 @@ using Duct.Flex;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using static Duct.UI;
+using Path = System.IO.Path;
 
 public static class Program
 {

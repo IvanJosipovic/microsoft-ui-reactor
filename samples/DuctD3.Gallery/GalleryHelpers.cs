@@ -1,5 +1,6 @@
 // Shared rendering helpers for gallery samples
 
+using Duct.Core;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -12,7 +13,8 @@ namespace DuctD3.Gallery;
 
 /// <summary>
 /// Base class for all gallery samples. Each sample provides a title,
-/// description, source code snippet, and a Render method that builds the chart canvas.
+/// description, source code snippet, and a Render method that builds the chart
+/// as a Duct Element tree (declarative, reconciler-compatible).
 /// </summary>
 public abstract class GallerySample
 {
@@ -20,7 +22,7 @@ public abstract class GallerySample
     public abstract string Description { get; }
     public abstract string Category { get; }
     public abstract string SourceCode { get; }
-    public abstract FrameworkElement Render();
+    public abstract Element Render();
 }
 
 /// <summary>Shared helpers used by all samples to render charts on a Canvas.</summary>

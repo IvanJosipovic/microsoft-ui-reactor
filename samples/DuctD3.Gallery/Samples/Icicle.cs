@@ -1,9 +1,9 @@
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -19,25 +19,23 @@ public sealed class IcicleSample : GallerySample
         var partition = PartitionLayout.Create<BudgetNode>()
             .Size(W, H).SetPadding(1);
         var root = partition.Layout(data, n => n.Children, n => n.Amount);
-
-        foreach (var node in allNodes)
-        {
-            double w = node.Width, h = node.Height;
-            if (w < 1 || h < 1) continue;
-            int colorIdx = GetTopBranch(node);
-            var fill = G.Brush(G.Palette[colorIdx % G.Palette.Length], opacity);
-            G.AddRect(canvas, node.X0, node.Y0, w, h, fill, 1);
-            if (w > 50 && h > 16)
-                G.AddText(canvas, node.X0 + 4, node.Y0 + 3, label, 9, G.Gray(20));
-        }
+        D3Canvas(W, H,
+            [..allNodes.Where(n => n.Width >= 1 && n.Height >= 1)
+                .SelectMany(node => new Element[] {
+                    D3Rect(node.X0, node.Y0, w, h)
+                        with { Fill = fill, RadiusX = 1, RadiusY = 1 },
+                    D3Rect(node.X0, node.Y0, w, h)
+                        with { Stroke = Gray(255, 180), StrokeThickness = 0.5 },
+                }),
+            ]
+        )
         """;
 
     record BudgetNode(string Name, double Amount = 0, BudgetNode[]? Children = null);
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 500;
-        var canvas = new Canvas { Width = W, Height = H };
 
         // Company budget hierarchy (thousands $)
         var data = new BudgetNode("Total Budget", 0, [
@@ -91,46 +89,34 @@ public sealed class IcicleSample : GallerySample
         var allNodes = new List<PartitionNode<BudgetNode>>();
         CollectPartition(root, allNodes);
 
-        foreach (var node in allNodes)
-        {
-            double w = node.Width;
-            double h = node.Height;
-            if (w < 1 || h < 1) continue;
+        return D3Canvas(W, H,
+        [
+            .. allNodes
+                .Where(node => node.Width >= 1 && node.Height >= 1)
+                .SelectMany(node =>
+                {
+                    double w = node.Width, h = node.Height;
+                    int colorIdx = GetTopBranch(node);
+                    double opacity = Math.Min(node.Depth == 0 ? 0.35 : 0.5 + node.Depth * 0.1, 0.85);
+                    var fill = Brush(Palette[colorIdx % Palette.Length], opacity);
 
-            int colorIdx = GetTopBranch(node);
-            double opacity = node.Depth == 0 ? 0.35 : 0.5 + node.Depth * 0.1;
-            opacity = Math.Min(opacity, 0.85);
-            var fill = G.Brush(G.Palette[colorIdx % G.Palette.Length], opacity);
-            G.AddRect(canvas, node.X0, node.Y0, w, h, fill, 1);
+                    string label = node.Data.Name;
+                    double maxChars = w / 7;
+                    if (label.Length > maxChars) label = label[..(int)maxChars] + "..";
 
-            // Border
-            var border = new WinShapes.Rectangle
-            {
-                Width = w, Height = h,
-                Stroke = G.Gray(255, 180), StrokeThickness = 0.5,
-            };
-            Canvas.SetLeft(border, node.X0);
-            Canvas.SetTop(border, node.Y0);
-            canvas.Children.Add(border);
+                    string valLabel = node.Value >= 1000
+                        ? $"${node.Value / 1000:0.#}M"
+                        : $"${node.Value:0}k";
 
-            // Label
-            if (w > 50 && h > 16)
-            {
-                string label = node.Data.Name;
-                double maxChars = w / 7;
-                if (label.Length > maxChars) label = label[..(int)maxChars] + "..";
-                G.AddText(canvas, node.X0 + 4, node.Y0 + 3, label, 9, G.Gray(20));
-            }
-            if (w > 50 && h > 30)
-            {
-                string valLabel = node.Value >= 1000
-                    ? $"${node.Value / 1000:0.#}M"
-                    : $"${node.Value:0}k";
-                G.AddText(canvas, node.X0 + 4, node.Y0 + 16, valLabel, 8, G.Gray(60));
-            }
-        }
-
-        return canvas;
+                    return (Element[])
+                    [
+                        D3Rect(node.X0, node.Y0, w, h) with { Fill = fill, RadiusX = 1, RadiusY = 1 },
+                        D3Rect(node.X0, node.Y0, w, h) with { Stroke = Gray(255, 180), StrokeThickness = 0.5 },
+                        .. (w > 50 && h > 16 ? new[] { D3Text(node.X0 + 4, node.Y0 + 3, label, 9, Gray(20)) } : Array.Empty<Element>()),
+                        .. (w > 50 && h > 30 ? new[] { D3Text(node.X0 + 4, node.Y0 + 16, valLabel, 8, Gray(60)) } : Array.Empty<Element>()),
+                    ];
+                }),
+        ]);
     }
 
     static int GetTopBranch(PartitionNode<BudgetNode> node)

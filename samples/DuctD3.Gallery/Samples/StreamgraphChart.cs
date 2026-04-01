@@ -1,8 +1,8 @@
+using Duct.Core;
 using Duct.D3;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using Duct.D3.Charts;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -30,9 +30,16 @@ for (int j = 0; j < n; j++)
             s.Points[j].Y0 + offset,
             s.Points[j].Y1 + offset);
     }
-}";
+}
 
-    public override FrameworkElement Render()
+return D3Canvas(W, H,
+    [D3Line(...) with { Stroke = Gray(200), StrokeThickness = 1 },
+     ..layers,
+     ..legend,
+     D3Text(..., ""Streamgraph (Centered Stack)"", 14, Gray(40))]
+);";
+
+    public override Element Render()
     {
         const double W = 700, H = 400;
         const double marginLeft = 50, marginTop = 30, marginRight = 20, marginBottom = 30;
@@ -95,45 +102,33 @@ for (int j = 0; j < n; j++)
         var xScale = new LinearScale([0, n - 1], [marginLeft, marginLeft + plotW]);
         var yScale = new LinearScale([yMin * 1.1, yMax * 1.1], [marginTop + plotH, marginTop]);
 
-        var canvas = new Canvas { Width = W, Height = H };
-
-        // Center line
-        G.AddLine(canvas, marginLeft, yScale.Map(0), marginLeft + plotW, yScale.Map(0),
-            G.Gray(200), 1);
-
-        // Render each layer
-        for (int si = 0; si < series.Length; si++)
-        {
-            var s = series[si];
-            var pts = new (double x, double y0, double y1)[n];
-            for (int j = 0; j < n; j++)
-                pts[j] = (j, s.Points[j].Y0, s.Points[j].Y1);
-
-            var area = AreaGenerator.Create<(double x, double y0, double y1)>(
-                d => xScale.Map(d.x),
-                d => yScale.Map(d.y0),
-                d => yScale.Map(d.y1));
-            string? path = area.Generate(pts);
-
-            if (path != null)
-            {
-                canvas.Children.Add(G.MakePath(path,
-                    fill: G.Brush(G.Palette[si], 0.8)));
-            }
-        }
-
-        // Legend
-        for (int k = 0; k < keys.Length; k++)
-        {
-            double lx = marginLeft + 10;
-            double ly = marginTop + 4 + k * 18;
-            G.AddRect(canvas, lx, ly, 12, 12, G.Brush(G.Palette[k], 0.8));
-            G.AddText(canvas, lx + 16, ly - 1, keys[k], 11, G.Gray(60));
-        }
-
-        // Title
-        G.AddText(canvas, marginLeft + 100, 6, "Streamgraph (Centered Stack)", 14, G.Gray(40));
-
-        return canvas;
+        return D3Canvas(W, H,
+            [D3Line(marginLeft, yScale.Map(0), marginLeft + plotW, yScale.Map(0))
+                with { Stroke = Gray(200), StrokeThickness = 1 },
+             .. Enumerable.Range(0, series.Length)
+                .Select(si =>
+                {
+                    var s = series[si];
+                    var pts = Enumerable.Range(0, n)
+                        .Select(j => (x: (double)j, y0: s.Points[j].Y0, y1: s.Points[j].Y1))
+                        .ToArray();
+                    var area = AreaGenerator.Create<(double x, double y0, double y1)>(
+                        d => xScale.Map(d.x),
+                        d => yScale.Map(d.y0),
+                        d => yScale.Map(d.y1));
+                    return area.Generate(pts);
+                })
+                .Where(path => path != null)
+                .Select((path, si) => D3Path(path!, fill: Brush(Palette[si], 0.8))),
+             .. Enumerable.Range(0, keys.Length).SelectMany(k => new Element[]
+             {
+                 D3Rect(marginLeft + 10, marginTop + 4 + k * 18, 12, 12)
+                     with { Fill = Brush(Palette[k], 0.8) },
+                 D3Text(marginLeft + 10 + 16, marginTop + 4 + k * 18 - 1,
+                     keys[k], 11, Gray(60)),
+             }),
+             D3Text(marginLeft + 100, 6, "Streamgraph (Centered Stack)", 14, Gray(40)),
+            ]
+        );
     }
 }

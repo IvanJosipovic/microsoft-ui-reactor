@@ -1,8 +1,9 @@
+using Duct.Core;
 using Duct.D3;
+using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -24,27 +25,25 @@ public class StackedBarChartSample : GallerySample
 
         for (int si = 0; si < series.Length; si++)
         {
-            var fill = G.Brush(G.Palette[si]);
+            var fill = Brush(Palette[si]);
             for (int j = 0; j < months.Length; j++)
             {
                 var pt = series[si].Points[j];
                 double y0Screen = top + ys.Map(pt.Y0);
                 double y1Screen = top + ys.Map(pt.Y1);
                 double x = left + band.Map(months[j]);
-                G.AddRect(canvas, x, y1Screen, band.Bandwidth,
-                          y0Screen - y1Screen, fill, 1);
+                D3Rect(x, y1Screen, band.Bandwidth, y0Screen - y1Screen)
+                    with { Fill = fill, RadiusX = 1, RadiusY = 1 };
             }
         }
         """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 400;
         const double left = 60, top = 30, right = 120, bottom = 50;
         double plotW = W - left - right;
         double plotH = H - top - bottom;
-
-        var canvas = new Canvas { Width = W, Height = H };
 
         // Sample data
         string[] months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
@@ -76,51 +75,46 @@ public class StackedBarChartSample : GallerySample
         var band = BandScale.Create(months).SetRange(0, plotW).SetPaddingInner(0.2).SetPaddingOuter(0.1);
         var ysScreen = new LinearScale(ys.Domain, [top + plotH, top]);
 
-        // Grid
-        G.DrawGrid(canvas, ysScreen, left, plotW);
-
-        // Draw stacked bars
-        for (int si = 0; si < series.Length; si++)
-        {
-            var fill = G.Brush(G.Palette[si]);
-            for (int j = 0; j < months.Length; j++)
-            {
-                var pt = series[si].Points[j];
-                double y0Screen = top + ys.Map(pt.Y0);
-                double y1Screen = top + ys.Map(pt.Y1);
-                double x = left + band.Map(months[j]);
-                G.AddRect(canvas, x, y1Screen, band.Bandwidth, y0Screen - y1Screen, fill, 1);
-            }
-        }
-
         // Axes
-        var axisBrush = G.Gray(100, 180);
-        G.AddLine(canvas, left, top + plotH, left + plotW, top + plotH, axisBrush);
-        G.AddLine(canvas, left, top, left, top + plotH, axisBrush);
-
-        // Y axis labels
-        foreach (var t in ysScreen.Ticks(5))
-            G.AddText(canvas, 0, ysScreen.Map(t) - 7, G.Fmt(t), 10, axisBrush, TextAlignment.Right, left - 6);
-
-        // X axis labels
-        for (int i = 0; i < months.Length; i++)
-        {
-            double cx = left + band.Map(months[i]) + band.Bandwidth / 2;
-            G.AddText(canvas, cx - 14, top + plotH + 8, months[i], 10, axisBrush);
-        }
-
-        // Legend
+        var axisBrush = Gray(100, 180);
         double legendX = W - right + 12;
         double legendY = top + 10;
-        for (int i = 0; i < keys.Length; i++)
-        {
-            G.AddRect(canvas, legendX, legendY + i * 22, 14, 14, G.Brush(G.Palette[i]), 2);
-            G.AddText(canvas, legendX + 20, legendY + i * 22, keys[i], 11, G.Gray(60));
-        }
 
-        // Title
-        G.AddText(canvas, left, 4, "Fruit Sales by Month (Stacked)", 13, G.Gray(40));
+        return D3Canvas(W, H,
+            [.. D3Grid(ysScreen, left, plotW),
 
-        return canvas;
+             // Stacked bars
+             .. series.SelectMany((s, si) =>
+             {
+                 var fill = Brush(Palette[si]);
+                 return months.Select((month, j) =>
+                 {
+                     var pt = s.Points[j];
+                     double y0Screen = top + ys.Map(pt.Y0);
+                     double y1Screen = top + ys.Map(pt.Y1);
+                     double x = left + band.Map(month);
+                     return D3Rect(x, y1Screen, band.Bandwidth, y0Screen - y1Screen) with { Fill = fill, RadiusX = 1, RadiusY = 1 };
+                 });
+             }),
+
+             D3Line(left, top + plotH, left + plotW, top + plotH) with { Stroke = axisBrush, StrokeThickness = 1 },
+             D3Line(left, top, left, top + plotH) with { Stroke = axisBrush, StrokeThickness = 1 },
+             .. ysScreen.Ticks(5).Select(t =>
+                 D3TextRight(0, ysScreen.Map(t) - 7, Fmt(t), left - 6, 10, axisBrush)),
+
+             // X axis labels
+             .. months.Select((month, i) =>
+                 D3Text(left + band.Map(month) + band.Bandwidth / 2 - 14, top + plotH + 8, month, 10, axisBrush)),
+
+             // Legend
+             .. keys.SelectMany((key, i) => new Element[]
+             {
+                 D3Rect(legendX, legendY + i * 22, 14, 14) with { Fill = Brush(Palette[i]), RadiusX = 2, RadiusY = 2 },
+                 D3Text(legendX + 20, legendY + i * 22, key, 11, Gray(60)),
+             }),
+
+             D3Text(left, 4, "Fruit Sales by Month (Stacked)", 13, Gray(40)),
+            ]
+        );
     }
 }

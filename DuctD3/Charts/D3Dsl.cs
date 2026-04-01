@@ -1,0 +1,144 @@
+// Declarative D3 drawing DSL for Duct's virtual tree.
+// Replaces imperative G.AddRect/AddLine/AddEllipse/AddText/MakePath patterns
+// with composable Duct Elements that work with the reconciler.
+//
+// Usage: using static Duct.D3.Charts.D3;
+
+using Duct.Core;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using static Duct.UI;
+
+namespace Duct.D3.Charts;
+
+/// <summary>
+/// Static factory methods for declarative D3 chart drawing.
+/// Import with: using static Duct.D3.Charts.D3;
+/// </summary>
+public static class D3
+{
+    // ── Color helpers ───────────────────────────────────────────────────
+
+    public static readonly D3Color[] Palette = D3Color.Category10;
+
+    public static SolidColorBrush Brush(string color)
+    {
+        var c = D3Color.Parse(color);
+        return new SolidColorBrush(Windows.UI.Color.FromArgb((byte)(c.Opacity * 255), c.R, c.G, c.B));
+    }
+
+    public static SolidColorBrush Brush(D3Color c)
+        => new(Windows.UI.Color.FromArgb((byte)(c.Opacity * 255), c.R, c.G, c.B));
+
+    public static SolidColorBrush Brush(D3Color c, double opacity)
+        => new(Windows.UI.Color.FromArgb((byte)(opacity * 255), c.R, c.G, c.B));
+
+    public static SolidColorBrush Gray(byte v, byte a = 255)
+        => new(Windows.UI.Color.FromArgb(a, v, v, v));
+
+    public static string Fmt(double v) =>
+        Math.Abs(v) >= 1e6 ? $"{v / 1e6:0.#}M" :
+        Math.Abs(v) >= 1e3 ? $"{v / 1e3:0.#}k" :
+        v == Math.Floor(v) ? v.ToString("F0") : v.ToString("G4");
+
+    // ── Canvas ──────────────────────────────────────────────────────────
+
+    /// <summary>Creates a Canvas element with the given dimensions and children.</summary>
+    public static CanvasElement D3Canvas(double width, double height, params Element?[] children) =>
+        Canvas(children) with
+        {
+            Width = width,
+            Height = height,
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+        };
+
+    // ── Primitive shapes ────────────────────────────────────────────────
+
+    /// <summary>Creates a positioned rectangle on a Canvas.</summary>
+    public static RectangleElement D3Rect(double x, double y, double width, double height) =>
+        new RectangleElement()
+            .Width(Math.Max(0, width)).Height(Math.Max(0, height))
+            .Canvas(x, y);
+
+    /// <summary>Creates a circle (ellipse) positioned at center (cx, cy) with radius r.</summary>
+    public static EllipseElement D3Circle(double cx, double cy, double r) =>
+        new EllipseElement()
+            .Width(r * 2).Height(r * 2)
+            .Canvas(cx - r, cy - r);
+
+    /// <summary>Creates a line between two points.</summary>
+    public static LineElement D3Line(double x1, double y1, double x2, double y2) =>
+        new() { X1 = x1, Y1 = y1, X2 = x2, Y2 = y2 };
+
+    /// <summary>Creates a path from SVG path data string.</summary>
+    public static PathElement D3Path(string? pathData, Brush? stroke = null, Brush? fill = null, double strokeWidth = 1.5) =>
+        new()
+        {
+            Data = pathData != null ? PathDataParser.Parse(pathData) : null,
+            Stroke = stroke,
+            Fill = fill,
+            StrokeThickness = strokeWidth,
+        };
+
+    /// <summary>Creates a path from SVG path data with a translate transform (e.g. for pie slices centered on cx,cy).</summary>
+    public static PathElement D3PathTranslated(string? pathData, double translateX, double translateY, Brush? stroke = null, Brush? fill = null, double strokeWidth = 1.5) =>
+        new()
+        {
+            Data = pathData != null ? PathDataParser.Parse(pathData) : null,
+            Stroke = stroke,
+            Fill = fill,
+            StrokeThickness = strokeWidth,
+            RenderTransform = new TranslateTransform { X = translateX, Y = translateY },
+        };
+
+    // ── Text ────────────────────────────────────────────────────────────
+
+    /// <summary>Creates a positioned text label on a Canvas.</summary>
+    public static TextElement D3Text(double x, double y, string text, double fontSize = 10, Brush? foreground = null) =>
+        Text(text)
+            .FontSize(fontSize)
+            .Foreground(foreground ?? Gray(100))
+            .Canvas(x, y);
+
+    /// <summary>Creates a positioned text label with right alignment and explicit width (for Y axis labels).</summary>
+    public static TextElement D3TextRight(double x, double y, string text, double width, double fontSize = 10, Brush? foreground = null) =>
+        Text(text)
+            .FontSize(fontSize)
+            .Foreground(foreground ?? Gray(100))
+            .Width(width)
+            .Set(tb => tb.TextAlignment = TextAlignment.Right)
+            .Canvas(x, y);
+
+    // ── Composite chart helpers ─────────────────────────────────────────
+
+    /// <summary>Creates X and Y axis lines with tick labels as a flat array of Elements.</summary>
+    public static Element[] D3Axes(LinearScale xs, LinearScale ys,
+        double left, double top, double width, double height, int xTicks = 6, int yTicks = 5)
+    {
+        var ab = Gray(100, 180);
+        double bot = top + height;
+        var elements = new List<Element>
+        {
+            D3Line(left, bot, left + width, bot) with { Stroke = ab, StrokeThickness = 1 },
+            D3Line(left, top, left, bot) with { Stroke = ab, StrokeThickness = 1 },
+        };
+
+        foreach (var t in xs.Ticks(xTicks))
+            elements.Add(D3Text(xs.Map(t) - 12, bot + 4, Fmt(t), 10, ab));
+
+        foreach (var t in ys.Ticks(yTicks))
+            elements.Add(D3TextRight(0, ys.Map(t) - 7, Fmt(t), left - 6, 10, ab));
+
+        return elements.ToArray();
+    }
+
+    /// <summary>Creates horizontal grid lines as a flat array of Elements.</summary>
+    public static Element[] D3Grid(LinearScale ys, double left, double width, int ticks = 5)
+    {
+        var gb = Gray(128, 40);
+        return ys.Ticks(ticks)
+            .Select(t => (Element)(D3Line(left, ys.Map(t), left + width, ys.Map(t)) with { Stroke = gb, StrokeThickness = 1 }))
+            .ToArray();
+    }
+}

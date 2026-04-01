@@ -1,9 +1,10 @@
+using Duct;
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -14,33 +15,26 @@ public sealed class ArcDiagramSample : GallerySample
     public override string Category => "Networks";
 
     public override string SourceCode => """
-        double spacing = (W - padX * 2) / (nodeCount - 1);
-        for (int i = 0; i < nodeCount; i++)
-            nodeX[i] = padX + i * spacing;
-
-        for (int ei = 0; ei < edges.Length; ei++)
-        {
-            var (si, ti) = edges[ei];
-            double x1 = nodeX[si], x2 = nodeX[ti];
-            if (x1 > x2) (x1, x2) = (x2, x1);
-            double midX = (x1 + x2) / 2;
-            double r = (x2 - x1) / 2;
-            bool above = ei % 2 == 0;
-
-            var pb = new PathBuilder(3);
-            pb.MoveTo(x1, baseline);
-            pb.Arc(midX, baseline, r, Math.PI, 0, ccw: !above);
-            var stroke = G.Brush(G.Palette[colorIdx % G.Palette.Length], 0.6);
-            canvas.Children.Add(G.MakePath(pb.ToString(), stroke: stroke,
-                strokeWidth: 1.8));
-        }
+        D3Canvas(W, H,
+            [D3Line(...) with { Stroke = Gray(200) },
+             ..edges.Select((edge, ei) => {
+                 var pb = new PathBuilder(3);
+                 pb.MoveTo(x1, baseline);
+                 pb.Arc(midX, baseline, r, Math.PI, 0, ccw: !above);
+                 return D3Path(pb.ToString(), stroke: stroke, strokeWidth: 1.8);
+             }),
+             ..Enumerable.Range(0, nodeCount).SelectMany(i => new Element[] {
+                 D3Circle(nodeX[i], baseline, 8) with { Fill = fill },
+                 D3Text(nodeX[i] - 24, baseline + 14, labels[i], 9, Gray(60)),
+             }),
+            ]
+        )
         """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 500;
         const double padX = 50, baseline = 320;
-        var canvas = new Canvas { Width = W, Height = H };
 
         // -- data: 10 nodes --
         string[] labels =
@@ -65,57 +59,40 @@ public sealed class ArcDiagramSample : GallerySample
         for (int i = 0; i < nodeCount; i++)
             nodeX[i] = padX + i * spacing;
 
-        // -- draw baseline --
-        G.AddLine(canvas, padX - 10, baseline, W - padX + 10, baseline, G.Gray(200), 1);
+        var white = Brush("#ffffff");
 
-        // -- draw arcs --
-        // Alternate above/below: even-index edges go above, odd below
-        for (int ei = 0; ei < edges.Length; ei++)
-        {
-            var (si, ti) = edges[ei];
-            double x1 = nodeX[si];
-            double x2 = nodeX[ti];
-            if (x1 > x2) (x1, x2) = (x2, x1);
+        return D3Canvas(W, H,
+            [D3Line(padX - 10, baseline, W - padX + 10, baseline) with { Stroke = Gray(200), StrokeThickness = 1 },
+             .. edges.Select((edge, ei) =>
+             {
+                 double x1 = nodeX[edge.s];
+                 double x2 = nodeX[edge.t];
+                 if (x1 > x2) (x1, x2) = (x2, x1);
 
-            double midX = (x1 + x2) / 2;
-            double r = (x2 - x1) / 2;
-            bool above = ei % 2 == 0;
+                 double midX = (x1 + x2) / 2;
+                 double r = (x2 - x1) / 2;
+                 bool above = ei % 2 == 0;
 
-            var pb = new PathBuilder(3);
-            if (above)
-            {
-                // Arc above baseline: from x1 to x2, sweeping upward
-                pb.MoveTo(x1, baseline);
-                pb.Arc(midX, baseline, r, Math.PI, 0);
-            }
-            else
-            {
-                // Arc below baseline: from x1 to x2, sweeping downward
-                pb.MoveTo(x1, baseline);
-                pb.Arc(midX, baseline, r, Math.PI, 0, ccw: true);
-            }
+                 var pb = new PathBuilder(3);
+                 pb.MoveTo(x1, baseline);
+                 pb.Arc(midX, baseline, r, Math.PI, 0, ccw: !above);
 
-            int colorIdx = categories[edges[ei].s];
-            var stroke = G.Brush(G.Palette[colorIdx % G.Palette.Length], 0.6);
-            var path = G.MakePath(pb.ToString(), stroke: stroke, strokeWidth: 1.8);
-            canvas.Children.Add(path);
-        }
-
-        // -- draw nodes --
-        var white = G.Brush("#ffffff");
-        for (int i = 0; i < nodeCount; i++)
-        {
-            var fill = G.Brush(G.Palette[categories[i] % G.Palette.Length]);
-            G.AddEllipse(canvas, nodeX[i], baseline, 8, fill, white, 1.5);
-
-            // Label below baseline
-            G.AddText(canvas, nodeX[i] - 24, baseline + 14, labels[i], 9, G.Gray(60),
-                      TextAlignment.Center, 48);
-        }
-
-        // -- title --
-        G.AddText(canvas, 12, 6, "Arc Diagram", 14, G.Brush("#333333"));
-
-        return canvas;
+                 int colorIdx = categories[edge.s];
+                 var stroke = Brush(Palette[colorIdx % Palette.Length], 0.6);
+                 return D3Path(pb.ToString(), stroke: stroke, strokeWidth: 1.8);
+             }),
+             .. Enumerable.Range(0, nodeCount).SelectMany(i =>
+             {
+                 var fill = Brush(Palette[categories[i] % Palette.Length]);
+                 return new Element[]
+                 {
+                     D3Circle(nodeX[i], baseline, 8) with { Fill = fill, Stroke = white, StrokeThickness = 1.5 },
+                     D3Text(nodeX[i] - 24, baseline + 14, labels[i], 9, Gray(60))
+                         .Set(tb => tb.TextAlignment = TextAlignment.Center).Width(48),
+                 };
+             }),
+             D3Text(12, 6, "Arc Diagram", 14, Brush("#333333")),
+            ]
+        );
     }
 }

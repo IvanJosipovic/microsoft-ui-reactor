@@ -1,9 +1,11 @@
+using Duct;
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -21,31 +23,24 @@ public sealed class SunburstSample : GallerySample
         var root = partition.Layout(data, n => n.Children, n => n.Size);
         var arc = new ArcGenerator();
 
-        foreach (var node in allNodes)
-        {
-            if (node.Parent == null) continue;
-            var (startAngle, endAngle, innerRadius, outerRadius) =
-                node.ToPolar(totalAngleWidth, totalHeightNorm, maxRadius);
-            var fill = G.Brush(G.Palette[colorIdx % G.Palette.Length], opacity);
-            string? pathData = arc.Generate(
-                startAngle, endAngle, 0, innerRadius, outerRadius);
-            if (pathData != null)
-            {
-                var path = G.MakePath(pathData, G.Gray(255), fill, 1);
-                path.RenderTransform = new TranslateTransform { X = cx, Y = cy };
-                canvas.Children.Add(path);
-            }
-        }
+        D3Canvas(W, H,
+            [..allNodes.Where(n => n.Parent != null)
+                .Select(node => {
+                    var (sa, ea, ir, or) = node.ToPolar(...);
+                    return D3PathTranslated(arc.Generate(sa, ea, 0, ir, or),
+                        cx, cy, Gray(255), fill, 1);
+                }),
+             ..labels]
+        )
         """;
 
     record DiskNode(string Name, double Size = 0, DiskNode[]? Children = null);
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 500, H = 500;
         double cx = W / 2, cy = H / 2;
         double maxRadius = Math.Min(W, H) / 2 - 10;
-        var canvas = new Canvas { Width = W, Height = H };
 
         // Disk usage hierarchy (sizes in MB)
         var data = new DiskNode("C:\\", 0, [
@@ -79,8 +74,7 @@ public sealed class SunburstSample : GallerySample
         ]);
 
         // Use PartitionLayout in polar coordinates
-        // Size(totalWidth, totalHeight) where X maps to angle and Y maps to radius
-        double totalAngleWidth = 1; // Normalized; ToPolar will scale
+        double totalAngleWidth = 1;
         double totalHeightNorm = 1;
 
         var partition = PartitionLayout.Create<DiskNode>().Size(totalAngleWidth, totalHeightNorm);
@@ -88,49 +82,52 @@ public sealed class SunburstSample : GallerySample
 
         var arc = new ArcGenerator();
 
-        // Draw arcs for each node (skip root)
+        // Collect all nodes
         var allNodes = new List<PartitionNode<DiskNode>>();
         CollectPartition(root, allNodes);
 
-        foreach (var node in allNodes)
-        {
-            if (node.Parent == null) continue; // skip root
+        return D3Canvas(W, H,
+            [.. allNodes
+                .Where(node => node.Parent != null)
+                .Where(node =>
+                {
+                    var (startAngle, endAngle, _, _) =
+                        node.ToPolar(totalAngleWidth, totalHeightNorm, maxRadius);
+                    return endAngle - startAngle >= 0.005;
+                })
+                .SelectMany(node =>
+                {
+                    var (startAngle, endAngle, innerRadius, outerRadius) =
+                        node.ToPolar(totalAngleWidth, totalHeightNorm, maxRadius);
 
-            var (startAngle, endAngle, innerRadius, outerRadius) =
-                node.ToPolar(totalAngleWidth, totalHeightNorm, maxRadius);
+                    int colorIdx = GetTopBranch(node);
+                    double opacity = 0.9 - node.Depth * 0.15;
+                    var fill = Brush(Palette[colorIdx % Palette.Length], Math.Max(0.3, opacity));
 
-            // Skip tiny slices
-            if (endAngle - startAngle < 0.005) continue;
+                    string? pathData = arc.Generate(startAngle, endAngle, 0, innerRadius, outerRadius);
 
-            int colorIdx = GetTopBranch(node);
-            double opacity = 0.9 - node.Depth * 0.15;
-            var fill = G.Brush(G.Palette[colorIdx % G.Palette.Length], Math.Max(0.3, opacity));
+                    bool showLabel = (endAngle - startAngle) > 0.15 && node.Children.Count == 0;
+                    double midAngle = (startAngle + endAngle) / 2 - Math.PI / 2;
+                    double midR = (innerRadius + outerRadius) / 2;
+                    double lx = cx + Math.Cos(midAngle) * midR;
+                    double ly = cy + Math.Sin(midAngle) * midR;
 
-            string? pathData = arc.Generate(startAngle, endAngle, 0, innerRadius, outerRadius);
-            if (pathData != null)
-            {
-                var path = G.MakePath(pathData, G.Gray(255), fill, 1);
-                // Translate to center
-                path.RenderTransform = new TranslateTransform { X = cx, Y = cy };
-                canvas.Children.Add(path);
-            }
-
-            // Label on larger slices
-            if ((endAngle - startAngle) > 0.15 && node.Children.Count == 0)
-            {
-                double midAngle = (startAngle + endAngle) / 2 - Math.PI / 2;
-                double midR = (innerRadius + outerRadius) / 2;
-                double lx = cx + Math.Cos(midAngle) * midR;
-                double ly = cy + Math.Sin(midAngle) * midR;
-                G.AddText(canvas, lx - 20, ly - 6, node.Data.Name, 8, G.Gray(30),
-                    TextAlignment.Center, 40);
-            }
-        }
-
-        // Center label
-        G.AddText(canvas, cx - 20, cy - 7, "Disk", 12, G.Brush("#333333"), TextAlignment.Center, 40);
-
-        return canvas;
+                    return (Element[])
+                    [
+                        .. (pathData != null ? new[] { D3PathTranslated(pathData, cx, cy, Gray(255), fill, 1) } : Array.Empty<Element>()),
+                        .. (showLabel ? new Element[] { (Text(node.Data.Name) with { FontSize = 8 })
+                                .Foreground(Gray(30)).Width(40)
+                                .Set(tb => tb.TextAlignment = TextAlignment.Center)
+                                .Canvas(lx - 20, ly - 6) } : Array.Empty<Element>()),
+                    ];
+                }),
+             (Text("Disk") with { FontSize = 12 })
+                 .Foreground(Brush("#333333"))
+                 .Width(40)
+                 .Set(tb => tb.TextAlignment = TextAlignment.Center)
+                 .Canvas(cx - 20, cy - 7),
+            ]
+        );
     }
 
     static int GetTopBranch(PartitionNode<DiskNode> node)

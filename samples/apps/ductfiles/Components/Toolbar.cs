@@ -3,6 +3,7 @@ using Duct.Core;
 using DuctFiles.Models;
 using Microsoft.UI.Xaml;
 using static Duct.UI;
+using Path = System.IO.Path;
 
 namespace DuctFiles.Components;
 

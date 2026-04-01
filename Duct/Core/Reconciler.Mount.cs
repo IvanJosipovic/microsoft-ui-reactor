@@ -92,6 +92,8 @@ public sealed partial class Reconciler
             LazyStackElementBase lazy => MountLazyStack(lazy, requestRerender),
             RectangleElement rect => MountRectangle(rect),
             EllipseElement ell => MountEllipse(ell),
+            LineElement ln => MountLine(ln),
+            PathElement pa => MountPath(pa),
             RelativePanelElement rp => MountRelativePanel(rp, requestRerender),
             MediaPlayerElementElement mpe => MountMediaPlayerElement(mpe),
             AnimatedVisualPlayerElement avp => MountAnimatedVisualPlayer(avp),
@@ -1596,6 +1598,27 @@ public sealed partial class Reconciler
         if (ell.StrokeThickness > 0) e.StrokeThickness = ell.StrokeThickness;
         ApplySetters(ell.Setters, e);
         return e;
+    }
+
+    private WinShapes.Line MountLine(LineElement ln)
+    {
+        var l = new WinShapes.Line { X1 = ln.X1, Y1 = ln.Y1, X2 = ln.X2, Y2 = ln.Y2 };
+        if (ln.Stroke is not null) l.Stroke = ln.Stroke;
+        if (ln.StrokeThickness > 0) l.StrokeThickness = ln.StrokeThickness;
+        ApplySetters(ln.Setters, l);
+        return l;
+    }
+
+    private WinShapes.Path MountPath(PathElement pa)
+    {
+        var p = new WinShapes.Path();
+        if (pa.Data is not null) p.Data = pa.Data;
+        if (pa.Fill is not null) p.Fill = pa.Fill;
+        if (pa.Stroke is not null) p.Stroke = pa.Stroke;
+        if (pa.StrokeThickness > 0) p.StrokeThickness = pa.StrokeThickness;
+        if (pa.RenderTransform is not null) p.RenderTransform = pa.RenderTransform;
+        ApplySetters(pa.Setters, p);
+        return p;
     }
 
     // ── RelativePanel ───────────────────────────────────────────────────

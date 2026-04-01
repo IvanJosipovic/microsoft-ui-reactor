@@ -1,8 +1,9 @@
+using Duct.Core;
 using Duct.D3;
+using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -19,30 +20,29 @@ public class GroupedBarChartSample : GallerySample
         var groupBand = BandScale.Create(seriesNames)
             .SetRange(0, band.Bandwidth).SetPaddingInner(0.05);
 
-        G.DrawGrid(canvas, ysScreen, left, plotW);
+        D3Grid(ysScreen, left, plotW);
 
         for (int si = 0; si < seriesNames.Length; si++)
         {
-            var fill = G.Brush(G.Palette[si]);
+            var fill = Brush(Palette[si]);
             for (int ci = 0; ci < categories.Length; ci++)
             {
                 double x = left + band.Map(categories[ci])
                          + groupBand.Map(seriesNames[si]);
                 double barH = plotH - ys.Map(values[si][ci]);
                 double y = top + ys.Map(values[si][ci]);
-                G.AddRect(canvas, x, y, groupBand.Bandwidth, barH, fill, 2);
+                D3Rect(x, y, groupBand.Bandwidth, barH)
+                    with { Fill = fill, RadiusX = 2, RadiusY = 2 };
             }
         }
         """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 400;
         const double left = 60, top = 30, right = 120, bottom = 50;
         double plotW = W - left - right;
         double plotH = H - top - bottom;
-
-        var canvas = new Canvas { Width = W, Height = H };
 
         // Sample data — quarterly sales by product line
         string[] categories = ["Q1", "Q2", "Q3", "Q4", "FY"];
@@ -66,50 +66,45 @@ public class GroupedBarChartSample : GallerySample
         var groupBand = BandScale.Create(seriesNames).SetRange(0, band.Bandwidth).SetPaddingInner(0.05);
         var ysScreen = new LinearScale(ys.Domain, [top + plotH, top]);
 
-        // Grid
-        G.DrawGrid(canvas, ysScreen, left, plotW);
-
-        // Grouped bars
-        for (int si = 0; si < seriesNames.Length; si++)
-        {
-            var fill = G.Brush(G.Palette[si]);
-            for (int ci = 0; ci < categories.Length; ci++)
-            {
-                double x = left + band.Map(categories[ci]) + groupBand.Map(seriesNames[si]);
-                double barH = plotH - ys.Map(values[si][ci]);
-                double y = top + ys.Map(values[si][ci]);
-                G.AddRect(canvas, x, y, groupBand.Bandwidth, barH, fill, 2);
-            }
-        }
-
         // Axes
-        var axisBrush = G.Gray(100, 180);
-        G.AddLine(canvas, left, top + plotH, left + plotW, top + plotH, axisBrush);
-        G.AddLine(canvas, left, top, left, top + plotH, axisBrush);
-
-        // Y axis labels
-        foreach (var t in ysScreen.Ticks(5))
-            G.AddText(canvas, 0, ysScreen.Map(t) - 7, G.Fmt(t), 10, axisBrush, TextAlignment.Right, left - 6);
-
-        // X axis labels
-        for (int i = 0; i < categories.Length; i++)
-        {
-            double cx = left + band.Map(categories[i]) + band.Bandwidth / 2;
-            G.AddText(canvas, cx - 10, top + plotH + 8, categories[i], 10, axisBrush);
-        }
-
-        // Legend
+        var axisBrush = Gray(100, 180);
         double legendX = W - right + 12;
         double legendY = top + 10;
-        for (int i = 0; i < seriesNames.Length; i++)
-        {
-            G.AddRect(canvas, legendX, legendY + i * 22, 14, 14, G.Brush(G.Palette[i]), 2);
-            G.AddText(canvas, legendX + 20, legendY + i * 22, seriesNames[i], 11, G.Gray(60));
-        }
 
-        // Title
-        G.AddText(canvas, left, 4, "Quarterly Sales by Product Line", 13, G.Gray(40));
+        return D3Canvas(W, H,
+            [.. D3Grid(ysScreen, left, plotW),
 
-        return canvas;
+             // Grouped bars
+             .. seriesNames.SelectMany((series, si) =>
+             {
+                 var fill = Brush(Palette[si]);
+                 return categories.Select((cat, ci) =>
+                 {
+                     double x = left + band.Map(cat) + groupBand.Map(series);
+                     double barH = plotH - ys.Map(values[si][ci]);
+                     double y = top + ys.Map(values[si][ci]);
+                     return D3Rect(x, y, groupBand.Bandwidth, barH) with { Fill = fill, RadiusX = 2, RadiusY = 2 };
+                 });
+             }),
+
+             D3Line(left, top + plotH, left + plotW, top + plotH) with { Stroke = axisBrush, StrokeThickness = 1 },
+             D3Line(left, top, left, top + plotH) with { Stroke = axisBrush, StrokeThickness = 1 },
+             .. ysScreen.Ticks(5).Select(t =>
+                 D3TextRight(0, ysScreen.Map(t) - 7, Fmt(t), left - 6, 10, axisBrush)),
+
+             // X axis labels
+             .. categories.Select((cat, i) =>
+                 D3Text(left + band.Map(cat) + band.Bandwidth / 2 - 10, top + plotH + 8, cat, 10, axisBrush)),
+
+             // Legend
+             .. seriesNames.SelectMany((name, i) => new Element[]
+             {
+                 D3Rect(legendX, legendY + i * 22, 14, 14) with { Fill = Brush(Palette[i]), RadiusX = 2, RadiusY = 2 },
+                 D3Text(legendX + 20, legendY + i * 22, name, 11, Gray(60)),
+             }),
+
+             D3Text(left, 4, "Quarterly Sales by Product Line", 13, Gray(40)),
+            ]
+        );
     }
 }

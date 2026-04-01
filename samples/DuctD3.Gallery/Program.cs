@@ -65,20 +65,12 @@ class GalleryApp : Component
             ),
             Caption(sample.Description),
             ScrollView(VStack(16,
-                new XamlHostElement(
-                    () =>
-                    {
-                        var border = new Border
-                        {
-                            Padding = new Thickness(16),
-                            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 249, 250)),
-                            CornerRadius = new CornerRadius(8),
-                            Child = sample.Render(),
-                        };
-                        return border;
-                    },
-                    _ => { }
-                ) { TypeKey = $"Chart_{sample.Title}" },
+                Border(sample.Render()) with
+                {
+                    Padding = new Thickness(16),
+                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 249, 250)),
+                    CornerRadius = 8,
+                },
                 SubHeading("Source Code"),
                 new XamlHostElement(
                     () => new ScrollViewer

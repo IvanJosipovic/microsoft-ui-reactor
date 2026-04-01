@@ -497,6 +497,12 @@ public static class ElementExtensions
     public static EllipseElement Set(this EllipseElement el, Action<WinShapes.Ellipse> configure) =>
         el with { Setters = [.. el.Setters, configure] };
 
+    public static LineElement Set(this LineElement el, Action<WinShapes.Line> configure) =>
+        el with { Setters = [.. el.Setters, configure] };
+
+    public static PathElement Set(this PathElement el, Action<WinShapes.Path> configure) =>
+        el with { Setters = [.. el.Setters, configure] };
+
     // Additional layout
     public static RelativePanelElement Set(this RelativePanelElement el, Action<WinUI.RelativePanel> configure) =>
         el with { Setters = [.. el.Setters, configure] };
@@ -580,6 +586,21 @@ public static class ElementExtensions
 
     public static EllipseElement Fill(this EllipseElement el, Brush brush) =>
         el with { Fill = brush };
+
+    public static PathElement Fill(this PathElement el, Brush brush) =>
+        el with { Fill = brush };
+
+    public static LineElement Stroke(this LineElement el, Brush brush) =>
+        el with { Stroke = brush };
+
+    public static LineElement StrokeThickness(this LineElement el, double thickness) =>
+        el with { StrokeThickness = thickness };
+
+    public static PathElement Stroke(this PathElement el, Brush brush) =>
+        el with { Stroke = brush };
+
+    public static PathElement StrokeThickness(this PathElement el, double thickness) =>
+        el with { StrokeThickness = thickness };
 
     // ── Popup convenience modifiers ─────────────────────────────────
 

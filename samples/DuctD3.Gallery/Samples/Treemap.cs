@@ -1,9 +1,8 @@
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -21,24 +20,25 @@ public sealed class TreemapSample : GallerySample
         var root = treemap.Hierarchy(data, n => n.Children, n => n.Size);
         treemap.Layout(root);
 
-        foreach (var leaf in root.Leaves())
-        {
-            double w = leaf.Width, h = leaf.Height;
-            if (w < 1 || h < 1) continue;
-            int colorIdx = GetTopFolderIndex(leaf, topFolders);
-            var fill = G.Brush(G.Palette[colorIdx % G.Palette.Length], 0.75);
-            G.AddRect(canvas, leaf.X0, leaf.Y0, w, h, fill, 2);
-            if (w > 40 && h > 16)
-                G.AddText(canvas, leaf.X0 + 4, leaf.Y0 + 3, label, 9, G.Gray(30));
-        }
+        D3Canvas(W, H,
+            [..root.Leaves().Select(leaf => {
+                var fill = Brush(Palette[colorIdx], 0.75);
+                return D3Rect(leaf.X0, leaf.Y0, w, h)
+                    with { Fill = fill, RadiusX = 2, RadiusY = 2 };
+            }),
+             ..labels,
+             ..root.Children.Select(f =>
+                D3Rect(f.X0, f.Y0, f.Width, f.Height)
+                    with { Stroke = Gray(100), StrokeThickness = 1.5,
+                           RadiusX = 2, RadiusY = 2 })]
+        )
         """;
 
     record FileNode(string Name, double Size = 0, FileNode[]? Children = null);
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 500;
-        var canvas = new Canvas { Width = W, Height = H };
 
         // Project file hierarchy with sizes in KB
         var data = new FileNode("project", 0, [
@@ -90,50 +90,34 @@ public sealed class TreemapSample : GallerySample
         // Assign colors by top-level folder
         var topFolders = root.Children.Select(c => c.Data.Name).ToList();
 
-        // Draw leaf rectangles
-        foreach (var leaf in root.Leaves())
-        {
-            double w = leaf.Width;
-            double h = leaf.Height;
-            if (w < 1 || h < 1) continue;
+        return D3Canvas(W, H,
+            [.. root.Leaves()
+                .Where(leaf => leaf.Width >= 1 && leaf.Height >= 1)
+                .SelectMany(leaf =>
+                {
+                    double w = leaf.Width;
+                    double h = leaf.Height;
+                    int colorIdx = GetTopFolderIndex(leaf, topFolders);
+                    var fill = Brush(Palette[colorIdx % Palette.Length], 0.75);
 
-            int colorIdx = GetTopFolderIndex(leaf, topFolders);
-            var fill = G.Brush(G.Palette[colorIdx % G.Palette.Length], 0.75);
-            G.AddRect(canvas, leaf.X0, leaf.Y0, w, h, fill, 2);
+                    string label = leaf.Data.Name;
+                    if (label.Length > (int)(w / 6)) label = label[..(int)(w / 6)] + "..";
 
-            // Label if there is enough room
-            if (w > 40 && h > 16)
-            {
-                string label = leaf.Data.Name;
-                if (label.Length > (int)(w / 6)) label = label[..(int)(w / 6)] + "..";
-                G.AddText(canvas, leaf.X0 + 4, leaf.Y0 + 3, label, 9, G.Gray(30));
-            }
-            if (w > 40 && h > 30)
-            {
-                G.AddText(canvas, leaf.X0 + 4, leaf.Y0 + 15,
-                    $"{leaf.Data.Size} KB", 8, G.Gray(80));
-            }
-        }
-
-        // Draw top-level folder borders and labels
-        foreach (var folder in root.Children)
-        {
-            double fw = folder.Width;
-            double fh = folder.Height;
-            if (fw < 1 || fh < 1) continue;
-
-            var border = new WinShapes.Rectangle
-            {
-                Width = fw, Height = fh,
-                Stroke = G.Gray(100), StrokeThickness = 1.5,
-                Fill = null, RadiusX = 2, RadiusY = 2,
-            };
-            Canvas.SetLeft(border, folder.X0);
-            Canvas.SetTop(border, folder.Y0);
-            canvas.Children.Add(border);
-        }
-
-        return canvas;
+                    return (Element[])
+                    [
+                        D3Rect(leaf.X0, leaf.Y0, w, h) with { Fill = fill, RadiusX = 2, RadiusY = 2 },
+                        .. (w > 40 && h > 16 ? new[] { D3Text(leaf.X0 + 4, leaf.Y0 + 3, label, 9, Gray(30)) } : Array.Empty<Element>()),
+                        .. (w > 40 && h > 30 ? new[] { D3Text(leaf.X0 + 4, leaf.Y0 + 15, $"{leaf.Data.Size} KB", 8, Gray(80)) } : Array.Empty<Element>()),
+                    ];
+                }),
+             .. root.Children
+                .Where(folder => folder.Width >= 1 && folder.Height >= 1)
+                .Select(folder =>
+                    D3Rect(folder.X0, folder.Y0, folder.Width, folder.Height)
+                        with { Stroke = Gray(100), StrokeThickness = 1.5,
+                               RadiusX = 2, RadiusY = 2 }),
+            ]
+        );
     }
 
     static int GetTopFolderIndex(TreemapNode<FileNode> node, List<string> topFolders)

@@ -1,8 +1,9 @@
+using Duct.Core;
 using Duct.D3;
+using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -15,20 +16,24 @@ public class AreaChart : GallerySample
         "and draws a solid stroke line on top.";
     public override string Category => "Areas";
 
-    public override string SourceCode => @"
-var area = AreaGenerator.Create<(double x, double y)>(
-    d => xScale.Map(d.x),
-    d => yScale.Map(0),
-    d => yScale.Map(d.y));
-string? areaPath = area.Generate(data);
+    public override string SourceCode => """
+        var area = AreaGenerator.Create<(double x, double y)>(
+            d => xScale.Map(d.x),
+            d => yScale.Map(0),
+            d => yScale.Map(d.y));
+        string? areaPath = area.Generate(data);
+        var line = LineGenerator.Create<(double x, double y)>(...)
+            .SetCurve(D3Curve.MonotoneX);
+        D3Canvas(W, H,
+            ..D3Grid(yScale, marginLeft, plotW),
+            ..D3Axes(xScale, yScale, marginLeft, marginTop, plotW, plotH),
+            D3Path(areaPath, fill: Brush(Palette[0], 0.3)),
+            D3Path(linePath, stroke: Brush(Palette[0]), strokeWidth: 2),
+            ..dots
+        )
+        """;
 
-var line = LineGenerator.Create<(double x, double y)>(
-    d => xScale.Map(d.x),
-    d => yScale.Map(d.y))
-    .SetCurve(D3Curve.MonotoneX);
-string? linePath = line.Generate(data);";
-
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 400;
         const double marginLeft = 50, marginTop = 20, marginRight = 20, marginBottom = 40;
@@ -65,36 +70,21 @@ string? linePath = line.Generate(data);";
             .SetCurve(D3Curve.MonotoneX);
         string? linePath = line.Generate(data);
 
-        var canvas = new Canvas { Width = W, Height = H };
-
-        // Grid + axes
-        G.DrawGrid(canvas, yScale, marginLeft, plotW);
-        G.DrawAxes(canvas, xScale, yScale, marginLeft, marginTop, plotW, plotH);
-
-        // Area fill
-        if (areaPath != null)
-        {
-            canvas.Children.Add(G.MakePath(areaPath,
-                fill: G.Brush(G.Palette[0], 0.3)));
-        }
-
-        // Stroke line
-        if (linePath != null)
-        {
-            canvas.Children.Add(G.MakePath(linePath,
-                stroke: G.Brush(G.Palette[0]), strokeWidth: 2));
-        }
-
         // Data dots
-        foreach (var d in data)
+        var dots = new Element[data.Length];
+        for (int i = 0; i < data.Length; i++)
         {
-            G.AddEllipse(canvas, xScale.Map(d.x), yScale.Map(d.y), 3,
-                G.Brush(G.Palette[0]));
+            var d = data[i];
+            dots[i] = D3Circle(xScale.Map(d.x), yScale.Map(d.y), 3) with { Fill = Brush(Palette[0]) };
         }
 
-        // Title
-        G.AddText(canvas, marginLeft, 2, "Area Chart", 14, G.Gray(40));
-
-        return canvas;
+        return D3Canvas(W, H,
+            [.. D3Grid(yScale, marginLeft, plotW),
+             .. D3Axes(xScale, yScale, marginLeft, marginTop, plotW, plotH),
+             .. (areaPath != null ? [D3Path(areaPath, fill: Brush(Palette[0], 0.3))] : Array.Empty<Element>()),
+             .. (linePath != null ? [D3Path(linePath, stroke: Brush(Palette[0]), strokeWidth: 2)] : Array.Empty<Element>()),
+             .. dots,
+             D3Text(marginLeft, 2, "Area Chart", 14, Gray(40))]
+        );
     }
 }

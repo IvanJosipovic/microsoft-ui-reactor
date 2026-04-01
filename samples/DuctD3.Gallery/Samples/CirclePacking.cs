@@ -1,9 +1,10 @@
+using Duct;
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -19,30 +20,25 @@ public sealed class CirclePackingSample : GallerySample
         var pack = PackLayout.Create<OrgNode>().Size(230).SetPadding(4);
         var root = pack.Layout(data, n => n.Children, n => n.Value);
 
-        foreach (var node in allNodes)
-        {
-            double nx = cx + node.X, ny = cy + node.Y, r = node.R;
+        var elements = allNodes.SelectMany(node => {
             bool isLeaf = node.Children.Count == 0;
             if (isLeaf)
             {
-                var fill = G.Brush(G.Palette[colorIdx % G.Palette.Length], 0.6);
-                G.AddEllipse(canvas, nx, ny, r, fill, stroke, 1);
+                var fill = Brush(Palette[colorIdx % Palette.Length], 0.6);
+                return new[] { D3Circle(nx, ny, r) with { Fill = fill, Stroke = stroke } };
             }
             else
-            {
-                G.AddEllipse(canvas, nx, ny, r, G.Gray(200, alpha),
-                    G.Gray(140), node.Depth == 0 ? 2 : 1);
-            }
-        }
+                return new[] { D3Circle(nx, ny, r) with { Fill = Gray(200, alpha), Stroke = Gray(140) } };
+        });
+        D3Canvas(W, H, [..elements, title]);
         """;
 
     record OrgNode(string Name, double Value = 0, OrgNode[]? Children = null);
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 500;
         double cx = W / 2, cy = H / 2;
-        var canvas = new Canvas { Width = W, Height = H };
 
         // Organization hierarchy with headcount values
         var data = new OrgNode("Company", 0, [
@@ -83,46 +79,50 @@ public sealed class CirclePackingSample : GallerySample
         CollectPack(root, allNodes);
         allNodes.Sort((a, b) => a.Depth.CompareTo(b.Depth));
 
-        foreach (var node in allNodes)
-        {
-            double nx = cx + node.X;
-            double ny = cy + node.Y;
-            double r = node.R;
-
-            bool isLeaf = node.Children.Count == 0;
-
-            if (isLeaf)
+        return D3Canvas(W, H,
+        [
+            .. allNodes.SelectMany(node =>
             {
-                // Leaf: filled circle
-                int colorIdx = GetBranchIndex(node);
-                var fill = G.Brush(G.Palette[colorIdx % G.Palette.Length], 0.6);
-                var stroke = G.Brush(G.Palette[colorIdx % G.Palette.Length], 0.9);
-                G.AddEllipse(canvas, nx, ny, r, fill, stroke, 1);
+                double nx = cx + node.X;
+                double ny = cy + node.Y;
+                double r = node.R;
+                bool isLeaf = node.Children.Count == 0;
 
-                // Label if circle is large enough
-                if (r > 18)
+                if (isLeaf)
                 {
-                    string label = node.Data.Name;
-                    double maxChars = r * 2 / 6;
-                    if (label.Length > maxChars) label = label[..(int)maxChars] + "..";
-                    G.AddText(canvas, nx - r + 4, ny - 6, label, 8, G.Gray(30),
-                        TextAlignment.Center, r * 2 - 8);
+                    int colorIdx = GetBranchIndex(node);
+                    var fill = Brush(Palette[colorIdx % Palette.Length], 0.6);
+                    var stroke = Brush(Palette[colorIdx % Palette.Length], 0.9);
+                    var circle = D3Circle(nx, ny, r) with { Fill = fill, Stroke = stroke, StrokeThickness = 1 };
+
+                    if (r > 18)
+                    {
+                        string label = node.Data.Name;
+                        double maxChars = r * 2 / 6;
+                        if (label.Length > maxChars) label = label[..(int)maxChars] + "..";
+                        return new Element[]
+                        {
+                            circle,
+                            D3Text(nx - r + 4, ny - 6, label, 8, Gray(30))
+                                .Width(r * 2 - 8).Set(tb => tb.TextAlignment = TextAlignment.Center),
+                        };
+                    }
+
+                    return [circle];
                 }
-            }
-            else
-            {
-                // Internal: outlined circle
-                byte alpha = node.Depth == 0 ? (byte)40 : (byte)25;
-                var fill = G.Gray(200, alpha);
-                var stroke = G.Gray(140);
-                G.AddEllipse(canvas, nx, ny, r, fill, stroke, node.Depth == 0 ? 2 : 1);
-            }
-        }
-
-        // Title
-        G.AddText(canvas, 10, 5, "Organization Headcount", 13, G.Brush("#333333"));
-
-        return canvas;
+                else
+                {
+                    byte alpha = node.Depth == 0 ? (byte)40 : (byte)25;
+                    var fill = Gray(200, alpha);
+                    var stroke = Gray(140);
+                    return new Element[]
+                    {
+                        D3Circle(nx, ny, r) with { Fill = fill, Stroke = stroke, StrokeThickness = node.Depth == 0 ? 2 : 1 },
+                    };
+                }
+            }),
+            D3Text(10, 5, "Organization Headcount", 13, Brush("#333333")),
+        ]);
     }
 
     static int GetBranchIndex(PackNode<OrgNode> node)

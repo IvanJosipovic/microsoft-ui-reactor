@@ -1,8 +1,10 @@
+using Duct;
+using Duct.Core;
 using Duct.D3;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
+using Duct.D3.Charts;
 using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -17,14 +19,14 @@ var line = LineGenerator.Create<(double x, double y)>(
         d => xs.Map(d.x), d => ys.Map(d.y))
     .SetDefined((d, _) => !double.IsNaN(d.y));
 var pathData = line.Generate(data);
-canvas.Children.Add(G.MakePath(pathData, G.Brush(G.Palette[0]), strokeWidth: 2));";
+D3Path(pathData, stroke: Brush(Palette[0]), strokeWidth: 2)";
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
-        const double canvasW = 700, canvasH = 400;
+        const double W = 700, H = 400;
         const double left = 50, top = 20, right = 20, bottom = 40;
-        double width = canvasW - left - right;
-        double height = canvasH - top - bottom;
+        double width = W - left - right;
+        double height = H - top - bottom;
 
         // Sensor readings over 30 days, with some missing (NaN)
         double[] readings =
@@ -46,57 +48,48 @@ canvas.Children.Add(G.MakePath(pathData, G.Brush(G.Palette[0]), strokeWidth: 2))
         var ys = new LinearScale([yMax + 1, yMin - 1], [top, top + height]);
         ys.Nice();
 
-        var canvas = new Canvas { Width = canvasW, Height = canvasH };
-
-        G.DrawGrid(canvas, ys, left, width);
-        G.DrawAxes(canvas, xs, ys, left, top, width, height);
-
-        // Draw dashed line showing where data is missing (connecting across gaps)
-        var fullLine = LineGenerator.Create<(double x, double y)>(
-                d => xs.Map(d.x), d => ys.Map(d.y))
-            .SetDefined((d, _) => !double.IsNaN(d.y));
-
-        // First draw a faint dashed line connecting across gaps
+        // Dashed line connecting across gaps
         var connectingData = data.Where(d => !double.IsNaN(d.y)).ToArray();
         var connectingLine = LineGenerator.Create<(double x, double y)>(
             d => xs.Map(d.x), d => ys.Map(d.y));
-        var connectingPath = G.MakePath(connectingLine.Generate(connectingData),
-            G.Brush(G.Palette[0], 0.2), strokeWidth: 1.5);
-        connectingPath.StrokeDashArray = new DoubleCollection { 4, 3 };
-        canvas.Children.Add(connectingPath);
+        var connectingPathData = connectingLine.Generate(connectingData);
+        var connectingPathEl = D3Path(connectingPathData, stroke: Brush(Palette[0], 0.2), strokeWidth: 1.5)
+            .Set(p => p.StrokeDashArray = new DoubleCollection { 4, 3 });
 
-        // Then draw the solid line with gaps
+        // Solid line with gaps
+        var fullLine = LineGenerator.Create<(double x, double y)>(
+                d => xs.Map(d.x), d => ys.Map(d.y))
+            .SetDefined((d, _) => !double.IsNaN(d.y));
         var pathData = fullLine.Generate(data);
-        canvas.Children.Add(G.MakePath(pathData, G.Brush(G.Palette[0]), strokeWidth: 2));
+        var solidLine = D3Path(pathData, stroke: Brush(Palette[0]), strokeWidth: 2);
 
-        // Draw data points (only for valid values)
-        var dotBrush = G.Brush(G.Palette[0]);
-        var missBrush = G.Brush(G.Palette[3], 0.5);
-        for (int i = 0; i < data.Length; i++)
-        {
-            if (!double.IsNaN(data[i].y))
-                G.AddEllipse(canvas, xs.Map(data[i].x), ys.Map(data[i].y), 3, dotBrush);
-        }
+        // Data points (only for valid values)
+        var dotBrush = Brush(Palette[0]);
+        var dots = data
+            .Where(d => !double.IsNaN(d.y))
+            .Select(d => (Element)(D3Circle(xs.Map(d.x), ys.Map(d.y), 3) with { Fill = dotBrush }))
+            .ToArray();
 
-        // Mark missing regions with a shaded band
-        var bandBrush = G.Brush(G.Palette[3], 0.08);
-        for (int i = 0; i < readings.Length; i++)
-        {
-            if (double.IsNaN(readings[i]))
-            {
-                double x0 = xs.Map(i + 0.5);
-                double x1 = xs.Map(i + 1.5);
-                G.AddRect(canvas, x0, top, x1 - x0, height, bandBrush);
-            }
-        }
+        // Missing region bands
+        var bandBrush = Brush(Palette[3], 0.08);
 
-        // Labels
-        G.AddText(canvas, canvasW / 2 - 20, canvasH - 12, "Day", 11, G.Gray(80));
-        G.AddText(canvas, 2, top - 14, "\u00b0C", 11, G.Gray(80));
-
-        // Annotation
-        G.AddText(canvas, left + 5, top + 5, "Shaded regions = missing sensor data", 10, G.Brush(G.Palette[3]));
-
-        return canvas;
+        return D3Canvas(W, H,
+            [.. D3Grid(ys, left, width),
+             .. D3Axes(xs, ys, left, top, width, height),
+             connectingPathEl,
+             solidLine,
+             .. dots,
+             .. readings.Select((r, i) => (r, i))
+                 .Where(t => double.IsNaN(t.r))
+                 .Select(t =>
+                 {
+                     double x0 = xs.Map(t.i + 0.5);
+                     double x1 = xs.Map(t.i + 1.5);
+                     return D3Rect(x0, top, x1 - x0, height) with { Fill = bandBrush };
+                 }),
+             D3Text(W / 2 - 20, H - 12, "Day", 11, Gray(80)),
+             D3Text(2, top - 14, "\u00b0C", 11, Gray(80)),
+             D3Text(left + 5, top + 5, "Shaded regions = missing sensor data", 10, Brush(Palette[3]))]
+        );
     }
 }

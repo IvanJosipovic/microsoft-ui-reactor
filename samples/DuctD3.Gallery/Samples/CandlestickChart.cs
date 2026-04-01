@@ -1,8 +1,8 @@
+using Duct.Core;
 using Duct.D3;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using Duct.D3.Charts;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -12,21 +12,24 @@ public class CandlestickChart : GallerySample
     public override string Description => "An OHLC candlestick chart showing 20 trading days. Green candles indicate close > open (bullish), red candles indicate close < open (bearish).";
     public override string Category => "Lines";
 
-    public override string SourceCode => @"
-foreach (var (day, candle) in candles.Select((c, i) => (i, c)))
-{
-    double cx = xs.Map(day);
-    bool bullish = candle.Close >= candle.Open;
-    var brush = G.Brush(bullish ? ""#26a269"" : ""#e01b24"");
-    // Wick: high to low
-    G.AddLine(canvas, cx, ys.Map(candle.High), cx, ys.Map(candle.Low), brush, 1);
-    // Body: open to close
-    double bodyTop = ys.Map(Math.Max(candle.Open, candle.Close));
-    double bodyBot = ys.Map(Math.Min(candle.Open, candle.Close));
-    G.AddRect(canvas, cx - barW/2, bodyTop, barW, bodyBot - bodyTop, brush);
-}";
+    public override string SourceCode => """
+        D3Canvas(canvasW, canvasH,
+            [..D3Grid(ys, left, width),
+             ..D3Axes(xs, ys, left, top, width, height),
+             ..candles.SelectMany((c, i) => {
+                 var brush = c.Close >= c.Open ? bullBrush : bearBrush;
+                 return new Element[] {
+                     D3Line(cx, ys.Map(c.High), cx, ys.Map(c.Low))
+                         with { Stroke = brush, StrokeThickness = 1.5 },
+                     D3Rect(cx - barW/2, bodyTop, barW, bodyH)
+                         with { Fill = brush },
+                 };
+             }),
+            ]
+        )
+        """;
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double canvasW = 700, canvasH = 400;
         const double left = 55, top = 20, right = 20, bottom = 40;
@@ -69,45 +72,36 @@ foreach (var (day, candle) in candles.Select((c, i) => (i, c)))
 
         double barW = width / 20 * 0.6;
 
-        var canvas = new Canvas { Width = canvasW, Height = canvasH };
-
-        G.DrawGrid(canvas, ys, left, width);
-        G.DrawAxes(canvas, xs, ys, left, top, width, height);
-
         // Bullish and bearish brushes
-        var bullBrush = G.Brush("#26a269");
-        var bearBrush = G.Brush("#e01b24");
+        var bullBrush = Brush("#26a269");
+        var bearBrush = Brush("#e01b24");
 
-        for (int i = 0; i < candles.Length; i++)
-        {
-            var c = candles[i];
-            double cx = xs.Map(i);
-            bool bullish = c.Close >= c.Open;
-            var brush = bullish ? bullBrush : bearBrush;
-
-            // Wick line: high to low
-            G.AddLine(canvas, cx, ys.Map(c.High), cx, ys.Map(c.Low), brush, 1.5);
-
-            // Body rectangle: open to close
-            double bodyTop = ys.Map(Math.Max(c.Open, c.Close));
-            double bodyBot = ys.Map(Math.Min(c.Open, c.Close));
-            double bodyH = Math.Max(bodyBot - bodyTop, 1); // minimum 1px
-            G.AddRect(canvas, cx - barW / 2, bodyTop, barW, bodyH, brush);
-        }
-
-        // X-axis labels (every 5 days)
-        for (int i = 0; i < 20; i += 5)
-            G.AddText(canvas, xs.Map(i) - 12, top + height + 4, $"Day {i + 1}", 10, G.Gray(100));
-
-        // Y-axis label
-        G.AddText(canvas, 2, top - 14, "Price", 11, G.Gray(80));
-
-        // Legend
-        G.AddRect(canvas, left + width - 120, top + 5, 12, 12, bullBrush, rx: 2);
-        G.AddText(canvas, left + width - 104, top + 5, "Bullish", 10, G.Gray(80));
-        G.AddRect(canvas, left + width - 55, top + 5, 12, 12, bearBrush, rx: 2);
-        G.AddText(canvas, left + width - 39, top + 5, "Bearish", 10, G.Gray(80));
-
-        return canvas;
+        return D3Canvas(canvasW, canvasH,
+            [.. D3Grid(ys, left, width),
+             .. D3Axes(xs, ys, left, top, width, height),
+             // Candlesticks
+             .. candles.SelectMany((c, i) =>
+             {
+                 double cx = xs.Map(i);
+                 bool bullish = c.Close >= c.Open;
+                 var brush = bullish ? bullBrush : bearBrush;
+                 double bodyTop = ys.Map(Math.Max(c.Open, c.Close));
+                 double bodyBot = ys.Map(Math.Min(c.Open, c.Close));
+                 double bodyH = Math.Max(bodyBot - bodyTop, 1); // minimum 1px
+                 return new Element[]
+                 {
+                     D3Line(cx, ys.Map(c.High), cx, ys.Map(c.Low)) with { Stroke = brush, StrokeThickness = 1.5 },
+                     D3Rect(cx - barW / 2, bodyTop, barW, bodyH) with { Fill = brush },
+                 };
+             }),
+             // X-axis labels (every 5 days)
+             .. Enumerable.Range(0, 4).Select(n => n * 5)
+                 .Select(i => D3Text(xs.Map(i) - 12, top + height + 4, $"Day {i + 1}", 10, Gray(100))),
+             D3Text(2, top - 14, "Price", 11, Gray(80)),
+             D3Rect(left + width - 120, top + 5, 12, 12) with { Fill = bullBrush, RadiusX = 2, RadiusY = 2 },
+             D3Text(left + width - 104, top + 5, "Bullish", 10, Gray(80)),
+             D3Rect(left + width - 55, top + 5, 12, 12) with { Fill = bearBrush, RadiusX = 2, RadiusY = 2 },
+             D3Text(left + width - 39, top + 5, "Bearish", 10, Gray(80))]
+        );
     }
 }

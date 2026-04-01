@@ -1,9 +1,9 @@
+using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -21,30 +21,24 @@ public sealed class IndentedTreeSample : GallerySample
             .SetId(r => r.Id)
             .SetParentId(r => r.ParentId);
         var root = stratify.Build(flatData);
-
-        for (int i = 0; i < rows.Count; i++)
-        {
-            var node = rows[i];
-            double y = startY + (i + 1) * rowH;
-            double indent = startX + node.Depth * indentPx;
-            bool hasChildren = node.Children.Count > 0;
-            if (hasChildren)
-            {
-                var pb = new PathBuilder(1);
-                pb.MoveTo(tx, ty); pb.LineTo(tx + 8, ty);
-                pb.LineTo(tx + 4, ty + 6); pb.ClosePath();
-                canvas.Children.Add(G.MakePath(pb.ToString(), null, G.Gray(120)));
-            }
-            G.AddText(canvas, indent, y + 3, node.Data.Name, 10, nameColor);
-        }
+        D3Canvas(W, H,
+            [..rows.SelectMany((node, i) => {
+                 double indent = startX + node.Depth * indentPx;
+                 return new Element[] {
+                     hasChildren ? D3Path(pb.ToString(), null, Gray(120), 0)
+                                 : D3Circle(indent - 8, y + 9, 2.5) with { Fill = Gray(180) },
+                     D3Text(indent, y + 3, node.Data.Name, 10, nameColor),
+                 };
+             }),
+            ]
+        )
         """;
 
     record Row(string Id, string? ParentId, string Name, string Type);
 
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 500;
-        var canvas = new Canvas { Width = W, Height = H };
 
         // Flat tabular data — a file system in id/parentId form
         var flatData = new Row[]
@@ -92,63 +86,52 @@ public sealed class IndentedTreeSample : GallerySample
         const double indentPx = 22;
         const double startX = 16;
         const double startY = 10;
-        const double nameCol = 0;
         const double typeCol = 360;
 
-        // Header
-        G.AddRect(canvas, 0, startY, W, rowH, G.Gray(230));
-        G.AddText(canvas, startX, startY + 3, "Name", 10, G.Brush("#333333"));
-        G.AddText(canvas, typeCol, startY + 3, "Type", 10, G.Brush("#333333"));
+        return D3Canvas(W, H,
+        [
+            // Header
+            D3Rect(0, startY, W, rowH) with { Fill = Gray(230) },
+            D3Text(startX, startY + 3, "Name", 10, Brush("#333333")),
+            D3Text(typeCol, startY + 3, "Type", 10, Brush("#333333")),
 
-        // Rows
-        for (int i = 0; i < rows.Count; i++)
-        {
-            var node = rows[i];
-            double y = startY + (i + 1) * rowH;
+            // Rows
+            .. rows.Select((node, i) => (node, i, y: startY + (i + 1) * rowH))
+                .TakeWhile(t => t.y + rowH <= H)
+                .SelectMany(t =>
+                {
+                    var (node, i, y) = t;
+                    double indent = startX + node.Depth * indentPx;
+                    bool hasChildren = node.Children.Count > 0;
+                    bool isFolder = node.Data.Type == "folder";
+                    var nameColor = isFolder ? Brush(Palette[0]) : Gray(50);
 
-            if (y + rowH > H) break; // don't overflow canvas
+                    Element indicator;
+                    if (hasChildren)
+                    {
+                        var pb = new PathBuilder(1);
+                        double tx = indent - 12, ty = y + 6;
+                        pb.MoveTo(tx, ty);
+                        pb.LineTo(tx + 8, ty);
+                        pb.LineTo(tx + 4, ty + 6);
+                        pb.ClosePath();
+                        indicator = D3Path(pb.ToString(), null, Gray(120), 0);
+                    }
+                    else
+                    {
+                        indicator = D3Circle(indent - 8, y + 9, 2.5) with { Fill = Gray(180) };
+                    }
 
-            // Alternating stripe
-            if (i % 2 == 0)
-                G.AddRect(canvas, 0, y, W, rowH, G.Gray(248));
-
-            double indent = startX + node.Depth * indentPx;
-            bool hasChildren = node.Children.Count > 0;
-
-            // Expand/collapse indicator
-            if (hasChildren)
-            {
-                // Draw a small filled triangle (pointing down)
-                var pb = new PathBuilder(1);
-                double tx = indent - 12;
-                double ty = y + 6;
-                pb.MoveTo(tx, ty);
-                pb.LineTo(tx + 8, ty);
-                pb.LineTo(tx + 4, ty + 6);
-                pb.ClosePath();
-                var tri = G.MakePath(pb.ToString(), null, G.Gray(120), 0);
-                canvas.Children.Add(tri);
-            }
-            else
-            {
-                // Draw a small circle for leaf
-                G.AddEllipse(canvas, indent - 8, y + 9, 2.5, G.Gray(180));
-            }
-
-            // Folder icon or file indicator
-            bool isFolder = node.Data.Type == "folder";
-            var nameColor = isFolder ? G.Brush(G.Palette[0]) : G.Gray(50);
-            string displayName = node.Data.Name;
-            G.AddText(canvas, indent, y + 3, displayName, 10, nameColor);
-
-            // Type column
-            G.AddText(canvas, typeCol, y + 3, node.Data.Type, 9, G.Gray(120));
-
-            // Subtle horizontal rule
-            G.AddLine(canvas, 0, y + rowH, W, y + rowH, G.Gray(235), 0.5);
-        }
-
-        return canvas;
+                    return (Element[])
+                    [
+                        .. (i % 2 == 0 ? new[] { D3Rect(0, y, W, rowH) with { Fill = Gray(248) } } : Array.Empty<Element>()),
+                        indicator,
+                        D3Text(indent, y + 3, node.Data.Name, 10, nameColor),
+                        D3Text(typeCol, y + 3, node.Data.Type, 9, Gray(120)),
+                        D3Line(0, y + rowH, W, y + rowH) with { Stroke = Gray(235), StrokeThickness = 0.5 },
+                    ];
+                }),
+        ]);
     }
 
     static void FlattenTree(TreeNode<Row> node, List<TreeNode<Row>> list)

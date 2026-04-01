@@ -1,8 +1,8 @@
+using Duct.Core;
 using Duct.D3;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using WinShapes = Microsoft.UI.Xaml.Shapes;
+using Duct.D3.Charts;
+using static Duct.D3.Charts.D3;
+using static Duct.UI;
 
 namespace DuctD3.Gallery;
 
@@ -15,27 +15,24 @@ public class StackedAreaChart : GallerySample
         "to render each layer with a distinct palette color.";
     public override string Category => "Areas";
 
-    public override string SourceCode => @"
-var stack = StackGenerator.Create<Dictionary<string, double>>()
-    .SetKeys(keys)
-    .SetValue((d, key) => d[key]);
-StackSeries[] series = stack.Generate(months);
+    public override string SourceCode => """
+        var stack = StackGenerator.Create<Dictionary<string, double>>()
+            .SetKeys(keys)
+            .SetValue((d, key) => d[key]);
+        StackSeries[] series = stack.Generate(months);
 
-for (int si = 0; si < series.Length; si++)
-{
-    var s = series[si];
-    var pts = new (double x, double y0, double y1)[s.Points.Length];
-    for (int j = 0; j < s.Points.Length; j++)
-        pts[j] = (j, s.Points[j].Y0, s.Points[j].Y1);
+        for (int si = 0; si < series.Length; si++)
+        {
+            var area = AreaGenerator.Create<(double x, double y0, double y1)>(
+                d => xScale.Map(d.x),
+                d => yScale.Map(d.y0),
+                d => yScale.Map(d.y1));
+            string? path = area.Generate(pts);
+            D3Path(path, fill: Brush(Palette[si], 0.75))
+        }
+        """;
 
-    var area = AreaGenerator.Create<(double x, double y0, double y1)>(
-        d => xScale.Map(d.x),
-        d => yScale.Map(d.y0),
-        d => yScale.Map(d.y1));
-    string? path = area.Generate(pts);
-}";
-
-    public override FrameworkElement Render()
+    public override Element Render()
     {
         const double W = 700, H = 400;
         const double marginLeft = 50, marginTop = 20, marginRight = 20, marginBottom = 40;
@@ -79,52 +76,34 @@ for (int si = 0; si < series.Length; si++)
         var yScale = new LinearScale([0, maxY * 1.1], [marginTop + plotH, marginTop]);
         yScale.Nice();
 
-        var canvas = new Canvas { Width = W, Height = H };
-
-        // Grid + axes
-        G.DrawGrid(canvas, yScale, marginLeft, plotW);
-        G.DrawAxes(canvas, xScale, yScale, marginLeft, marginTop, plotW, plotH);
-
-        // Render each stacked layer
-        for (int si = 0; si < series.Length; si++)
-        {
-            var s = series[si];
-            var pts = new (double x, double y0, double y1)[s.Points.Length];
-            for (int j = 0; j < s.Points.Length; j++)
-                pts[j] = (j, s.Points[j].Y0, s.Points[j].Y1);
-
-            var area = AreaGenerator.Create<(double x, double y0, double y1)>(
-                d => xScale.Map(d.x),
-                d => yScale.Map(d.y0),
-                d => yScale.Map(d.y1));
-            string? path = area.Generate(pts);
-
-            if (path != null)
-            {
-                canvas.Children.Add(G.MakePath(path,
-                    fill: G.Brush(G.Palette[si], 0.75)));
-            }
-        }
-
-        // Month labels along X axis
-        for (int m = 0; m < 12; m += 2)
-        {
-            G.AddText(canvas, xScale.Map(m) - 10, marginTop + plotH + 6,
-                monthLabels[m], 9, G.Gray(120));
-        }
-
-        // Legend
-        for (int k = 0; k < keys.Length; k++)
-        {
-            double lx = marginLeft + plotW - 100;
-            double ly = marginTop + 8 + k * 18;
-            G.AddRect(canvas, lx, ly, 12, 12, G.Brush(G.Palette[k], 0.75));
-            G.AddText(canvas, lx + 16, ly - 1, keys[k], 11, G.Gray(60));
-        }
-
-        // Title
-        G.AddText(canvas, marginLeft, 2, "Stacked Area Chart", 14, G.Gray(40));
-
-        return canvas;
+        return D3Canvas(W, H,
+            [.. D3Grid(yScale, marginLeft, plotW),
+             .. Enumerable.Range(0, series.Length)
+                .Select(si =>
+                {
+                    var s = series[si];
+                    var pts = s.Points.Select((p, j) => (x: (double)j, y0: p.Y0, y1: p.Y1)).ToArray();
+                    var area = AreaGenerator.Create<(double x, double y0, double y1)>(
+                        d => xScale.Map(d.x),
+                        d => yScale.Map(d.y0),
+                        d => yScale.Map(d.y1));
+                    return area.Generate(pts);
+                })
+                .Where(path => path != null)
+                .Select((path, si) => D3Path(path!, fill: Brush(Palette[si], 0.75))),
+             .. D3Axes(xScale, yScale, marginLeft, marginTop, plotW, plotH),
+             .. Enumerable.Range(0, 6).Select(i =>
+                D3Text(xScale.Map(i * 2) - 10, marginTop + plotH + 6,
+                    monthLabels[i * 2], 9, Gray(120))),
+             .. Enumerable.Range(0, keys.Length).SelectMany(k => new Element[]
+             {
+                 D3Rect(marginLeft + plotW - 100, marginTop + 8 + k * 18, 12, 12)
+                     with { Fill = Brush(Palette[k], 0.75) },
+                 D3Text(marginLeft + plotW - 100 + 16, marginTop + 8 + k * 18 - 1,
+                     keys[k], 11, Gray(60)),
+             }),
+             D3Text(marginLeft, 2, "Stacked Area Chart", 14, Gray(40)),
+            ]
+        );
     }
 }

@@ -162,6 +162,10 @@ public sealed partial class Reconciler
                 => UpdateRectangle(n, r),
             (EllipseElement, EllipseElement n, WinShapes.Ellipse e)
                 => UpdateEllipse(n, e),
+            (LineElement, LineElement n, WinShapes.Line l)
+                => UpdateLine(n, l),
+            (PathElement, PathElement n, WinShapes.Path p)
+                => UpdatePath(n, p),
             (RelativePanelElement, RelativePanelElement, WinUI.RelativePanel)
                 => Mount(newEl, requestRerender),
             (MediaPlayerElementElement, MediaPlayerElementElement n, WinUI.MediaPlayerElement mpe)
@@ -1301,6 +1305,27 @@ public sealed partial class Reconciler
         if (n.Stroke is not null) e.Stroke = n.Stroke;
         e.StrokeThickness = n.StrokeThickness;
         ApplySetters(n.Setters, e);
+        return null;
+    }
+
+    private UIElement? UpdateLine(LineElement n, WinShapes.Line l)
+    {
+        l.X1 = n.X1; l.Y1 = n.Y1;
+        l.X2 = n.X2; l.Y2 = n.Y2;
+        if (n.Stroke is not null) l.Stroke = n.Stroke;
+        l.StrokeThickness = n.StrokeThickness;
+        ApplySetters(n.Setters, l);
+        return null;
+    }
+
+    private UIElement? UpdatePath(PathElement n, WinShapes.Path p)
+    {
+        if (n.Data is not null) p.Data = n.Data;
+        if (n.Fill is not null) p.Fill = n.Fill;
+        if (n.Stroke is not null) p.Stroke = n.Stroke;
+        p.StrokeThickness = n.StrokeThickness;
+        if (n.RenderTransform is not null) p.RenderTransform = n.RenderTransform;
+        ApplySetters(n.Setters, p);
         return null;
     }
 
