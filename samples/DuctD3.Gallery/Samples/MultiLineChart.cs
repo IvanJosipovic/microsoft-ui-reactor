@@ -44,8 +44,7 @@ var lines = allSeries.Select((series, s) =>
         var (yMin, yMax) = D3Extent.Extent(allValues);
 
         var xs = new LinearScale([0, 11], [left, left + width]);
-        var ys = new LinearScale([yMax + 3, yMin - 3], [top, top + height]);
-        ys.Nice();
+        var ys = new LinearScale([yMax + 3, yMin - 3], [top, top + height]).Nice();
 
         var monthLabels = months.Select((m, i) =>
             D3Text(xs.Map(i) - 10, top + height + 4, m, 10, Gray(100)));

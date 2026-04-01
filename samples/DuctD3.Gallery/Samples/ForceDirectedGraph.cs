@@ -49,9 +49,7 @@ public sealed class ForceDirectedGraphSample : GallerySample
         ];
         int[] categories = [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3];
 
-        var nodes = new ForceNode[labels.Length];
-        for (int i = 0; i < labels.Length; i++)
-            nodes[i] = new ForceNode { Label = labels[i], Radius = 10 };
+        var nodes = labels.Select(label => new ForceNode { Label = label, Radius = 10 }).ToArray();
 
         // ~20 edges connecting related nodes
         var links = new ForceLink[]
@@ -97,7 +95,7 @@ public sealed class ForceDirectedGraphSample : GallerySample
                 },
                 D3TextCenter(n.X - 16, n.Y + 12, labels[i], 32, 9, Gray(60)),
             }),
-            D3Text(12, 6, "Force-Directed Graph", 14, Brush("#333333")),
+            D3Text(12, 6, "Force-Directed Graph", 14, Gray(51)),
         ]);
     }
 }

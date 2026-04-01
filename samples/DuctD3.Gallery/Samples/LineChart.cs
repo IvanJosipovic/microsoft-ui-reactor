@@ -37,14 +37,11 @@ public class LineChart : GallerySample
             18.4, 19.2, 20.1, 19.0, 17.6, 18.9, 20.5, 21.3, 20.8, 22.0
         ];
 
-        var data = new (double x, double y)[temps.Length];
-        for (int i = 0; i < temps.Length; i++)
-            data[i] = (i + 1, temps[i]);
+        var data = temps.Select((t, i) => (x: (double)(i + 1), y: t)).ToArray();
 
         var (yMin, yMax) = D3Extent.Extent(temps);
         var xs = new LinearScale([1, 30], [left, left + width]);
-        var ys = new LinearScale([yMax + 2, yMin - 2], [top, top + height]);
-        ys.Nice();
+        var ys = new LinearScale([yMax + 2, yMin - 2], [top, top + height]).Nice();
 
         var lineBrush = Brush(Palette[0]);
 

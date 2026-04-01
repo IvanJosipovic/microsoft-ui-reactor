@@ -67,8 +67,7 @@ public class CandlestickChart : GallerySample
         var (_, yMax) = D3Extent.Extent(allHigh);
 
         var xs = new LinearScale([0, 19], [left + 15, left + width - 15]);
-        var ys = new LinearScale([yMax + 2, yMin - 2], [top, top + height]);
-        ys.Nice();
+        var ys = new LinearScale([yMax + 2, yMin - 2], [top, top + height]).Nice();
 
         double barW = width / 20 * 0.6;
 
@@ -96,10 +95,7 @@ public class CandlestickChart : GallerySample
              .. Enumerable.Range(0, 4).Select(n => n * 5)
                  .Select(i => D3Text(xs.Map(i) - 12, top + height + 4, $"Day {i + 1}", 10, Gray(100))),
              D3Text(2, top - 14, "Price", 11, Gray(80)),
-             D3Rect(left + width - 120, top + 5, 12, 12) with { Fill = bullBrush, RadiusX = 2, RadiusY = 2 },
-             D3Text(left + width - 104, top + 5, "Bullish", 10, Gray(80)),
-             D3Rect(left + width - 55, top + 5, 12, 12) with { Fill = bearBrush, RadiusX = 2, RadiusY = 2 },
-             D3Text(left + width - 39, top + 5, "Bearish", 10, Gray(80))]
+             .. D3Legend(left + width - 120, top + 5, [("Bullish", bullBrush), ("Bearish", bearBrush)])]
         );
     }
 }

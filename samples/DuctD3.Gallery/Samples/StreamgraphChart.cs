@@ -50,24 +50,21 @@ return D3Canvas(W, H,
         string[] keys = ["Alpha", "Beta", "Gamma", "Delta"];
 
         // Generate smooth bumpy data for each layer
-        var rows = new List<Dictionary<string, double>>();
-        for (int j = 0; j < n; j++)
+        var rows = Enumerable.Range(0, n).Select(j =>
         {
-            var row = new Dictionary<string, double>();
             double t = j / (double)(n - 1);
-            row["Alpha"] = 12 + 18 * Math.Exp(-Math.Pow((t - 0.3) * 4, 2))
-                             + 6 * Math.Sin(t * Math.PI * 3);
-            row["Beta"]  = 10 + 14 * Math.Exp(-Math.Pow((t - 0.55) * 3.5, 2))
-                             + 4 * Math.Cos(t * Math.PI * 2.5);
-            row["Gamma"] = 8  + 20 * Math.Exp(-Math.Pow((t - 0.7) * 4, 2))
-                             + 5 * Math.Sin(t * Math.PI * 4 + 1);
-            row["Delta"] = 6  + 10 * Math.Exp(-Math.Pow((t - 0.45) * 3, 2))
-                             + 7 * Math.Cos(t * Math.PI * 1.8 + 2);
-            // Ensure positive
-            foreach (var k in keys)
-                if (row[k] < 1) row[k] = 1;
-            rows.Add(row);
-        }
+            return new Dictionary<string, double>
+            {
+                ["Alpha"] = Math.Max(1, 12 + 18 * Math.Exp(-Math.Pow((t - 0.3) * 4, 2))
+                                 + 6 * Math.Sin(t * Math.PI * 3)),
+                ["Beta"]  = Math.Max(1, 10 + 14 * Math.Exp(-Math.Pow((t - 0.55) * 3.5, 2))
+                                 + 4 * Math.Cos(t * Math.PI * 2.5)),
+                ["Gamma"] = Math.Max(1, 8  + 20 * Math.Exp(-Math.Pow((t - 0.7) * 4, 2))
+                                 + 5 * Math.Sin(t * Math.PI * 4 + 1)),
+                ["Delta"] = Math.Max(1, 6  + 10 * Math.Exp(-Math.Pow((t - 0.45) * 3, 2))
+                                 + 7 * Math.Cos(t * Math.PI * 1.8 + 2)),
+            };
+        }).ToList();
 
         // Stack
         var stack = StackGenerator.Create<Dictionary<string, double>>()

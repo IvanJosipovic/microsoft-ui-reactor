@@ -47,30 +47,24 @@ public class RidgePlot : GallerySample
 
         // Generate distribution-like data for each row
         // Each has a different center and spread, like kernel density estimates
-        double[][] distributions = new double[rows][];
         double[] centers = [0.25, 0.40, 0.55, 0.35, 0.65];
         double[] spreads = [0.12, 0.15, 0.10, 0.18, 0.13];
         double[] heights = [1.0, 0.8, 1.2, 0.7, 0.9];
         double[] secondaryCenters = [0.60, 0.70, 0.80, 0.65, 0.30];
         double[] secondaryHeights = [0.4, 0.3, 0.5, 0.6, 0.35];
 
-        double globalPeak = 0;
-        for (int r = 0; r < rows; r++)
-        {
-            distributions[r] = new double[points];
-            for (int i = 0; i < points; i++)
+        var distributions = Enumerable.Range(0, rows).Select(r =>
+            Enumerable.Range(0, points).Select(i =>
             {
                 double t = i / (double)(points - 1);
-                // Primary Gaussian bump
                 double v = heights[r] * Math.Exp(-Math.Pow((t - centers[r]) / spreads[r], 2) / 2);
-                // Secondary bump for bimodal effect
                 v += secondaryHeights[r] * Math.Exp(-Math.Pow((t - secondaryCenters[r]) / (spreads[r] * 0.8), 2) / 2);
-                // Small noise-like ripple
                 v += 0.05 * Math.Sin(t * Math.PI * 12 + r * 1.7);
-                distributions[r][i] = Math.Max(v, 0);
-                if (v > globalPeak) globalPeak = v;
-            }
-        }
+                return Math.Max(v, 0);
+            }).ToArray()
+        ).ToArray();
+
+        double globalPeak = distributions.SelectMany(d => d).Max();
 
         var xScale = new LinearScale([0, points - 1], [marginLeft, marginLeft + plotW]);
 
@@ -94,7 +88,7 @@ public class RidgePlot : GallerySample
                 return (Element[])
                 [
                     D3AreaPath(pts, x: d => xScale.Map(d.x), y0: _ => baselineY, y1: d => yScale.Map(d.y),
-                        fill: Brush(D3Color.Parse("#ffffff"), opacity: 0.85)),
+                        fill: Gray(255, alpha: 217)),
                     D3AreaPath(pts, x: d => xScale.Map(d.x), y0: _ => baselineY, y1: d => yScale.Map(d.y),
                         fill: Brush(Palette[r], opacity: 0.55)),
                     D3LinePath(pts, x: d => xScale.Map(d.x), y: d => yScale.Map(d.y),

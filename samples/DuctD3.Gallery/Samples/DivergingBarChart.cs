@@ -102,10 +102,7 @@ public class DivergingBarChartSample : GallerySample
                  D3TextRight(2, top + band.Map(item) + band.Bandwidth / 2 - 7, item, left - 6, 10, Gray(60))),
 
              // Legend
-             D3Rect(left + plotW - 120, top + 2, 12, 12) with { Fill = posBrush, RadiusX = 2, RadiusY = 2 },
-             D3Text(left + plotW - 104, top + 1, "Positive", 10, Gray(60)),
-             D3Rect(left + plotW - 50, top + 2, 12, 12) with { Fill = negBrush, RadiusX = 2, RadiusY = 2 },
-             D3Text(left + plotW - 34, top + 1, "Negative", 10, Gray(60)),
+             .. D3Legend(left + plotW - 120, top + 2, [("Positive", posBrush), ("Negative", negBrush)]),
 
              D3Text(left, 4, "Customer Sentiment Scores", 13, Gray(40)),
             ]

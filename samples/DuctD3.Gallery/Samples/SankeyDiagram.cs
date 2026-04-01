@@ -85,9 +85,7 @@ public sealed class SankeyDiagramSample : GallerySample
         layout.Layout(graph);
 
         // Assign a color index to each node for consistent coloring
-        var nodeColors = new Dictionary<string, int>();
-        for (int i = 0; i < graph.Nodes.Count; i++)
-            nodeColors[graph.Nodes[i].Id] = i;
+        var nodeColors = graph.Nodes.Select((n, i) => (n.Id, i)).ToDictionary(t => t.Id, t => t.i);
 
         return D3Canvas(W, H,
             [.. graph.Links
@@ -118,7 +116,7 @@ public sealed class SankeyDiagramSample : GallerySample
                      label,
                  };
              }),
-             D3Text(12, 6, "Sankey Diagram \u2014 Energy Flow", 14, Brush("#333333")),
+             D3Text(12, 6, "Sankey Diagram \u2014 Energy Flow", 14, Gray(51)),
             ]
         );
     }

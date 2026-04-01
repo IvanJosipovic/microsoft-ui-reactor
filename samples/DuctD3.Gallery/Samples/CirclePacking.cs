@@ -117,7 +117,7 @@ public sealed class CirclePackingSample : GallerySample
                     };
                 }
             }),
-            D3Text(10, 5, "Organization Headcount", 13, Brush("#333333")),
+            D3Text(10, 5, "Organization Headcount", 13, Gray(51)),
         ]);
     }
 

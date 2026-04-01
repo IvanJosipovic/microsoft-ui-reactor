@@ -55,9 +55,7 @@ public sealed class ArcDiagramSample : GallerySample
 
         // -- compute node x positions --
         double spacing = (W - padX * 2) / (nodeCount - 1);
-        double[] nodeX = new double[nodeCount];
-        for (int i = 0; i < nodeCount; i++)
-            nodeX[i] = padX + i * spacing;
+        var nodeX = Enumerable.Range(0, nodeCount).Select(i => padX + i * spacing).ToArray();
 
         var white = Brush("#ffffff");
 
@@ -90,7 +88,7 @@ public sealed class ArcDiagramSample : GallerySample
                      D3TextCenter(nodeX[i] - 24, baseline + 14, labels[i], 48, 9, Gray(60)),
                  };
              }),
-             D3Text(12, 6, "Arc Diagram", 14, Brush("#333333")),
+             D3Text(12, 6, "Arc Diagram", 14, Gray(51)),
             ]
         );
     }

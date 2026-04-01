@@ -36,20 +36,18 @@ public class AreaChart : GallerySample
         double plotH = H - marginTop - marginBottom;
 
         // Generate 20 smooth data points
-        var data = new (double x, double y)[20];
         double phase = 1.2;
-        for (int i = 0; i < 20; i++)
+        var data = Enumerable.Range(0, 20).Select(i =>
         {
             double t = i / 19.0;
-            data[i] = (i, 30 + 50 * Math.Sin(t * Math.PI * 2 * 0.8 + phase)
-                           + 20 * Math.Sin(t * Math.PI * 4 + 0.5)
-                           + 10 * Math.Cos(t * Math.PI * 3));
-        }
+            return (x: (double)i, y: 30 + 50 * Math.Sin(t * Math.PI * 2 * 0.8 + phase)
+                                     + 20 * Math.Sin(t * Math.PI * 4 + 0.5)
+                                     + 10 * Math.Cos(t * Math.PI * 3));
+        }).ToArray();
 
         var (yMin, yMax) = D3Extent.Extent(data, d => d.y);
         var xScale = new LinearScale([0, 19], [marginLeft, marginLeft + plotW]);
-        var yScale = new LinearScale([0, Math.Max(yMax * 1.1, 10)], [marginTop + plotH, marginTop]);
-        yScale.Nice();
+        var yScale = new LinearScale([0, Math.Max(yMax * 1.1, 10)], [marginTop + plotH, marginTop]).Nice();
 
         var dots = data.Select(d =>
             (Element)(D3Circle(xScale.Map(d.x), yScale.Map(d.y), 3) with { Fill = Brush(Palette[0]) }));

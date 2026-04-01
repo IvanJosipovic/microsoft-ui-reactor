@@ -88,12 +88,12 @@ public sealed class TidyTreeSample : GallerySample
              {
                  bool isLeaf = node.Children.Count == 0;
                  double r = isLeaf ? 4 : 5;
-                 var fill = isLeaf ? Brush(Palette[0]) : Brush("#555555");
-                 var stroke = isLeaf ? null : (Microsoft.UI.Xaml.Media.Brush?)Gray(80);
+                 var fill = isLeaf ? Brush(Palette[0]) : Gray(85);
+                 Microsoft.UI.Xaml.Media.Brush? stroke = isLeaf ? null : Gray(80);
 
                  Element label = isLeaf
                      ? D3Text(node.X + 8, node.Y - 7, node.Data.Name, 9, Gray(60))
-                     : D3TextCenter(node.X - 4, node.Y - 18, node.Data.Name, 40, 10, Brush("#333333"));
+                     : D3TextCenter(node.X - 4, node.Y - 18, node.Data.Name, 40, 10, Gray(51));
 
                  return new Element[]
                  {

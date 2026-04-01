@@ -85,20 +85,14 @@ public sealed class SunburstSample : GallerySample
         return D3Canvas(W, H,
             [.. allNodes
                 .Where(node => node.Parent != null)
-                .Where(node =>
-                {
-                    var (startAngle, endAngle, _, _) =
-                        node.ToPolar(totalAngleWidth, totalHeightNorm, maxRadius);
-                    return endAngle - startAngle >= 0.005;
-                })
                 .SelectMany(node =>
                 {
                     var (startAngle, endAngle, innerRadius, outerRadius) =
                         node.ToPolar(totalAngleWidth, totalHeightNorm, maxRadius);
+                    if (endAngle - startAngle < 0.005) return [];
 
                     int colorIdx = root.Children.IndexOf(node.TopAncestor);
-                    double opacity = 0.9 - node.Depth * 0.15;
-                    var fill = Brush(Palette[colorIdx % Palette.Length], Math.Max(0.3, opacity));
+                    var fill = Brush(Palette[colorIdx % Palette.Length], opacity: Math.Max(0.3, 0.9 - node.Depth * 0.15));
 
                     bool showLabel = (endAngle - startAngle) > 0.15 && node.Children.Count == 0;
                     double midAngle = (startAngle + endAngle) / 2 - Math.PI / 2;
@@ -111,10 +105,10 @@ public sealed class SunburstSample : GallerySample
                         D3ArcPath(startAngle, endAngle, cx, cy,
                             innerRadius: innerRadius, outerRadius: outerRadius,
                             fill: fill, stroke: Gray(255), strokeWidth: 1),
-                        .. (showLabel ? [D3TextCenter(lx - 20, ly - 6, node.Data.Name, 40, 8, Gray(30))] : Array.Empty<Element>()),
+                        .. (showLabel ? [D3TextCenter(lx - 20, ly - 6, node.Data.Name, 40, 8, Gray(30))] : (Element[])[]),
                     ];
                 }),
-             D3TextCenter(cx - 20, cy - 7, "Disk", 40, 12, Brush("#333333")),
+             D3TextCenter(cx - 20, cy - 7, "Disk", 40, 12, Gray(51)),
             ]
         );
     }

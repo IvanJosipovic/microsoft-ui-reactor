@@ -36,17 +36,14 @@ D3Path(pathData, stroke: Brush(Palette[0]), strokeWidth: 2)";
             26.5, 25.8, 26.1, 27.3, 28.0, 28.9, 29.5, double.NaN, 30.1, 30.8
         ];
 
-        var data = new (double x, double y)[readings.Length];
-        for (int i = 0; i < readings.Length; i++)
-            data[i] = (i + 1, readings[i]);
+        var data = readings.Select((r, i) => (x: (double)(i + 1), y: r)).ToArray();
 
         // Compute extent excluding NaN
         var validValues = readings.Where(v => !double.IsNaN(v));
         var (yMin, yMax) = D3Extent.Extent(validValues);
 
         var xs = new LinearScale([1, 30], [left, left + width]);
-        var ys = new LinearScale([yMax + 1, yMin - 1], [top, top + height]);
-        ys.Nice();
+        var ys = new LinearScale([yMax + 1, yMin - 1], [top, top + height]).Nice();
 
         // Dashed line connecting across gaps
         var connectingData = data.Where(d => !double.IsNaN(d.y)).ToArray();

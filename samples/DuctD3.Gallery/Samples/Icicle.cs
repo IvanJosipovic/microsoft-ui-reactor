@@ -96,7 +96,7 @@ public sealed class IcicleSample : GallerySample
                     double w = node.Width, h = node.Height;
                     int colorIdx = Math.Max(0, root.Children.IndexOf(node.TopAncestor));
                     double opacity = Math.Min(node.Depth == 0 ? 0.35 : 0.5 + node.Depth * 0.1, 0.85);
-                    var fill = Brush(Palette[colorIdx % Palette.Length], opacity);
+                    var fill = Brush(Palette[colorIdx % Palette.Length], opacity: opacity);
 
                     string label = node.Data.Name;
                     double maxChars = w / 7;
@@ -110,8 +110,8 @@ public sealed class IcicleSample : GallerySample
                     [
                         D3Rect(node.X0, node.Y0, w, h) with { Fill = fill, RadiusX = 1, RadiusY = 1 },
                         D3Rect(node.X0, node.Y0, w, h) with { Stroke = Gray(255, alpha: 180), StrokeThickness = 0.5 },
-                        .. (w > 50 && h > 16 ? new[] { D3Text(node.X0 + 4, node.Y0 + 3, label, 9, Gray(20)) } : Array.Empty<Element>()),
-                        .. (w > 50 && h > 30 ? new[] { D3Text(node.X0 + 4, node.Y0 + 16, valLabel, 8, Gray(60)) } : Array.Empty<Element>()),
+                        .. (w > 50 && h > 16 ? [D3Text(node.X0 + 4, node.Y0 + 3, label, 9, Gray(20))] : (Element[])[]),
+                        .. (w > 50 && h > 30 ? [D3Text(node.X0 + 4, node.Y0 + 16, valLabel, 8, Gray(60))] : (Element[])[]),
                     ];
                 }),
         ]);

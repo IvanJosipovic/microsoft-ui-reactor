@@ -105,8 +105,8 @@ public sealed class TreemapSample : GallerySample
                     return (Element[])
                     [
                         D3Rect(leaf.X0, leaf.Y0, w, h) with { Fill = fill, RadiusX = 2, RadiusY = 2 },
-                        .. (w > 40 && h > 16 ? new[] { D3Text(leaf.X0 + 4, leaf.Y0 + 3, label, 9, Gray(30)) } : Array.Empty<Element>()),
-                        .. (w > 40 && h > 30 ? new[] { D3Text(leaf.X0 + 4, leaf.Y0 + 15, $"{leaf.Data.Size} KB", 8, Gray(80)) } : Array.Empty<Element>()),
+                        .. (w > 40 && h > 16 ? [D3Text(leaf.X0 + 4, leaf.Y0 + 3, label, 9, Gray(30))] : (Element[])[]),
+                        .. (w > 40 && h > 30 ? [D3Text(leaf.X0 + 4, leaf.Y0 + 15, $"{leaf.Data.Size} KB", 8, Gray(80))] : (Element[])[]),
                     ];
                 }),
              .. root.Children
