@@ -57,5 +57,19 @@ public static class SampleRegistry
         new ChordDiagramSample(),
         new SankeyDiagramSample(),
         new ArcDiagramSample(),
+
+        // ── Controls ──────────────────────────────────────────
+        new ComponentHierarchySample(),
+        new WorkflowPipelineSample(),
+        new OrgChartSample(),
+        new NestedListExplorerSample(),
+
+        // ── Interactive ───────────────────────────────────────
+        new DonutMixerSample(),
+        new CurveExplorerSample(),
+
+        // ── Animation ─────────────────────────────────────────
+        new BarChartRaceSample(),
+        new AnimatedDonutSample(),
     ];
 }

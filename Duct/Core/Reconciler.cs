@@ -316,7 +316,12 @@ public sealed partial class Reconciler : IDisposable
             && _typeRegistry.TryGetValue(tagEl.GetType(), out var reg) && reg.HasUnmount)
         {
             reg.Unmount(control, this);
-            // Still collect for pooling even if registered handler ran.
+            // Collect this control for pooling, but do NOT recurse into children —
+            // they were created outside Duct's tree and must not be pooled.
+            // (Mirrors UnmountRecursive which returns early in this case.)
+            if (control is FrameworkElement poolCandidate2)
+                toPool.Add(poolCandidate2);
+            return;
         }
 
         // Recurse into children.

@@ -148,6 +148,8 @@ public sealed partial class Reconciler
                 => UpdateCommandBar(o, n, cb, requestRerender),
             (Core.GridElement o, Core.GridElement n, WinUI.Grid g)
                 => UpdateGrid(o, n, g, requestRerender),
+            (CanvasElement o, CanvasElement n, WinUI.Canvas cvs)
+                => UpdateCanvas(o, n, cvs, requestRerender),
             (FlexElement o, FlexElement n, Flex.FlexPanel fp)
                 => UpdateFlex(o, n, fp, requestRerender),
             (TemplatedListElementBase o, TemplatedListElementBase n, WinUI.ListView lv)
@@ -708,6 +710,33 @@ public sealed partial class Reconciler
         ReconcileChildren(o.Children, n.Children, wg, requestRerender);
         SetElementTag(wg, n);
         ApplySetters(n.Setters, wg);
+        return null;
+    }
+
+    private UIElement? UpdateCanvas(CanvasElement o, CanvasElement n, WinUI.Canvas canvas, Action requestRerender)
+    {
+        if (n.Width.HasValue && n.Width != o.Width) canvas.Width = n.Width.Value;
+        if (n.Height.HasValue && n.Height != o.Height) canvas.Height = n.Height.Value;
+        if (n.Background is not null) canvas.Background = n.Background;
+
+        ReconcileChildren(o.Children, n.Children, canvas, requestRerender);
+
+        // Re-apply Canvas attached properties (Left/Top) — skip nulls/EmptyElements
+        // to stay aligned with canvas.Children (ChildReconciler filters those out).
+        int panelIdx = 0;
+        for (int i = 0; i < n.Children.Length && panelIdx < canvas.Children.Count; i++)
+        {
+            if (n.Children[i] is null or EmptyElement) continue;
+            var ca = n.Children[i].GetAttached<CanvasAttached>();
+            if (ca is not null && canvas.Children[panelIdx] is FrameworkElement fe)
+            {
+                WinUI.Canvas.SetLeft(fe, ca.Left);
+                WinUI.Canvas.SetTop(fe, ca.Top);
+            }
+            panelIdx++;
+        }
+
+        ApplySetters(n.Setters, canvas);
         return null;
     }
 

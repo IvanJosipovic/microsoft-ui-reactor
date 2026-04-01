@@ -39,9 +39,25 @@ public sealed class ElementPool
     {
         if (!PoolableTypes.Contains(type)) { System.Diagnostics.Debug.WriteLine($"[Pool] TryRent({type.Name}) — not poolable"); return null; }
         if (!_pools.TryGetValue(type, out var stack) || stack.Count == 0) { System.Diagnostics.Debug.WriteLine($"[Pool] TryRent({type.Name}) — pool empty"); return null; }
-        var item = stack.Pop();
-        System.Diagnostics.Debug.WriteLine($"[Pool] TryRent({type.Name}) — GOT {item.GetHashCode()}, {stack.Count} remaining");
-        return item;
+
+        // Try up to stack.Count times to find a truly parentless element.
+        // WinUI may not have fully disconnected elements from a previous render pass.
+        int attempts = stack.Count;
+        while (attempts-- > 0)
+        {
+            var item = stack.Pop();
+            DetachFromParent(item);
+            if (item.Parent == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Pool] TryRent({type.Name}) — GOT {item.GetHashCode()}, {stack.Count} remaining");
+                return item;
+            }
+            // Element still has a parent after detach — WinUI hasn't released it yet. Drop it.
+            System.Diagnostics.Debug.WriteLine($"[Pool] TryRent({type.Name}) — SKIPPED {item.GetHashCode()} (still parented), {stack.Count} remaining");
+        }
+
+        System.Diagnostics.Debug.WriteLine($"[Pool] TryRent({type.Name}) — pool exhausted (all parented)");
+        return null;
     }
 
     /// <summary>

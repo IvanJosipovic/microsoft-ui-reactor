@@ -63,7 +63,7 @@ class GalleryApp : Component
 
         return FlexColumn(
             Heading("DuctD3 Gallery").Padding(24, 24, 24, 0),
-            Caption($"{SampleRegistry.All.Length} interactive samples — powered by D3.js ported to C#").Padding(24, 0, 24, 0),
+            Caption($"{SampleRegistry.All.Length} samples — powered by D3.js ported to C#").Padding(24, 0, 24, 0),
             ScrollView(
                 VStack(24, sections).Padding(24, 12, 24, 24).Margin(4)
             ).Flex(grow: 1, basis: 0)
@@ -121,6 +121,9 @@ class GalleryApp : Component
         "Hierarchies" => 5,
         "Networks" => 6,
         "Analysis" => 7,
+        "Controls" => 8,
+        "Interactive" => 9,
+        "Animation" => 10,
         _ => 99,
     };
 }
