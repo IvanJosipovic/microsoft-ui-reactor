@@ -31,7 +31,6 @@ static class GallerySelfTestRunner
             _window = new Window { Title = "DuctD3 Gallery" };
             _window.AppWindow.Resize(new Windows.Graphics.SizeInt32(1400, 900));
             var host = new DuctHost(_window);
-            DuctApp.ActiveHost = host;
             XamlInterop.Register(host.Reconciler);
             host.Mount(new GalleryApp());
             _window.Activate();

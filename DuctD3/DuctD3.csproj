@@ -8,7 +8,6 @@
     <Nullable>enable</Nullable>
     <UseWinUI>true</UseWinUI>
     <!-- Inherit WindowsAppSDKSelfContained from Directory.Build.props -->
-    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

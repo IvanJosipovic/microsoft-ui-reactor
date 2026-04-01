@@ -16,6 +16,7 @@ public static class D3Polygon
     public static double Area(IReadOnlyList<(double x, double y)> polygon)
     {
         int n = polygon.Count;
+        if (n == 0) return 0;
         double area = 0;
         var b = polygon[n - 1];
         for (int i = 0; i < n; i++)
@@ -34,6 +35,7 @@ public static class D3Polygon
     public static (double x, double y) Centroid(IReadOnlyList<(double x, double y)> polygon)
     {
         int n = polygon.Count;
+        if (n == 0) return (0, 0);
         double cx = 0, cy = 0, k = 0;
         var b = polygon[n - 1];
         for (int i = 0; i < n; i++)
@@ -46,6 +48,13 @@ public static class D3Polygon
             cy += (a.y + b.y) * cross;
         }
         k *= 3;
+        if (k == 0)
+        {
+            // Degenerate polygon (collinear points) — return average of vertices.
+            double ax = 0, ay = 0;
+            for (int i = 0; i < n; i++) { ax += polygon[i].x; ay += polygon[i].y; }
+            return (ax / n, ay / n);
+        }
         return (cx / k, cy / k);
     }
 
@@ -56,6 +65,7 @@ public static class D3Polygon
     public static bool Contains(IReadOnlyList<(double x, double y)> polygon, (double x, double y) point)
     {
         int n = polygon.Count;
+        if (n == 0) return false;
         bool inside = false;
         var b = polygon[n - 1];
         for (int i = 0; i < n; i++)
@@ -78,6 +88,7 @@ public static class D3Polygon
     public static double Length(IReadOnlyList<(double x, double y)> polygon)
     {
         int n = polygon.Count;
+        if (n == 0) return 0;
         double length = 0;
         var b = polygon[n - 1];
         for (int i = 0; i < n; i++)

@@ -198,6 +198,13 @@ public record EmptyElement : Element
 }
 
 /// <summary>
+/// A transparent grouping element (like React's Fragment). Does not introduce
+/// any layout container — its children are flattened into the parent.
+/// Produced by <c>ForEach</c> and <c>Group()</c> in the DSL.
+/// </summary>
+public record GroupElement(Element[] Children) : Element;
+
+/// <summary>
 /// Wraps any element with layout modifiers (margin, alignment, size, etc.).
 /// Kept for backward compatibility. New code stores modifiers inline on Element.Modifiers.
 /// </summary>

@@ -24,8 +24,13 @@ public static class DuctApp
 {
     // Application.Start blocks and creates DuctApplication via parameterless constructor,
     // so we must communicate config through a static. Using a single record keeps this scoped.
-    internal static DuctAppOptions Options = new();
-    public static DuctHost? ActiveHost;
+    private static DuctAppOptions _options = new();
+    internal static DuctAppOptions Options
+    {
+        get => Volatile.Read(ref _options);
+        set => Volatile.Write(ref _options, value);
+    }
+    public static DuctHost? ActiveHost { get; internal set; }
 
     // Unpackaged WinUI apps (WindowsPackageType=None) don't inherit DPI awareness from an
     // MSIX manifest, so the process defaults to DPI-unaware and Windows applies blurry bitmap
@@ -39,7 +44,8 @@ public static class DuctApp
     public static void Run<TRoot>(string title = "Duct App", int width = 1024, int height = 768, bool fullScreen = false, Action<DuctHost>? configure = null)
         where TRoot : Component, new()
     {
-        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+            System.Diagnostics.Debug.WriteLine($"SetProcessDpiAwarenessContext failed: {Marshal.GetLastWin32Error()}");
         WinRT.ComWrappersSupport.InitializeComWrappers();
         Options = new DuctAppOptions(
             RootFactory: () => new TRoot(),
@@ -59,7 +65,8 @@ public static class DuctApp
 
     public static void Run(string title, Func<RenderContext, Element> rootRender, int width = 1024, int height = 768, bool fullScreen = false)
     {
-        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+            System.Diagnostics.Debug.WriteLine($"SetProcessDpiAwarenessContext failed: {Marshal.GetLastWin32Error()}");
         WinRT.ComWrappersSupport.InitializeComWrappers();
         Options = new DuctAppOptions(
             RootRenderFunc: rootRender,
@@ -137,7 +144,6 @@ public partial class DuctApplication : Application, IXamlMetadataProvider
             window.AppWindow.Resize(new Windows.Graphics.SizeInt32(opts.WindowWidth, opts.WindowHeight)); 
 
         var host = new DuctHost(window);
-        DuctApp.ActiveHost = host;
 
         opts.Configure?.Invoke(host);
 

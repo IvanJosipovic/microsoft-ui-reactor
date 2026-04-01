@@ -520,10 +520,17 @@ public sealed partial class Reconciler
     private WinUI.Image MountImage(ImageElement img)
     {
         var image = _pool.TryRent(typeof(WinUI.Image)) as WinUI.Image ?? new WinUI.Image();
-        var uri = new Uri(img.Source, UriKind.RelativeOrAbsolute);
-        image.Source = img.Source.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
-            ? new SvgImageSource(uri)
-            : new BitmapImage(uri);
+        try
+        {
+            var uri = new Uri(img.Source, UriKind.RelativeOrAbsolute);
+            image.Source = img.Source.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
+                ? new SvgImageSource(uri)
+                : new BitmapImage(uri);
+        }
+        catch (UriFormatException)
+        {
+            // Malformed URI — leave image source empty rather than crashing
+        }
         if (img.Width.HasValue) image.Width = img.Width.Value;
         if (img.Height.HasValue) image.Height = img.Height.Value;
         ApplySetters(img.Setters, image);
@@ -1523,9 +1530,18 @@ public sealed partial class Reconciler
         if (compElement.Props is not null && component is IPropsReceiver receiver)
             receiver.SetProps(compElement.Props);
 
-        component.Context.BeginRender(requestRerender);
-        var childElement = component.Render();
-        component.Context.FlushEffects();
+        Element childElement;
+        try
+        {
+            component.Context.BeginRender(requestRerender);
+            childElement = component.Render();
+            component.Context.FlushEffects();
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(DuctLogLevel.Error, $"Component Render() threw during mount: {compElement.GetType().Name}", ex);
+            childElement = new TextElement($"⚠ Render error: {ex.Message}");
+        }
         var childControl = Mount(childElement, requestRerender);
 
         // Each component gets its own Border wrapper as an identity anchor
@@ -1541,9 +1557,18 @@ public sealed partial class Reconciler
     private UIElement MountFuncComponent(FuncElement funcElement, Action requestRerender)
     {
         var ctx = new RenderContext();
-        ctx.BeginRender(requestRerender);
-        var childElement = funcElement.RenderFunc(ctx);
-        ctx.FlushEffects();
+        Element childElement;
+        try
+        {
+            ctx.BeginRender(requestRerender);
+            childElement = funcElement.RenderFunc(ctx);
+            ctx.FlushEffects();
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(DuctLogLevel.Error, "FuncComponent Render() threw during mount", ex);
+            childElement = new TextElement($"⚠ Render error: {ex.Message}");
+        }
         var childControl = Mount(childElement, requestRerender);
 
         var wrapper = new Border { Child = childControl };

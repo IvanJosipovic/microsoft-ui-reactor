@@ -41,9 +41,9 @@ public static class D3
         => new(Windows.UI.Color.FromArgb(alpha, v, v, v));
 
     public static string Fmt(double v) =>
-        Math.Abs(v) >= 1e6 ? $"{v / 1e6:0.#}M" :
-        Math.Abs(v) >= 1e3 ? $"{v / 1e3:0.#}k" :
-        v == Math.Floor(v) ? v.ToString("F0") : v.ToString("G4");
+        Math.Abs(v) >= 1e6 ? (v / 1e6).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "M" :
+        Math.Abs(v) >= 1e3 ? (v / 1e3).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "k" :
+        v == Math.Floor(v) ? v.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) : v.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
 
     // ── Canvas ──────────────────────────────────────────────────────────
 
@@ -137,11 +137,9 @@ public static class D3
 
     /// <summary>Creates an area path element directly from data, collapsing AreaGenerator + Generate + D3Path into one expression.</summary>
     public static PathElement D3AreaPath<T>(IReadOnlyList<T> data, Func<T, double> x, Func<T, double> y0, Func<T, double> y1,
-        Brush? fill = null, Brush? stroke = null, double strokeWidth = 1.5,
-        CurveFactory? curve = null)
+        Brush? fill = null, Brush? stroke = null, double strokeWidth = 1.5)
     {
         var gen = AreaGenerator.Create(x, y0, y1);
-        if (curve != null) gen.SetCurve(curve);
         return D3Path(gen.Generate(data), stroke: stroke, fill: fill, strokeWidth: strokeWidth);
     }
 

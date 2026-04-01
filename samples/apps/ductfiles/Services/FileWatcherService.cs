@@ -33,6 +33,7 @@ internal sealed class FileWatcherService : IDisposable
     private void OnChange(object sender, FileSystemEventArgs e)
     {
         _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
         _debounceCts = new CancellationTokenSource();
         var token = _debounceCts.Token;
 
@@ -48,6 +49,7 @@ internal sealed class FileWatcherService : IDisposable
         if (_disposed) return;
         _disposed = true;
         _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
         _watcher.EnableRaisingEvents = false;
         _watcher.Dispose();
     }

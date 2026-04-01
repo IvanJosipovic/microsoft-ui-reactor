@@ -55,7 +55,7 @@ public sealed class ElementPool
             // Element has broken WinUI internal state — not safe to pool.
             return false;
         }
-        catch
+        catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
         {
             // No WinUI thread (e.g. unit tests) — skip validation, allow pooling.
             return true;

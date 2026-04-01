@@ -1,8 +1,8 @@
-# Duct Framework - Code Review Feedback
+# Duct / DuctD3 Code Review Feedback
 
-**Reviewer:** Senior Platform Engineer
-**Date:** 2026-03-18
-**Scope:** Full codebase review - all source, tests, configuration, build scripts
+**Reviewer:** Senior Platform Engineering Review  
+**Date:** 2026-04-01  
+**Scope:** All source files, tests, build configuration, and dependencies
 
 ---
 
@@ -10,748 +10,510 @@
 
 Each feedback item has a **Status** field. The workflow is:
 
-1. **`draft`** - Initial feedback from the reviewer. All items start here.
-2. **`approved`** - The engineer's manager marks items they believe should be completed.
-3. **`optional`** - The manager marks items that are borderline / nice-to-have.
-4. **`skip`** - The manager marks items they believe should not be acted on.
-5. **`done`** - The engineer marks items complete after addressing them.
-
-Engineers: check the box `[x]` when you've addressed the item, then change status to `done`.
-
----
-
-## Overall Impressions
-
-This is genuinely impressive work for a new C# engineer. The architecture is well-thought-out: the React-inspired reconciler pattern is sound, the use of C# records for the virtual element tree is excellent, and the DSL is ergonomic. The code is readable and well-structured. The feedback below is aimed at taking solid code and making it production-ready for a platform that will be maintained for years.
+1. Reviewer sets all items to **`draft`** (or **`draft/optional`** if borderline)
+2. Engineering manager reviews and updates each to one of:
+   - **`approved`** -- engineer should complete this item
+   - **`optional`** -- engineer may complete at their discretion
+   - **`skip`** -- not worth doing
+3. Engineer works through approved items, checking the box when done
 
 ---
 
 ## Table of Contents
 
-1. [Architecture & Design](#1-architecture--design)
-2. [Logging](#2-logging)
-3. [Core Library - Reconciler](#3-core-library---reconciler)
-4. [Core Library - RenderContext / Hooks](#4-core-library---rendercontext--hooks)
-5. [Core Library - Element Types](#5-core-library---element-types)
-6. [Core Library - Supporting Classes](#6-core-library---supporting-classes)
-7. [Hosting Layer](#7-hosting-layer)
-8. [Elements / DSL Layer](#8-elements--dsl-layer)
-9. [Native Rust Differ](#9-native-rust-differ)
-10. [CLI Tool](#10-cli-tool)
-11. [Build Configuration](#11-build-configuration)
-12. [Tests](#12-tests)
-13. [Sample Applications](#13-sample-applications)
+1. [Critical Issues](#1-critical-issues)
+2. [Core Framework (Duct/Core)](#2-core-framework-ductcore)
+3. [Hosting & Elements (Duct/Hosting, Duct/Elements, Duct/Flex)](#3-hosting--elements)
+4. [Monaco Editor (Duct/Monaco)](#4-monaco-editor)
+5. [Markdown Parser (Duct/Markdown)](#5-markdown-parser)
+6. [DuctD3 Library](#6-ductd3-library)
+7. [Test Suite](#7-test-suite)
+8. [Build Configuration & Dependencies](#8-build-configuration--dependencies)
+9. [Sample Applications](#9-sample-applications)
 
 ---
 
-## 1. Architecture & Design
+## 1. Critical Issues
 
-### 1.1 Rust Differ Is Built But Unused By the C# Reconciler
+These should be addressed before any release.
 
-- [x] **Status:** `done`
-- **Files:** `Duct/Core/Reconciler.cs`, `Duct/Core/ChildReconciler.cs`, `Duct/Native/ViewDiffer.cs`, `Duct/Native/differ/`
-- **Issue:** The Rust native differ is built, packaged, and has a full C# interop layer (`ViewDiffer.cs`), but the actual reconciler (`Reconciler.cs`, `ChildReconciler.cs`) does its own diffing entirely in C#. The `TreeSerializer` serializes elements to the Rust wire format, but nothing consumes those serialized trees. This means:
-  - The Rust crate is dead code in production (cargo builds add build time, binary size, and a native dependency for no benefit)
-  - There's duplicated reconciliation logic: `ChildReconciler.ComputeLIS` in C# and `reconcile::compute_lis` in Rust
-  - The `ViewDiffer`, `ViewNode`, `ViewProp`, `ViewPatch`, `ViewPatchOp` types, `TreeSerializer`, and `PropValueRegistry` are all unused at runtime
-- **Question for engineer:** What is the roadmap here? Is the plan to eventually switch the reconciler to use the Rust differ for performance? If so, this should be documented clearly (e.g., a design doc explaining the migration path). If not, consider removing the dead code to reduce maintenance burden. Having two implementations of the same algorithm that must stay in sync is a significant risk.
+### CR-001: Hardcoded debug log file path in production code
+- [x] **Status:** `approved`
+- **File:** `Duct/Hosting/DuctHost.cs:192`
+- **Severity:** CRITICAL
+- `File.AppendAllText(@"C:\temp\duct_perf_phases.log", ...)` writes to a hardcoded path on every perf report interval. This (a) fails on machines without `C:\temp`, (b) leaks perf data to disk in production, (c) adds unnecessary I/O. The `catch { }` silently swallows the failure.
+- **Fix:** Remove entirely or gate behind `#if DEBUG`. Perf data should go through `IDuctLogger`. Put under #if DEBUG and go through the logger API.
 
-### 1.2 Static Mutable State in DuctApp
+### CR-002: Reconciler.Dispose() is empty -- component cleanups leak
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/Reconciler.cs:701-703`
+- **Severity:** CRITICAL
+- When a `Reconciler` is disposed, component contexts with pending effect cleanups (event unsubscriptions, timer disposals) are never cleaned up. `_componentNodes` holds `ComponentNode` instances with pending cleanup delegates that will leak.
+- **Fix:** Iterate `_componentNodes.Values`, call `RunCleanups()` on each node's context, clear the dictionary and pool.
 
-- [x] **Status:** `done`
-- **File:** `Duct/Hosting/DuctApp.cs`, lines 12-16
-- **Issue:** `DuctApp` uses `internal static` fields to communicate between the `Run()` call and the `DuctApplication.OnLaunched()` callback:
-  ```csharp
-  internal static Type? RootComponentType;
-  internal static Func<RenderContext, Element>? RootRenderFunc;
-  internal static string WindowTitle = "Duct App";
-  internal static int WindowWidth = 1024;
-  internal static int WindowHeight = 768;
-  ```
-  This is a global mutable singleton pattern. While `Application.Start` blocks and only one Application can exist per process, this pattern:
-  - Makes the code untestable in isolation
-  - Creates implicit coupling between `DuctApp.Run` and `DuctApplication`
-  - Would break if someone called `Run` from a test runner or tried to host multiple Duct windows
-- **Recommendation:** Pass the configuration through the `DuctApplication` constructor. You could create a `DuctAppOptions` record and pass it via a closure or store it in a way that's scoped to the application instance rather than a static.
+### CR-003: No exception handling around Component.Render()
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/Reconciler.cs:175-177` and `Reconciler.Mount.cs:1527-1528`
+- **Severity:** CRITICAL
+- If a component's `Render()` throws, it propagates uncaught through the reconciler, potentially leaving the tree in a partially-updated state. React has error boundaries for this. At minimum, catch around `Render()`, log the error, and return a fallback element so the rest of the tree survives. Create an error handler element (ErrorBoundary) which can be used to catch and isolate failures.
 
----
+### CR-004: No exception handling around effect/cleanup execution
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/RenderContext.cs:301-328`
+- **Severity:** CRITICAL
+- `FlushEffects` and `RunCleanups` call user-supplied functions without try/catch. A throwing effect prevents subsequent effects from running; a throwing cleanup prevents the new effect from starting. This leaves subscriptions dangling.
+- **Fix:** Wrap each invocation in try/catch, log errors, continue processing remaining effects.
 
-## 2. Logging
-
-### 2.1 No Logging Abstraction Exists
-
-- [x] **Status:** `done`
-- **Files:** All files in `Duct/Hosting/`, `Duct/Core/`
-- **Issue:** The entire framework has exactly three logging calls, all using `System.Diagnostics.Debug.WriteLine`:
-  - `DuctApp.cs:83` - UnhandledException handler
-  - `DuctHost.cs:122` - Render failure
-  - `DuctHostControl.cs:175` - Render failure
-
-  These only output in debug builds and are invisible in production. A platform framework needs structured logging for:
-  - Mount/unmount lifecycle events
-  - Reconciliation performance (how long a render cycle took, how many elements were diffed)
-  - Hook violations (e.g., hooks called in different order across renders)
-  - Element pool hit/miss rates
-  - Type registry lookups
-  - Error conditions in user components
-
-- **Recommendation:** Introduce an `IDuctLogger` interface (or use `Microsoft.Extensions.Logging.ILogger<T>`) with a default no-op implementation. Since this project needs to work as both OSS and internal:
-
-  ```csharp
-  public interface IDuctLogger
-  {
-      void Log(DuctLogLevel level, string message);
-      void Log(DuctLogLevel level, string message, Exception? exception);
-  }
-
-  public enum DuctLogLevel { Trace, Debug, Info, Warning, Error }
-  ```
-
-  - Ship a `DebugDuctLogger` that writes to `Debug.WriteLine` for OSS
-  - Internally, implement one that bridges to the Microsoft internal logging pipeline
-  - Accept the logger via constructor injection in `Reconciler`, `DuctHost`, `DuctHostControl`
-  - Alternatively, use `Microsoft.Extensions.Logging` directly - it's the standard .NET logging abstraction and already supports pluggable providers. This would give you `ILogger<Reconciler>`, structured logging, log levels, etc. out of the box. Internal teams can register their own `ILoggerProvider`.
-
-### 2.2 UnhandledException Handler Silently Swallows Errors
-
-- [x] **Status:** `done`
-- **File:** `Duct/Hosting/DuctApp.cs`, lines 81-85
-- **Issue:**
-  ```csharp
-  UnhandledException += (_, e) =>
-  {
-      System.Diagnostics.Debug.WriteLine($"[Duct] UnhandledException: ...");
-      e.Handled = true;
-  };
-  ```
-  Setting `e.Handled = true` for **all** unhandled exceptions is dangerous. This means:
-  - Application state may be corrupt but the app keeps running
-  - Null reference exceptions, invalid casts, out-of-memory conditions are all silently swallowed
-  - Users have no way to know their app is malfunctioning
-- **Recommendation:** Only set `Handled = true` for known, recoverable exceptions (e.g., render failures in user components). For everything else, let the app crash with a useful message. Consider adding a callback so apps can opt into their own error handling:
-  ```csharp
-  public static Action<Exception>? OnUnhandledException { get; set; }
-  ```
+### CR-005: ForceSimulation uses static mutable Random -- thread-safety bug
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Layout/ForceSimulation.cs:246-247`
+- **Severity:** CRITICAL
+- `private static readonly Random _rng = new(42)` is shared across all instances without synchronization. `System.Random` is not thread-safe. Two concurrent `ForceSimulation` instances will corrupt state.
+- **Fix:** Use `Random.Shared` (.NET 6+) or a per-instance `Random`.
 
 ---
 
-## 3. Core Library - Reconciler
+## 2. Core Framework (Duct/Core)
 
-### 3.1 Event Handler Leak Pattern in Mount/Update
+### CR-006: ItemsControlChildCollection.Replace lacks the RemoveAt+Insert safety fix
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/ChildCollection.cs:94-96`
+- **Severity:** HIGH
+- `PanelChildCollection.Replace` uses `RemoveAt+Insert` to avoid a known WinUI COMException (documented in comment at line 54-58). But `ItemsControlChildCollection.Replace` uses direct indexer assignment `_items[index] = element`, which may suffer the same bug.
+- **Fix:** Apply the same RemoveAt+Insert pattern.
 
-- [x] **Status:** `done`
-- **File:** `Duct/Core/Reconciler.Mount.cs` (throughout), `Duct/Core/Reconciler.Update.cs` (throughout)
-- **Issue:** Event handlers are attached during Mount using patterns like:
-  ```csharp
-  b.Click += (_, _) =>
-  {
-      if (b.Tag is ButtonElement el) el.OnClick?.Invoke();
-  };
-  ```
-  These handlers are **never detached** during Update. Since the pattern uses `b.Tag` for indirection (storing the current element on the control's Tag, and the handler reads from Tag), this works _functionally_ - the handler reads the latest element from Tag each time. However:
-  - **Memory:** Every call to `Mount` for interactive controls adds a new event handler. If a control is repeatedly unmounted and remounted (e.g., when `CanUpdate` returns false and the fallback is `Mount(newEl, ...)`), handlers accumulate.
-  - **Several Update methods fall through to full remount:** `RadioButtonsElement`, `ComboBoxElement`, `SplitViewElement`, `TabViewElement`, `PivotElement`, `TreeViewElement`, `MenuBarElement`, `CommandBarElement` all use `=> Mount(newEl, requestRerender)` as their update strategy. Each remount adds new handlers without removing old ones.
-- **Recommendation:** For controls that do full remount on Update, call `Unmount` on the old control first (which happens for some but should be verified for all). Also consider whether the "Tag indirection" pattern is the right long-term approach. It works, but it's fragile - if someone sets `Tag` for another purpose, the entire event handling breaks silently. Consider using an `AttachedProperty` or `ConditionalWeakTable` instead.
+### CR-007: Logging abstraction lacks IsEnabled and structured logging
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/IDuctLogger.cs`
+- **Severity:** HIGH
+- **Questions for the engineer:**
+  - There is no `bool IsEnabled(DuctLogLevel level)` method. Without this, callers always format the log message string (including string interpolation) even when the logger discards it. For hot paths in the reconciler, this adds measurable allocation overhead.
+  - There is no structured logging overload. This makes it harder to integrate with backends like Application Insights or OpenTelemetry.
+  - The `DuctLogLevel` enum duplicates `Microsoft.Extensions.Logging.LogLevel`. Have you considered accepting `ILogger` directly and providing adapters? This would make the OSS-to-internal switch trivial.
+- **Fix:** Add `bool IsEnabled(DuctLogLevel level)` to the interface. Use it in hot-path callers. Consider a `Microsoft.Extensions.Logging` bridge.
 
-### 3.2 Reconciler.Mount.cs Is ~900 Lines of Switch Dispatching
+### CR-008: UpdateListView doesn't refresh visible items when content changes with same count
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/Reconciler.Update.cs:886-901`
+- **Severity:** HIGH
+- `UpdateListView` only sets a new `ItemsSource` when item count changes. If the list has the same count but different content, currently-visible items show stale content until scrolled out and back. Compare with `UpdateTemplatedListView` (lines 959-977) which correctly calls `RefreshRealizedContainers`.
+- **Fix:** When items have changed (even with same count), force a refresh of realized containers.
 
+### CR-009: ReconcileComponent silently returns if component node not found
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/Reconciler.cs:163`
+- **Severity:** MEDIUM
+- `if (!_componentNodes.TryGetValue(control, out var node)) return;` -- if the node is missing due to a bug, the component silently stops updating with no indication.
+- **Fix:** Log a warning so developers can diagnose "frozen" components.
+
+### CR-010: MountImage does not handle invalid URIs
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/Reconciler.Mount.cs:523`
+- **Severity:** MEDIUM
+- `new Uri(img.Source, UriKind.RelativeOrAbsolute)` throws `UriFormatException` on malformed input. The Hyperlink mount (line 168) handles this with try/catch, but Image does not.
+- **Fix:** Wrap in try/catch, return placeholder or empty image.
+
+### CR-011: FindItemByOldIndex is O(n) per moved item -- O(n^2) worst case
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/ChildReconciler.cs:303-322`
+- **Severity:** MEDIUM
+- For each moved item in keyed reconciliation, `FindItemByOldIndex` does a linear scan. For large lists (hundreds of items), this is O(n^2).
+- **Fix:** Build a temporary lookup map from key to current panel index.
+
+### CR-012: ForceDetach catches all exceptions including OOM/SOE
+- [x] **Status:** `approved`
+- **File:** `Duct/Core/ElementPool.cs:58-62`
+- **Severity:** MEDIUM
+- The bare `catch` block catches ALL exceptions and returns `true`, allowing pooling. This swallows `OutOfMemoryException`, `StackOverflowException`, etc.
+- **Fix:** Narrow to `catch (InvalidOperationException)` or `catch (Exception) when (e is not OutOfMemoryException)`.
+
+### CR-013: Component mount creates a Border wrapper per component
+- [ ] **Status:** `draft/optional`
+- **File:** `Duct/Core/Reconciler.Mount.cs:1531-1538`
+- **Severity:** MEDIUM (performance)
+- Every component mount creates a `Border` wrapper as an identity anchor in `_componentNodes`. For deeply nested trees, this adds a WinUI element per component with layout cost and COM overhead.
+- **Question:** Is there a lighter-weight identity mechanism?
+
+---
+
+## 3. Hosting & Elements
+
+### CR-014: DuctApp.ActiveHost is a mutable public field
+- [x] **Status:** `approved`
+- **File:** `Duct/Hosting/DuctApp.cs:28`
+- **Severity:** HIGH
+- `public static DuctHost? ActiveHost` is a bare public field, not a property. Any consumer can overwrite it. If multiple hosts are created, the last one wins silently.
+- **Fix:** `public static DuctHost? ActiveHost { get; internal set; }`
+
+### CR-015: DuctApp.Options written on caller thread, read on UI thread -- no memory barrier
+- [x] **Status:** `approved`
+- **File:** `Duct/Hosting/DuctApp.cs:27, 44-57`
+- **Severity:** HIGH
+- `Options` is written in `Run()` on the calling thread and read inside `Application.Start` on the UI thread. No `volatile`/lock guarantees the write is visible.
+- **Fix:** Use `Volatile.Write`/`Volatile.Read` or pass options through a thread-safe mechanism.
+
+### CR-016: DuctHostControl.Render() lacks error fallback
+- [x] **Status:** `approved`
+- **File:** `Duct/Hosting/DuctHostControl.cs:142-188`
+- **Severity:** HIGH
+- `DuctHost.Render()` catches exceptions and shows error fallback UI. `DuctHostControl.Render()` catches, logs, then re-throws, crashing the app. No error UI fallback exists. --> see the comment around an ErrorBoundary element
+- **Fix:** Add try/catch with error fallback matching `DuctHost.ShowErrorFallback()`.
+
+### CR-017: BrushHelper caches SolidColorBrush in ConcurrentDictionary -- thread affinity risk
+- [x] **Status:** `approved`
+- **File:** `Duct/Elements/BrushHelper.cs:13, 23`
+- **Severity:** HIGH
+- `SolidColorBrush` is a `DependencyObject` with thread affinity. The `ConcurrentDictionary` signals thread-safety intent but a brush created on one thread will throw `COMException` if used on another.
+- **Fix:** Cache `Windows.UI.Color` values instead and create new `SolidColorBrush` per use (they're cheap), or switch to plain `Dictionary` with documented UI-thread constraint.
+
+### CR-018: P/Invoke SetProcessDpiAwarenessContext return value ignored
+- [x] **Status:** `approved`
+- **File:** `Duct/Hosting/DuctApp.cs:42, 62`
+- **Severity:** MEDIUM
+- Declared with `SetLastError = true` but return value never checked. If DPI awareness was already set by manifest, the call fails silently.
+- **Fix:** Check return value, log warning on failure.
+
+### CR-019: FlexPanel._nodeCache never cleaned up on disposal
+- [x] **Status:** `approved`
+- **File:** `Duct/Flex/FlexPanel.cs:19`
+- **Severity:** MEDIUM
+- `_nodeCache` and `_rootNode` are never cleared when the FlexPanel is removed from the visual tree. If `YogaNode` holds resources, they leak.
+- **Fix:** Override `OnDisconnectedFromVisualTree` or implement cleanup.
+
+### CR-020: ForEach wraps results in VStack unconditionally
+- [x] **Status:** `approved`
+- **File:** `Duct/Elements/Dsl.cs:332, 339`
+- **Severity:** MEDIUM (API design)
+- `ForEach` always wraps mapped elements in a `VStack`. Callers wanting horizontal or no container must avoid `ForEach`. In React, `map()` returns a flat array.
+- **Question:** Should `ForEach` return a fragment/group that doesn't introduce layout? -> yes, should not force a layout
+
+### CR-021: FilterChildren allocates on every DSL call
+- [x] **Status:** `approved`
+- **File:** `Duct/Elements/Dsl.cs:548-549`
+- **Severity:** LOW (performance)
+- `.Where().Select().ToArray()` runs on every `VStack`/`HStack`/`Canvas` even when there are no nulls (common case).
+- **Fix:** Fast-path: return input array directly when no nulls exist.
+
+---
+
+## 4. Monaco Editor
+
+### CR-022: UpdateOptions double-serializes JSON
+- [x] **Status:** `approved`
+- **File:** `Duct/Monaco/MonacoEditor.cs:341`
+- **Severity:** HIGH (functional bug)
+- `UpdateOptions(string optionsJson)` wraps input with `JsonSerializer.Serialize(optionsJson)`, producing double-escaped JSON. The JS function receives a string literal instead of an object.
+- **Fix:** Inject `optionsJson` directly (with validation that it's valid JSON).
+
+### CR-023: WebView2 DevTools enabled unconditionally
+- [x] **Status:** `approved`
+- **File:** `Duct/Monaco/MonacoEditor.cs:161`
+- **Severity:** HIGH (security)
+- `AreDevToolsEnabled = true` is hardcoded. End users can open F12 and inspect/modify content.
+- **Fix:** Gate behind `#if DEBUG` or make configurable.
+
+### CR-024: Script injection risk via double/string interpolation into ExecuteScriptAsync
+- [x] **Status:** `approved`
+- **File:** `Duct/Monaco/MonacoEditor.cs:277` and multiple `On*Changed` callbacks
+- **Severity:** MEDIUM
+- Values are interpolated directly into JS strings. While `double` is generally safe, `NaN`/`Infinity` format as non-numeric strings in some cultures. The pattern is fragile and sets a dangerous precedent.
+- **Fix:** Use `JsonSerializer.Serialize` for all injected values, or use `PostWebMessageAsJson`.
+
+### CR-025: OnWebMessageReceived does not validate message structure
+- [x] **Status:** `approved`
+- **File:** `Duct/Monaco/MonacoEditor.cs:192-225`
+- **Severity:** MEDIUM
+- Assumes JSON has `type`, `value`, `isFlush` properties. Malformed data throws `KeyNotFoundException` and crashes.
+- **Fix:** Use `TryGetProperty` with graceful fallback.
+
+### CR-026: Fire-and-forget async throughout MonacoEditor
+- [x] **Status:** `approved`
+- **File:** `Duct/Monaco/MonacoEditor.cs:120, 207, 298-299`
+- **Severity:** MEDIUM
+- Multiple `_ = command()` patterns silently swallow async exceptions.
+- **Fix:** Add exception handling inside async lambdas.
+
+---
+
+## 5. Markdown Parser
+
+### CR-027: Numeric entity overflow can produce invalid codepoints
+- [x] **Status:** `approved`
+- **File:** `Duct/Markdown/Md4cHtml.cs:196-207`
+- **Severity:** HIGH (security)
+- `codepoint = 10 * codepoint + ...` in a `uint` loop without overflow checking. A long digit string (`&#99999999999999;`) silently wraps around, bypassing the `> 0x10ffff` guard and producing an arbitrary codepoint.
+- **Fix:** Add `if (codepoint > 0x10FFFF) { codepoint = 0xFFFD; break; }` inside the parsing loops.
+
+### CR-028: stackalloc inside loop (confirmed build warning)
+- [x] **Status:** `approved`
+- **File:** `Duct/Markdown/Md4cHtml.cs:132`
+- **Severity:** HIGH
+- `stackalloc byte[4]` inside a `for` loop. For long CJK URLs, this accumulates stack allocations.
+- **Fix:** Move `Span<byte> utf8 = stackalloc byte[4]` before the loop.
+
+### CR-029: MarkdownBuilder bold/italic uses boolean flags instead of depth counters
+- [x] **Status:** `approved`
+- **File:** `Duct/Markdown/MarkdownBuilder.cs:79-81, 586-631`
+- **Severity:** MEDIUM
+- Nested bold (`**outer **inner** outer**`) incorrectly turns off bold on the first `LeaveSpan(Strong)`.
+- **Fix:** Replace `bool _isBold` with `int _boldDepth`, increment/decrement on enter/leave.
+
+### CR-030: No URI scheme validation in MarkdownBuilder -- javascript: XSS risk
+- [x] **Status:** `approved`
+- **File:** `Duct/Markdown/MarkdownBuilder.cs:601, 610`
+- **Severity:** MEDIUM (security)
+- `Uri.TryCreate(href, UriKind.RelativeOrAbsolute)` accepts `javascript:alert(1)`. If rendered in a WebView2 context, this is an XSS vector.
+- **Fix:** Validate URI scheme is `http`, `https`, or `mailto`. Reject `javascript:`, `data:`, `vbscript:`.
+
+### CR-031: No nesting depth limit for block quotes/list items
+- [x] **Status:** `approved`
+- **File:** `Duct/Markdown/Md4cParser.Block.cs`, `PushContainer`
+- **Severity:** MEDIUM (DoS)
+- Thousands of nested `>` blockquotes allocate unbounded memory and create deep call stacks.
+- **Fix:** Add `const int MAX_NESTING_DEPTH = 100` and reject deeper nesting.
+
+### CR-032: schemeMap allocated on every colon character in CollectMarks
+- [x] **Status:** `approved`
+- **File:** `Duct/Markdown/Md4cParser.Inline.cs:1662-1667`
+- **Severity:** LOW (performance)
+- **Fix:** Hoist to `private static readonly` field.
+
+---
+
+## 6. DuctD3 Library
+
+### CR-033: D3Color.Parse missing rgb()/hsl() support despite doc comment
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Color/D3Color.cs:50-75`
+- **Severity:** HIGH
+- Doc comment says "Parses hex, rgb(), hsl(), and named colors" but only hex and named are implemented. `"rgb(255,0,0)"` silently returns black.
+- **Fix:** Implement rgb()/hsl() parsing or correct the documentation.
+
+### CR-034: Polygon methods crash on empty input
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Polygon/Polygon.cs:20, 38, 60, 81`
+- **Severity:** HIGH
+- `Area()`, `Centroid()`, `Contains()`, `Length()` access `polygon[n-1]` without checking `n == 0`.
+- **Fix:** Add `if (n == 0)` guards returning 0 / (0,0) / false / 0.
+
+### CR-035: Polygon.Centroid division by zero when area is zero
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Polygon/Polygon.cs:49`
+- **Severity:** HIGH
+- When all points are collinear, `k == 0`, producing NaN centroid.
+- **Fix:** Return average of points when `k == 0`.
+
+### CR-036: CultureInfo missing in Fmt() label formatting
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Charts/ChartDsl.cs:159` and `DuctD3/Charts/D3Dsl.cs:43-46`
+- **Severity:** HIGH
+- `Fmt()` uses default `ToString()` without `CultureInfo.InvariantCulture`. In German/French locales, axis labels produce `"1,5k"` instead of `"1.5k"`.
+- **Fix:** Pass `CultureInfo.InvariantCulture` to all numeric formatting.
+
+### CR-037: Delaunay triangulation is not a real Delaunay implementation
 - [ ] **Status:** `skip`
-- **File:** `Duct/Core/Reconciler.Mount.cs`
-- **Issue:** The `Mount` method is a single massive switch expression mapping ~40 element types to mount methods. `Reconciler.Update.cs` has a similar ~120-line tuple-switch. While partial classes help with file organization, this is still a single method with 40+ branches.
-- **Question:** As you add more element types (and external teams register custom types), does this scale? The `RegisterType` API already exists for external types. Would it make sense to use the same dispatch pattern internally, so built-in types are just pre-registered entries in `_typeRegistry`? This would also make it possible for consumers to override built-in type handling.
+- **File:** `DuctD3/Voronoi/Delaunay.cs:97-121`
+- **Severity:** HIGH (correctness)
+- The comment says "Simple fan triangulation" and "for production use, Bowyer-Watson would be better." The current code produces overlapping/invalid triangles. Any consumer of Delaunay/Voronoi gets wrong results for non-trivial point sets.
+- **Question:** Is Voronoi functionality advertised as production-ready? If so, Bowyer-Watson must be implemented.
 
---> this will be addressed with a large refactoring
+### CR-038: BisectCenter crashes on empty array
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Array/Bisect.cs:53-54`
+- **Severity:** HIGH
+- Empty array causes `array[0]` access after `BisectLeft` returns 0.
+- **Fix:** Guard `if (array.Length == 0) return 0;`.
 
-### 3.3 Reconciler.Reconcile Has Unused `parent` and `childIndex` Parameters
-
-- [x] **Status:** `done`
-- **File:** `Duct/Core/Reconciler.cs`, lines 80-86
-- **Issue:** The `Reconcile` method signature is:
-  ```csharp
-  public UIElement? Reconcile(Element? oldElement, Element? newElement,
-      UIElement? existingControl, WinUI.Panel? parent, int childIndex, Action requestRerender)
-  ```
-  The `parent` and `childIndex` parameters are always passed as `null` and `0` respectively by the only callers (`DuctHost.Render()` and `DuctHostControl.Render()`). Dead parameters in a public API create confusion about intended usage.
-- **Recommendation:** Remove unused parameters or document why they exist (e.g., future use). If they were part of an older design, clean them up.
-
-### 3.4 ComponentNode Uses Mutable Class Fields
-
-- [x] **Status:** `done`
-- **File:** `Duct/Core/Reconciler.cs`, lines 309-315
-- **Issue:**
-  ```csharp
-  internal class ComponentNode
-  {
-      public Component? Component;
-      public RenderContext? Context;
-      public Element? RenderedElement;
-      public Element? Element;
-  }
-  ```
-  Public mutable fields on a class. In C#, fields should be private, with properties or methods controlling access. More importantly, having both `Element` and `RenderedElement` with no doc comments explaining the distinction is confusing. Which is the "input" element and which is the "output" of rendering?
-- **Recommendation:** Add doc comments. Consider using properties with `{ get; set; }` (this is the C# convention). Even though it's internal, future maintainers (including you) will benefit from clarity here.
-
-### 3.5 CanUpdate Doesn't Account for Keys
-
-- [x] **Status:** `done`
-- **File:** `Duct/Core/Reconciler.cs`, lines 245-251
-- **Issue:**
-  ```csharp
-  internal bool CanUpdate(Element oldEl, Element newEl)
-  {
-      if (oldEl.GetType() != newEl.GetType()) return false;
-      if (oldEl is ComponentElement oldComp && newEl is ComponentElement newComp)
-          return oldComp.ComponentType == newComp.ComponentType;
-      return true;
-  }
-  ```
-  This doesn't consider `Key`. Two elements of the same type but different keys should NOT be updateable (they represent different logical items). `ChildReconciler.ReconcileKeyed` handles keys separately, but if `CanUpdate` is called in other contexts (registered type handlers, Update dispatch), mismatched keys could lead to incorrect updates.
-- **Recommendation:** Add `&& oldEl.Key == newEl.Key` to the key-equality check, or document why keys are intentionally excluded from `CanUpdate`.
-
----
-
-## 4. Core Library - RenderContext / Hooks
-
-### 4.1 Unsafe Casts in Hook State Retrieval
-
-- [x] **Status:** `done`
-- **File:** `Duct/Core/RenderContext.cs`, lines 47, 82, 106, 128, 150, 182
-- **Issue:** All hook retrieval uses bare casts like `(T)hook.Value` and `(EffectHookState)_hooks[_hookIndex]`. If a developer accidentally calls hooks in a different order between renders (a known React anti-pattern), these will throw `InvalidCastException` or `NullReferenceException` with no helpful message.
-- **Recommendation:** Add a guard that detects hook type mismatches and provides a clear error:
-  ```csharp
-  if (_hooks[_hookIndex] is not EffectHookState hook)
-      throw new InvalidOperationException(
-          $"Hook at index {_hookIndex} is {_hooks[_hookIndex].GetType().Name}, expected EffectHookState. " +
-          "Hooks must be called in the same order every render.");
-  ```
-  This is one of the most common developer mistakes in hook-based systems and a clear error message saves hours of debugging.
-
-### 4.2 UseReducer Integer Overflow for Force-Render Pattern
-
-- [x] **Status:** `done`
-- **File:** `Duct/Core/RenderContext.cs`, lines 195-202
-- **Issue:** `UseObservable`, `UseObservableProperty`, and `UseCollection` all use `UseReducer(0)` with `forceRender(v => v + 1)` as a force-render mechanism. The counter is `int`, so after ~2.1 billion property changes, it wraps to `int.MinValue`. At that point `EqualityComparer<int>.Default.Equals(prev, next)` would return false (it still works), but the semantics are surprising. More importantly, once it wraps past `int.MaxValue` to `int.MinValue` and keeps incrementing, it will eventually reach the _same_ value it started from, causing `Equals` to return `true` and a render to be skipped.
-- **Recommendation:** Use `forceRender(v => unchecked(v + 1))` to make the intent explicit, or better, use a boolean toggle: `forceRender(v => !v)` with `UseReducer(false)`.
-
-### 4.3 UseWindowSize Creates a New Event Handler Every Render
-
-- [x] **Status:** `done`
-- **File:** `Duct/Core/RenderContext.cs`, lines 251-268
-- **Issue:** `UseWindowSize` passes `window` as the dependency to `UseEffect`. Since `window` is a reference type and the same object across renders, `DepsEqual` will return `true` (reference equality) after the first render, so the effect won't re-run. This is actually fine for subscribing once. However, the initial `setSize(...)` call on line 263 is inside the effect, which only runs on mount. If the window has already been resized before the hook runs, the initial value from `UseState` (line 253) might be stale. This is a minor race condition.
-- **Recommendation:** The `setSize` call inside the effect (line 263) is redundant with the initial value on line 253. Consider removing it. If you're concerned about staleness, move the initial value read closer to the subscription.
-
-### 4.4 FlushEffects Iterates All Hooks Every Render
-
-- [x] **Status:** `done`
-- **File:** `Duct/Core/RenderContext.cs`, lines 280-298
-- **Issue:** `FlushEffects` uses `_hooks.OfType<EffectHookState>()` which iterates all hooks on every render. For components with many hooks (state + memos + effects), this linear scan is unnecessary overhead. Additionally, `OfType<T>` allocates an iterator.
-- **Recommendation:** Maintain a separate list of pending effects, or track which indices are effect hooks. This matters for perf-sensitive components with many hooks. Low priority, but worth keeping in mind as the framework scales.
-
----
-
-## 5. Core Library - Element Types
-
-### 5.1 `Setters` Array Breaks Record Equality
-
-- [x] **Status:** `done`
-- **File:** `Duct/Core/Element.cs` (every element type with `Setters` property)
-- **Issue:** Every element type has:
-  ```csharp
-  internal Action<WinUI.TextBlock>[] Setters { get; init; } = [];
-  ```
-  C# record equality for arrays compares by reference, not by content. This means two elements that are logically identical but have setters added via `.Set()` will always be non-equal, even if the setters are the same delegates. While this doesn't break the reconciler (it always updates), it defeats potential optimizations like skipping updates for unchanged elements.
-- **Question:** Is this intentional? If setters are always re-created each render (lambda captures), then they'll always be different anyway. If so, document this trade-off. If you ever want to optimize by skipping no-op updates, you'll need to address this.
-
-### 5.2 FuncElement Equality Is Misleading
-
+### CR-039: Treemap squarify is not actually implemented
 - [ ] **Status:** `skip`
-- **File:** `Duct/Core/Element.cs`, line 58
-- **Issue:**
-  ```csharp
-  public record FuncElement(Func<RenderContext, Element> RenderFunc) : Element;
-  ```
-  Record equality for `FuncElement` compares the delegate by reference. A method group reference (`static Element Render(RenderContext ctx)`) produces the same delegate across calls, making two `FuncElement`s appear equal even though the function may produce different output (because it reads from external state). The `ReconcilerRegressionTests` explicitly tests and documents this. However, this means the reconciler could potentially skip re-rendering a `FuncElement` if equality-based optimization is ever added.
-- **Recommendation:** Already well-handled by the test suite (good). Just ensure this invariant is documented near the `FuncElement` definition.
+- **File:** `DuctD3/Layout/Treemap.cs:142-174`
+- **Severity:** MEDIUM (correctness)
+- `TileSquarify` computes aspect ratios but never lays out squarified strips. Falls back to slice/dice. Users selecting `TreemapTiling.Squarify` don't get squarified rectangles.
+- **Fix:** Implement the actual squarify algorithm.
 
----
-
-## 6. Core Library - Supporting Classes
-
-### 6.1 PropValueRegistry Grows Unboundedly
-
-- [x] **Status:** `done`
-- **File:** `Duct/Core/PropValueRegistry.cs`
-- **Issue:** `Register()` adds values to a list and returns a 1-based index. `Clear()` empties the list. But if `TreeSerializer.Serialize()` is called repeatedly without `Clear()` (or if serialization is triggered per-render), the list grows without bound. Each serialization pass adds entries for every string, delegate, and brush in the tree.
-- **Recommendation:** The `Serialize()` method does call `_registry.Clear()` at the top, which is good. But this relies on `TreeSerializer` being the sole consumer and always calling `Clear()`. Consider making this a scoped operation (e.g., `using var session = registry.BeginPass()`) so the contract is enforced by the type system. Also, since this is currently unused at runtime (see 1.1), this is lower priority.
-
-### 6.2 ElementPool Has a Hardcoded Magic Number
-
+### CR-040: Voronoi ClipToBounds is point-clamping, not polygon clipping
 - [ ] **Status:** `skip`
-- **File:** `Duct/Core/ElementPool.cs`, line 13
-- **Issue:** `private const int MaxPerType = 32;` - Why 32? Is this based on profiling? Too low and you get cache misses; too high and you hold too many controls in memory.
-- **Recommendation:** Add a comment explaining the rationale. Consider making it configurable (e.g., via `DuctHostControl` or `DuctHost`) so app developers can tune it for their scenarios. Low priority but good engineering hygiene.
+- **File:** `DuctD3/Voronoi/Delaunay.cs:320-329`
+- **Severity:** MEDIUM (correctness)
+- True cell clipping requires Sutherland-Hodgman. Current code clamps each vertex independently, distorting edges.
+- **Fix:** Implement proper polygon clipping.
 
-### 6.3 ChildCollection.Move Semantics Are Subtle
+### CR-041: Range.Range infinite loop when step=0
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Array/Range.cs:17`
+- **Severity:** MEDIUM
+- `step = 0` causes undefined behavior in `(int)double.PositiveInfinity`.
+- **Fix:** Add `if (step == 0) return [];`.
 
-- [x] **Status:** `done`
-- **File:** `Duct/Core/ChildCollection.cs`, lines 38-47
-- **Issue:** The `Move` implementation does remove-then-insert, which means the `newIndex` parameter represents the position _after_ removal. The comment on line 44 says "no adjustment needed" but this is only correct if callers consistently pass the _final desired index_. This is a common source of off-by-one bugs in list manipulation.
-- **Recommendation:** The existing comment is good but could be strengthened. Consider adding an `[MethodImpl(MethodImplOptions.AggressiveInlining)]` since this is a hot path in keyed reconciliation, or validate the index with a debug assert.
+### CR-042: Contour LerpX division by zero
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Contour/Contour.cs:79`
+- **Severity:** MEDIUM
+- `(threshold - v0) / (v1 - v0)` divides by zero when `v0 == v1`.
+- **Fix:** Guard against `v0 == v1`, returning 0.5.
 
-### 6.4 ItemsControlChildCollection.Get Has Unsafe Cast
+### CR-043: ForceSimulation.ApplyCenterForce divide by zero with empty nodes
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Layout/ForceSimulation.cs:215-216`
+- **Severity:** MEDIUM
+- `sx / _nodes.Count` throws when `Count == 0`. The public API allows direct calls.
+- **Fix:** Add `if (_nodes.Count == 0) return;`.
 
-- [x] **Status:** `done`
-- **File:** `Duct/Core/ChildCollection.cs`, line 69
-- **Issue:** `public UIElement Get(int index) => (UIElement)_items[index];` - ItemsControl.Items can contain non-UIElement objects. If a non-UIElement gets into the Items collection (from external code or a bug), this throws InvalidCastException with no context.
-- **Recommendation:** Add a guard: `_items[index] as UIElement ?? throw new InvalidOperationException(...)` with a descriptive message.
+### CR-044: BandScale.Rescale reverse formula appears incorrect
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Scale/BandScale.cs:132-136`
+- **Severity:** MEDIUM
+- The reverse branch has `+ r0` that appears to be a bug vs D3's `ordinal.js`. Formula `_start = r0 + r1 - _start - _bandwidth` would make more sense for mirroring.
+- **Question:** Please verify this against the D3 source.
 
----
+### CR-045: AreaGenerator/RadialAreaGenerator ignores _curve field
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Shape/Area.cs:16` and `DuctD3/Shape/Radial.cs:76`
+- **Severity:** LOW
+- `SetCurve()` accepts a value but `Generate()` never uses it.
+- **Fix:** Either implement curve support or remove the field/setter.
 
-## 7. Hosting Layer
-
-### 7.1 DuctHost.Render Has No Exception Boundary Per Component
-
-- [x] **Status:** `done`
-- **File:** `Duct/Hosting/DuctHost.cs`, lines 81-129
-- **Issue:** The entire render pass is wrapped in a single try/catch. If a user component's `Render()` method throws, the entire render fails and the catch block re-throws, which could crash the application. React has "error boundaries" that catch errors in subtrees and render fallback UI.
-- **Recommendation:** For V1, at minimum catch exceptions from `_rootComponent.Render()` and show a fallback UI (e.g., a red border with the error message). This prevents user code bugs from crashing the entire application. Long term, consider an error boundary pattern where components can opt into error handling.
-
-### 7.2 DuctHostControl.Dispose Doesn't Follow IDisposable Pattern
-
-- [x] **Status:** `done`
-- **File:** `Duct/Hosting/DuctHostControl.cs`, lines 184-196
-- **Issue:** `DuctHostControl` implements `IDisposable` but:
-  - Has no `Dispose(bool disposing)` pattern
-  - Does not call `GC.SuppressFinalize(this)`
-  - Does not unsubscribe from `Loaded`/`Unloaded` events
-  - Sets fields to null but doesn't clear `Content` (the visual tree remains)
-- **Recommendation:** While the full `Dispose(bool)` pattern is technically only needed when you have unmanaged resources (which you don't directly), the event subscription leak is real. Add:
-  ```csharp
-  Loaded -= OnLoaded;
-  Unloaded -= OnUnloaded;
-  Content = null;
-  ```
-
-### 7.3 DuctHostControl.OnLoaded Uses Activator.CreateInstance Without Validation
-
-- [x] **Status:** `done`
-- **File:** `Duct/Hosting/DuctHostControl.cs`, line 80
-- **Issue:** `var component = (Component)Activator.CreateInstance(ComponentType)!;` - If `ComponentType` is set to a type that isn't a `Component` subclass or doesn't have a parameterless constructor, this throws with a confusing error.
-- **Recommendation:** Add validation:
-  ```csharp
-  if (!typeof(Component).IsAssignableFrom(ComponentType))
-      throw new InvalidOperationException($"ComponentType must derive from Component, got {ComponentType.FullName}");
-  ```
-  Same issue exists in `DuctApp.cs` line 100.
-
-### 7.4 DuctPage Props Setting Uses Reflection
-
-- [x] **Status:** `done`
-- **File:** `Duct/Hosting/DuctPage.cs`, lines 32-35 and `DuctHostControl.cs`, lines 83-87
-- **Issue:** Both `DuctPage<TComponent>` and `DuctHostControl` set props via reflection:
-  ```csharp
-  var propsProperty = component.GetType().GetProperty("Props");
-  propsProperty?.SetValue(component, Props);
-  ```
-  The generic `DuctPage<TComponent, TProps>` does it properly via the typed `component.Props = props;`. The non-generic version should use an interface or base class method instead of reflection.
-- **Recommendation:** Add a method to `Component` like `internal virtual void SetProps(object? props) { }` with an override in `Component<TProps>` that does the typed assignment. This avoids reflection and provides type safety.
-
-### 7.5 DuctHost Render Loop Could Spin Infinitely
-
-- [x] **Status:** `done`
-- **File:** `Duct/Hosting/DuctHost.cs`, lines 73-79
-- **Issue:**
-  ```csharp
-  do
-  {
-      _needsRerender = false;
-      Render();
-  }
-  while (_needsRerender);
-  ```
-  If `Render()` always triggers a re-render (e.g., a component calls `setState` during render, or an effect that sets state), this loop never terminates, freezing the UI thread.
-- **Recommendation:** Add a maximum iteration count (React uses a limit of ~50):
-  ```csharp
-  const int MaxRenderIterations = 50;
-  int iteration = 0;
-  do
-  {
-      _needsRerender = false;
-      Render();
-      if (++iteration >= MaxRenderIterations)
-      {
-          // Log warning: "Maximum re-render limit exceeded"
-          break;
-      }
-  }
-  while (_needsRerender);
-  ```
-  Same issue in `DuctHostControl.cs` lines 126-132.
+### CR-046: OrdinalScale.Map has implicit domain growth side effect
+- [x] **Status:** `approved`
+- **File:** `DuctD3/Scale/OrdinalScale.cs:26-34`
+- **Severity:** LOW (API surprise)
+- Mapping an unknown key silently adds it to the domain. Matches D3 but surprising in C#.
+- **Fix:** Document this behavior prominently.
 
 ---
 
-## 8. Elements / DSL Layer
+## 7. Test Suite
 
-### 8.1 BrushHelper.ParseHex Throws On Malformed Input
+### CR-047: Three buggy tests that always pass
+- [x] **Status:** `approved`
+- **Files:**
+  - `tests/Duct.Tests/TypeRegistryUnmountTests.cs:132` -- `Assert.True(unmountInvoked || true)` always passes
+  - `tests/DuctD3.Tests/ContourTests.cs:47` -- `Assert.True(result[0].Coordinates.Count >= 0)` always passes
+  - `tests/Duct.Tests/ElementPoolTests.cs:100-114` -- test body has no assertions
+- **Fix:** Fix the assertion logic. The TypeRegistryUnmount test should be `Assert.True(unmountInvoked)`.
 
-- [x] **Status:** `done`
-- **File:** `Duct/Elements/BrushHelper.cs`, lines 34-48
-- **Issue:** `byte.Parse(hex[0..2], NumberStyles.HexNumber)` throws `FormatException` if the hex string contains non-hex characters (e.g., `#GGHHII`). The fallback for unknown named colors returns gray, but malformed hex codes crash.
-- **Recommendation:** Use `byte.TryParse` and return the default gray color on failure, consistent with the named color fallback behavior. Or throw a descriptive `ArgumentException` if you prefer fail-fast. The current behavior (exception from deep inside `byte.Parse`) is unhelpful.
+### CR-048: ElementPool has zero functional test coverage
+- [ ] **Status:** `approved`
+- **File:** `tests/Duct.Tests/ElementPoolTests.cs`
+- **Severity:** HIGH (gap)
+- No test verifies rent/return behavior, capacity limits, type filtering, or exhaustion. All tests just assert `TryRent` returns null on empty pool.
+- **Fix:** Add functional tests using WinUI thread (or mock the pool internals).
 
-### 8.2 BrushHelper Creates New SolidColorBrush Every Call
+### CR-049: No reconciler mount/update behavior tests
+- [ ] **Status:** `approved`
+- **File:** `tests/Duct.Tests/Reconciler*Tests.cs`
+- **Severity:** HIGH (gap)
+- No unit test mounts a TextElement and verifies a TextBlock is created, updates text and verifies it changed, or unmounts and verifies removal. All tests verify preconditions (CanUpdate, record equality) but not actual DOM mutations.
+- **Fix:** Add targeted mount/update/unmount tests via SelfTestRunner pattern for TextElement, ButtonElement, StackElement, ComponentElement.
 
-- [x] **Status:** `done`
-- **File:** `Duct/Elements/BrushHelper.cs`, line 31
-- **Issue:** `BrushHelper.Parse` creates a new `SolidColorBrush` on every call. If called during render (e.g., `Background("#ff0000")` in a component), this creates a new brush object every render cycle. WinUI brushes are DependencyObjects and relatively heavyweight.
-- **Recommendation:** Consider caching brushes for common colors or providing a `FrozenBrush` cache. Low priority unless profiling shows it as an issue. Alternatively, document that for performance-sensitive scenarios, users should cache brushes themselves.
+### CR-050: DuctD3 tests lack D3.js reference values
+- [ ] **Status:** `approved`
+- **Files:** `tests/DuctD3.Tests/CurveTests.cs`, `ChordTests.cs`, `SymbolTests.cs`, `RadialTests.cs`
+- **Severity:** HIGH (gap)
+- Most tests only assert `Assert.NotNull(path)` or `Assert.Contains("C", path)`. No actual coordinate verification against D3.js output. LinearScaleTests and PathBuilderTests show the correct pattern with exact value comparisons.
+- **Fix:** Run equivalent D3.js code in Node.js, capture output, assert exact match.
 
-### 8.3 ThemeResource Methods Throw On Missing Keys
+### CR-051: No error handling tests
+- [ ] **Status:** `approved`
+- **Severity:** MEDIUM (gap)
+- Missing: component Render() throwing, unregistered element type mount, MaxRenderIterations guard behavior, DuctHost/DuctHostControl error paths, XamlInterop with invalid page types.
+- **Fix:** Add targeted error path tests.
 
-- [x] **Status:** `done`
-- **File:** `Duct/Elements/ThemeResource.cs`, lines 17-27
-- **Issue:** `Brush`, `Double`, `CornerRadius`, and `Thickness` all cast directly from `Application.Current.Resources[key]`. If the key doesn't exist, this throws `KeyNotFoundException`. If the value is the wrong type, this throws `InvalidCastException`. Only the generic `Get<T>` method has a safe fallback.
-- **Recommendation:** Either use `TryGetValue` with descriptive exceptions, or document that these methods throw on missing keys. Consider making the strongly-typed methods delegate to `Get<T>` with a sensible default:
-  ```csharp
-  public static Brush Brush(string key) => Get<Brush>(key)
-      ?? throw new KeyNotFoundException($"Theme resource '{key}' not found or is not a Brush");
-  ```
+### CR-052: No logging tests
+- [ ] **Status:** `approved`
+- **Severity:** MEDIUM (gap)
+- `IDuctLogger`, `NullDuctLogger`, `DebugDuctLogger` have zero coverage. No test verifies reconciler operations are logged or that log output appears during errors.
 
-### 8.4 FilterChildren Allocates On Every VStack/HStack Call
-
-- [x] **Status:** `done`
-- **File:** `Duct/Elements/Dsl.cs`, lines 333-334
-- **Issue:**
-  ```csharp
-  private static Element[] FilterChildren(Element?[] children) =>
-      children.Where(c => c is not null).Select(c => c!).ToArray();
-  ```
-  This allocates a LINQ iterator, a selector, and a new array every time `VStack` or `HStack` is called. These are the most frequently used factory methods.
-- **Recommendation:** Fast-path when no nulls exist (like `ChildReconciler.Filter` already does):
-  ```csharp
-  private static Element[] FilterChildren(Element?[] children)
-  {
-      foreach (var c in children)
-          if (c is null) goto hasNulls;
-      return children!;
-      hasNulls:
-      return children.Where(c => c is not null).Select(c => c!).ToArray();
-  }
-  ```
-  Or use the same pattern as `ChildReconciler.Filter` for consistency.
+### CR-053: Missing boundary/negative input tests for DuctD3
+- [ ] **Status:** `approved`
+- **Severity:** MEDIUM (gap)
+- Missing: `LinearScale` with Infinity domain, `PieGenerator` with single point, `Delaunay.From` with collinear points, `TreemapLayout` with zero-value nodes, `SankeyLayout` with cycles, `ContourGenerator` with NaN grid, `BinGenerator` with identical values.
 
 ---
 
-## 9. Native Rust Differ
+## 8. Build Configuration & Dependencies
 
-### 9.1 diff_props Is O(n*m) Quadratic
-
-- [x] **Status:** `done`
-- **File:** `Duct/Native/differ/src/diff.rs`, lines 11-63
-- **Issue:** `diff_props` compares every new property against every old property (nested loop), making it O(old_count * new_count). For elements with many properties (e.g., a `NavigationViewElement` with ~10 props), this is fine. But the function doesn't document the expected count range, and if a custom element had 100+ properties, this would become a bottleneck.
-- **Recommendation:** Add a comment documenting expected property counts. If counts could grow, consider using a hash map for old props. For now, the quadratic approach is fine for small counts.
-
-### 9.2 Rust FFI Functions Don't Use `catch_unwind`
-
-- [x] **Status:** `done`
-- **File:** `Duct/Native/differ/src/ffi.rs`, lines 28-81
-- **Issue:** If any Rust code panics (e.g., index out of bounds in `diff_subtree`), the panic will unwind across the FFI boundary, which is undefined behavior. Rust panics across `extern "C"` boundaries can corrupt the C# process.
-- **Recommendation:** Wrap the FFI function bodies in `std::panic::catch_unwind`:
-  ```rust
-  let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-      // ... existing logic ...
-  }));
-  match result {
-      Ok(()) => 0,
-      Err(_) => {
-          (*ctx).error = b"panic in differ\0".to_vec();
-          -2
-      }
-  }
-  ```
-  The `error` field on `DiffContext` already exists for this purpose.
-
-### 9.3 Cargo.toml Missing `[profile.release]` Optimization Settings
-
-- [x] **Status:** `done`
-- **File:** `Duct/Native/differ/Cargo.toml`
-- **Issue:** No `[profile.release]` section. Rust defaults to `opt-level = 3` for release, which is fine, but for a hot-path library consider enabling LTO (Link-Time Optimization) for smaller binaries and better inlining:
-  ```toml
-  [profile.release]
-  lto = true
-  codegen-units = 1
-  ```
-- **Recommendation:** Add release profile optimization if binary size or performance matters for the native differ.
-
-### 9.4 DiffContext.error Is a Vec<u8> But Always Set to Static Bytes
-
-- [x] **Status:** `done`
-- **File:** `Duct/Native/differ/src/arena.rs`, `Duct/Native/differ/src/ffi.rs`
-- **Issue:** The `error` field is `Vec<u8>` but is only ever set to static byte strings. The `differ_get_error` FFI function returns a pointer to the vec's data (or a static string), which is fine as long as the context outlives the caller. However, the C# side (`ViewDiffer.cs`) never calls `differ_get_error` - errors are detected by the return code only.
-- **Recommendation:** Either wire up error retrieval in the C# interop layer, or remove the error field to simplify the Rust code.
-
----
-
-## 10. CLI Tool
-
-### 10.1 CLI Help Text Says "patch" But Tool Name Is "duct"
-
-- [x] **Status:** `done`
-- **File:** `Duct.Cli/Program.cs`, lines 37-38, 54-63
-- **Issue:** The help text says:
-  ```
-  Usage: patch [option]
-  ...
-  Usage: patch --create <ProjectName>
-  ```
-  But the tool is called "duct" (line 54: `duct {version} — Duct (Functional UI) CLI`). The `--create` error message also says "patch".
-- **Recommendation:** Replace "patch" with "duct" in all user-facing strings, or decide on a consistent name.
-
-### 10.2 Generated .sln References Relative Path That Assumes Directory Layout
-
-- [x] **Status:** `done`
-- **File:** `Duct.Cli/Program.cs`, line 172
-- **Issue:** The generated solution includes:
-  ```csharp
-  $"Project(\"{csharpGuid}\") = \"Duct\", \"..\\Duct\\Duct.csproj\", \"{pg}\""
-  ```
-  This assumes the new project is created as a sibling of the `Duct` directory. If the user runs `duct --create MyApp` from a different location, the relative path breaks.
-- **Recommendation:** Either document the expected directory layout, or use a NuGet package reference in the generated .csproj instead of a project reference. For a scaffolding tool, NuGet is the standard approach.
-
-### 10.3 No Input Sanitization on Project Name
-
-- [x] **Status:** `done`
-- **File:** `Duct.Cli/Program.cs`, line 78-109
-- **Issue:** `CreateProject(args[1])` uses the user-provided name directly in:
-  - Directory creation (`Path.Combine(cwd, name)`)
-  - File names (`{name}.csproj`, `{name}.sln`)
-  - C# class names (in the generated `Program.cs`)
-  - .sln project names
-
-  If the name contains spaces, special characters, or path separators, this could create invalid files or path traversal issues.
-- **Recommendation:** Validate the project name: `Regex.IsMatch(name, @"^[A-Za-z_][A-Za-z0-9_\.]*$")`.
-
----
-
-## 11. Build Configuration
-
-### 11.1 Experimental SDK Version
-
+### CR-054: WindowsAppSDK experimental version
 - [ ] **Status:** `skip`
-- **File:** `Duct/Duct.csproj`, line 19; `tests/Duct.Tests/Duct.Tests.csproj`, line 16; all .csproj files
-- **Issue:** All projects reference `Microsoft.WindowsAppSDK Version="2.0.0-experimental4"`. Experimental packages have no stability guarantees and can break between releases.
-- **Question:** Is this intentional because you need a specific API from the experimental release? If so, document which API and track when it moves to stable. If not, consider using the latest stable release. When this project ships to external developers, they should not depend on experimental packages.
+- **File:** `Directory.Build.props:9`
+- **Severity:** HIGH
+- Using `2.0.0-experimental6`. Experimental packages have breaking changes, are unsupported for production, and caused build errors already.
+- **Question:** Are specific 2.0 preview features required? If not, pin to stable 1.6.x.
 
---> experimental is good for now
+### CR-055: Duct.Cli scaffolding generates stale versions
+- [x] **Status:** `approved`
+- **File:** `Duct.Cli/Program.cs:150-164`
+- **Severity:** MEDIUM
+- Template hardcodes `net8.0` (solution uses `net9.0`) and `experimental4` (solution uses `experimental6`).
+- **Fix:** Read versions from Directory.Build.props or emit a props import.
 
-### 11.2 Directory.Build.targets Copies Local WinUI Binaries
+### CR-056: No Central Package Management
+- [ ] **Status:** `approved`
+- **Files:** All `.csproj` files
+- **Severity:** MEDIUM
+- Package versions specified individually. Test framework version skew already observable (xunit 2.7 vs 2.9, MSTest mixed in).
+- **Fix:** Create `Directory.Packages.props` with `<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>`.
 
-- [x] **Status:** `done`
-- **File:** `Directory.Build.targets`
-- **Issue:** This file copies ARM64 CHK (debug) binaries from a local clone of `microsoft-ui-xaml`. This is fine for local development but:
-  - Hardcodes paths relative to the repo
-  - References `arm64chk` specifically
-  - Would fail for any contributor who doesn't have a local WinUI build
-  - The `Condition` guards on `Exists()` protect against failure, which is good
-- **Recommendation:** Add a comment at the top of the file explaining this is for internal WinUI team development only and not needed for normal builds. Consider wrapping the entire target in a condition on an environment variable (e.g., `Condition="'$(DUCT_USE_LOCAL_WINUI)' == 'true'"`) so it's opt-in.
+### CR-057: No TreatWarningsAsErrors or code analysis
+- [ ] **Status:** `approved`
+- **File:** `Directory.Build.props`
+- **Severity:** MEDIUM
+- No `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` or `<AnalysisLevel>latest-recommended</AnalysisLevel>`.
+- **Fix:** Add to Directory.Build.props.
 
---> remove the local copy feature altogether
+### CR-058: No global.json, nuget.config, or .editorconfig
+- [ ] **Status:** `approved`
+- **Severity:** LOW
+- Without `global.json`, builds use whatever SDK is installed. Without `.editorconfig`, code style diverges.
+- **Fix:** Add `global.json` pinning .NET 9.x SDK. Add `.editorconfig` for style consistency.
 
-### 11.3 No CI/CD Pipeline Defined
-
-- [ ] **Status:** `skip`
-- **Files:** No pipeline files found (no `azure-pipelines.yml`, `.github/workflows/`, etc.)
-- **Issue:** There's no automated build or test pipeline. For a platform library, CI is essential to catch regressions.
-- **Recommendation:** Add at minimum a build verification pipeline that:
-  - Builds on x64 and ARM64
-  - Runs the xunit test suite
-  - Builds the Rust native differ
-  - Lints with `dotnet format` and `cargo clippy`
-
----
-
-## 12. Tests
-
-### 12.1 No Tests for Reconciler Mount/Update Logic
-
-- [x] **Status:** `done`
-- **Files:** `tests/Duct.Tests/` (all test files)
-- **Issue:** The reconciler is the heart of the framework - it creates WinUI controls, applies properties, and reconciles changes. There are **zero tests** that verify:
-  - `Reconciler.Mount` creates the correct WinUI control type for a given element
-  - `Reconciler.Update` correctly applies property changes to existing controls
-  - Event handlers are correctly wired up and fire
-  - The Tag indirection pattern works correctly
-  - Modifiers are applied correctly via `ApplyModifiers`
-  - Grid definition parsing (`ParseColumnDef`, `ParseRowDef`)
-
-  The existing `ReconcilerRegressionTests` only test record equality and `CanUpdate` at the element level - they never instantiate a Reconciler and call Mount/Update.
-- **Recommendation:** This is the highest-priority test gap. Write tests that:
-  ```csharp
-  [Fact]
-  public void Mount_TextElement_Creates_TextBlock_With_Correct_Content()
-  {
-      var reconciler = new Reconciler();
-      var element = new TextElement("Hello");
-      var control = reconciler.Mount(element, () => {});
-      var textBlock = Assert.IsType<TextBlock>(control);
-      Assert.Equal("Hello", textBlock.Text);
-  }
-  ```
-  These require WinUI runtime initialization (which `TestSetup.cs` already handles).
-
-### 12.2 No Tests for DuctHost or DuctHostControl Render Loop
-
-- [x] **Status:** `done`
-- **Files:** `tests/Duct.Tests/DuctHostControlTests.cs`
-- **Issue:** The `DuctHostControlTests` only verify API surface (that properties and methods exist on the type). They don't test:
-  - Mounting a component and verifying it renders
-  - State changes triggering re-renders
-  - The render loop batching behavior
-  - Dispose cleaning up subscriptions
-  - Error handling during render
-- **Recommendation:** At minimum, test that `Mount` + state change results in the correct control tree. These would be integration tests and may need a DispatcherQueue, but they're critical for confidence in the render pipeline.
-
-### 12.3 No Tests for BrushHelper
-
-- [x] **Status:** `done`
-- **File:** `Duct/Elements/BrushHelper.cs`
-- **Issue:** `BrushHelper.Parse` handles named colors, hex codes, and fallback. None of this is tested. Missing test scenarios:
-  - Each named color returns the correct ARGB values
-  - `#RRGGBB` format parsing
-  - `#AARRGGBB` format parsing
-  - Invalid hex strings (what happens with `#GG0000`?)
-  - Empty string
-  - null input
-  - Case insensitivity ("RED" vs "red" vs "Red")
-- **Recommendation:** Write a `BrushHelperTests` class covering these cases.
-
-### 12.4 ViewDifferTests Don't Test Actual Diffing
-
-- [x] **Status:** `done`
-- **File:** `tests/Duct.Tests/ViewDifferTests.cs`
-- **Issue:** The `ViewDifferTests` only test:
-  - FNV-1a hash function (4 tests)
-  - `ViewNode` default values
-  - `ViewPatch` default values
-  - `ViewPatchOp` enum values
-
-  They don't test the actual `ViewDiffer.DiffTrees` or `ViewDiffer.ReconcileKeys` methods. Since these involve native interop with the Rust DLL, testing them would verify the entire FFI pipeline works correctly.
-- **Recommendation:** Add tests that call `DiffTrees` and `ReconcileKeys` with known inputs and verify the output patches. These tests require the Rust DLL to be built and present, so they should be guarded with a `[Trait]` or conditional skip if the DLL isn't available.
-
-### 12.5 ChildReconcilerTests Only Test ComputeLIS
-
-- [x] **Status:** `done`
-- **File:** `tests/Duct.Tests/ChildReconcilerTests.cs`
-- **Issue:** The `ChildReconcilerTests` test the LIS algorithm (6 tests), key utilities (3 tests), and element equality (3 tests). They don't test the actual `Reconcile` method, which is the core of the child reconciliation algorithm. Missing scenarios:
-  - Positional reconciliation: add, remove, replace children
-  - Keyed reconciliation: reorder, insert, remove keyed children
-  - Mixed keyed/unkeyed children
-  - Empty → non-empty and non-empty → empty transitions
-  - Large list performance characteristics
-- **Recommendation:** Create a mock `IChildCollection` implementation that records operations, then verify the operations emitted by `ChildReconciler.Reconcile` for known old/new child arrays.
-
-### 12.6 Thickness Tests Are Testing Framework Code, Not Your Code
-
-- [x] **Status:** `done`
-- **File:** `tests/Duct.Tests/ElementTests.cs`, lines 673-701
-- **Issue:** Three tests verify that `new Thickness(10)` sets all four sides to 10, that `Thickness(5,10,5,10)` sets left/right to 5 and top/bottom to 10, etc. These are testing `Microsoft.UI.Xaml.Thickness` constructor behavior, not your code. The compiler guarantees the struct is constructed correctly.
-- **Recommendation:** Remove these tests. They add maintenance burden without validating any Duct code.
-
-### 12.7 ReconcilerRegressionTests.Move_* Tests Don't Test ChildCollection
-
-- [x] **Status:** `done`
-- **File:** `tests/Duct.Tests/ReconcilerRegressionTests.cs`, lines 206-257
-- **Issue:** The Move tests operate on `List<string>`, not on the actual `PanelChildCollection` or `ItemsControlChildCollection`. They verify that remove-then-insert on a `List<string>` produces the right result, but they don't verify that the `Move` method on `IChildCollection` behaves the same way.
-- **Recommendation:** These tests should create a real `StackPanel`, populate its `Children`, and call `PanelChildCollection.Move` to verify the actual WinUI collection behavior matches expectations.
-
-### 12.8 ObservableHookTests Need Multi-Property Change Scenarios
-
-- [x] **Status:** `done`
-- **File:** `tests/Duct.Tests/ObservableHookTests.cs`
-- **Issue:** The tests cover basic subscribe/unsubscribe but don't test:
-  - Rapid successive property changes (should only trigger one re-render if batched)
-  - Multiple hooks watching the same source
-  - Hook resubscription when source object changes between renders
-  - Memory leak: does cleanup actually remove the handler (verify via WeakReference)
-- **Recommendation:** Add at least the "source object changes between renders" scenario, as that's a common real-world pattern.
-
-### 12.9 TypeRegistryTests Don't Verify Unmount Dispatch
-
-- [x] **Status:** `done`
-- **File:** `tests/Duct.Tests/TypeRegistryTests.cs`
-- **Issue:** Tests verify mount and update dispatch, but there's no test that verifies the unmount handler is called when a registered type control is removed from the tree.
-- **Recommendation:** Add a test that registers a type with an unmount handler, mounts a control, then calls `UnmountChild` and verifies the unmount handler was invoked.
-
-### 12.10 No Test Coverage Tool Configuration
-
-- [x] **Status:** `done`
-- **File:** `tests/Duct.Tests/Duct.Tests.csproj`
-- **Issue:** No code coverage tool (e.g., `coverlet.collector`) is configured. Without coverage data, you can't measure how much of the framework is actually tested.
-- **Recommendation:** Add coverlet:
-  ```xml
-  <PackageReference Include="coverlet.collector" Version="6.0.0">
-    <PrivateAssets>all</PrivateAssets>
-    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-  </PackageReference>
-  ```
-  Then run with `dotnet test --collect:"XPlat Code Coverage"`.
+### CR-059: AOT compatibility inconsistency
+- [x] **Status:** `approved`
+- **File:** `Duct/Duct.csproj:11` vs `DuctD3/DuctD3.csproj`
+- **Severity:** LOW
+- `Duct.csproj` declares `IsAotCompatible=false` but `DuctD3.csproj` declares `IsAotCompatible=true` despite depending on Duct. `Duct.MiniTest` sets `PublishAot=true` while referencing non-AOT Duct.
+- **Fix:** Reconcile the AOT story. --> we can remove AOT support, breaks too many things
 
 ---
 
-## 13. Sample Applications
+## 9. Sample Applications
 
-### 13.1 WordPuzzle App Has Game Logic Mixed With UI
+### CR-060: RegistryService swallows all exceptions silently
+- [x] **Status:** `approved`
+- **File:** `samples/apps/regedit/Services/RegistryService.cs`, multiple methods
+- **Severity:** MEDIUM
+- Nearly every method has `catch { return false/null/[]; }`. Users get no feedback when operations fail due to `SecurityException` or `UnauthorizedAccessException`.
+- **Fix:** Catch specific types, surface error messages to UI.
 
-- [ ] **Status:** `skip`
-- **File:** `samples/apps/wordpuzzle/App.cs`
-- **Issue:** The puzzle game logic (board state, move validation, shuffle, win detection) is mixed into the `Render()` method via closures and local functions. For a sample app this is fine, but if this is intended to demonstrate best practices for Duct, it should show separation of concerns.
-- **Recommendation:** If samples are meant to be exemplary, consider extracting game state into a separate class. If they're just functional demos, this is fine as-is.
+### CR-061: DeleteKeyAsync calls DeleteSubKeyTree without confirmation
+- [ ] **Status:** `approved`
+- **File:** `samples/apps/regedit/Services/RegistryService.cs:173`
+- **Severity:** MEDIUM
+- Recursively deletes entire registry subtree. Single accidental click could be destructive.
+- **Fix:** Add confirmation dialog in the UI layer.
 
-### 13.2 TestApp Shows Good Patterns But Has No Error Handling Examples
-
-- [ ] **Status:** `skip`
-- **File:** `tests/Duct.TestApp/App.cs`
-- **Issue:** The TestApp demonstrates tabs, forms, lists, conditional UI, etc. but doesn't demonstrate error handling patterns (try/catch in effects, error boundaries, loading states, etc.).
-- **Recommendation:** Add one tab showing resilient patterns: loading spinners, error messages, retry logic. This helps users write production-quality apps.
+### CR-062: FileWatcherService CancellationTokenSource leak
+- [x] **Status:** `approved`
+- **File:** `samples/apps/ductfiles/Services/FileWatcherService.cs:35-37`
+- **Severity:** LOW
+- Previous CTS is never disposed when creating new one on each filesystem change.
+- **Fix:** `_debounceCts?.Cancel(); _debounceCts?.Dispose(); _debounceCts = new CTS();`
 
 ---
 
-## Summary of Priority Items
+## Summary
 
-**High Priority (should address before shipping):**
-- 2.1: Add a logging abstraction
-- 2.2: Fix the blanket exception swallowing
-- 3.1: Audit event handler lifecycle in mount/update
-- 7.5: Add render loop iteration limit
-- 12.1: Write reconciler mount/update tests
-- 12.3: Write BrushHelper tests
-- 12.5: Write ChildReconciler integration tests
+| Priority | Count | Key Themes |
+|----------|-------|------------|
+| CRITICAL | 5 | Leaked cleanups, unhandled Render() exceptions, debug file I/O, thread-unsafe static Random |
+| HIGH | 12 | Missing error fallbacks, thread-affinity bugs, broken D3 APIs, missing rgb() parser, empty-input crashes |
+| MEDIUM | 20 | Correctness gaps (squarify, Voronoi, ListView refresh), security (DevTools, XSS), logging, performance |
+| LOW/Optional | 12 | API design, performance micro-opts, documentation, build config cleanup |
+| Test Gaps | 7 | Pool coverage, reconciler behavior, D3 reference values, error paths, logging |
 
-**Medium Priority (should address soon):**
-- 1.1: Resolve the Rust differ status (use it or remove it)
-- 1.2: Remove static mutable state in DuctApp
-- 3.3: Clean up unused Reconcile parameters
-- 3.5: Consider keys in CanUpdate
-- 4.1: Add hook type mismatch error messages
-- 7.1: Add component-level error boundary
-- 7.2: Fix IDisposable pattern
-- 7.3: Add ComponentType validation
-- 7.4: Replace reflection with virtual method
-- 8.1: Fix BrushHelper error handling
-- 8.3: Fix ThemeResource error handling
-- 10.1: Fix CLI name inconsistency
-- 10.3: Validate project name input
-- 11.1: Document/address experimental SDK dependency
-- 11.3: Add CI/CD pipeline
-- 12.10: Add coverage tooling
-
-**Lower Priority (good engineering, not blocking):**
-- 3.2: Consider dispatch pattern for mount/update
-- 3.4: Clean up ComponentNode
-- 4.2: Fix integer overflow in force-render
-- 4.4: Optimize FlushEffects
-- 6.2: Document pool size rationale
-- 8.4: Optimize FilterChildren allocation
-- 9.1: Document expected property count range
-- 9.2: Add catch_unwind to Rust FFI
-- 9.3: Add Cargo release profile optimization
+**Recommended priority order:**
+1. Fix the 5 critical items (CR-001 through CR-005)
+2. Address test bugs (CR-047) and high-severity gaps (CR-048, CR-049, CR-050)
+3. Work through HIGH items focusing on security (CR-023) and correctness (CR-033, CR-034, CR-037)
+4. Adopt Central Package Management (CR-056) and TreatWarningsAsErrors (CR-057)
+5. Address MEDIUM items by module

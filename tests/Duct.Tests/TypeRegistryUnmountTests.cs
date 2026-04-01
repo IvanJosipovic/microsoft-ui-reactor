@@ -128,6 +128,6 @@ public class TypeRegistryUnmountTests
         }
 
         // Even if it threw NullRef, verify it attempted the handler
-        Assert.True(unmountInvoked || true, "Unmount dispatch verified via reflection");
+        Assert.True(unmountInvoked, "Unmount dispatch verified via reflection");
     }
 }

@@ -27,7 +27,6 @@ static class SelfTestRunner
             _window = new Window { Title = "Duct Demo" };
             _window.AppWindow.Resize(new Windows.Graphics.SizeInt32(1200, 800));
             var host = new DuctHost(_window);
-            DuctApp.ActiveHost = host;
             host.Mount(new DemoApp());
             _window.Activate();
 

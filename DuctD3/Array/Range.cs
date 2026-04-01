@@ -14,6 +14,7 @@ public static class D3Range
     /// </summary>
     public static double[] Range(double start, double stop, double step = 1)
     {
+        if (step == 0) return [];
         int n = Math.Max(0, (int)Math.Ceiling((stop - start) / step));
         var range = new double[n];
         for (int i = 0; i < n; i++)

@@ -49,8 +49,9 @@ public static class D3Bisect
     /// </summary>
     public static int BisectCenter(double[] array, double x, int lo = 0, int hi = -1)
     {
+        if (array.Length == 0) return 0;
         if (hi < 0) hi = array.Length;
         int i = BisectLeft(array, x, lo, hi - 1);
-        return i > lo && x - array[i - 1] < array[i] - x ? i - 1 : i;
+        return i > lo && i < array.Length && x - array[i - 1] < array[i] - x ? i - 1 : i;
     }
 }

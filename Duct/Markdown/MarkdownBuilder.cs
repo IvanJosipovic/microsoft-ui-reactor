@@ -75,8 +75,8 @@ internal sealed class MarkdownBuilder
     private StringBuilder? _htmlAccum;
 
     // Inline formatting state (toggled by EnterSpan/LeaveSpan).
-    private bool _isBold;
-    private bool _isItalic;
+    private int _boldDepth;
+    private int _italicDepth;
     private bool _isCode;
     private bool _isStrikethrough;
 
@@ -584,10 +584,10 @@ internal sealed class MarkdownBuilder
         switch (type)
         {
             case MdSpanType.Strong:
-                _isBold = true;
+                _boldDepth++;
                 break;
             case MdSpanType.Em:
-                _isItalic = true;
+                _italicDepth++;
                 break;
             case MdSpanType.Code:
                 _isCode = true;
@@ -599,7 +599,7 @@ internal sealed class MarkdownBuilder
                 if (detail is MdSpanADetail a && a.Href.Text is not null)
                 {
                     Uri.TryCreate(a.Href.Text, UriKind.RelativeOrAbsolute, out var uri);
-                    _linkUri = uri;
+                    _linkUri = IsSafeUri(uri) ? uri : null;
                 }
                 _linkInlineStart = _inlines.Count;
                 break;
@@ -607,7 +607,10 @@ internal sealed class MarkdownBuilder
                 _insideImage = true;
                 _imageAlt = new StringBuilder();
                 if (detail is MdSpanImgDetail img && img.Src.Text is not null)
-                    Uri.TryCreate(img.Src.Text, UriKind.RelativeOrAbsolute, out _imageSrc);
+                {
+                    Uri.TryCreate(img.Src.Text, UriKind.RelativeOrAbsolute, out var imgUri);
+                    _imageSrc = IsSafeUri(imgUri) ? imgUri : null;
+                }
                 break;
         }
         return 0;
@@ -618,10 +621,10 @@ internal sealed class MarkdownBuilder
         switch (type)
         {
             case MdSpanType.Strong:
-                _isBold = false;
+                _boldDepth = Math.Max(0, _boldDepth - 1);
                 break;
             case MdSpanType.Em:
-                _isItalic = false;
+                _italicDepth = Math.Max(0, _italicDepth - 1);
                 break;
             case MdSpanType.Code:
                 _isCode = false;
@@ -637,6 +640,14 @@ internal sealed class MarkdownBuilder
                 break;
         }
         return 0;
+    }
+
+    private static bool IsSafeUri(Uri? uri)
+    {
+        if (uri is null) return false;
+        if (!uri.IsAbsoluteUri) return true;
+        var scheme = uri.Scheme;
+        return scheme is "http" or "https" or "mailto";
     }
 
     private void LeaveLink()
@@ -748,8 +759,8 @@ internal sealed class MarkdownBuilder
     {
         _inlines.Add(new RichTextRun(text)
         {
-            IsBold = _isBold,
-            IsItalic = _isItalic,
+            IsBold = _boldDepth > 0,
+            IsItalic = _italicDepth > 0,
             IsStrikethrough = _isStrikethrough,
             FontFamily = _isCode ? _options.CodeFontFamily : null,
         });

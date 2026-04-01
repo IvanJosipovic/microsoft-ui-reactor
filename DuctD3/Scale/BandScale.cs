@@ -131,8 +131,11 @@ public sealed class BandScale<TDomain> where TDomain : notnull
 
         if (reverse)
         {
-            // Reverse domain order
-            _start = r0 + (r1 - r0) - _start - _bandwidth + r0;
+            // Reverse domain order: mirror index mapping so domain[0] maps to the
+            // position that domain[n-1] would normally occupy, matching D3's behavior
+            // of reversing the values array.
+            for (int i = 0; i < _domain.Count; i++)
+                _index[_domain[i]] = n - 1 - i;
         }
     }
 }

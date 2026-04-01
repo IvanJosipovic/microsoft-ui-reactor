@@ -92,6 +92,10 @@ internal sealed class ItemsControlChildCollection : IChildCollection
 
     public void Replace(int index, UIElement element)
     {
-        _items[index] = element;
+        // Use RemoveAt+Insert to match PanelChildCollection.Replace.
+        // Direct indexer assignment doesn't fully disconnect the old element's
+        // internal parent state, causing COMException on later reuse.
+        _items.RemoveAt(index);
+        _items.Insert(index, element);
     }
 }

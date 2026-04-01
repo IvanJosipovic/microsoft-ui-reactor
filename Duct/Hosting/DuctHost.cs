@@ -53,6 +53,7 @@ public sealed class DuctHost
         _reconciler = new Reconciler(_logger);
         _window = window;
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+        DuctApp.ActiveHost = this;
     }
 
     public void Mount(Component component)
@@ -189,7 +190,9 @@ public sealed class DuctHost
             {
                 var line = $"PERF [{_renderCount} renders]: tree={_treeBuildSum / _renderCount:F2}ms  reconcile={_reconcileSum / _renderCount:F2}ms  effects={_effectsSum / _renderCount:F2}ms  total={(_treeBuildSum + _reconcileSum + _effectsSum) / _renderCount:F2}ms";
                 System.Diagnostics.Debug.WriteLine(line);
-                try { File.AppendAllText(@"C:\temp\duct_perf_phases.log", line + "\n"); } catch { }
+#if DEBUG
+                _logger.Log(DuctLogLevel.Debug, line);
+#endif
                 _treeBuildSum = 0;
                 _reconcileSum = 0;
                 _effectsSum = 0;

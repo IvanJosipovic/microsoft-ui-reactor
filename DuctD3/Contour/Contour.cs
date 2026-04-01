@@ -76,7 +76,7 @@ public sealed class ContourGenerator
                 if (code == 0 || code == 15) continue;
 
                 // Interpolation helpers
-                double LerpX(double v0, double v1) => (threshold - v0) / (v1 - v0);
+                double LerpX(double v0, double v1) => v0 == v1 ? 0.5 : (threshold - v0) / (v1 - v0);
                 double top = i + LerpX(tl, tr);
                 double right = j + LerpX(tr, br);
                 double bottom = i + LerpX(bl, br);

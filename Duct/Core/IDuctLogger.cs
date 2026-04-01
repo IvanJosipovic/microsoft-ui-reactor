@@ -19,6 +19,7 @@ public enum DuctLogLevel
 /// </summary>
 public interface IDuctLogger
 {
+    bool IsEnabled(DuctLogLevel level);
     void Log(DuctLogLevel level, string message);
     void Log(DuctLogLevel level, string message, Exception? exception);
 }
@@ -29,6 +30,8 @@ public interface IDuctLogger
 /// </summary>
 public sealed class DebugDuctLogger : IDuctLogger
 {
+    public bool IsEnabled(DuctLogLevel level) => true;
+
     public void Log(DuctLogLevel level, string message)
     {
         System.Diagnostics.Debug.WriteLine($"[Duct:{level}] {message}");
@@ -49,6 +52,7 @@ public sealed class DebugDuctLogger : IDuctLogger
 public sealed class NullDuctLogger : IDuctLogger
 {
     public static NullDuctLogger Instance { get; } = new();
+    public bool IsEnabled(DuctLogLevel level) => false;
     public void Log(DuctLogLevel level, string message) { }
     public void Log(DuctLogLevel level, string message, Exception? exception) { }
 }

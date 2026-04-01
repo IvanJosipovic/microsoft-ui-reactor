@@ -329,14 +329,21 @@ public static class UI
     ///   ForEach(items, item =&gt; Text(item.Name))
     /// </summary>
     public static Element ForEach<T>(IEnumerable<T> items, Func<T, Element> render) =>
-        VStack(items.Select(render).ToArray());
+        new GroupElement(items.Select(render).ToArray());
 
     /// <summary>
     /// Map with index:
     ///   ForEach(items, (item, i) =&gt; Text($"{i}: {item}"))
     /// </summary>
     public static Element ForEach<T>(IEnumerable<T> items, Func<T, int, Element> render) =>
-        VStack(items.Select((item, i) => render(item, i)).ToArray());
+        new GroupElement(items.Select((item, i) => render(item, i)).ToArray());
+
+    /// <summary>
+    /// Groups elements without introducing a layout container (like React's Fragment).
+    /// Children are flattened into the parent container.
+    /// </summary>
+    public static Element Group(params Element?[] children) =>
+        new GroupElement(FilterChildren(children));
 
     /// <summary>
     /// Renders nothing. Useful as a default/fallback.
@@ -545,6 +552,37 @@ public static class UI
 
     // ── Internals ───────────────────────────────────────────────────
 
-    private static Element[] FilterChildren(Element?[] children) =>
-        children.Where(c => c is not null).Select(c => c!).ToArray();
+    private static Element[] FilterChildren(Element?[] children)
+    {
+        // Fast path: check if any nulls or GroupElements need expansion
+        bool needsExpansion = false;
+        for (int i = 0; i < children.Length; i++)
+        {
+            if (children[i] is null or GroupElement)
+            {
+                needsExpansion = true;
+                break;
+            }
+        }
+        if (!needsExpansion) return (Element[])(object)children;
+
+        // Flatten GroupElements and remove nulls
+        var result = new List<Element>();
+        for (int i = 0; i < children.Length; i++)
+        {
+            if (children[i] is GroupElement group)
+            {
+                foreach (var gc in group.Children)
+                {
+                    if (gc is not null and not EmptyElement)
+                        result.Add(gc);
+                }
+            }
+            else if (children[i] is not null)
+            {
+                result.Add(children[i]!);
+            }
+        }
+        return result.ToArray();
+    }
 }

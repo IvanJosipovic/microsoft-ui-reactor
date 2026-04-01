@@ -1,3 +1,4 @@
+using System.Security;
 using DuctRegedit.Models;
 using Microsoft.Win32;
 
@@ -30,7 +31,7 @@ internal static class RegistryService
                 using var key = r.Root;
                 hasChildren = key.SubKeyCount > 0;
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 hasChildren = true; // assume children if access denied
             }
@@ -61,7 +62,7 @@ internal static class RegistryService
                         using var child = key.OpenSubKey(name);
                         hasChildren = child is not null && child.SubKeyCount > 0;
                     }
-                    catch
+                    catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
                     {
                         hasChildren = true;
                     }
@@ -69,7 +70,7 @@ internal static class RegistryService
                 }
                 return results.ToArray();
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return [];
             }
@@ -105,7 +106,7 @@ internal static class RegistryService
                         var data = key.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
                         results.Add(new RegistryValueEntry(name, kind, data));
                     }
-                    catch
+                    catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
                     {
                         // Skip values we can't read
                     }
@@ -129,7 +130,7 @@ internal static class RegistryService
 
                 return results.ToArray();
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return [new RegistryValueEntry("", RegistryValueKind.String, "(value not set)")];
             }
@@ -150,7 +151,7 @@ internal static class RegistryService
                 using var newKey = parent.CreateSubKey(name);
                 return $"{parentPath}\\{name}";
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return null;
             }
@@ -173,7 +174,7 @@ internal static class RegistryService
                 parent.DeleteSubKeyTree(name, throwOnMissingSubKey: false);
                 return true;
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return false;
             }
@@ -204,7 +205,7 @@ internal static class RegistryService
                 parent.DeleteSubKeyTree(oldName);
                 return true;
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return false;
             }
@@ -237,7 +238,7 @@ internal static class RegistryService
                 key.SetValue(valueName, defaultValue, kind);
                 return true;
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return false;
             }
@@ -258,7 +259,7 @@ internal static class RegistryService
                 key.SetValue(valueName, data, kind);
                 return true;
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return false;
             }
@@ -279,7 +280,7 @@ internal static class RegistryService
                 key.DeleteValue(valueName, throwOnMissingValue: false);
                 return true;
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return false;
             }
@@ -306,7 +307,7 @@ internal static class RegistryService
                 key.DeleteValue(oldName);
                 return true;
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return false;
             }
@@ -325,7 +326,7 @@ internal static class RegistryService
                 using var key = OpenKey(path);
                 return key?.SubKeyCount ?? 0;
             }
-            catch
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
             {
                 return 0;
             }
@@ -391,7 +392,7 @@ internal static class RegistryService
                 if (data is not null)
                     dest.SetValue(name, data, kind);
             }
-            catch { }
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException) { }
         }
 
         // Recursively copy subkeys
@@ -405,7 +406,7 @@ internal static class RegistryService
                 if (dstSub is not null)
                     CopyKey(srcSub, dstSub);
             }
-            catch { }
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException) { }
         }
     }
 }

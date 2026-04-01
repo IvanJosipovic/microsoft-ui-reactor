@@ -114,6 +114,7 @@ public static class Md4cHtml
 
         private void UrlEscaped(ReadOnlySpan<char> data)
         {
+            Span<byte> utf8Buf = stackalloc byte[4];
             int beg = 0;
             for (int i = 0; i < data.Length; i++)
             {
@@ -129,10 +130,9 @@ public static class Md4cHtml
                     if (char.IsHighSurrogate(ch) && i + 1 < data.Length && char.IsLowSurrogate(data[i + 1]))
                         charCount = 2;
 
-                    Span<byte> utf8 = stackalloc byte[4];
-                    int bytesWritten = Encoding.UTF8.GetBytes(data.Slice(i, charCount), utf8);
+                    int bytesWritten = Encoding.UTF8.GetBytes(data.Slice(i, charCount), utf8Buf);
                     for (int b = 0; b < bytesWritten; b++)
-                        output.Append($"%{utf8[b]:X2}");
+                        output.Append($"%{utf8Buf[b]:X2}");
 
                     i += charCount - 1;
                     beg = i + 1;
@@ -198,12 +198,18 @@ public static class Md4cHtml
                 if (text[2] == 'x' || text[2] == 'X')
                 {
                     for (int i = 3; i < text.Length - 1; i++)
+                    {
                         codepoint = 16 * codepoint + HexVal(text[i]);
+                        if (codepoint > 0x10FFFF) { codepoint = 0xFFFD; break; }
+                    }
                 }
                 else
                 {
                     for (int i = 2; i < text.Length - 1; i++)
+                    {
                         codepoint = 10 * codepoint + (uint)(text[i] - '0');
+                        if (codepoint > 0x10FFFF) { codepoint = 0xFFFD; break; }
+                    }
                 }
                 AppendUtf8Codepoint(codepoint, htmlEsc, urlEsc);
                 return;

@@ -596,21 +596,37 @@ public class ElementTests
     }
 
     [Fact]
-    public void ForEach_Maps_Items_To_VStack()
+    public void ForEach_Maps_Items_To_Group()
     {
         var el = ForEach(new[] { "A", "B", "C" }, item => Text(item));
-        Assert.IsType<StackElement>(el);
-        var stack = (StackElement)el;
-        Assert.Equal(3, stack.Children.Length);
+        Assert.IsType<GroupElement>(el);
+        var group = (GroupElement)el;
+        Assert.Equal(3, group.Children.Length);
     }
 
     [Fact]
     public void ForEach_With_Index()
     {
         var el = ForEach(new[] { "A", "B" }, (item, i) => Text($"{i}:{item}"));
-        var stack = (StackElement)el;
-        Assert.Equal(2, stack.Children.Length);
-        Assert.Equal("0:A", ((TextElement)stack.Children[0]).Content);
+        var group = (GroupElement)el;
+        Assert.Equal(2, group.Children.Length);
+        Assert.Equal("0:A", ((TextElement)group.Children[0]).Content);
+    }
+
+    [Fact]
+    public void ForEach_Group_Flattened_In_Parent()
+    {
+        var el = HStack(
+            Text("before"),
+            ForEach(new[] { "A", "B" }, item => Text(item)),
+            Text("after")
+        );
+        // GroupElement should be flattened: before, A, B, after
+        Assert.Equal(4, el.Children.Length);
+        Assert.Equal("before", ((TextElement)el.Children[0]).Content);
+        Assert.Equal("A", ((TextElement)el.Children[1]).Content);
+        Assert.Equal("B", ((TextElement)el.Children[2]).Content);
+        Assert.Equal("after", ((TextElement)el.Children[3]).Content);
     }
 
     [Fact]

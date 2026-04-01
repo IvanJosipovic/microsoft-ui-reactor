@@ -43,7 +43,7 @@ public class ContourTests
         Assert.Single(result);
         Assert.Equal(10, result[0].Value);
         // With a larger grid, we should get contour segments
-        Assert.True(result[0].Coordinates.Count >= 0); // may or may not have rings depending on grid resolution
+        Assert.True(result[0].Coordinates.Count > 0, "Contour should produce at least one ring for threshold crossing grid");
     }
 
     [Fact]

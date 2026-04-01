@@ -18,6 +18,13 @@ internal sealed partial class Md4cParser
 
     private const int ANALYZE_NOSKIP_EMPH = 0x01;
 
+    private static readonly (string scheme, string suffix)[] s_autolinkSchemes =
+    {
+        ("http", "//"),
+        ("https", "//"),
+        ("ftp", "//"),
+    };
+
     // ── Raw HTML recognition ────────────────────────────────────────────
 
     /// <summary>
@@ -1659,12 +1666,7 @@ internal sealed partial class Md4cParser
                 // Permissive URL autolink.
                 if (ch == ':')
                 {
-                    var schemeMap = new (string scheme, string suffix)[]
-                    {
-                        ("http", "//"),
-                        ("https", "//"),
-                        ("ftp", "//"),
-                    };
+                    var schemeMap = s_autolinkSchemes;
 
                     foreach (var (scheme, suffix) in schemeMap)
                     {

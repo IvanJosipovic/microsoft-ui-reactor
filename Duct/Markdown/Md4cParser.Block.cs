@@ -1139,8 +1139,13 @@ internal sealed partial class Md4cParser
         return true;
     }
 
+    private const int MaxNestingDepth = 100;
+
     private int PushContainer(ref Container container)
     {
+        if (nContainers >= MaxNestingDepth)
+            return -1;
+
         if (nContainers >= containers.Length)
         {
             int newSize = containers.Length > 0

@@ -305,15 +305,22 @@ public sealed class RenderContext
             if (_hooks[i] is not EffectHookState hook || !hook.Pending) continue;
             hook.Pending = false;
 
-            if (hook.EffectWithCleanup is not null)
+            try
             {
-                hook.Cleanup = hook.EffectWithCleanup();
-                hook.EffectWithCleanup = null;
+                if (hook.EffectWithCleanup is not null)
+                {
+                    hook.Cleanup = hook.EffectWithCleanup();
+                    hook.EffectWithCleanup = null;
+                }
+                else if (hook.Effect is not null)
+                {
+                    hook.Effect();
+                    hook.Effect = null;
+                }
             }
-            else if (hook.Effect is not null)
+            catch (Exception ex)
             {
-                hook.Effect();
-                hook.Effect = null;
+                System.Diagnostics.Debug.WriteLine($"[Duct] Effect at index {i} threw: {ex}");
             }
         }
     }
@@ -323,7 +330,16 @@ public sealed class RenderContext
         for (int i = 0; i < _hooks.Count; i++)
         {
             if (_hooks[i] is EffectHookState hook)
-                hook.Cleanup?.Invoke();
+            {
+                try
+                {
+                    hook.Cleanup?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Duct] Cleanup at index {i} threw: {ex}");
+                }
+            }
         }
     }
 

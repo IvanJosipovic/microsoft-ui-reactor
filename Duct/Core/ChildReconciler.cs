@@ -244,6 +244,19 @@ internal static class ChildReconciler
             }
         }
 
+        // Build key→panel-index lookup for O(1) FindItemByOldIndex (CR-011).
+        var keyToIndex = new Dictionary<string, int>();
+        int searchEnd = children.Count - suffixLen;
+        for (int i = prefixLen; i < searchEnd && i < children.Count; i++)
+        {
+            var child = children.Get(i);
+            if (child is FrameworkElement fe && fe.Tag is Element tagElement)
+            {
+                var key = GetKey(tagElement, -1);
+                keyToIndex.TryAdd(key, i);
+            }
+        }
+
         // Step 2: Process new items - insert new, move existing not in LIS
         for (int i = 0; i < newMidLen; i++)
         {
@@ -274,10 +287,14 @@ internal static class ChildReconciler
             else
             {
                 int oldRelIdx = newToOld[i];
-                int currentPos = FindItemByOldIndex(children, oldChildren, oldStart + oldRelIdx, prefixLen, children.Count - suffixLen, reconciler);
+                int oldAbsIdx = oldStart + oldRelIdx;
+                var lookupKey = oldAbsIdx < oldChildren.Length ? GetKey(oldChildren[oldAbsIdx], oldAbsIdx) : null;
+                int currentPos = lookupKey != null && keyToIndex.TryGetValue(lookupKey, out var pos) ? pos : -1;
                 if (currentPos >= 0 && currentPos != targetPanelIdx)
                 {
                     children.Move(currentPos, targetPanelIdx);
+                    // Update lookup: moved element is now at targetPanelIdx.
+                    if (lookupKey != null) keyToIndex[lookupKey] = targetPanelIdx;
                 }
                 if (targetPanelIdx < children.Count)
                 {

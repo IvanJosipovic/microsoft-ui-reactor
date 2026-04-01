@@ -19,6 +19,19 @@ public partial class FlexPanel : Panel
     private readonly Dictionary<UIElement, YogaNode> _nodeCache = new();
     private readonly YogaNode _rootNode = new();
 
+    public FlexPanel()
+    {
+        Unloaded += OnUnloaded;
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        // Clear Yoga node cache when removed from the visual tree to avoid leaking references
+        foreach (var node in _nodeCache.Values)
+            _rootNode.RemoveChild(node);
+        _nodeCache.Clear();
+    }
+
     // ── Container dependency properties ──
 
     public static readonly DependencyProperty DirectionProperty =

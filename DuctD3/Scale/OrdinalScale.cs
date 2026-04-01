@@ -21,7 +21,12 @@ public sealed class OrdinalScale<TDomain> where TDomain : notnull
         _range = [.. range];
     }
 
-    /// <summary>Maps a domain value to a range value.</summary>
+    /// <summary>
+    /// Maps a domain value to a range value.
+    /// If <paramref name="x"/> is not in the domain and <see cref="Unknown"/> is NaN,
+    /// <paramref name="x"/> is implicitly added to the domain (matching D3 behavior).
+    /// Set <see cref="Unknown"/> to a finite value to disable implicit domain growth.
+    /// </summary>
     public double Map(TDomain x)
     {
         if (!_index.TryGetValue(x, out int i))

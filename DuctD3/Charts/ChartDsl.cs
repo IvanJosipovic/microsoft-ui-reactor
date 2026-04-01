@@ -156,7 +156,7 @@ public sealed class ChartElement<T>
         foreach (var t in ys.Ticks(5)) { double y = ys.Map(t); var l = new TextBlock { Text = Fmt(t), FontSize = 10, Foreground = ab, TextAlignment = TextAlignment.Right, Width = plotLeft - 6 }; Canvas.SetLeft(l, 0); Canvas.SetTop(l, y - 7); c.Children.Add(l); }
     }
 
-    private static string Fmt(double v) => Math.Abs(v) >= 1e6 ? $"{v / 1e6:0.#}M" : Math.Abs(v) >= 1e3 ? $"{v / 1e3:0.#}k" : v == Math.Floor(v) ? v.ToString("F0") : v.ToString("G4");
+    private static string Fmt(double v) => Math.Abs(v) >= 1e6 ? (v / 1e6).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "M" : Math.Abs(v) >= 1e3 ? (v / 1e3).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "k" : v == Math.Floor(v) ? v.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) : v.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
 
     internal static SolidColorBrush ColorToBrush(string color) { var c = D3Color.Parse(color); return new SolidColorBrush(Windows.UI.Color.FromArgb((byte)(c.Opacity * 255), c.R, c.G, c.B)); }
     internal static Geometry ParsePathData(string pathData) => PathDataParser.Parse(pathData);

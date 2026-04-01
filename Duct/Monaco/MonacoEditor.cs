@@ -119,7 +119,8 @@ public sealed partial class MonacoEditor : UserControl
             {
                 DispatcherQueue.TryEnqueue(async () =>
                 {
-                    await PushAllStateAsync();
+                    try { await PushAllStateAsync(); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"MonacoEditor: PushAllStateAsync failed: {ex}"); }
                 });
             }
             return;
@@ -157,8 +158,10 @@ public sealed partial class MonacoEditor : UserControl
 
         coreWv.WebMessageReceived += OnWebMessageReceived;
 
+#if DEBUG
         // Enable DevTools for debugging (F12)
         coreWv.Settings.AreDevToolsEnabled = true;
+#endif
 
         // Build the initial config and navigate via virtual host URL
         var config = new MonacoInitConfig
@@ -196,7 +199,8 @@ public sealed partial class MonacoEditor : UserControl
 
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
-        var type = root.GetProperty("type").GetString();
+        if (!root.TryGetProperty("type", out var typeProp)) return;
+        var type = typeProp.GetString();
 
         switch (type)
         {
@@ -204,22 +208,26 @@ public sealed partial class MonacoEditor : UserControl
                 _isEditorReady = true;
                 _lastKnownText = Text ?? "";
                 EditorReady?.Invoke(this, EventArgs.Empty);
-                _ = FlushPendingCommandsAsync();
+                _ = ExecuteWithErrorHandling(FlushPendingCommandsAsync);
                 break;
 
             case "contentChanged":
-                var newText = root.GetProperty("value").GetString() ?? "";
+                if (!root.TryGetProperty("value", out var valueProp) ||
+                    !root.TryGetProperty("isFlush", out var flushProp)) return;
+                var newText = valueProp.GetString() ?? "";
                 _lastKnownText = newText;
                 // Update the DP without triggering a roundtrip back to JS
                 SetValue(TextProperty, newText);
                 TextChanged?.Invoke(this, new MonacoTextChangedEventArgs(newText,
-                    root.GetProperty("isFlush").GetBoolean()));
+                    flushProp.GetBoolean()));
                 break;
 
             case "cursorChanged":
+                if (!root.TryGetProperty("lineNumber", out var lineProp) ||
+                    !root.TryGetProperty("column", out var colProp)) return;
                 CursorPositionChanged?.Invoke(this, new MonacoCursorChangedEventArgs(
-                    root.GetProperty("lineNumber").GetInt32(),
-                    root.GetProperty("column").GetInt32()));
+                    lineProp.GetInt32(),
+                    colProp.GetInt32()));
                 break;
         }
     }
@@ -274,7 +282,7 @@ public sealed partial class MonacoEditor : UserControl
     private static void OnEditorFontSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var editor = (MonacoEditor)d;
-        editor.EnqueueCommand(() => editor.ExecuteScriptAsync($"monacoSetFontSize({(double)e.NewValue})"));
+        editor.EnqueueCommand(() => editor.ExecuteScriptAsync($"monacoSetFontSize({((double)e.NewValue).ToString(System.Globalization.CultureInfo.InvariantCulture)})"));
     }
 
     private static void OnWordWrapChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -295,7 +303,7 @@ public sealed partial class MonacoEditor : UserControl
     {
         if (_isEditorReady)
         {
-            _ = command();
+            _ = ExecuteWithErrorHandling(command);
         }
         else
         {
@@ -309,6 +317,18 @@ public sealed partial class MonacoEditor : UserControl
         {
             var cmd = _pendingCommands.Dequeue();
             await cmd();
+        }
+    }
+
+    private static async Task ExecuteWithErrorHandling(Func<Task> command)
+    {
+        try
+        {
+            await command();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"MonacoEditor: async command failed: {ex}");
         }
     }
 
@@ -326,19 +346,19 @@ public sealed partial class MonacoEditor : UserControl
     /// Reveals the specified line in the center of the editor viewport.
     /// </summary>
     public void RevealLine(int lineNumber) =>
-        EnqueueCommand(() => ExecuteScriptAsync($"monacoRevealLine({lineNumber})"));
+        EnqueueCommand(() => ExecuteScriptAsync($"monacoRevealLine({lineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)})"));
 
     /// <summary>
     /// Sets the cursor position and focuses the editor.
     /// </summary>
     public void SetCursorPosition(int lineNumber, int column) =>
-        EnqueueCommand(() => ExecuteScriptAsync($"monacoSetPosition({lineNumber},{column})"));
+        EnqueueCommand(() => ExecuteScriptAsync($"monacoSetPosition({lineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)},{column.ToString(System.Globalization.CultureInfo.InvariantCulture)})"));
 
     /// <summary>
     /// Sends arbitrary Monaco editor options as a JSON string.
     /// </summary>
     public void UpdateOptions(string optionsJson) =>
-        EnqueueCommand(() => ExecuteScriptAsync($"monacoUpdateOptions({JsonSerializer.Serialize(optionsJson, MonacoJsonContext.Default.String)})"));
+        EnqueueCommand(() => ExecuteScriptAsync($"monacoUpdateOptions({optionsJson})"));
 }
 
 // ── Event args ────────────────────────────────────────────────────────

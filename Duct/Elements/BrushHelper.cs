@@ -6,23 +6,23 @@ namespace Duct;
 /// <summary>
 /// Color and brush parsing utilities.
 /// Supports named colors, hex (#RRGGBB, #AARRGGBB), and direct Color values.
-/// Brushes are cached by color string to avoid creating heavyweight DependencyObjects every render.
+/// Colors are cached by string; a fresh SolidColorBrush is created per call
+/// because DependencyObjects have thread affinity and cannot be safely shared.
 /// </summary>
 public static class BrushHelper
 {
-    private static readonly ConcurrentDictionary<string, SolidColorBrush> _cache = new();
+    private static readonly ConcurrentDictionary<string, Windows.UI.Color> _colorCache = new();
 
     /// <summary>
     /// Parses a color string into a SolidColorBrush.
     /// Supports named colors (red, green, blue, white, black, gray, lightgray, transparent)
     /// and hex codes (#RRGGBB or #AARRGGBB).
-    /// Results are cached — repeated calls with the same string return the same brush instance.
+    /// Color parsing is cached; a new brush is created each call (thread-safe).
     /// </summary>
     public static SolidColorBrush Parse(string color)
     {
-        return _cache.GetOrAdd(color, static c =>
-        {
-            var parsed = c.ToLowerInvariant() switch
+        var parsed = _colorCache.GetOrAdd(color, static c =>
+            c.ToLowerInvariant() switch
             {
                 "red" => Windows.UI.Color.FromArgb(255, 255, 0, 0),
                 "green" => Windows.UI.Color.FromArgb(255, 0, 128, 0),
@@ -34,9 +34,8 @@ public static class BrushHelper
                 "transparent" => Windows.UI.Color.FromArgb(0, 0, 0, 0),
                 _ when c.StartsWith('#') => ParseHex(c),
                 _ => Windows.UI.Color.FromArgb(255, 128, 128, 128),
-            };
-            return new SolidColorBrush(parsed);
-        });
+            });
+        return new SolidColorBrush(parsed);
     }
 
     internal static Windows.UI.Color ParseHex(string hex)

@@ -179,12 +179,31 @@ public sealed partial class DuctHostControl : ContentControl, IDisposable
         catch (Exception ex)
         {
             _logger.Log(DuctLogLevel.Error, "Render FAILED", ex);
-            throw;
+            ShowErrorFallback(ex);
         }
         finally
         {
             _isRendering = false;
         }
+    }
+
+    private void ShowErrorFallback(Exception ex)
+    {
+        var errorPanel = new Microsoft.UI.Xaml.Controls.Border
+        {
+            BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 255, 0, 0)),
+            BorderThickness = new Thickness(2),
+            Padding = new Thickness(16),
+            Child = new Microsoft.UI.Xaml.Controls.TextBlock
+            {
+                Text = $"Render error: {ex.GetType().Name}: {ex.Message}",
+                TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
+                IsTextSelectionEnabled = true,
+            }
+        };
+        Content = errorPanel;
+        _currentControl = errorPanel;
     }
 
     public void Dispose()

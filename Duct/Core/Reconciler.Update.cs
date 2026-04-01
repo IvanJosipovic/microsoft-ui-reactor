@@ -889,8 +889,9 @@ public sealed partial class Reconciler
         lv.IsItemClickEnabled = n.OnItemClick is not null;
         if (n.Header is not null) lv.Header = n.Header;
 
-        // Update ItemsSource — ContainerContentChanging re-mounts visible items via Tag
-        if (o.Items.Length != n.Items.Length)
+        // Update ItemsSource — ContainerContentChanging re-mounts visible items via Tag.
+        // Always set a new list when items differ (even same count) so WinUI re-realizes containers.
+        if (!ReferenceEquals(o.Items, n.Items))
             lv.ItemsSource = Enumerable.Range(0, n.Items.Length).ToList();
 
         SetElementTag(lv, n);
@@ -906,7 +907,7 @@ public sealed partial class Reconciler
         gv.IsItemClickEnabled = n.OnItemClick is not null;
         if (n.Header is not null) gv.Header = n.Header;
 
-        if (o.Items.Length != n.Items.Length)
+        if (!ReferenceEquals(o.Items, n.Items))
             gv.ItemsSource = Enumerable.Range(0, n.Items.Length).ToList();
 
         SetElementTag(gv, n);

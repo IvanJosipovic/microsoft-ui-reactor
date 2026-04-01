@@ -67,11 +67,80 @@ public readonly struct D3Color
                     Convert.ToByte(hex[4..6], 16));
         }
 
+        // rgb(r, g, b) / rgba(r, g, b, a)
+        if (format.StartsWith("rgb"))
+        {
+            var inner = ExtractParenContents(format);
+            if (inner is not null)
+            {
+                var parts = inner.Split(',', StringSplitOptions.TrimEntries);
+                if (parts.Length >= 3 &&
+                    double.TryParse(parts[0], System.Globalization.CultureInfo.InvariantCulture, out var r) &&
+                    double.TryParse(parts[1], System.Globalization.CultureInfo.InvariantCulture, out var g) &&
+                    double.TryParse(parts[2], System.Globalization.CultureInfo.InvariantCulture, out var b))
+                {
+                    double a = 1.0;
+                    if (parts.Length >= 4)
+                        double.TryParse(parts[3], System.Globalization.CultureInfo.InvariantCulture, out a);
+                    return new D3Color(ClampByte(r), ClampByte(g), ClampByte(b), a);
+                }
+            }
+        }
+
+        // hsl(h, s%, l%) / hsla(h, s%, l%, a)
+        if (format.StartsWith("hsl"))
+        {
+            var inner = ExtractParenContents(format);
+            if (inner is not null)
+            {
+                var parts = inner.Split(',', StringSplitOptions.TrimEntries);
+                if (parts.Length >= 3 &&
+                    double.TryParse(parts[0], System.Globalization.CultureInfo.InvariantCulture, out var h) &&
+                    double.TryParse(parts[1].TrimEnd('%'), System.Globalization.CultureInfo.InvariantCulture, out var s) &&
+                    double.TryParse(parts[2].TrimEnd('%'), System.Globalization.CultureInfo.InvariantCulture, out var l))
+                {
+                    double a = 1.0;
+                    if (parts.Length >= 4)
+                        double.TryParse(parts[3], System.Globalization.CultureInfo.InvariantCulture, out a);
+                    return FromHsl(h, s / 100.0, l / 100.0, a);
+                }
+            }
+        }
+
         // Named colors (common chart colors)
         if (NamedColors.TryGetValue(format, out var named))
             return named;
 
         return new D3Color(0, 0, 0);
+    }
+
+    private static string? ExtractParenContents(string s)
+    {
+        int open = s.IndexOf('(');
+        int close = s.LastIndexOf(')');
+        if (open < 0 || close <= open) return null;
+        return s[(open + 1)..close];
+    }
+
+    private static D3Color FromHsl(double h, double s, double l, double opacity = 1.0)
+    {
+        h = ((h % 360) + 360) % 360;
+        s = Math.Clamp(s, 0, 1);
+        l = Math.Clamp(l, 0, 1);
+
+        double c = (1 - Math.Abs(2 * l - 1)) * s;
+        double x = c * (1 - Math.Abs((h / 60) % 2 - 1));
+        double m = l - c / 2;
+
+        double r, g, b;
+        if (h < 60)       { r = c; g = x; b = 0; }
+        else if (h < 120) { r = x; g = c; b = 0; }
+        else if (h < 180) { r = 0; g = c; b = x; }
+        else if (h < 240) { r = 0; g = x; b = c; }
+        else if (h < 300) { r = x; g = 0; b = c; }
+        else               { r = c; g = 0; b = x; }
+
+        return new D3Color(ClampByte((r + m) * 255), ClampByte((g + m) * 255), ClampByte((b + m) * 255), opacity);
     }
 
     // ── Predefined palettes for charting ───────────────────────────────

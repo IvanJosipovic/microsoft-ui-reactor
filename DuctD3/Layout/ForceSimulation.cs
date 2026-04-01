@@ -206,6 +206,7 @@ public sealed class ForceSimulation
 
     private void ApplyCenterForce()
     {
+        if (_nodes.Count == 0) return;
         double sx = 0, sy = 0;
         for (int i = 0; i < _nodes.Count; i++)
         {
@@ -243,6 +244,6 @@ public sealed class ForceSimulation
         }
     }
 
-    private static readonly Random _rng = new(42);
-    private static double Jiggle() => (_rng.NextDouble() - 0.5) * 1e-6;
+    private readonly Random _rng = new(42);
+    private double Jiggle() => (_rng.NextDouble() - 0.5) * 1e-6;
 }

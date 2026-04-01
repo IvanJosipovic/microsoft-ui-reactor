@@ -160,29 +160,41 @@ public sealed partial class Reconciler : IDisposable
 
     private void ReconcileComponent(Element oldEl, Element newEl, UIElement control, Action requestRerender)
     {
-        if (!_componentNodes.TryGetValue(control, out var node)) return;
+        if (!_componentNodes.TryGetValue(control, out var node))
+        {
+            _logger.Log(DuctLogLevel.Warning, "ReconcileComponent: component node not found for control — component will not update");
+            return;
+        }
 
         Element newChildElement;
-        if (node.Component is not null)
+        try
         {
-            // Update props before re-rendering so the component sees fresh data
-            if (newEl is ComponentElement compEl && compEl.Props is not null
-                && node.Component is IPropsReceiver receiver)
+            if (node.Component is not null)
             {
-                receiver.SetProps(compEl.Props);
-            }
+                // Update props before re-rendering so the component sees fresh data
+                if (newEl is ComponentElement compEl && compEl.Props is not null
+                    && node.Component is IPropsReceiver receiver)
+                {
+                    receiver.SetProps(compEl.Props);
+                }
 
-            node.Component.Context.BeginRender(requestRerender);
-            newChildElement = node.Component.Render();
-            node.Component.Context.FlushEffects();
+                node.Component.Context.BeginRender(requestRerender);
+                newChildElement = node.Component.Render();
+                node.Component.Context.FlushEffects();
+            }
+            else if (node.Context is not null && newEl is FuncElement func)
+            {
+                node.Context.BeginRender(requestRerender);
+                newChildElement = func.RenderFunc(node.Context);
+                node.Context.FlushEffects();
+            }
+            else return;
         }
-        else if (node.Context is not null && newEl is FuncElement func)
+        catch (Exception ex)
         {
-            node.Context.BeginRender(requestRerender);
-            newChildElement = func.RenderFunc(node.Context);
-            node.Context.FlushEffects();
+            _logger.Log(DuctLogLevel.Error, $"Component Render() threw: {newEl.GetType().Name}", ex);
+            newChildElement = new TextElement($"⚠ Render error: {ex.Message}");
         }
-        else return;
 
         // Dereference the Border wrapper to get the actual child control.
         // Each component is wrapped in a Border as an identity anchor, so we
@@ -700,5 +712,11 @@ public sealed partial class Reconciler : IDisposable
 
     public void Dispose()
     {
+        foreach (var node in _componentNodes.Values)
+        {
+            node.Context?.RunCleanups();
+            node.Component?.Context?.RunCleanups();
+        }
+        _componentNodes.Clear();
     }
 }

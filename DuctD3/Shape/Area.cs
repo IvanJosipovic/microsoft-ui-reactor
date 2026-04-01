@@ -13,7 +13,6 @@ public sealed class AreaGenerator<T>
     private Func<T, int, double> _y0;
     private Func<T, int, double> _y1;
     private Func<T, int, bool> _defined = (_, _) => true;
-    private CurveFactory? _curve;
     private int? _digits = 3;
 
     public AreaGenerator(
@@ -81,7 +80,6 @@ public sealed class AreaGenerator<T>
     public AreaGenerator<T> SetY0(Func<T, int, double> y0) { _y0 = y0; return this; }
     public AreaGenerator<T> SetY1(Func<T, int, double> y1) { _y1 = y1; return this; }
     public AreaGenerator<T> SetDefined(Func<T, int, bool> defined) { _defined = defined; return this; }
-    public AreaGenerator<T> SetCurve(CurveFactory? curve) { _curve = curve; return this; }
     public AreaGenerator<T> SetDigits(int? digits) { _digits = digits; return this; }
 }
 

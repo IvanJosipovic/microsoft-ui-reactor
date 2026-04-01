@@ -72,7 +72,6 @@ public sealed class RadialAreaGenerator<T>
     private Func<T, int, double> _innerRadius;
     private Func<T, int, double> _outerRadius;
     private Func<T, int, bool> _defined = (_, _) => true;
-    private CurveFactory? _curve;
     private int? _digits = 3;
 
     public RadialAreaGenerator(
@@ -140,7 +139,6 @@ public sealed class RadialAreaGenerator<T>
     public RadialAreaGenerator<T> SetInnerRadius(Func<T, int, double> r) { _innerRadius = r; return this; }
     public RadialAreaGenerator<T> SetOuterRadius(Func<T, int, double> r) { _outerRadius = r; return this; }
     public RadialAreaGenerator<T> SetDefined(Func<T, int, bool> defined) { _defined = defined; return this; }
-    public RadialAreaGenerator<T> SetCurve(CurveFactory? curve) { _curve = curve; return this; }
     public RadialAreaGenerator<T> SetDigits(int? digits) { _digits = digits; return this; }
 }
 
