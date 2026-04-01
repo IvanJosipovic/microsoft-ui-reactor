@@ -122,7 +122,8 @@ public partial class DuctApplication : Application, IXamlMetadataProvider
         if (opts.FullScreen)
             window.AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen);
         else
-            window.AppWindow.Resize(new Windows.Graphics.SizeInt32(opts.WindowWidth, opts.WindowHeight));
+            ;// TODO: resizing the window causes it to blur:
+             // window.AppWindow.Resize(new Windows.Graphics.SizeInt32(opts.WindowWidth, opts.WindowHeight)); 
 
         var host = new DuctHost(window);
         DuctApp.ActiveHost = host;
