@@ -83,6 +83,14 @@ public static class XamlInterop
                 newEl.Updater?.Invoke(control);
                 control.Tag = newEl;
                 return null; // updated in place
+            },
+            unmount: (r, control) =>
+            {
+                // XamlHostElement content is created outside Duct's tree.
+                // Do NOT recurse into children — they were never managed by Duct
+                // and must not be pooled (they may have stale parent references
+                // or be types Duct doesn't know how to clean).
+                control.Tag = null;
             });
     }
 }
