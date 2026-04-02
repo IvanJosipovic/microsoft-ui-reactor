@@ -44,6 +44,11 @@ internal static class FixtureRegistry
         "D3_PieChart",
         "ListView_TypedRendering",
         "Navigation_TabSwitching",
+        "Observable_UseObservable_Rerender",
+        "Observable_UseObservable_ExternalMutation",
+        "Observable_UseObservableProperty_FineGrained",
+        "Observable_UseCollection_ListUpdates",
+        "Observable_UseObservable_SourceSwap",
     ];
 
     public static FixtureBase? Create(string name, Harness harness) => name switch
@@ -85,6 +90,11 @@ internal static class FixtureRegistry
         "D3_PieChart" => new D3Fixtures.PieChart(harness),
         "ListView_TypedRendering" => new CollectionFixtures.ListViewTyped(harness),
         "Navigation_TabSwitching" => new NavigationFixtures.TabSwitching(harness),
+        "Observable_UseObservable_Rerender" => new ObservableFixtures.UseObservable_Rerender(harness),
+        "Observable_UseObservable_ExternalMutation" => new ObservableFixtures.UseObservable_ExternalMutation(harness),
+        "Observable_UseObservableProperty_FineGrained" => new ObservableFixtures.UseObservableProperty_FineGrained(harness),
+        "Observable_UseCollection_ListUpdates" => new ObservableFixtures.UseCollection_ListUpdates(harness),
+        "Observable_UseObservable_SourceSwap" => new ObservableFixtures.UseObservable_SourceSwap(harness),
         _ => null,
     };
 }

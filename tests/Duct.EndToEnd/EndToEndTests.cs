@@ -148,4 +148,21 @@ public class EndToEndTests
 
     [TestMethod] public void Navigation_TabSwitching()
         => FixtureRunner.RunFixture("Navigation_TabSwitching");
+
+    // ── Observable Hooks ────────────────────────────────────────────
+
+    [TestMethod] public void Observable_UseObservable_Rerender()
+        => FixtureRunner.RunFixture("Observable_UseObservable_Rerender");
+
+    [TestMethod] public void Observable_UseObservable_ExternalMutation()
+        => FixtureRunner.RunFixture("Observable_UseObservable_ExternalMutation");
+
+    [TestMethod] public void Observable_UseObservableProperty_FineGrained()
+        => FixtureRunner.RunFixture("Observable_UseObservableProperty_FineGrained");
+
+    [TestMethod] public void Observable_UseCollection_ListUpdates()
+        => FixtureRunner.RunFixture("Observable_UseCollection_ListUpdates");
+
+    [TestMethod] public void Observable_UseObservable_SourceSwap()
+        => FixtureRunner.RunFixture("Observable_UseObservable_SourceSwap");
 }

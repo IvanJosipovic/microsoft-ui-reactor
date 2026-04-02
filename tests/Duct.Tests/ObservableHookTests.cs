@@ -42,6 +42,9 @@ public class ObservableHookTests
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
+
+        public void RaiseAllPropertiesChanged()
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
     }
 
     // ── UseObservable ──────────────────────────────────────────────
@@ -328,5 +331,263 @@ public class ObservableHookTests
         // A single property change should trigger at least one rerender
         model.Name = "Bob";
         Assert.True(rerenderCount >= 1);
+    }
+
+    // ── UseObservable edge cases ──────────────────────────────────
+
+    [Fact]
+    public void UseObservable_No_Rerender_Before_PropertyChanged()
+    {
+        // Verifies that simply calling UseObservable doesn't trigger a rerender —
+        // only an actual PropertyChanged event should.
+        var ctx = new RenderContext();
+        var model = new NotifyModel { Name = "Alice" };
+        int rerenderCount = 0;
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservable(model);
+        ctx.FlushEffects();
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservable(model);
+        ctx.FlushEffects();
+
+        // No property change — no rerender
+        Assert.Equal(0, rerenderCount);
+    }
+
+    [Fact]
+    public void UseObservable_Multiple_Rapid_Changes_Each_Triggers()
+    {
+        var ctx = new RenderContext();
+        var model = new NotifyModel { Name = "A", Count = 0 };
+        int rerenderCount = 0;
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservable(model);
+        ctx.FlushEffects();
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservable(model);
+        ctx.FlushEffects();
+
+        // Multiple rapid changes
+        model.Name = "B";
+        model.Count = 1;
+        model.Name = "C";
+        Assert.Equal(3, rerenderCount);
+    }
+
+    [Fact]
+    public void UseObservable_Same_Value_No_PropertyChanged()
+    {
+        // NotifyModel only fires PropertyChanged when value actually changes.
+        // Setting the same value should NOT trigger rerender.
+        var ctx = new RenderContext();
+        var model = new NotifyModel { Name = "Alice" };
+        int rerenderCount = 0;
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservable(model);
+        ctx.FlushEffects();
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservable(model);
+        ctx.FlushEffects();
+
+        model.Name = "Alice"; // same value — NotifyModel won't fire
+        Assert.Equal(0, rerenderCount);
+    }
+
+    // ── UseObservableProperty edge cases ──────────────────────────
+
+    [Fact]
+    public void UseObservableProperty_Null_PropertyName_Triggers_All()
+    {
+        // When PropertyChangedEventArgs.PropertyName is null or empty,
+        // it signals "all properties changed" and should trigger any watcher.
+        var ctx = new RenderContext();
+        var model = new NotifyModel { Name = "Alice", Count = 0 };
+        int rerenderCount = 0;
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservableProperty(model, m => m.Name, nameof(NotifyModel.Name));
+        ctx.FlushEffects();
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservableProperty(model, m => m.Name, nameof(NotifyModel.Name));
+        ctx.FlushEffects();
+
+        // Fire with null property name — signals all properties changed
+        model.RaiseAllPropertiesChanged();
+        Assert.Equal(1, rerenderCount);
+    }
+
+    [Fact]
+    public void UseObservableProperty_Source_Changes_Resubscribes()
+    {
+        var ctx = new RenderContext();
+        var model1 = new NotifyModel { Name = "First" };
+        var model2 = new NotifyModel { Name = "Second" };
+        int rerenderCount = 0;
+
+        // First render: watch model1.Name
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservableProperty(model1, m => m.Name, nameof(NotifyModel.Name));
+        ctx.FlushEffects();
+
+        // Second render: switch to model2.Name
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservableProperty(model2, m => m.Name, nameof(NotifyModel.Name));
+        ctx.FlushEffects();
+
+        // Old source should NOT trigger
+        model1.Name = "Changed";
+        Assert.Equal(0, rerenderCount);
+
+        // New source SHOULD trigger
+        model2.Name = "Updated";
+        Assert.Equal(1, rerenderCount);
+    }
+
+    [Fact]
+    public void UseObservableProperty_Cleanup_Unsubscribes()
+    {
+        var ctx = new RenderContext();
+        var model = new NotifyModel { Name = "Alice" };
+        int rerenderCount = 0;
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservableProperty(model, m => m.Name, nameof(NotifyModel.Name));
+        ctx.FlushEffects();
+
+        ctx.RunCleanups();
+
+        model.Name = "Bob";
+        Assert.Equal(0, rerenderCount);
+    }
+
+    // ── UseCollection edge cases ──────────────────────────────────
+
+    [Fact]
+    public void UseCollection_Triggers_Rerender_On_Replace()
+    {
+        var ctx = new RenderContext();
+        var items = new ObservableCollection<string> { "A", "B", "C" };
+        int rerenderCount = 0;
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseCollection(items);
+        ctx.FlushEffects();
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseCollection(items);
+        ctx.FlushEffects();
+
+        items[1] = "X"; // Replace
+        Assert.Equal(1, rerenderCount);
+    }
+
+    [Fact]
+    public void UseCollection_Triggers_Rerender_On_Clear()
+    {
+        var ctx = new RenderContext();
+        var items = new ObservableCollection<string> { "A", "B", "C" };
+        int rerenderCount = 0;
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseCollection(items);
+        ctx.FlushEffects();
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseCollection(items);
+        ctx.FlushEffects();
+
+        items.Clear();
+        Assert.Equal(1, rerenderCount);
+    }
+
+    [Fact]
+    public void UseCollection_Triggers_Rerender_On_Move()
+    {
+        var ctx = new RenderContext();
+        var items = new ObservableCollection<string> { "A", "B", "C" };
+        int rerenderCount = 0;
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseCollection(items);
+        ctx.FlushEffects();
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseCollection(items);
+        ctx.FlushEffects();
+
+        items.Move(0, 2);
+        Assert.Equal(1, rerenderCount);
+    }
+
+    // ── Nested INPC (documents current limitation) ────────────────
+
+    [Fact]
+    public void UseObservable_Does_NOT_Observe_Nested_INPC()
+    {
+        // This test documents the current limitation: UseObservable only
+        // subscribes to the top-level object, not nested INPC objects.
+        // UseObservableTree (Phase 1 of PropertyGrid) will address this.
+        var ctx = new RenderContext();
+        var child = new NotifyModel { Name = "Child" };
+        var parent = new ParentModel { Child = child, Label = "Parent" };
+        int rerenderCount = 0;
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservable(parent);
+        ctx.FlushEffects();
+
+        ctx.BeginRender(() => rerenderCount++);
+        ctx.UseObservable(parent);
+        ctx.FlushEffects();
+
+        // Changing the child's property does NOT trigger rerender
+        child.Name = "Updated Child";
+        Assert.Equal(0, rerenderCount);
+
+        // But changing the parent's own property DOES
+        parent.Label = "Updated Parent";
+        Assert.Equal(1, rerenderCount);
+    }
+
+    // ── Test models ───────────────────────────────────────────────
+
+    private class ParentModel : INotifyPropertyChanged
+    {
+        private NotifyModel _child = new();
+        public NotifyModel Child
+        {
+            get => _child;
+            set
+            {
+                if (_child != value)
+                {
+                    _child = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Child)));
+                }
+            }
+        }
+
+        private string _label = "";
+        public string Label
+        {
+            get => _label;
+            set
+            {
+                if (_label != value)
+                {
+                    _label = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Label)));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }
