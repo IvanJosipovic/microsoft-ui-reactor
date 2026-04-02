@@ -1247,6 +1247,7 @@ public sealed partial class Reconciler
         panel.Wrap = n.Wrap;
         panel.ColumnGap = n.ColumnGap;
         panel.RowGap = n.RowGap;
+        panel.FlexPadding = n.FlexPadding;
 
         ReconcileChildren(o.Children, n.Children, panel, requestRerender);
 

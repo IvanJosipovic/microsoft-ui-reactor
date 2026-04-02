@@ -46,6 +46,69 @@ public class EndToEndTests
     [TestMethod] public void Grid_RowColumnLayout()
         => FixtureRunner.RunFixture("Grid_RowColumnLayout");
 
+    [TestMethod] public void GridVsFlex_StarSizing()
+        => FixtureRunner.RunFixture("GridVsFlex_StarSizing");
+
+    // ── Flex Nesting ────────────────────────────────────────────────
+
+    [TestMethod] public void Flex_NestedRowInColumn()
+        => FixtureRunner.RunFixture("Flex_NestedRowInColumn");
+
+    [TestMethod] public void Flex_NestedColumnInRow()
+        => FixtureRunner.RunFixture("Flex_NestedColumnInRow");
+
+    [TestMethod] public void Flex_NestedDeep()
+        => FixtureRunner.RunFixture("Flex_NestedDeep");
+
+    // ── Flex Inside Other Layouts ───────────────────────────────────
+
+    [TestMethod] public void Flex_InsideGrid()
+        => FixtureRunner.RunFixture("Flex_InsideGrid");
+
+    [TestMethod] public void Flex_InsideBorder()
+        => FixtureRunner.RunFixture("Flex_InsideBorder");
+
+    [TestMethod] public void Flex_InsideVStack()
+        => FixtureRunner.RunFixture("Flex_InsideVStack");
+
+    [TestMethod] public void Flex_InsideScrollView()
+        => FixtureRunner.RunFixture("Flex_InsideScrollView");
+
+    // ── Flex With ScrollViewer ──────────────────────────────────────
+
+    [TestMethod] public void Flex_ScrollViewInsideFlex()
+        => FixtureRunner.RunFixture("Flex_ScrollViewInsideFlex");
+
+    // ── Flex Distribution ───────────────────────────────────────────
+
+    [TestMethod] public void Flex_ColumnGrow()
+        => FixtureRunner.RunFixture("Flex_ColumnGrow");
+
+    [TestMethod] public void Flex_MixedGrowFixed()
+        => FixtureRunner.RunFixture("Flex_MixedGrowFixed");
+
+    [TestMethod] public void Flex_WithGaps()
+        => FixtureRunner.RunFixture("Flex_WithGaps");
+
+    [TestMethod] public void Flex_WithPadding()
+        => FixtureRunner.RunFixture("Flex_WithPadding");
+
+    [TestMethod] public void Flex_WithChildMargins()
+        => FixtureRunner.RunFixture("Flex_WithChildMargins");
+
+    // ── Flex Cross-Axis & Alignment ─────────────────────────────────
+
+    [TestMethod] public void Flex_CrossAxisTextHeight()
+        => FixtureRunner.RunFixture("Flex_CrossAxisTextHeight");
+
+    [TestMethod] public void Flex_JustifySpaceBetween()
+        => FixtureRunner.RunFixture("Flex_JustifySpaceBetween");
+
+    // ── Other Layouts Inside Flex ───────────────────────────────────
+
+    [TestMethod] public void Flex_GridInsideFlex()
+        => FixtureRunner.RunFixture("Flex_GridInsideFlex");
+
     // ── Dynamic Updates ─────────────────────────────────────────────
 
     [TestMethod] public void DynamicList_GrowShrink()

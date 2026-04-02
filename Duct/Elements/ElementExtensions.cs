@@ -214,6 +214,17 @@ public static class ElementExtensions
     public static T WithBorder<T>(this T el, Brush brush, double thickness = 1) where T : Element =>
         Modify(el, new ElementModifiers { BorderBrush = brush, BorderThickness = new Thickness(thickness) });
 
+    // ── Flex sugar ──────────────────────────────────────────────────
+
+    public static FlexElement FlexPadding(this FlexElement el, double uniform) =>
+        el with { FlexPadding = new Thickness(uniform) };
+
+    public static FlexElement FlexPadding(this FlexElement el, double horizontal, double vertical) =>
+        el with { FlexPadding = new Thickness(horizontal, vertical, horizontal, vertical) };
+
+    public static FlexElement FlexPadding(this FlexElement el, double left, double top, double right, double bottom) =>
+        el with { FlexPadding = new Thickness(left, top, right, bottom) };
+
     // ── Stack sugar ─────────────────────────────────────────────────
 
     public static StackElement Spacing(this StackElement el, double spacing) =>
@@ -457,6 +468,9 @@ public static class ElementExtensions
         el with { MinimapEnabled = enabled };
 
     // Layout / Containers
+    public static FlexElement Set(this FlexElement el, Action<Flex.FlexPanel> configure) =>
+        el with { Setters = [.. el.Setters, configure] };
+
     public static WrapGridElement Set(this WrapGridElement el, Action<WinUI.VariableSizedWrapGrid> configure) =>
         el with { Setters = [.. el.Setters, configure] };
 

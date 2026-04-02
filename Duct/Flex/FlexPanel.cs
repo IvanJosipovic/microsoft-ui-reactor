@@ -204,41 +204,95 @@ public partial class FlexPanel : Panel
 
     // ── Layout ──
 
-    // MeasureOverride and ArrangeOverride use different Yoga strategies:
+    // Two-pass MeasureOverride, modeled after WinUI Grid's multi-pass algorithm.
     //
-    // MEASURE: We need to answer "how big does my content need to be?" — this is
-    // the WinUI measure contract. We pass NaN (undefined) to CalculateLayout so
-    // Yoga computes the root's size from its children's intrinsic sizes, matching
-    // CSS default behavior where a flex container without explicit width/height is
-    // content-sized. We set MaxWidth/MaxHeight on the root node so Yoga won't
-    // exceed the available space (equivalent to CSS max-width/max-height).
+    // Grid resolves star columns to pixel widths *during* MeasureOverride, then
+    // measures children at those resolved widths. This lets text controls compute
+    // correct wrapping before ArrangeOverride. We do the same with Yoga:
     //
-    // ARRANGE: We know the final allocated size, so we pass it as definite
-    // dimensions to CalculateLayout. This lets Yoga distribute extra space to
-    // children with flex-grow, fill stretched cross-axis items, etc.
+    // PASS 1 (content-sizing): Run Yoga with NaN (undefined) root dimensions so
+    // it computes the container's intrinsic size from children. This answers the
+    // WinUI measure contract ("how big does my content need to be?") when the
+    // parent offers infinite space.
     //
-    // Without this split, a nested FlexPanel (e.g. a FlexRow inside a Border)
-    // would expand to fill all available height during measure, because passing
-    // availableSize as a definite constraint tells Yoga "my root IS this tall"
-    // rather than "my root can be AT MOST this tall."
+    // PASS 2 (flex distribution): If availableSize has definite dimensions, run
+    // Yoga again with those dimensions so flex-grow/shrink can distribute space.
+    // This is analogous to Grid's ResolveStar pass — it resolves proportional
+    // sizes, then children are Measured at resolved widths so text wraps correctly.
+    //
+    // The desired size comes from the pass whose children were measured with
+    // correct constraints — Pass 2 when it runs, Pass 1 otherwise. Returning
+    // Pass 1's content size after Pass 2 would report heights distorted by
+    // basis:0 children measured at near-zero width.
 
     protected override Size MeasureOverride(Size availableSize)
     {
         SyncYogaTree();
         SetRootConstraints(availableSize);
 
-        // Set max constraints so Yoga content-sizes the root but won't overflow.
-        _rootNode.MaxWidth = float.IsInfinity((float)availableSize.Width)
-            ? YogaValue.Undefined
-            : YogaValue.Point((float)availableSize.Width);
-        _rootNode.MaxHeight = float.IsInfinity((float)availableSize.Height)
-            ? YogaValue.Undefined
-            : YogaValue.Point((float)availableSize.Height);
+        bool hasDefiniteWidth = !float.IsInfinity((float)availableSize.Width);
+        bool hasDefiniteHeight = !float.IsInfinity((float)availableSize.Height);
 
-        // NaN = undefined: let Yoga compute content size rather than filling.
+        // ── Pass 1: Content-size layout ──
+        // NaN = undefined: Yoga computes the root's size from children's intrinsic
+        // sizes, matching CSS default where a flex container is content-sized.
+        // MaxWidth/MaxHeight cap the result so it won't exceed available space.
+        _rootNode.MaxWidth = hasDefiniteWidth
+            ? YogaValue.Point((float)availableSize.Width)
+            : YogaValue.Undefined;
+        _rootNode.MaxHeight = hasDefiniteHeight
+            ? YogaValue.Point((float)availableSize.Height)
+            : YogaValue.Undefined;
+
         _rootNode.CalculateLayout(float.NaN, float.NaN, LayoutDirection);
 
-        // Measure each child at the size Yoga computed for it
+        // ── Pass 2: Flex distribution layout ──
+        // Like Grid's ResolveStar pass: distribute definite space on the MAIN
+        // axis so grow/shrink work, but keep the CROSS axis as NaN so Yoga
+        // content-sizes it from children measured at resolved main-axis widths.
+        // This mirrors Grid where Auto rows (cross) get their height from cells
+        // measured at resolved star column widths (main).
+        //
+        // Without this split, a FlexRow given 600×400 would claim 400px height
+        // even if content only needs 30px — expanding to fill like a star row.
+        bool isRow = Direction == FlexDirection.Row || Direction == FlexDirection.RowReverse;
+        bool hasDefiniteMain = isRow ? hasDefiniteWidth : hasDefiniteHeight;
+
+        if (hasDefiniteMain)
+        {
+            // Main axis: definite for grow/shrink distribution.
+            // Cross axis: NaN for content-sizing, but capped by available space.
+            if (isRow)
+            {
+                _rootNode.MaxWidth = YogaValue.Undefined;
+                _rootNode.MaxHeight = hasDefiniteHeight
+                    ? YogaValue.Point((float)availableSize.Height)
+                    : YogaValue.Undefined;
+
+                _rootNode.CalculateLayout(
+                    (float)availableSize.Width, float.NaN, LayoutDirection);
+            }
+            else
+            {
+                _rootNode.MaxWidth = hasDefiniteWidth
+                    ? YogaValue.Point((float)availableSize.Width)
+                    : YogaValue.Undefined;
+                _rootNode.MaxHeight = YogaValue.Undefined;
+
+                _rootNode.CalculateLayout(
+                    float.NaN, (float)availableSize.Height, LayoutDirection);
+            }
+        }
+
+        // Capture desired size from whichever pass just ran. When Pass 2 ran,
+        // its layout reflects children measured at resolved grow/shrink sizes —
+        // the correct dimensions. Indefinite axes were passed as NaN, so Yoga
+        // content-sized them from children's true measurements (not the Pass 1
+        // measurements distorted by basis:0 → near-zero constraints).
+        var desiredSize = new Size(_rootNode.LayoutWidth, _rootNode.LayoutHeight);
+
+        // Measure children at Yoga's resolved sizes. This fulfills the WinUI
+        // contract that all children must be Measured during MeasureOverride.
         for (int i = 0; i < Children.Count; i++)
         {
             var child = Children[i];
@@ -248,16 +302,15 @@ public partial class FlexPanel : Panel
             }
         }
 
-        return new Size(_rootNode.LayoutWidth, _rootNode.LayoutHeight);
+        return desiredSize;
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        // Clear max constraints — finalSize is the definite allocated size.
+        // Definite dimensions let Yoga distribute space for the final allocation.
         _rootNode.MaxWidth = YogaValue.Undefined;
         _rootNode.MaxHeight = YogaValue.Undefined;
 
-        // Definite dimensions let Yoga distribute space via grow/shrink/stretch.
         _rootNode.CalculateLayout(
             (float)finalSize.Width,
             (float)finalSize.Height,

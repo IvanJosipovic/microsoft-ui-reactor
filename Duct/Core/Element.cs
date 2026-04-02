@@ -859,6 +859,7 @@ public record FlexElement(Element[] Children) : Element
     public Flex.FlexWrap Wrap { get; init; } = Flex.FlexWrap.NoWrap;
     public double ColumnGap { get; init; }
     public double RowGap { get; init; }
+    public Thickness FlexPadding { get; init; }
     internal Action<Flex.FlexPanel>[] Setters { get; init; } = [];
 }
 

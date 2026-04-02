@@ -792,6 +792,7 @@ public sealed partial class Reconciler
         panel.Wrap = flex.Wrap;
         panel.ColumnGap = flex.ColumnGap;
         panel.RowGap = flex.RowGap;
+        panel.FlexPadding = flex.FlexPadding;
         foreach (var child in flex.Children)
         {
             var ctrl = Mount(child, requestRerender);
