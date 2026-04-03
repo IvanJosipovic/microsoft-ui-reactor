@@ -905,4 +905,250 @@ internal static class FlexLayoutFixtures
             await H.CaptureScreenshotAsync("FlexJustifySpaceBetween");
         }
     }
+
+    // ────────────────────────────────────────────────────────────────────
+    // 17. Layout cycle prevention: FlexPanel inside Grid star column
+    // ────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// LayoutCycleException regression test. When a FlexPanel is placed inside
+    /// a Grid star column, the Grid's MeasureOverride may call FlexPanel.Measure
+    /// with one size, then ArrangeOverride provides a different finalSize.
+    /// The old code re-ran Yoga in ArrangeOverride, which triggered child.Measure()
+    /// during the arrange pass — causing LayoutCycleException.
+    /// This test verifies the panel survives without throwing.
+    /// </summary>
+    internal class FlexLayoutCycleInGridStar(Harness h) : FixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = new DuctHost(H.Window);
+            host.Mount(ctx =>
+                Grid(["200", "*"], ["*"],
+                    // Fixed sidebar
+                    Text("Sidebar").Grid(row: 0, column: 0).Background("LightCoral"),
+
+                    // Star column: Grid measures FlexPanel at available width,
+                    // but may arrange at a slightly different width after
+                    // resolving star allocations — this is the LayoutCycle trigger.
+                    FlexRow(
+                        Text("Grow-A").Flex(basis: 0, grow: 1).Background("LightGreen"),
+                        Text("Grow-B").Flex(basis: 0, grow: 2).Background("LightBlue")
+                    ).Grid(row: 0, column: 1)
+                ).Width(600).Height(300)
+            );
+
+            await Harness.Render(600);
+
+            // If we got here without throwing, the layout cycle was avoided
+            H.Check("FlexCycle_GridStar_NoException", true);
+
+            // Verify layout is still correct: star column = 600 - 200 = 400
+            var growA = H.FindText("Grow-A");
+            var growB = H.FindText("Grow-B");
+            H.Check("FlexCycle_GridStar_ChildrenPresent",
+                growA is not null && growB is not null);
+
+            // Grow 1:2 in 400px → ~133 + ~267
+            H.Check("FlexCycle_GridStar_GrowDistribution",
+                growA is not null && growB is not null &&
+                Near(growA.ActualWidth, 133, 5) && Near(growB.ActualWidth, 267, 5));
+
+            await H.CaptureScreenshotAsync("FlexLayoutCycle_GridStar");
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // 18. Layout cycle prevention: deeply nested FlexPanels
+    // ────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// LayoutCycleException regression test for nested FlexPanels. Each nesting
+    /// level runs its own Yoga layout. If a parent FlexPanel's ArrangeOverride
+    /// calls CalculateLayout (which calls child.Measure on the inner FlexPanel),
+    /// the inner FlexPanel's MeasureOverride runs during the outer's Arrange pass,
+    /// creating a cycle. This test verifies 4 levels deep survives.
+    /// </summary>
+    internal class FlexLayoutCycleNestedDeep(Harness h) : FixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = new DuctHost(H.Window);
+            host.Mount(ctx =>
+                // Level 1: Column with grow
+                FlexColumn(
+                    Text("L1-Top").Height(40),
+
+                    // Level 2: Row with grow children
+                    FlexRow(
+                        Text("L2-Left").Flex(basis: 0, grow: 1),
+
+                        // Level 3: Column inside grow child
+                        FlexColumn(
+                            Text("L3-Header").Height(30),
+
+                            // Level 4: Row inside grow child
+                            FlexRow(
+                                Text("L4-A").Flex(basis: 0, grow: 1).Background("LightCoral"),
+                                Text("L4-B").Flex(basis: 0, grow: 1).Background("LightBlue"),
+                                Text("L4-C").Flex(basis: 0, grow: 1).Background("LightGreen")
+                            ).Flex(grow: 1),
+
+                            Text("L3-Footer").Height(30)
+                        ).Flex(basis: 0, grow: 2)
+                    ).Flex(grow: 1),
+
+                    Text("L1-Bottom").Height(40)
+                ).Width(600).Height(400)
+            );
+
+            await Harness.Render(800);
+
+            // Reaching here means no LayoutCycleException
+            H.Check("FlexCycle_Nested4_NoException", true);
+
+            // All 8 text items present
+            H.Check("FlexCycle_Nested4_AllPresent",
+                H.FindText("L1-Top") is not null &&
+                H.FindText("L2-Left") is not null &&
+                H.FindText("L3-Header") is not null &&
+                H.FindText("L4-A") is not null &&
+                H.FindText("L4-B") is not null &&
+                H.FindText("L4-C") is not null &&
+                H.FindText("L3-Footer") is not null &&
+                H.FindText("L1-Bottom") is not null);
+
+            // L4 children should each get ~1/3 of their container width
+            // Container is L3 column = 2/3 of row = 2/3 of 600 = 400
+            // Each L4 child ≈ 400/3 ≈ 133
+            var l4a = H.FindText("L4-A");
+            var l4b = H.FindText("L4-B");
+            var l4c = H.FindText("L4-C");
+            H.Check("FlexCycle_Nested4_L4Distribution",
+                l4a is not null && l4b is not null && l4c is not null &&
+                Near(l4a.ActualWidth, l4b.ActualWidth, 3) &&
+                Near(l4b.ActualWidth, l4c.ActualWidth, 3));
+
+            await H.CaptureScreenshotAsync("FlexLayoutCycle_NestedDeep");
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // 19. Layout cycle prevention: FlexPanel with auto-sizing text
+    // ────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// LayoutCycleException regression test with wrapping text. Text elements
+    /// have content-dependent sizes — their DesiredSize from Measure depends on
+    /// the constraint width. When ArrangeOverride provides a different width than
+    /// MeasureOverride, Yoga would re-measure text children (triggering Measure
+    /// during Arrange). This test verifies wrapping text survives inside a
+    /// grow-distributed FlexRow within a Grid.
+    /// </summary>
+    internal class FlexLayoutCycleAutoText(Harness h) : FixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var longText = "This text is long enough to wrap at narrow widths but " +
+                "should display in fewer lines at wider widths. The layout cycle " +
+                "bug would cause a crash when text is re-measured during arrange.";
+
+            var host = new DuctHost(H.Window);
+            host.Mount(ctx =>
+                Grid(["*", "2*"], ["Auto", "*"],
+                    // Row 0: Auto-height row with FlexPanel containing wrapping text
+                    FlexRow(
+                        Text("Label").Width(80).Background("LightCoral"),
+                        Text(longText).Flex(grow: 1).Background("LightBlue")
+                    ).Grid(row: 0, column: 0, columnSpan: 2),
+
+                    // Row 1: star row with more flex content
+                    FlexRow(
+                        Text("Body-A").Flex(basis: 0, grow: 1).Background("LightGreen"),
+                        Text("Body-B").Flex(basis: 0, grow: 1).Background("Wheat")
+                    ).Grid(row: 1, column: 0, columnSpan: 2)
+                ).Width(600).Height(400)
+            );
+
+            await Harness.Render(800);
+
+            H.Check("FlexCycle_AutoText_NoException", true);
+
+            H.Check("FlexCycle_AutoText_ChildrenPresent",
+                H.FindText("Label") is not null &&
+                H.FindText("Body-A") is not null &&
+                H.FindText("Body-B") is not null);
+
+            // The wrapping text FlexRow should have reasonable height (not collapsed or enormous)
+            var flexPanels = H.FindAllControls<FlexPanel>(_ => true);
+            var topRow = flexPanels.FirstOrDefault(p =>
+                p.Direction == FlexDirection.Row && p.ActualHeight < 200);
+            H.Check("FlexCycle_AutoText_ReasonableHeight",
+                topRow is not null && topRow.ActualHeight > 10);
+
+            await H.CaptureScreenshotAsync("FlexLayoutCycle_AutoText");
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // 20. Layout cycle prevention: size mismatch between Measure and Arrange
+    // ────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// LayoutCycleException regression test that forces the sizeChanged path
+    /// in ArrangeOverride. When a FlexPanel is inside a ScrollViewer that has
+    /// a constrained viewport, the ScrollViewer may measure the FlexPanel with
+    /// infinite height but arrange it at a finite height — triggering the
+    /// re-layout code path in ArrangeOverride. This is the exact scenario
+    /// where the _arranging guard prevents LayoutCycleException.
+    /// </summary>
+    internal class FlexLayoutCycleSizeMismatch(Harness h) : FixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = new DuctHost(H.Window);
+            host.Mount(ctx =>
+                // Outer Grid constrains the viewport
+                Grid(["*"], ["60", "*", "60"],
+                    // Header
+                    Text("Header").Grid(row: 0, column: 0).Background("LightCoral"),
+
+                    // Middle: ScrollViewer constrains the FlexPanel
+                    ScrollView(
+                        FlexColumn(
+                            // Many children to exceed viewport — forces content-size
+                            // measurement at infinite height during Measure, but
+                            // finite height during Arrange
+                            Text("Item-1").Height(50).Background("LightBlue"),
+                            Text("Item-2").Height(50).Background("LightGreen"),
+                            Text("Item-3").Height(50).Background("Wheat"),
+                            Text("Item-4").Height(50).Background("Plum"),
+                            Text("Item-5").Height(50).Background("LightCoral"),
+                            Text("Item-6").Height(50).Background("PeachPuff")
+                        ).Width(400)
+                    ).Grid(row: 1, column: 0),
+
+                    // Footer
+                    Text("Footer").Grid(row: 2, column: 0).Background("LightGray")
+                ).Width(400).Height(300)
+            );
+
+            await Harness.Render(600);
+
+            H.Check("FlexCycle_SizeMismatch_NoException", true);
+
+            H.Check("FlexCycle_SizeMismatch_AllPresent",
+                H.FindText("Header") is not null &&
+                H.FindText("Item-1") is not null &&
+                H.FindText("Item-6") is not null &&
+                H.FindText("Footer") is not null);
+
+            // FlexColumn should be content-sized at 300px (6 × 50)
+            var flex = H.FindControl<FlexPanel>(_ => true);
+            H.Check("FlexCycle_SizeMismatch_ContentSized",
+                flex is not null && Near(flex.ActualHeight, 300, 5));
+
+            await H.CaptureScreenshotAsync("FlexLayoutCycle_SizeMismatch");
+        }
+    }
 }

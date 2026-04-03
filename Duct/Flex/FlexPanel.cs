@@ -225,6 +225,14 @@ public partial class FlexPanel : Panel
     // Pass 1's content size after Pass 2 would report heights distorted by
     // basis:0 children measured at near-zero width.
 
+    // Cached child layout results from MeasureOverride, reused in ArrangeOverride
+    // to avoid re-running Yoga (which calls child.Measure()) during the arrange
+    // pass — calling Measure during Arrange can trigger LayoutCycleException.
+    private struct ChildLayout { public float X, Y, Width, Height; }
+    private readonly List<ChildLayout> _cachedChildLayouts = new();
+    private Size _cachedDesiredSize;
+    private bool _arranging;
+
     protected override Size MeasureOverride(Size availableSize)
     {
         SyncYogaTree();
@@ -289,44 +297,90 @@ public partial class FlexPanel : Panel
         // the correct dimensions. Indefinite axes were passed as NaN, so Yoga
         // content-sized them from children's true measurements (not the Pass 1
         // measurements distorted by basis:0 → near-zero constraints).
-        var desiredSize = new Size(_rootNode.LayoutWidth, _rootNode.LayoutHeight);
+        _cachedDesiredSize = new Size(_rootNode.LayoutWidth, _rootNode.LayoutHeight);
 
-        // Measure children at Yoga's resolved sizes. This fulfills the WinUI
-        // contract that all children must be Measured during MeasureOverride.
+        // Cache child positions and measure children at Yoga's resolved sizes.
+        // This fulfills the WinUI contract that all children must be Measured
+        // during MeasureOverride, and caches positions for ArrangeOverride.
+        _cachedChildLayouts.Clear();
         for (int i = 0; i < Children.Count; i++)
         {
             var child = Children[i];
             if (_nodeCache.TryGetValue(child, out var childNode))
             {
-                child.Measure(new Size(childNode.LayoutWidth, childNode.LayoutHeight));
+                var layout = new ChildLayout
+                {
+                    X = childNode.LayoutX,
+                    Y = childNode.LayoutY,
+                    Width = childNode.LayoutWidth,
+                    Height = childNode.LayoutHeight
+                };
+                _cachedChildLayouts.Add(layout);
+                child.Measure(new Size(layout.Width, layout.Height));
+            }
+            else
+            {
+                _cachedChildLayouts.Add(default);
             }
         }
 
-        return desiredSize;
+        return _cachedDesiredSize;
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        // Definite dimensions let Yoga distribute space for the final allocation.
-        _rootNode.MaxWidth = YogaValue.Undefined;
-        _rootNode.MaxHeight = YogaValue.Undefined;
+        // If finalSize matches what we measured for, use cached positions directly.
+        // This avoids re-running Yoga (which would call child.Measure() via
+        // MeasureFunction callbacks), preventing LayoutCycleException.
+        bool sizeChanged =
+            Math.Abs(finalSize.Width - _cachedDesiredSize.Width) > 0.5 ||
+            Math.Abs(finalSize.Height - _cachedDesiredSize.Height) > 0.5;
 
-        _rootNode.CalculateLayout(
-            (float)finalSize.Width,
-            (float)finalSize.Height,
-            LayoutDirection);
-
-        for (int i = 0; i < Children.Count; i++)
+        if (sizeChanged)
         {
-            var child = Children[i];
-            if (_nodeCache.TryGetValue(child, out var childNode))
+            // Final size differs from measured size — re-run Yoga to redistribute
+            // space, but suppress child.Measure() calls during this arrange pass.
+            _arranging = true;
+            try
             {
-                child.Arrange(new Rect(
-                    childNode.LayoutX,
-                    childNode.LayoutY,
-                    childNode.LayoutWidth,
-                    childNode.LayoutHeight));
+                _rootNode.MaxWidth = YogaValue.Undefined;
+                _rootNode.MaxHeight = YogaValue.Undefined;
+                _rootNode.CalculateLayout(
+                    (float)finalSize.Width,
+                    (float)finalSize.Height,
+                    LayoutDirection);
+
+                // Update cached positions from the new layout
+                _cachedChildLayouts.Clear();
+                for (int i = 0; i < Children.Count; i++)
+                {
+                    var child = Children[i];
+                    if (_nodeCache.TryGetValue(child, out var childNode))
+                    {
+                        _cachedChildLayouts.Add(new ChildLayout
+                        {
+                            X = childNode.LayoutX,
+                            Y = childNode.LayoutY,
+                            Width = childNode.LayoutWidth,
+                            Height = childNode.LayoutHeight
+                        });
+                    }
+                    else
+                    {
+                        _cachedChildLayouts.Add(default);
+                    }
+                }
             }
+            finally
+            {
+                _arranging = false;
+            }
+        }
+
+        for (int i = 0; i < Children.Count && i < _cachedChildLayouts.Count; i++)
+        {
+            var layout = _cachedChildLayouts[i];
+            Children[i].Arrange(new Rect(layout.X, layout.Y, layout.Width, layout.Height));
         }
 
         return finalSize;
@@ -380,10 +434,17 @@ public partial class FlexPanel : Panel
                 childNode = new YogaNode();
                 _nodeCache[child] = childNode;
 
-                // Set measure function: delegates to WinUI Measure
+                // Set measure function: delegates to WinUI Measure.
+                // During ArrangeOverride (_arranging=true), return the last
+                // DesiredSize without calling Measure — calling Measure during
+                // Arrange can trigger LayoutCycleException.
                 var capturedChild = child;
+                var panel = this;
                 childNode.MeasureFunction = (node, w, wMode, h, hMode) =>
                 {
+                    if (panel._arranging)
+                        return new YogaSize((float)capturedChild.DesiredSize.Width, (float)capturedChild.DesiredSize.Height);
+
                     var constraintW = wMode == YogaMeasureMode.Undefined ? double.PositiveInfinity : w;
                     var constraintH = hMode == YogaMeasureMode.Undefined ? double.PositiveInfinity : h;
                     capturedChild.Measure(new Size(constraintW, constraintH));
