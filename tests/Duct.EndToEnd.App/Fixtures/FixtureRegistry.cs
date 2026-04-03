@@ -53,6 +53,17 @@ internal static class FixtureRegistry
         "Observable_UseObservableProperty_FineGrained",
         "Observable_UseCollection_ListUpdates",
         "Observable_UseObservable_SourceSwap",
+        // PropertyGrid
+        "PropertyGrid_Reflection_MutableObject",
+        "PropertyGrid_Reflection_Categorized",
+        "PropertyGrid_Reflection_EnumEditor",
+        "PropertyGrid_Nested_ImmutableRecord",
+        "PropertyGrid_Immutable_Root",
+        "PropertyGrid_Custom_Editor",
+        "PropertyGrid_Target_Switching",
+        "PropertyGrid_Category_ExpandCollapse",
+        "PropertyGrid_DeepNesting_RecordInRecord",
+        "PropertyGrid_INPC_ExternalMutation",
     ];
 
     public static FixtureBase? Create(string name, Harness harness) => name switch
@@ -103,6 +114,17 @@ internal static class FixtureRegistry
         "Observable_UseObservableProperty_FineGrained" => new ObservableFixtures.UseObservableProperty_FineGrained(harness),
         "Observable_UseCollection_ListUpdates" => new ObservableFixtures.UseCollection_ListUpdates(harness),
         "Observable_UseObservable_SourceSwap" => new ObservableFixtures.UseObservable_SourceSwap(harness),
+        // PropertyGrid
+        "PropertyGrid_Reflection_MutableObject" => new PropertyGridFixtures.Reflection_MutableObject(harness),
+        "PropertyGrid_Reflection_Categorized" => new PropertyGridFixtures.Reflection_Categorized(harness),
+        "PropertyGrid_Reflection_EnumEditor" => new PropertyGridFixtures.Reflection_EnumEditor(harness),
+        "PropertyGrid_Nested_ImmutableRecord" => new PropertyGridFixtures.Nested_ImmutableRecord(harness),
+        "PropertyGrid_Immutable_Root" => new PropertyGridFixtures.Immutable_Root(harness),
+        "PropertyGrid_Custom_Editor" => new PropertyGridFixtures.Custom_Editor(harness),
+        "PropertyGrid_Target_Switching" => new PropertyGridFixtures.Target_Switching(harness),
+        "PropertyGrid_Category_ExpandCollapse" => new PropertyGridFixtures.Category_ExpandCollapse(harness),
+        "PropertyGrid_DeepNesting_RecordInRecord" => new PropertyGridFixtures.DeepNesting_RecordInRecord(harness),
+        "PropertyGrid_INPC_ExternalMutation" => new PropertyGridFixtures.INPC_ExternalMutation(harness),
         _ => null,
     };
 }

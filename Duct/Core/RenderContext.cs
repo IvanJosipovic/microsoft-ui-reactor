@@ -210,6 +210,28 @@ public sealed class RenderContext
     // ════════════════════════════════════════════════════════════════
 
     /// <summary>
+    /// Observes an object and all nested INotifyPropertyChanged values
+    /// reachable through its properties. Re-renders when any property
+    /// at any depth changes. Automatically subscribes/unsubscribes as
+    /// property values change.
+    /// </summary>
+    public T UseObservableTree<T>(T source) where T : System.ComponentModel.INotifyPropertyChanged
+    {
+        var (_, forceRender) = UseReducer(false);
+        var trackerRef = UseRef<ObservableTreeTracker?>(null);
+
+        UseEffect(() =>
+        {
+            var tracker = new ObservableTreeTracker(() => forceRender(v => !v));
+            trackerRef.Current = tracker;
+            tracker.SyncSubscriptions(source);
+            return () => tracker.Dispose();
+        }, source);
+
+        return source;
+    }
+
+    /// <summary>
     /// Subscribes to an INotifyPropertyChanged source and re-renders when any property changes.
     /// Returns the same source object.
     /// </summary>

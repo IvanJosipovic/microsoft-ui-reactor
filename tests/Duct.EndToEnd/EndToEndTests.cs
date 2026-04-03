@@ -165,4 +165,36 @@ public class EndToEndTests
 
     [TestMethod] public void Observable_UseObservable_SourceSwap()
         => FixtureRunner.RunFixture("Observable_UseObservable_SourceSwap");
+
+    // ── PropertyGrid ───────────────────────────────────────────────
+
+    [TestMethod] public void PropertyGrid_Reflection_MutableObject()
+        => FixtureRunner.RunFixture("PropertyGrid_Reflection_MutableObject");
+
+    [TestMethod] public void PropertyGrid_Reflection_Categorized()
+        => FixtureRunner.RunFixture("PropertyGrid_Reflection_Categorized");
+
+    [TestMethod] public void PropertyGrid_Reflection_EnumEditor()
+        => FixtureRunner.RunFixture("PropertyGrid_Reflection_EnumEditor");
+
+    [TestMethod] public void PropertyGrid_Nested_ImmutableRecord()
+        => FixtureRunner.RunFixture("PropertyGrid_Nested_ImmutableRecord");
+
+    [TestMethod] public void PropertyGrid_Immutable_Root()
+        => FixtureRunner.RunFixture("PropertyGrid_Immutable_Root");
+
+    [TestMethod] public void PropertyGrid_Custom_Editor()
+        => FixtureRunner.RunFixture("PropertyGrid_Custom_Editor");
+
+    [TestMethod] public void PropertyGrid_Target_Switching()
+        => FixtureRunner.RunFixture("PropertyGrid_Target_Switching");
+
+    [TestMethod] public void PropertyGrid_Category_ExpandCollapse()
+        => FixtureRunner.RunFixture("PropertyGrid_Category_ExpandCollapse");
+
+    [TestMethod] public void PropertyGrid_DeepNesting_RecordInRecord()
+        => FixtureRunner.RunFixture("PropertyGrid_DeepNesting_RecordInRecord");
+
+    [TestMethod] public void PropertyGrid_INPC_ExternalMutation()
+        => FixtureRunner.RunFixture("PropertyGrid_INPC_ExternalMutation");
 }

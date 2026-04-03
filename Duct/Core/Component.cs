@@ -43,6 +43,9 @@ public abstract class Component
     protected bool UseBreakpoint(Microsoft.UI.Xaml.Window window, double minWidth)
         => Context.UseBreakpoint(window, minWidth);
 
+    protected T UseObservableTree<T>(T source) where T : System.ComponentModel.INotifyPropertyChanged
+        => Context.UseObservableTree(source);
+
     protected T UseObservable<T>(T source) where T : System.ComponentModel.INotifyPropertyChanged
         => Context.UseObservable(source);
 

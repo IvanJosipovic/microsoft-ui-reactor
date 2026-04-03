@@ -41,6 +41,7 @@ static class SelfTestRunner
                 await RunCounterTests();
                 await RunNavigationTests();
                 await RunConditionalUITests();
+                await RunPropertyGridTests();
 
                 Console.Out.Flush();
                 Environment.Exit(_failures > 0 ? 1 : 0);
@@ -302,6 +303,9 @@ static class SelfTestRunner
     static TextBlock? FindText(string text)
         => FindControl<TextBlock>(tb => tb.Text == text);
 
+    static TextBlock? FindTextContaining(string substring)
+        => FindControl<TextBlock>(tb => tb.Text.Contains(substring, StringComparison.Ordinal));
+
     static T? FindControl<T>(Func<T, bool> predicate) where T : DependencyObject
     {
         var content = _window?.Content;
@@ -321,5 +325,127 @@ static class SelfTestRunner
         }
 
         return null;
+    }
+
+    static void SelectComboBoxItem(int index)
+    {
+        var cb = FindControl<ComboBox>(_ => true);
+        if (cb != null)
+            cb.SelectedIndex = index;
+    }
+
+    static int CountTextsInTree(Func<string, bool> predicate)
+    {
+        int count = 0;
+        void Walk(DependencyObject node)
+        {
+            if (node is TextBlock tb && predicate(tb.Text)) count++;
+            int n = VisualTreeHelper.GetChildrenCount(node);
+            for (int i = 0; i < n; i++) Walk(VisualTreeHelper.GetChild(node, i));
+        }
+        if (_window?.Content is not null) Walk(_window.Content);
+        return count;
+    }
+
+    static int CountGridChildren()
+    {
+        // Find the first Grid that has RowDefinitions (the PropertyGrid's main grid)
+        var grid = FindControl<Grid>(g => g.RowDefinitions.Count > 0 && g.ColumnDefinitions.Count == 2);
+        return grid?.Children.Count ?? 0;
+    }
+
+    // ─── PropertyGrid E2E Tests ─────────────────────────────────────
+
+    static async Task RunPropertyGridTests()
+    {
+        ClickButton("PropertyGrid");
+        await Render();
+
+        await CheckAsync("PropertyGrid_Sprite_Shows_Properties", async () =>
+        {
+            // Default target is "Sprite"
+            await Render();
+            // Should show property labels from SpriteSettings
+            return FindText("Name") != null &&
+                   FindText("Visible") != null;
+        });
+
+        await CheckAsync("PropertyGrid_Sprite_Shows_Category_Headers", async () =>
+        {
+            await Render();
+            // Category headers are HyperlinkButtons with text like "▼ Appearance"
+            return FindTextContaining("Appearance") != null &&
+                   FindTextContaining("Transform") != null;
+        });
+
+        await CheckAsync("PropertyGrid_Switch_To_Material_Shows_Properties", async () =>
+        {
+            SelectComboBoxItem(1); // Material
+            await Render();
+            await Render(); // extra render for layout
+            return FindText("MaterialName") != null &&
+                   FindText("Blend") != null &&
+                   FindText("Opacity") != null &&
+                   FindText("CastShadow") != null;
+        });
+
+        await CheckAsync("PropertyGrid_Switch_To_Material_Grid_Has_Children", async () =>
+        {
+            // The grid should have real children (not be empty)
+            await Render();
+            return CountGridChildren() > 0;
+        });
+
+        await CheckAsync("PropertyGrid_Switch_To_Color_Shows_Properties", async () =>
+        {
+            SelectComboBoxItem(2); // Color
+            await Render();
+            await Render();
+            return FindText("R") != null &&
+                   FindText("G") != null &&
+                   FindText("B") != null;
+        });
+
+        await CheckAsync("PropertyGrid_Switch_Back_To_Sprite_Still_Works", async () =>
+        {
+            SelectComboBoxItem(0); // Sprite
+            await Render();
+            await Render();
+            return FindText("Name") != null &&
+                   FindText("Visible") != null &&
+                   FindTextContaining("Appearance") != null;
+        });
+
+        await CheckAsync("PropertyGrid_Round_Trip_Material_Then_Sprite", async () =>
+        {
+            SelectComboBoxItem(1); // Material
+            await Render();
+            await Render();
+            var hasMaterial = FindText("MaterialName") != null;
+
+            SelectComboBoxItem(0); // Sprite
+            await Render();
+            await Render();
+            var hasSprite = FindText("Name") != null && FindTextContaining("Appearance") != null;
+
+            return hasMaterial && hasSprite;
+        });
+
+        await CheckAsync("PropertyGrid_Rapid_Switching_No_Crash", async () =>
+        {
+            // Rapidly switch between all targets
+            for (int i = 0; i < 3; i++)
+            {
+                SelectComboBoxItem(0); await Render();
+                SelectComboBoxItem(1); await Render();
+                SelectComboBoxItem(2); await Render();
+            }
+            // If we got here without crashing, pass
+            return true;
+        });
+
+        // Return to Counter tab
+        ClickButton("Counter");
+        await Render();
     }
 }
