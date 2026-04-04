@@ -34,6 +34,12 @@ public sealed class ElementPool
         typeof(WinUI.Image),
         typeof(WinUI.InfoBadge),
         typeof(Monaco.MonacoEditor),
+        // Interactive controls — safe to pool because the Tag-based event pattern
+        // reads the current element from Tag at invocation time, so recycled controls
+        // automatically dispatch to the new element's callbacks after SetElementTag.
+        typeof(WinUI.Button),
+        typeof(TextBox),
+        typeof(WinUI.ToggleSwitch),
     };
 
     private readonly Dictionary<Type, Stack<FrameworkElement>> _pools = new();
@@ -219,6 +225,32 @@ public sealed class ElementPool
             case Monaco.MonacoEditor:
                 // Keep the WebView2 alive — just clear the tag.
                 // Properties will be updated on next mount via dependency properties.
+                break;
+
+            // Interactive controls — reset transient state so no state leaks between uses.
+            // Event handlers are NOT removed: the Tag-based pattern reads the current
+            // element from Tag at invocation time, so stale closures are harmless.
+            case WinUI.Button button:
+                button.Content = null;
+                button.IsEnabled = true;
+                button.Flyout = null;
+                VisualStateManager.GoToState(button, "Normal", false);
+                break;
+            case TextBox textBox:
+                textBox.Text = "";
+                textBox.PlaceholderText = "";
+                textBox.Header = null;
+                textBox.IsReadOnly = false;
+                textBox.AcceptsReturn = false;
+                textBox.ClearValue(TextBox.TextWrappingProperty);
+                VisualStateManager.GoToState(textBox, "Normal", false);
+                break;
+            case WinUI.ToggleSwitch toggle:
+                toggle.IsOn = false;
+                toggle.OnContent = null;
+                toggle.OffContent = null;
+                toggle.Header = null;
+                VisualStateManager.GoToState(toggle, "Normal", false);
                 break;
         }
     }

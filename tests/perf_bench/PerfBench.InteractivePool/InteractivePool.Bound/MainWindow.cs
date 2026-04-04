@@ -26,6 +26,16 @@ public sealed class MainWindow : Window
         Title = "EXP-6 InteractivePool Bound";
         _tracker.ResetGcBaseline();
 
+        for (int i = 0; i < ItemCount; i++)
+        {
+            _vms[i] = new InteractiveItemViewModel
+            {
+                ButtonLabel = $"Action {i}",
+                TextValue = $"Item {i}",
+                IsToggled = i % 2 == 0
+            };
+        }
+
         var root = new StackPanel();
 
         // HUD
@@ -38,56 +48,26 @@ public sealed class MainWindow : Window
         hud.Children.Add(_hudMemory);
         root.Children.Add(hud);
 
-        // ScrollViewer + StackPanel with 500 interactive rows
+        // ScrollViewer + ItemsRepeater for virtualized 500 interactive rows with bindings
         _scrollViewer = new ScrollViewer { Height = 800 };
-        var panel = new StackPanel();
+        var repeater = new ItemsRepeater();
+        repeater.Layout = new StackLayout { Spacing = 0 };
+        repeater.ItemsSource = Enumerable.Range(0, ItemCount).ToList();
+        repeater.ItemTemplate = new BoundElementFactory(_vms);
 
         _tracker.BeginMount();
-        for (int i = 0; i < ItemCount; i++)
-        {
-            _vms[i] = new InteractiveItemViewModel
-            {
-                ButtonLabel = $"Action {i}",
-                TextValue = $"Item {i}",
-                IsToggled = i % 2 == 0
-            };
-
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Padding = new Thickness(2), Spacing = 8 };
-
-            var btn = new Button { MinWidth = 80 };
-            btn.SetBinding(Button.ContentProperty, new Binding
-            {
-                Source = _vms[i],
-                Path = new PropertyPath("ButtonLabel"),
-                Mode = BindingMode.OneWay
-            });
-            row.Children.Add(btn);
-
-            var tb = new TextBox { Width = 150 };
-            tb.SetBinding(TextBox.TextProperty, new Binding
-            {
-                Source = _vms[i],
-                Path = new PropertyPath("TextValue"),
-                Mode = BindingMode.TwoWay
-            });
-            row.Children.Add(tb);
-
-            var ts = new ToggleSwitch();
-            ts.SetBinding(ToggleSwitch.IsOnProperty, new Binding
-            {
-                Source = _vms[i],
-                Path = new PropertyPath("IsToggled"),
-                Mode = BindingMode.TwoWay
-            });
-            row.Children.Add(ts);
-
-            panel.Children.Add(row);
-        }
-        _tracker.EndMount();
-
-        _scrollViewer.Content = panel;
+        _scrollViewer.Content = repeater;
         root.Children.Add(_scrollViewer);
         Content = root;
+
+        // Mark mount complete after first layout
+        var mountTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        mountTimer.Tick += (_, _) =>
+        {
+            mountTimer.Stop();
+            _tracker.EndMount();
+        };
+        mountTimer.Start();
 
         CompositionTarget.Rendering += (_, _) =>
         {
@@ -120,3 +100,51 @@ public sealed class MainWindow : Window
         }
     }
 }
+
+#pragma warning disable CS8305 // ElementFactory is experimental
+internal sealed class BoundElementFactory : ElementFactory
+{
+    private readonly InteractiveItemViewModel[] _vms;
+
+    public BoundElementFactory(InteractiveItemViewModel[] vms) => _vms = vms;
+
+    protected override UIElement GetElementCore(ElementFactoryGetArgs args)
+    {
+        var i = args.Data is int idx ? idx : 0;
+        var vm = _vms[i];
+
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Padding = new Thickness(2), Spacing = 8 };
+
+        var btn = new Button { MinWidth = 80 };
+        btn.SetBinding(Button.ContentProperty, new Binding
+        {
+            Source = vm,
+            Path = new PropertyPath("ButtonLabel"),
+            Mode = BindingMode.OneWay
+        });
+        row.Children.Add(btn);
+
+        var tb = new TextBox { Width = 150 };
+        tb.SetBinding(TextBox.TextProperty, new Binding
+        {
+            Source = vm,
+            Path = new PropertyPath("TextValue"),
+            Mode = BindingMode.TwoWay
+        });
+        row.Children.Add(tb);
+
+        var ts = new ToggleSwitch();
+        ts.SetBinding(ToggleSwitch.IsOnProperty, new Binding
+        {
+            Source = vm,
+            Path = new PropertyPath("IsToggled"),
+            Mode = BindingMode.TwoWay
+        });
+        row.Children.Add(ts);
+
+        return row;
+    }
+
+    protected override void RecycleElementCore(ElementFactoryRecycleArgs args) { }
+}
+#pragma warning restore CS8305

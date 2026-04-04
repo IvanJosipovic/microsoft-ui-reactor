@@ -199,13 +199,16 @@ public sealed partial class Reconciler
 
     private WinUI.Button MountButton(ButtonElement btn, Action requestRerender)
     {
-        var button = new WinUI.Button { IsEnabled = btn.IsEnabled };
+        var rented = _pool.TryRent(typeof(WinUI.Button));
+        var button = rented as WinUI.Button ?? new WinUI.Button();
+        button.IsEnabled = btn.IsEnabled;
         if (btn.ContentElement is not null)
             button.Content = Mount(btn.ContentElement, requestRerender);
         else
             button.Content = btn.Label;
         SetElementTag(button, btn);
-        button.Click += (s, _) => (GetElementTag((UIElement)s!) as ButtonElement)?.OnClick?.Invoke();
+        if (rented is null) // Only wire events on fresh controls — pooled controls retain their handler
+            button.Click += (s, _) => (GetElementTag((UIElement)s!) as ButtonElement)?.OnClick?.Invoke();
         ApplySetters(btn.Setters, button);
         return button;
     }
@@ -276,13 +279,17 @@ public sealed partial class Reconciler
 
     private TextBox MountTextField(TextFieldElement tf)
     {
-        var textBox = new TextBox { Text = tf.Value, PlaceholderText = tf.Placeholder ?? "" };
+        var rented = _pool.TryRent(typeof(TextBox));
+        var textBox = rented as TextBox ?? new TextBox();
+        textBox.Text = tf.Value;
+        textBox.PlaceholderText = tf.Placeholder ?? "";
         if (tf.Header is not null) textBox.Header = tf.Header;
         if (tf.IsReadOnly == true) textBox.IsReadOnly = true;
         if (tf.AcceptsReturn == true) textBox.AcceptsReturn = true;
         if (tf.TextWrapping.HasValue) textBox.TextWrapping = tf.TextWrapping.Value;
         SetElementTag(textBox, tf);
-        textBox.TextChanged += (_, _) => (GetElementTag(textBox) as TextFieldElement)?.OnChanged?.Invoke(textBox.Text);
+        if (rented is null) // Only wire events on fresh controls — pooled controls retain their handler
+            textBox.TextChanged += (_, _) => (GetElementTag(textBox) as TextFieldElement)?.OnChanged?.Invoke(textBox.Text);
         ApplySetters(tf.Setters, textBox);
         return textBox;
     }
@@ -426,14 +433,19 @@ public sealed partial class Reconciler
 
     private WinUI.ToggleSwitch MountToggleSwitch(ToggleSwitchElement ts)
     {
-        var toggle = new WinUI.ToggleSwitch { IsOn = ts.IsOn, OnContent = ts.OnContent, OffContent = ts.OffContent };
+        var rented = _pool.TryRent(typeof(WinUI.ToggleSwitch));
+        var toggle = rented as WinUI.ToggleSwitch ?? new WinUI.ToggleSwitch();
+        toggle.IsOn = ts.IsOn;
+        toggle.OnContent = ts.OnContent;
+        toggle.OffContent = ts.OffContent;
         if (ts.Header is not null) toggle.Header = ts.Header;
         SetElementTag(toggle, ts);
-        toggle.Toggled += (s, _) =>
-        {
-            var t = (WinUI.ToggleSwitch)s!;
-            (GetElementTag(t) as ToggleSwitchElement)?.OnChanged?.Invoke(t.IsOn);
-        };
+        if (rented is null) // Only wire events on fresh controls — pooled controls retain their handler
+            toggle.Toggled += (s, _) =>
+            {
+                var t = (WinUI.ToggleSwitch)s!;
+                (GetElementTag(t) as ToggleSwitchElement)?.OnChanged?.Invoke(t.IsOn);
+            };
         ApplySetters(ts.Setters, toggle);
         return toggle;
     }

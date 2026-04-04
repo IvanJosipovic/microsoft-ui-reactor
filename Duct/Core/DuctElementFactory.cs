@@ -45,11 +45,38 @@ public sealed partial class DuctElementFactory<T> : ElementFactory
     {
         if (args.Element is null) return;
 
-        // Only clean up Duct state (component contexts, effects).
-        // Do NOT pool or CleanElement here — ItemsRepeater owns the element lifecycle
-        // and may still reference the visual tree during its layout pass. Modifying
-        // children (panel.Children.Clear, border.Child = null) during recycling causes
-        // parenting conflicts and COMExceptions on the next GetElementCore.
+        // Clean up Duct state (component contexts, effects).
         _reconciler.UnmountChild(args.Element);
+
+        // Pool interactive leaf controls for reuse. Layout containers (Panel, Border)
+        // are NOT pooled here because ItemsRepeater may still reference the root element
+        // during its layout pass and modifying children causes COMExceptions. Interactive
+        // controls are safe to detach and pool because they are leaves with no children.
+        if (_pool is not null)
+            PoolInteractiveLeaves(args.Element);
     }
+
+    /// <summary>
+    /// Walk the recycled subtree and pool interactive leaf controls (Button, TextBox,
+    /// ToggleSwitch). These are the most expensive controls to create and benefit most
+    /// from pooling. Detaches each from its parent panel before returning to the pool.
+    /// </summary>
+    private void PoolInteractiveLeaves(UIElement root)
+    {
+        if (root is Microsoft.UI.Xaml.Controls.Panel panel)
+        {
+            // Walk children in reverse so removal doesn't shift indices
+            for (int i = panel.Children.Count - 1; i >= 0; i--)
+                PoolInteractiveLeaves(panel.Children[i]);
+        }
+        else if (root is FrameworkElement fe && IsPoolableInteractive(fe))
+        {
+            _pool.Return(fe);
+        }
+    }
+
+    private static bool IsPoolableInteractive(FrameworkElement fe) =>
+        fe is Microsoft.UI.Xaml.Controls.Button
+        or TextBox
+        or Microsoft.UI.Xaml.Controls.ToggleSwitch;
 }

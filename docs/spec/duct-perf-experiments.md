@@ -447,20 +447,28 @@ allocated/GC'd. Scroll smoothness should match native `ItemsRepeater`.
 
 ### Actual Results
 
-| Variant | Total Mount (ms) | Per-item Mount (ms) | Peak Memory (MB) | GC Gen0 |
-|---|---|---|---|---|
-| WinUI3 Direct | **141** | **0.28** | **422** | **2** |
-| WinUI3 Bound | **211** | **0.42** | **427** | **3** |
-| Duct Current | **2,823** | **5.65** | **402** | **1** |
-| Duct + Interactive Pool | _pending_ | _pending_ | _pending_ | _pending_ |
+All variants use ItemsRepeater-based virtualization (LazyVStack for Duct).
 
-**Analysis:** Duct's per-item mount cost for interactive controls (Button + TextBox +
-ToggleSwitch) is **20× slower** than Direct (5.65ms vs 0.28ms). This confirms
-the hypothesis: creating interactive controls through Duct's reconciler is
-significantly more expensive than direct instantiation. Duct's total mount
-of 2.8s for 500 interactive rows is unacceptable for real-world scrolling.
-The interactive pool optimization should bring per-item mount down to <1ms
-by recycling expensive controls rather than creating new ones.
+| Variant | Total Mount (ms) | Per-item Mount (ms) | Peak Memory (MB) | GC Gen0 | Avg FPS | Min FPS |
+|---|---|---|---|---|---|---|
+| WinUI3 Direct | **458** | **0.92** | **257** | **1** | **53.4** | **27.8** |
+| WinUI3 Bound | **427** | **0.85** | **261** | **1** | **53.0** | **26.6** |
+| Duct (no pool) | **305** | **0.61** | **243** | **2** | **58.2** | **43.9** |
+| Duct + Interactive Pool | **282** | **0.56** | **227** | **1** | **58.2** | **43.6** |
+
+Duct (no pool) uses `--optimization off` which disables `ElementPool.Enabled`,
+so all controls are created fresh on each mount. Duct + Pool uses `--optimization on`.
+
+**Analysis:** With virtualization via LazyVStack/ItemsRepeater, Duct already
+outperforms both WinUI3 baselines even without interactive pooling. Interactive
+pooling adds an incremental **8% mount improvement** (305→282ms) and **50%
+fewer GC Gen0 collections** (2→1) by recycling Button, TextBox, and ToggleSwitch
+controls instead of allocating new ones. Peak memory drops 7% (243→227 MB).
+
+The larger story is that Duct's reconciler + ItemsRepeater is faster than raw
+WinUI3 Direct (282 vs 458ms) and Bound (282 vs 427ms) because Duct's element
+creation is lighter weight than full XAML template instantiation when virtualized.
+FPS is also superior: 58.2 avg / 43.6 min vs Direct's 53.4/27.8.
 
 ---
 
@@ -705,6 +713,16 @@ Two sub-experiments:
   avoids heap allocation for the element itself. Alternative: use a
   discriminated-union-style `LeafElement` struct with a type tag.
 
+**C# constraint (10b):** Leaf elements inherit from `abstract record Element`,
+so they cannot literally become `readonly record struct` (structs cannot inherit
+from classes). The practical C# equivalent is **direct construction with cached
+modifiers** — a `TextDirect()` factory that builds the final TextElement via
+object initializer (1 heap allocation) instead of the fluent `with`-copy chain
+`Text().FontSize().Foreground().Grid()` (7 heap allocations: 4 intermediate
+TextElement copies + ElementModifiers + GridAttached + Dictionary). Immutable
+modifier and attached-property objects are cached across frames so only the
+TextElement record itself is allocated per cell per frame.
+
 **Precedent:** Compose's slot table uses flat `int[]` and `Any?[]` arrays
 (gap buffer) instead of heap-allocated tree nodes. Game engines use bump/arena
 allocators for per-frame scratch data. ECS frameworks use slab allocation.
@@ -738,25 +756,52 @@ reducing GC pauses that occasionally cause frame drops. This experiment has
 the lowest expected impact and highest implementation complexity — pursue only
 if GC is measured as a bottleneck in real workloads.
 
+**What actually happened:** 10a (array pooling) had zero impact because
+children arrays are a tiny fraction of total allocation. 10b (direct
+construction with cached modifiers) showed meaningful improvement: 33%
+fewer Gen0 collections and 26 MB less peak memory. The key insight is that
+the fluent `with`-copy chain is the allocation multiplier (7× per cell),
+not the container arrays. See Actual Results below.
+
 ### Actual Results
 
 | Variant | Avg Update (ms) | Avg FPS | Peak Memory (MB) | GC Gen0 / 10s |
 |---|---|---|---|---|
 | WinUI3 Direct | **30.86** | **2.8** | **284** | **0** |
 | WinUI3 Bound | **47.73** | **2.6** | **319** | **0** |
-| Duct Current | **0.26** (state only) | **2.9** | **349** | **52** |
-| Duct + Array Pool | _pending_ | _pending_ | _pending_ | _pending_ |
-| Duct + Struct Leaves | _pending_ | _pending_ | _pending_ | _pending_ |
+| Duct Current | **0.21** (state only) | **3.1** | **339** | **51** |
+| Duct + Array Pool (10a) | **0.18** | **3.2** | **338** | **52** |
+| Duct + Direct Alloc (10b) | **0.17** | **3.3** | **313** | **34** |
 
-**Analysis:** At 100% update rate (all 4,800 cells every tick), this is the
-worst-case scenario for all variants. All achieve only ~3 FPS — the sheer
-volume of 4,800 TextBlock property sets per frame overwhelms the UI thread.
-Duct's GC pressure is dramatic: **52 Gen0 collections** in 10 seconds
-(vs 0 for Direct/Bound). Each frame allocates 4,800 new Element records
-plus arrays — at 3 FPS that's ~14,400 allocations/second. Peak memory is
-highest for Duct (349 MB vs 284 MB for Direct), confirming the allocation
-overhead. The arena/pool optimization should dramatically reduce Gen0
-collections and slightly reduce peak memory.
+**Analysis (baseline):** At 100% update rate (all 4,800 cells every tick),
+this is the worst-case scenario for all variants. All achieve only ~3 FPS —
+the sheer volume of 4,800 TextBlock property sets per frame overwhelms the UI
+thread. Duct's GC pressure is dramatic: **51 Gen0 collections** in 10 seconds
+(vs 0 for Direct/Bound). Each frame allocates 4,800 new Element records plus
+arrays — at 3 FPS that's ~14,400 allocations/second. Peak memory is highest
+for Duct (339 MB vs 284 MB for Direct), confirming the allocation overhead.
+
+**Analysis (10a — array pooling):** `RenderArena` rents `Element[]` children
+arrays from `ArrayPool<Element>.Shared` and returns them after each render
+cycle. Result: **no measurable impact** — Gen0 count is within noise (52 vs
+51). The children arrays (one per Grid/VStack call) are a negligible fraction
+of total allocation pressure. The dominant cost is the ~33,600 individual
+Element record + modifier objects allocated per frame, not the handful of
+container arrays. 10a is architecturally correct but solves the wrong
+bottleneck.
+
+**Analysis (10b — direct construction with cached modifiers):** The fluent
+chain `Text().FontSize().Foreground().Grid()` creates **7 heap objects per
+cell** (4 intermediate TextElement `with`-copies, 1 ElementModifiers, 1
+GridAttached, 1 Dictionary). `TextDirect()` replaces this with a single
+object-initializer construction, caching the immutable ElementModifiers (per
+color) and GridAttached dictionary (per grid position) across frames. Result:
+**Gen0 collections dropped 33%** (51 → 34), **peak memory dropped 26 MB**
+(339 → 313 MB), and avg update time improved 19% (0.21 → 0.17 ms). The
+remaining 34 Gen0 collections come from per-frame string allocations
+(`.ToString()`) and the 4,800 TextElement records themselves — to eliminate
+those, Duct would need a fundamentally different element representation
+(e.g., Compose-style slot tables or arena-allocated flat buffers).
 
 ---
 

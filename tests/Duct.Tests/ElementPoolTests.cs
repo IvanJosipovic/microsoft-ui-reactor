@@ -23,20 +23,24 @@ public class ElementPoolTests
     public void TryRent_NonPoolableType_Returns_Null()
     {
         var pool = new ElementPool();
-        // Button is not a poolable type
-        Assert.Null(pool.TryRent(typeof(Button)));
+        // CheckBox is not a poolable type (only Button, TextBox, ToggleSwitch are pooled among interactives)
+        Assert.Null(pool.TryRent(typeof(CheckBox)));
     }
 
     [Fact]
     public void IsPoolable_Types_Are_Correct()
     {
         var pool = new ElementPool();
-        // Only non-interactive types are poolable
         // TextBlock should be poolable
         Assert.Null(pool.TryRent(typeof(TextBlock))); // Empty, but type is accepted
 
-        // Button should not be poolable
-        Assert.Null(pool.TryRent(typeof(Button)));
+        // Interactive controls pooled since EXP-6
+        Assert.Null(pool.TryRent(typeof(Button))); // Empty, but type is accepted
+        Assert.Null(pool.TryRent(typeof(TextBox))); // Empty, but type is accepted
+        Assert.Null(pool.TryRent(typeof(ToggleSwitch))); // Empty, but type is accepted
+
+        // CheckBox should not be poolable
+        Assert.Null(pool.TryRent(typeof(CheckBox)));
     }
 
     // ── CanvasElement is a poolable type ─────────────────────────────

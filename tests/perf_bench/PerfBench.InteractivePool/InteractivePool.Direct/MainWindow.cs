@@ -36,24 +36,26 @@ public sealed class MainWindow : Window
         hud.Children.Add(_hudMemory);
         root.Children.Add(hud);
 
-        // ScrollViewer + StackPanel with 500 interactive rows
+        // ScrollViewer + ItemsRepeater for virtualized 500 interactive rows
         _scrollViewer = new ScrollViewer { Height = 800 };
-        var panel = new StackPanel();
+        var repeater = new ItemsRepeater();
+        repeater.Layout = new StackLayout { Spacing = 0 };
+        repeater.ItemsSource = Enumerable.Range(0, ItemCount).ToList();
+        repeater.ItemTemplate = new DirectElementFactory();
 
         _tracker.BeginMount();
-        for (int i = 0; i < ItemCount; i++)
-        {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Padding = new Thickness(2), Spacing = 8 };
-            row.Children.Add(new Button { Content = $"Action {i}", MinWidth = 80 });
-            row.Children.Add(new TextBox { Text = $"Item {i}", Width = 150 });
-            row.Children.Add(new ToggleSwitch { IsOn = i % 2 == 0 });
-            panel.Children.Add(row);
-        }
-        _tracker.EndMount();
-
-        _scrollViewer.Content = panel;
+        _scrollViewer.Content = repeater;
         root.Children.Add(_scrollViewer);
         Content = root;
+
+        // Mark mount complete after first layout
+        var mountTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        mountTimer.Tick += (_, _) =>
+        {
+            mountTimer.Stop();
+            _tracker.EndMount();
+        };
+        mountTimer.Start();
 
         CompositionTarget.Rendering += (_, _) =>
         {
@@ -86,3 +88,20 @@ public sealed class MainWindow : Window
         }
     }
 }
+
+#pragma warning disable CS8305 // ElementFactory is experimental
+internal sealed class DirectElementFactory : ElementFactory
+{
+    protected override UIElement GetElementCore(ElementFactoryGetArgs args)
+    {
+        var i = args.Data is int idx ? idx : 0;
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Padding = new Thickness(2), Spacing = 8 };
+        row.Children.Add(new Button { Content = $"Action {i}", MinWidth = 80 });
+        row.Children.Add(new TextBox { Text = $"Item {i}", Width = 150 });
+        row.Children.Add(new ToggleSwitch { IsOn = i % 2 == 0 });
+        return row;
+    }
+
+    protected override void RecycleElementCore(ElementFactoryRecycleArgs args) { }
+}
+#pragma warning restore CS8305

@@ -13,14 +13,12 @@ public class InteractivePoolApp : Component
     private const int ItemCount = 500;
 
     private readonly BenchTracker _tracker = new();
-    private double _scrollOffset;
 
     public override Element Render()
     {
-        var (items, setItems) = UseState(
-            Enumerable.Range(0, ItemCount)
-                .Select(i => new InteractiveItem($"Action {i}", $"Item {i}", i % 2 == 0))
-                .ToArray());
+        var items = Enumerable.Range(0, ItemCount)
+            .Select(i => new InteractiveItem($"Action {i}", $"Item {i}", i % 2 == 0))
+            .ToArray();
 
         var scrollRef = UseRef<Microsoft.UI.Xaml.Controls.ScrollViewer>(null!);
 
@@ -40,15 +38,16 @@ public class InteractivePoolApp : Component
             };
             mountTimer.Start();
 
-            // Programmatic scroll at 16ms
+            // Programmatic scroll — use the LazyVStack's own ScrollViewer
+            double scrollOffset = 0;
             var scrollTimer = new Microsoft.UI.Xaml.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
             scrollTimer.Tick += (_, _) =>
             {
-                _scrollOffset += 20;
+                scrollOffset += 20;
                 var sv = scrollRef.Current;
                 if (sv != null)
                 {
-                    sv.ChangeView(null, _scrollOffset, null, true);
+                    sv.ChangeView(null, scrollOffset, null, true);
                 }
             };
             scrollTimer.Start();
@@ -61,7 +60,8 @@ public class InteractivePoolApp : Component
                 {
                     shutdown.Stop();
                     scrollTimer.Stop();
-                    _tracker.WriteReportFile("EXP6_InteractivePool_Duct");
+                    var suffix = Opts.Optimization == "on" ? "Pool" : "NoPool";
+                    _tracker.WriteReportFile($"EXP6_InteractivePool_Duct_{suffix}");
                     Microsoft.UI.Xaml.Application.Current.Exit();
                 };
                 shutdown.Start();
@@ -70,32 +70,20 @@ public class InteractivePoolApp : Component
             return () => scrollTimer.Stop();
         });
 
-        var rows = items.Select((item, i) =>
-            HStack(8,
-                Button(item.ButtonLabel, () => { }),
-                TextField(item.TextValue, val =>
-                {
-                    var copy = (InteractiveItem[])items.Clone();
-                    copy[i] = item with { TextValue = val };
-                    setItems(copy);
-                }),
-                ToggleSwitch(item.IsToggled, val =>
-                {
-                    var copy = (InteractiveItem[])items.Clone();
-                    copy[i] = item with { IsToggled = val };
-                    setItems(copy);
-                })
-            ).Padding(2)
-        ).ToArray();
-
         return VStack(
             HStack(
                 Text($"FPS: {_tracker.CurrentFps:F0}").Width(120),
                 Text($"Update: {_tracker.LastUpdateMs:F2}ms").Width(150),
                 Text($"Mem: {_tracker.CurrentMemoryMB}MB").Width(150)
             ).Padding(4),
-            ScrollView(
-                VStack(rows)
+            LazyVStack<InteractiveItem>(
+                items,
+                item => item.ButtonLabel,
+                (item, i) => HStack(8,
+                    Button(item.ButtonLabel, () => { }),
+                    TextField(item.TextValue, _ => { }),
+                    ToggleSwitch(item.IsToggled, _ => { })
+                ).Padding(2)
             ).Set(sv => scrollRef.Current = sv).Height(800)
         );
     }
