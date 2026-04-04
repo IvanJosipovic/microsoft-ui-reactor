@@ -452,11 +452,32 @@ public sealed partial class Reconciler : IDisposable
         // Each WinUI property set is a managed→native interop call, so avoiding
         // unnecessary sets is critical for large element counts.
 
-        if (m.Margin.HasValue && m.Margin != oldM?.Margin) fe.Margin = m.Margin.Value;
-        if (m.Padding.HasValue && m.Padding != oldM?.Padding)
+        // Apply physical margin, then overlay logical (BiDi-aware) inline margin
+        var resolvedMargin = m.Margin ?? oldM?.Margin;
+        if (m.MarginInlineStart.HasValue || m.MarginInlineEnd.HasValue)
         {
-            if (fe is WinUI.Control padCtrl) padCtrl.Padding = m.Padding.Value;
-            else if (fe is WinUI.Border padBdr) padBdr.Padding = m.Padding.Value;
+            var isRtl = fe.FlowDirection == FlowDirection.RightToLeft;
+            var baseMargin = resolvedMargin ?? fe.Margin;
+            var left = isRtl ? (m.MarginInlineEnd ?? baseMargin.Left) : (m.MarginInlineStart ?? baseMargin.Left);
+            var right = isRtl ? (m.MarginInlineStart ?? baseMargin.Right) : (m.MarginInlineEnd ?? baseMargin.Right);
+            resolvedMargin = new Thickness(left, baseMargin.Top, right, baseMargin.Bottom);
+        }
+        if (resolvedMargin.HasValue && resolvedMargin != oldM?.Margin) fe.Margin = resolvedMargin.Value;
+
+        // Apply physical padding, then overlay logical (BiDi-aware) inline padding
+        var resolvedPadding = m.Padding ?? oldM?.Padding;
+        if (m.PaddingInlineStart.HasValue || m.PaddingInlineEnd.HasValue)
+        {
+            var isRtl = fe.FlowDirection == FlowDirection.RightToLeft;
+            var basePad = resolvedPadding ?? (fe is WinUI.Control pc ? pc.Padding : fe is WinUI.Border pb ? pb.Padding : new Thickness());
+            var left = isRtl ? (m.PaddingInlineEnd ?? basePad.Left) : (m.PaddingInlineStart ?? basePad.Left);
+            var right = isRtl ? (m.PaddingInlineStart ?? basePad.Right) : (m.PaddingInlineEnd ?? basePad.Right);
+            resolvedPadding = new Thickness(left, basePad.Top, right, basePad.Bottom);
+        }
+        if (resolvedPadding.HasValue && resolvedPadding != oldM?.Padding)
+        {
+            if (fe is WinUI.Control padCtrl) padCtrl.Padding = resolvedPadding.Value;
+            else if (fe is WinUI.Border padBdr) padBdr.Padding = resolvedPadding.Value;
         }
         if (m.Width.HasValue && m.Width != oldM?.Width) fe.Width = m.Width.Value;
         if (m.Height.HasValue && m.Height != oldM?.Height) fe.Height = m.Height.Value;
@@ -516,10 +537,22 @@ public sealed partial class Reconciler : IDisposable
             if (fe is WinUI.Control bbCtrl) bbCtrl.BorderBrush = m.BorderBrush;
             else if (fe is WinUI.Border bbBdr) bbBdr.BorderBrush = m.BorderBrush;
         }
-        if (m.BorderThickness.HasValue && m.BorderThickness != oldM?.BorderThickness)
+        // Apply physical border thickness, then overlay logical (BiDi-aware) inline border
+        var resolvedBorder = m.BorderThickness;
+        if (m.BorderInlineStart.HasValue)
         {
-            if (fe is WinUI.Control btCtrl) btCtrl.BorderThickness = m.BorderThickness.Value;
-            else if (fe is WinUI.Border btBdr) btBdr.BorderThickness = m.BorderThickness.Value;
+            var isRtl = fe.FlowDirection == FlowDirection.RightToLeft;
+            var baseBorder = resolvedBorder ?? (fe is WinUI.Control bc ? bc.BorderThickness : fe is WinUI.Border bb ? bb.BorderThickness : new Thickness());
+            var inlineStartThickness = m.BorderInlineStart.Value;
+            if (isRtl)
+                resolvedBorder = new Thickness(baseBorder.Left, baseBorder.Top, inlineStartThickness.Left, baseBorder.Bottom);
+            else
+                resolvedBorder = new Thickness(inlineStartThickness.Left, baseBorder.Top, baseBorder.Right, baseBorder.Bottom);
+        }
+        if (resolvedBorder.HasValue && resolvedBorder != oldM?.BorderThickness)
+        {
+            if (fe is WinUI.Control btCtrl) btCtrl.BorderThickness = resolvedBorder.Value;
+            else if (fe is WinUI.Border btBdr) btBdr.BorderThickness = resolvedBorder.Value;
         }
 
         // Background (Panel, Control, or Border)

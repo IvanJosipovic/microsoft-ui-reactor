@@ -64,6 +64,8 @@ internal static class FixtureRegistry
         "PropertyGrid_Category_ExpandCollapse",
         "PropertyGrid_DeepNesting_RecordInRecord",
         "PropertyGrid_INPC_ExternalMutation",
+        // Localization
+        "Localization_LocaleSwitching",
     ];
 
     public static FixtureBase? Create(string name, Harness harness) => name switch
@@ -125,6 +127,8 @@ internal static class FixtureRegistry
         "PropertyGrid_Category_ExpandCollapse" => new PropertyGridFixtures.Category_ExpandCollapse(harness),
         "PropertyGrid_DeepNesting_RecordInRecord" => new PropertyGridFixtures.DeepNesting_RecordInRecord(harness),
         "PropertyGrid_INPC_ExternalMutation" => new PropertyGridFixtures.INPC_ExternalMutation(harness),
+        // Localization
+        "Localization_LocaleSwitching" => new LocalizationFixtures.LocaleSwitching(harness),
         _ => null,
     };
 }

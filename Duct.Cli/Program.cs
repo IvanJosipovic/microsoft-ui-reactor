@@ -40,6 +40,11 @@ if (arg == "--create")
     return CreateProject(args[1]);
 }
 
+if (arg == "loc")
+{
+    return Duct.Cli.Loc.LocCommand.Run(args.Skip(1).ToArray());
+}
+
 Console.Error.WriteLine($"Unknown option: {args[0]}");
 Console.Error.WriteLine();
 ShowHelp();
@@ -60,6 +65,13 @@ void ShowHelp()
     Console.WriteLine("  --version, -v    Show version information");
     Console.WriteLine("  --skill          Print the SKILL.md AI reference to stdout");
     Console.WriteLine("  --create <name>  Scaffold a new Duct project");
+    Console.WriteLine();
+    Console.WriteLine("Commands:");
+    Console.WriteLine("  loc extract      Extract localizable strings from source files");
+    Console.WriteLine("  loc translate    AI-translate .resw files to target locales");
+    Console.WriteLine("  loc validate     Check ICU syntax and parameter consistency");
+    Console.WriteLine("  loc status       Show translation coverage per locale");
+    Console.WriteLine("  loc prune        Find unused localization keys");
 }
 
 int ShowSkill()

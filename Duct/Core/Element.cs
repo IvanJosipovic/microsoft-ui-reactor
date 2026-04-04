@@ -273,6 +273,15 @@ public record ElementModifiers
     public ElementSoundMode? ElementSoundMode { get; init; }
     public Action<FrameworkElement>? OnMountAction { get; init; }
 
+    // ── Logical (BiDi-aware) layout properties ──────────────────────
+    // These resolve to physical left/right based on FlowDirection at mount/update time.
+    // InlineStart = left in LTR, right in RTL. InlineEnd = right in LTR, left in RTL.
+    public double? MarginInlineStart { get; init; }
+    public double? MarginInlineEnd { get; init; }
+    public double? PaddingInlineStart { get; init; }
+    public double? PaddingInlineEnd { get; init; }
+    public Thickness? BorderInlineStart { get; init; }
+
     public ElementModifiers Merge(ElementModifiers other)
     {
         return this with
@@ -303,6 +312,11 @@ public record ElementModifiers
             AutomationId = other.AutomationId ?? AutomationId,
             ElementSoundMode = other.ElementSoundMode ?? ElementSoundMode,
             OnMountAction = other.OnMountAction ?? OnMountAction,
+            MarginInlineStart = other.MarginInlineStart ?? MarginInlineStart,
+            MarginInlineEnd = other.MarginInlineEnd ?? MarginInlineEnd,
+            PaddingInlineStart = other.PaddingInlineStart ?? PaddingInlineStart,
+            PaddingInlineEnd = other.PaddingInlineEnd ?? PaddingInlineEnd,
+            BorderInlineStart = other.BorderInlineStart ?? BorderInlineStart,
         };
     }
 }

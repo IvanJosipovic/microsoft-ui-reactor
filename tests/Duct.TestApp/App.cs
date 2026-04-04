@@ -26,54 +26,79 @@ else
 
 // ─── Root application component ────────────────────────────────────────────────
 
+enum Tab { Counter, TodoList, ConditionalUI, Form, DynamicList, PerfStress, Virtualization, Flyout, DataTemplate, FlexPanel, Transitions, PropertyGrid }
+
 class DemoApp : Component
 {
+    static readonly string[] Languages = ["English"];
+
+    static string TabLabel(Tab tab) => tab switch
+    {
+        Tab.Counter => "Counter",
+        Tab.TodoList => "Todo List",
+        Tab.ConditionalUI => "Conditional UI",
+        Tab.Form => "Form",
+        Tab.DynamicList => "Dynamic List",
+        Tab.PerfStress => "Perf Stress",
+        Tab.Virtualization => "Virtualization",
+        Tab.Flyout => "Flyout",
+        Tab.DataTemplate => "DataTemplate",
+        Tab.FlexPanel => "FlexPanel",
+        Tab.Transitions => "Transitions",
+        Tab.PropertyGrid => "PropertyGrid",
+        _ => tab.ToString()
+    };
+
     public override Element Render()
     {
-        var (currentTab, setTab) = UseState("Counter");
+        var (currentTab, setTab) = UseState(Tab.Counter);
+        var (langIndex, setLangIndex) = UseState(0);
 
         return VStack(12,
-            // Tab bar
+            // App chrome: tab bar + language selector
             HStack(8,
-                TabButton("Counter", currentTab, setTab),
-                TabButton("Todo List", currentTab, setTab),
-                TabButton("Conditional UI", currentTab, setTab),
-                TabButton("Form", currentTab, setTab),
-                TabButton("Dynamic List", currentTab, setTab),
-                TabButton("Perf Stress", currentTab, setTab),
-                TabButton("Virtualization", currentTab, setTab),
-                TabButton("Flyout", currentTab, setTab),
-                TabButton("DataTemplate", currentTab, setTab),
-                TabButton("FlexPanel", currentTab, setTab),
-                TabButton("Transitions", currentTab, setTab),
-                TabButton("PropertyGrid", currentTab, setTab)
+                HStack(8,
+                    TabButton(Tab.Counter, currentTab, setTab),
+                    TabButton(Tab.TodoList, currentTab, setTab),
+                    TabButton(Tab.ConditionalUI, currentTab, setTab),
+                    TabButton(Tab.Form, currentTab, setTab),
+                    TabButton(Tab.DynamicList, currentTab, setTab),
+                    TabButton(Tab.PerfStress, currentTab, setTab),
+                    TabButton(Tab.Virtualization, currentTab, setTab),
+                    TabButton(Tab.Flyout, currentTab, setTab),
+                    TabButton(Tab.DataTemplate, currentTab, setTab),
+                    TabButton(Tab.FlexPanel, currentTab, setTab),
+                    TabButton(Tab.Transitions, currentTab, setTab),
+                    TabButton(Tab.PropertyGrid, currentTab, setTab)
+                ).Flex(grow: 1),
+                ComboBox(Languages, langIndex, setLangIndex)
             ).Margin(16, 16, 16, 0),
 
             // Content area with padding
             Border(
                 currentTab switch
                 {
-                    "Counter" => Component<CounterDemo>(),
-                    "Todo List" => Component<TodoDemo>(),
-                    "Conditional UI" => Component<ConditionalDemo>(),
-                    "Form" => Component<FormDemo>(),
-                    "Dynamic List" => Component<DynamicListDemo>(),
-                    "Perf Stress" => Component<PerfStressDemo>(),
-                    "Virtualization" => Component<VirtualizationDemo>(),
-                    "Flyout" => Component<FlyoutDemo>(),
-                    "DataTemplate" => Component<DataTemplateDemo>(),
-                    "FlexPanel" => Component<FlexPanelDemo>(),
-                    "Transitions" => Component<TransitionsDemo>(),
-                    "PropertyGrid" => Component<PropertyGridDemo>(),
+                    Tab.Counter => Component<CounterDemo>(),
+                    Tab.TodoList => Component<TodoDemo>(),
+                    Tab.ConditionalUI => Component<ConditionalDemo>(),
+                    Tab.Form => Component<FormDemo>(),
+                    Tab.DynamicList => Component<DynamicListDemo>(),
+                    Tab.PerfStress => Component<PerfStressDemo>(),
+                    Tab.Virtualization => Component<VirtualizationDemo>(),
+                    Tab.Flyout => Component<FlyoutDemo>(),
+                    Tab.DataTemplate => Component<DataTemplateDemo>(),
+                    Tab.FlexPanel => Component<FlexPanelDemo>(),
+                    Tab.Transitions => Component<TransitionsDemo>(),
+                    Tab.PropertyGrid => Component<PropertyGridDemo>(),
                     _ => Text("Select a tab")
                 }
             ).Padding(24).Margin(16)
         );
     }
 
-    static Element TabButton(string label, string current, Action<string> setCurrent) =>
-        Button(label, () => setCurrent(label))
-            .Disabled(label == current);
+    static Element TabButton(Tab tab, Tab current, Action<Tab> setCurrent) =>
+        Button(TabLabel(tab), () => setCurrent(tab))
+            .Disabled(tab == current);
 }
 
 // ─── Counter demo ──────────────────────────────────────────────────────────────

@@ -55,6 +55,9 @@ public abstract class Component
 
     protected IReadOnlyList<T> UseCollection<T>(System.Collections.ObjectModel.ObservableCollection<T> collection)
         => Context.UseCollection(collection);
+
+    protected Localization.IntlAccessor UseIntl()
+        => Context.UseIntl();
 }
 
 /// <summary>

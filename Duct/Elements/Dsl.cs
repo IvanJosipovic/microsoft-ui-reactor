@@ -22,6 +22,15 @@ namespace Duct;
 /// </summary>
 public static class UI
 {
+    // ── Localization ──────────────────────────────────────────────────
+
+    public static Element LocaleProvider(string locale, Element child,
+        Core.Localization.IStringResourceProvider? resourceProvider = null,
+        string defaultLocale = "en-US",
+        bool pseudoLocalize = false) =>
+        Component<Core.Localization.LocaleProviderComponent, Core.Localization.LocaleProviderElement>(
+            new Core.Localization.LocaleProviderElement(locale, child, resourceProvider, defaultLocale, pseudoLocalize));
+
     // ── Text ────────────────────────────────────────────────────────
 
     public static TextElement Text(string content) => new(content);

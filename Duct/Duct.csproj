@@ -17,6 +17,25 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(WindowsAppSDKVersion)" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+    <PackageReference Include="MessageFormat" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Duct.Localization.Generator\Duct.Localization.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       Localization — .resw files fed to the source generator
+       ═══════════════════════════════════════════════════════════════════ -->
+  <PropertyGroup>
+    <DuctLocDefaultLocale Condition="'$(DuctLocDefaultLocale)' == ''">en-US</DuctLocDefaultLocale>
+    <DuctLocStringsPath Condition="'$(DuctLocStringsPath)' == ''">Strings/</DuctLocStringsPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="$(DuctLocStringsPath)**/*.resw" Condition="Exists('$(DuctLocStringsPath)')" />
   </ItemGroup>
 
   <!-- ═══════════════════════════════════════════════════════════════════

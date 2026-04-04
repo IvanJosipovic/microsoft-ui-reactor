@@ -52,6 +52,25 @@ public static class ElementExtensions
     public static T Padding<T>(this T el, double left, double top, double right, double bottom) where T : Element =>
         Modify(el, new ElementModifiers { Padding = new Thickness(left, top, right, bottom) });
 
+    // ── Logical (BiDi-aware) layout modifiers ───────────────────────
+    // InlineStart = left in LTR, right in RTL. InlineEnd = right in LTR, left in RTL.
+    // Resolved at mount/update time based on FlowDirection.
+
+    public static T MarginInlineStart<T>(this T el, double value) where T : Element =>
+        Modify(el, new ElementModifiers { MarginInlineStart = value });
+
+    public static T MarginInlineEnd<T>(this T el, double value) where T : Element =>
+        Modify(el, new ElementModifiers { MarginInlineEnd = value });
+
+    public static T PaddingInlineStart<T>(this T el, double value) where T : Element =>
+        Modify(el, new ElementModifiers { PaddingInlineStart = value });
+
+    public static T PaddingInlineEnd<T>(this T el, double value) where T : Element =>
+        Modify(el, new ElementModifiers { PaddingInlineEnd = value });
+
+    public static T BorderInlineStart<T>(this T el, Thickness thickness) where T : Element =>
+        Modify(el, new ElementModifiers { BorderInlineStart = thickness });
+
     public static T Width<T>(this T el, double width) where T : Element =>
         Modify(el, new ElementModifiers { Width = width });
 

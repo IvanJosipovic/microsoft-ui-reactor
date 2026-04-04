@@ -197,4 +197,9 @@ public class EndToEndTests
 
     [TestMethod] public void PropertyGrid_INPC_ExternalMutation()
         => FixtureRunner.RunFixture("PropertyGrid_INPC_ExternalMutation");
+
+    // ── Localization ───────────────────────────────────────────────
+
+    [TestMethod] public void Localization_LocaleSwitching()
+        => FixtureRunner.RunFixture("Localization_LocaleSwitching");
 }

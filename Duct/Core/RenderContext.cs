@@ -287,6 +287,43 @@ public sealed class RenderContext
     }
 
     // ════════════════════════════════════════════════════════════════
+    //  Localization hooks
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns an IntlAccessor for the current locale. Re-renders this component
+    /// when the locale changes via a parent LocaleProvider.
+    /// If no LocaleProvider is present, returns a default accessor using the OS locale.
+    /// </summary>
+    public Localization.IntlAccessor UseIntl()
+    {
+        var (_, forceRender) = UseReducer(false);
+
+        var ctx = Localization.LocaleContext.Current;
+        var accessor = ctx?.Accessor ?? _defaultAccessor.Value;
+
+        UseEffect(() =>
+        {
+            if (ctx is null) return () => { };
+
+            void handler() => forceRender(v => !v);
+            ctx.Subscribe(handler);
+            return () => ctx.Unsubscribe(handler);
+        }, ctx?.Accessor.Locale ?? "");
+
+        return accessor;
+    }
+
+    private static readonly Lazy<Localization.IntlAccessor> _defaultAccessor = new(() =>
+    {
+        var osLocale = System.Globalization.CultureInfo.CurrentUICulture.Name;
+        if (string.IsNullOrEmpty(osLocale)) osLocale = "en-US";
+        var cache = new Localization.MessageCache();
+        var provider = new Localization.ReswResourceProvider(osLocale);
+        return new Localization.IntlAccessor(osLocale, provider, cache, osLocale);
+    });
+
+    // ════════════════════════════════════════════════════════════════
     //  Responsive layout hooks
     // ════════════════════════════════════════════════════════════════
 
