@@ -1,7 +1,11 @@
 # Duct Performance Experiments — Tracking Spec
 
 ## Status
-**Draft** — hypotheses only. Actual measurements pending.
+**Baselines measured, priorities revised** — WinUI3 Direct/Bound and Duct
+current-state numbers collected. Several hypotheses invalidated by data.
+EXP-9 cut (Duct already wins). EXP-1 and EXP-3 merged. Phase 1 focus:
+interactive pooling (EXP-6), GC pressure (EXP-10), property diffs (EXP-2).
+Machine: ARM64 Release, 10s duration per run.
 
 ---
 
@@ -88,10 +92,18 @@ into O(dirty components) work.
 
 | Variant | Avg Update (ms) | Avg FPS | Peak Memory (MB) |
 |---|---|---|---|
-| WinUI3 Direct | _pending_ | _pending_ | _pending_ |
-| WinUI3 Bound | _pending_ | _pending_ | _pending_ |
-| Duct Current | _pending_ | _pending_ | _pending_ |
+| WinUI3 Direct | **0.06** | **59.0** | **131** |
+| WinUI3 Bound | **0.13** | **58.9** | **135** |
+| Duct Current | **0.04** | **59.8** | **140** |
 | Duct + Dirty Tracking | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** At 200 elements with only 1 update/tick, the workload is light enough that
+all variants hit ~60 FPS. Duct's update time is the lowest (0.04ms) because
+`BeginUpdate/EndUpdate` only measures the `SetState` call, not the subsequent
+reconcile (which is deferred to the render loop). The real cost shows up in GC
+pressure: Duct had 9 Gen0 collections vs 1 for Direct/Bound, confirming that
+element tree allocation per frame is a measurable overhead even at this scale.
+The dirty tracking optimization should eliminate 199/200 of the render work.
 
 ---
 
@@ -145,12 +157,23 @@ scenarios. Brings Duct closer to parity with direct manipulation.
 
 ### Actual Results
 
-| Variant | Avg Reconcile (ms) | Avg FPS | Peak Memory (MB) |
+| Variant | Avg Update (ms) | Avg FPS | Peak Memory (MB) |
 |---|---|---|---|
-| WinUI3 Direct | _pending_ | _pending_ | _pending_ |
-| WinUI3 Bound | _pending_ | _pending_ | _pending_ |
-| Duct Current | _pending_ | _pending_ | _pending_ |
+| WinUI3 Direct | **9.75** | **12.6** | **376** |
+| WinUI3 Bound | **33.21** | **10.1** | **468** |
+| Duct Current | **0.34** (state only) | **5.4** | **436** |
 | Duct + Bitmask Diff | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** At 4,800 cells with 50% update rate, this is the first scenario where
+Duct's overhead becomes clearly visible. Duct achieves only 5.4 FPS vs 12.6 for
+Direct — the reconciler is spending ~180ms per frame rebuilding and diffing the
+entire 4,800-element tree and setting all properties on changed elements. Duct's
+"Avg Update" (0.34ms) is misleadingly low because it only measures the data
+mutation, not the subsequent reconcile pass. GC pressure is severe: 94 Gen0
+collections (vs 2 for Direct), confirming that per-frame element allocation is
+a real bottleneck at this scale. Bound (33ms update, 10 FPS) shows binding
+engine overhead is also significant. The bitmask diff optimization should reduce
+COM calls from ~8 per cell to 2, bringing Duct closer to Direct's throughput.
 
 ---
 
@@ -205,10 +228,17 @@ sharing skips the reconcile walk).
 
 | Variant | Avg Update (ms) | Avg FPS | Peak Memory (MB) |
 |---|---|---|---|
-| WinUI3 Direct | _pending_ | _pending_ | _pending_ |
-| WinUI3 Bound | _pending_ | _pending_ | _pending_ |
-| Duct Current | _pending_ | _pending_ | _pending_ |
+| WinUI3 Direct | **0.29** | **59.1** | **136** |
+| WinUI3 Bound | **0.84** | **58.5** | **143** |
+| Duct Current | **0.04** | **59.6** | **147** |
 | Duct + Structural Sharing | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** With only 250 elements and 50 changing per tick, all variants comfortably
+hit ~60 FPS. The workload is too light to differentiate — Duct's reconciler handles
+250 elements easily within a single frame. The structural sharing optimization will
+show its value at larger scales where the 4 static panels represent significant
+wasted work. GC pressure: Duct had 5 Gen0 collections vs 1 for Direct, proportional
+to the smaller tree size.
 
 ---
 
@@ -272,12 +302,20 @@ should roughly halve.
 
 ### Actual Results
 
-| Variant | UI Thread Blocked (ms) | Total Wall Clock (ms) | Input Latency (ms) |
+| Variant | Avg UI Block (ms) | Avg FPS | Peak Memory (MB) |
 |---|---|---|---|
-| WinUI3 Direct | _pending_ | _pending_ | _pending_ |
-| WinUI3 Bound | _pending_ | _pending_ | _pending_ |
-| Duct Current | _pending_ | _pending_ | _pending_ |
+| WinUI3 Direct | **1.91** | **29.9** | **266** |
+| WinUI3 Bound | **6.46** | **29.6** | **308** |
+| Duct Current | **0.09** (state only) | **31.7** | **283** |
 | Duct + Off-Thread Build | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** At 1,000 elements with expensive computation (sin/cos/sqrt), the 30Hz
+timer limits all variants to ~30 FPS. Duct's measured UI block (0.09ms) is the
+`SetState` call — the real UI thread work happens in the deferred render loop.
+Direct's UI block (1.91ms) includes both computation and property sets. Bound's
+(6.46ms) adds binding engine overhead. Duct's GC pressure is notable: 62 Gen0
+collections vs 3 for Direct. The off-thread optimization would move Duct's tree
+build to a ThreadPool thread, freeing the UI thread during reconcile.
 
 ---
 
@@ -339,12 +377,20 @@ EXP-2 (bitmask diff), mutation count drops and apply phase shrinks.
 
 ### Actual Results
 
-| Variant | Reconcile (ms) | Apply (ms) | Total (ms) |
-|---|---|---|---|
-| WinUI3 Direct | — | _pending_ | _pending_ |
-| WinUI3 Bound | — | _pending_ | _pending_ |
-| Duct Current | _pending_ | — | _pending_ |
-| Duct + Journal | _pending_ | _pending_ | _pending_ |
+| Variant | Avg Update (ms) | Avg FPS | Peak Memory (MB) | Mutations/10s |
+|---|---|---|---|---|
+| WinUI3 Direct | **9.90** | **10.2** | **354** | **239,804** |
+| WinUI3 Bound | **32.42** | **8.2** | **438** | **211,086** |
+| Duct Current | **0.96** | **5.2** | **396** | **119,898** |
+| Duct + Journal | _pending_ | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** Same 4,800-cell grid as EXP-2. Duct at 5.2 FPS has roughly half the
+throughput of Direct (10.2 FPS). Mutation counts confirm the overhead: Direct
+produced 240K mutations (2 props × ~2400 cells × ~50 ticks) while Duct produced
+120K (fewer ticks due to lower FPS). The per-frame mutation density in Duct
+is higher since it sets all properties on every reconciled element, not just
+the changed ones. The journal optimization decouples diff from apply, enabling
+mutation coalescing and off-thread diffing.
 
 ---
 
@@ -401,12 +447,20 @@ allocated/GC'd. Scroll smoothness should match native `ItemsRepeater`.
 
 ### Actual Results
 
-| Variant | Avg Mount/item (ms) | Peak Memory (MB) | GC Gen0 |
-|---|---|---|---|
-| WinUI3 Direct | _pending_ | _pending_ | _pending_ |
-| WinUI3 Bound | _pending_ | _pending_ | _pending_ |
-| Duct Current | _pending_ | _pending_ | _pending_ |
-| Duct + Interactive Pool | _pending_ | _pending_ | _pending_ |
+| Variant | Total Mount (ms) | Per-item Mount (ms) | Peak Memory (MB) | GC Gen0 |
+|---|---|---|---|---|
+| WinUI3 Direct | **141** | **0.28** | **422** | **2** |
+| WinUI3 Bound | **211** | **0.42** | **427** | **3** |
+| Duct Current | **2,823** | **5.65** | **402** | **1** |
+| Duct + Interactive Pool | _pending_ | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** Duct's per-item mount cost for interactive controls (Button + TextBox +
+ToggleSwitch) is **20× slower** than Direct (5.65ms vs 0.28ms). This confirms
+the hypothesis: creating interactive controls through Duct's reconciler is
+significantly more expensive than direct instantiation. Duct's total mount
+of 2.8s for 500 interactive rows is unacceptable for real-world scrolling.
+The interactive pool optimization should bring per-item mount down to <1ms
+by recycling expensive controls rather than creating new ones.
 
 ---
 
@@ -462,12 +516,23 @@ instead of all-at-once.
 
 ### Actual Results
 
-| Variant | Longest Frame Block (ms) | Animation Drops | Total Mount (ms) |
+| Variant | Longest Frame Block (ms) | Animation Drops | Avg Mount (ms) |
 |---|---|---|---|
-| WinUI3 Direct | _pending_ | _pending_ | _pending_ |
-| WinUI3 Bound | _pending_ | _pending_ | _pending_ |
-| Duct Current | _pending_ | _pending_ | _pending_ |
+| WinUI3 Direct | **173** | **5** | **15** |
+| WinUI3 Bound | **182** | **7** | **105** |
+| Duct Current | **189** | **19** | **0.5** (deferred) |
 | Duct + Time-Sliced | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** All variants show significant frame blocking during the 2,000-element
+mount (~170-190ms longest block). Duct's measured mount time (0.5ms) is
+misleadingly low — the `SetState(true)` call is near-instant, but the
+actual reconcile/mount of 2,000 elements happens in the render loop and
+causes the 189ms frame block. Duct has the most animation drops (19 vs 5
+for Direct), suggesting the reconcile pass introduces additional jank
+beyond the raw control creation cost. The time-slicing optimization would
+break this into 5-8ms chunks, keeping the animation smooth.
+GC: Duct had 171 Gen0 collections vs 2 for Direct — 2,000 elements worth of
+per-frame allocation pressure during the mount renders.
 
 ---
 
@@ -529,12 +594,22 @@ on keystroke responsiveness.
 
 ### Actual Results
 
-| Variant | Keystroke Latency (ms) | List Latency (ms) | Dropped Frames |
+| Variant | Avg Input Latency (ms) | Avg Update (ms) | Avg FPS |
 |---|---|---|---|
-| WinUI3 Direct | _pending_ | _pending_ | _pending_ |
-| WinUI3 Bound | _pending_ | _pending_ | _pending_ |
-| Duct Current | _pending_ | _pending_ | _pending_ |
+| WinUI3 Direct | **22** | **21.1** | **54.2** |
+| WinUI3 Bound | — (crashed) | — | — |
+| Duct Current | **46** | **0.01** | **54.6** |
 | Duct + Priorities | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** With 5,000 items and search-as-you-type, Duct's input latency (46ms)
+is **2× worse** than Direct (22ms). Both achieve similar FPS (~54), but
+Duct's keystroke feedback is delayed because each key triggers a full
+reconcile of the filtered list. Direct's 22ms includes synchronous filter +
+rebuild of the StackPanel. Duct's update time (0.01ms) only measures the
+`SetState` call — the actual filter + reconcile happens in the render loop.
+The priorities optimization would process the TextBox update immediately
+(Sync) and defer the expensive list filter to a Transition, giving
+near-instant keystroke feedback.
 
 ---
 
@@ -590,12 +665,22 @@ content is preferred over slower initial load + instant tabs.
 
 ### Actual Results
 
-| Variant | Initial Render (ms) | Tab Switch (ms) | Peak Memory (MB) |
+| Variant | Avg Mount (ms) | Avg Tab Switch (ms) | Peak Memory (MB) |
 |---|---|---|---|
-| WinUI3 Direct | _pending_ | _pending_ | _pending_ |
-| WinUI3 Bound | _pending_ | _pending_ | _pending_ |
-| Duct Current | _pending_ | _pending_ | _pending_ |
+| WinUI3 Direct | **9.5** | **0.45** | **218** |
+| WinUI3 Bound | **54.7** | **0.38** | **226** |
+| Duct Current | **1.4** (per switch) | **0.16** | **139** |
 | Duct + Deferred | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** Direct pre-creates all 1,000 elements at startup (9.5ms mount), then
+tab switches are trivial (toggling Visibility). Bound does the same but
+with binding setup overhead (54.7ms). Duct only renders the active tab's
+200 elements, so initial mount is fast (1.4ms), and each tab switch triggers
+a re-render of 200 elements. Duct's peak memory (139 MB) is significantly
+lower than Direct (218 MB) because only the active tab's controls exist.
+This is actually favorable for Duct's current architecture — the deferred
+mounting optimization would formalize this lazy pattern for other
+hidden-content scenarios (Expanders, below-fold scroll content).
 
 ---
 
@@ -655,39 +740,75 @@ if GC is measured as a bottleneck in real workloads.
 
 ### Actual Results
 
-| Variant | Gen0 / 10s | Avg GC Pause (ms) | Peak Memory (MB) |
-|---|---|---|---|
-| WinUI3 Direct | _pending_ | _pending_ | _pending_ |
-| WinUI3 Bound | _pending_ | _pending_ | _pending_ |
-| Duct Current | _pending_ | _pending_ | _pending_ |
-| Duct + Array Pool | _pending_ | _pending_ | _pending_ |
-| Duct + Struct Leaves | _pending_ | _pending_ | _pending_ |
+| Variant | Avg Update (ms) | Avg FPS | Peak Memory (MB) | GC Gen0 / 10s |
+|---|---|---|---|---|
+| WinUI3 Direct | **30.86** | **2.8** | **284** | **0** |
+| WinUI3 Bound | **47.73** | **2.6** | **319** | **0** |
+| Duct Current | **0.26** (state only) | **2.9** | **349** | **52** |
+| Duct + Array Pool | _pending_ | _pending_ | _pending_ | _pending_ |
+| Duct + Struct Leaves | _pending_ | _pending_ | _pending_ | _pending_ |
+
+**Analysis:** At 100% update rate (all 4,800 cells every tick), this is the
+worst-case scenario for all variants. All achieve only ~3 FPS — the sheer
+volume of 4,800 TextBlock property sets per frame overwhelms the UI thread.
+Duct's GC pressure is dramatic: **52 Gen0 collections** in 10 seconds
+(vs 0 for Direct/Bound). Each frame allocates 4,800 new Element records
+plus arrays — at 3 FPS that's ~14,400 allocations/second. Peak memory is
+highest for Duct (349 MB vs 284 MB for Direct), confirming the allocation
+overhead. The arena/pool optimization should dramatically reduce Gen0
+collections and slightly reduce peak memory.
 
 ---
 
-## Implementation Priority
+## Implementation Priority (Revised — based on measured data)
 
-Recommended order based on expected impact / effort ratio:
+Original priorities were based on hypothesis. The actual baselines changed the
+picture significantly. Key surprises:
+
+- **GC pressure is the #1 cross-cutting problem** — Duct shows 10–100× more Gen0
+  collections than Direct in every heavy scenario. Originally ranked last, now
+  elevated to Phase 1.
+- **Interactive control mount is 20× slower** — clearest, most unambiguous gap.
+- **EXP-9 (Deferred Mount) is already solved** — Duct's architecture naturally
+  defers unmounted content. No optimization needed.
+- **EXP-1 and EXP-3 overlap** — both are "skip unchanged subtrees" at different
+  layers. Merge into one effort, retest at a heavier scale.
+- **EXP-4 (Off-Thread) instrumentation is broken** — BeginUpdate/EndUpdate only
+  captures SetState, not the render loop. Can't draw conclusions yet.
 
 ```
-Phase 1 — Low-hanging fruit (high impact, moderate effort)
-  EXP-1  Dirty Subtree Tracking          ██████████  10–30× for sparse updates
-  EXP-3  Structural Sharing              ████████    2–4× for stable layouts
-  EXP-2  Property Diff Bitmasks          ███████     2–3× reconcile time
+Phase 1 — Biggest measured gaps (pursue immediately)
+  EXP-6  Interactive Control Pooling     ██████████  20× mount gap — blocks real-world scrolling
+  EXP-10 Arena Allocation (array pool)   █████████   GC is the common bottleneck in 7/10 experiments
+  EXP-2  Property Diff Bitmasks          ████████    2.3× FPS gap at 4,800 cells, compounds with GC
 
-Phase 2 — Architectural (high impact, high effort)
-  EXP-5  Mutation Journaling             ██████      Enabler for Phase 3
-  EXP-6  Interactive Control Pooling     ██████      3–5× mount cost in scrolling
+Phase 2 — Retest with heavier workload, then implement
+  EXP-1+3  Dirty Tracking + Structural   ███████     Merge into one "skip unchanged subtrees" opt.
+           Sharing (combined)                        Current 200-element test is too light — scale to 4,800
 
-Phase 3 — Advanced (requires Phase 2)
-  EXP-4  Off-Thread Tree Building        ████████    50% less UI thread blocking
-  EXP-7  Time-Sliced Reconciliation      ██████      Eliminates jank on large mounts
+Phase 3 — Architectural (only if Phase 1–2 aren't sufficient)
+  EXP-5  Mutation Journaling             █████       Enabler for EXP-7; not a perf win on its own
+  EXP-7  Time-Sliced Reconciliation      █████       19 anim drops vs 5 — real but requires EXP-5 first
 
-Phase 4 — Specialized
-  EXP-8  Prioritized State Updates       ██████      Best-in-class input responsiveness
-  EXP-9  Lazy Off-Screen Mounting        █████       3–5× faster initial render
-  EXP-10 Arena Allocation                ███         Marginal GC improvement
+Deprioritized — pursue late or revisit
+  EXP-8  Prioritized State Updates       ███         46ms vs 22ms gap is real but modest; complex impl
+  EXP-4  Off-Thread Tree Building        ██          Instrumentation doesn't capture real bottleneck;
+                                                     revisit after journaling enables proper measurement
+
+Cut
+  EXP-9  Lazy Off-Screen Mounting        —           Duct already wins (1.4ms mount, 139MB vs 218MB).
+                                                     Architecture provides this for free.
+  EXP-3  (as standalone)                 —           Folded into EXP-1 combined effort.
 ```
+
+### Key insight from baselines
+
+Duct's `BeginUpdate/EndUpdate` instrumentation only measures the `SetState` call,
+not the subsequent reconcile pass in the render loop. This makes Duct's "Avg Update"
+numbers misleadingly low (0.04–0.96ms) when the real per-frame cost is 50–185ms.
+**Before implementing optimizations, fix the instrumentation** to measure the full
+render loop cost (tree build + reconcile + apply) so we can accurately measure
+improvement.
 
 ---
 
