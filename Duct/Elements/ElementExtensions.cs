@@ -896,6 +896,134 @@ public static class ElementExtensions
         Modify(el, new ElementModifiers { OnMountAction = action });
 
     // ════════════════════════════════════════════════════════════════
+    //  Accessibility — Tier 1 (inline on ElementModifiers)
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Sets AutomationProperties.HeadingLevel (Level1–Level9).
+    /// Screen reader users navigate by headings, like HTML h1–h6.
+    /// </summary>
+    /// <example>Text("Settings").HeadingLevel(AutomationHeadingLevel.Level1)</example>
+    public static T HeadingLevel<T>(this T el, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel level) where T : Element =>
+        Modify(el, new ElementModifiers { HeadingLevel = level });
+
+    /// <summary>
+    /// Sets Control.IsTabStop — whether the element participates in Tab navigation.
+    /// </summary>
+    /// <example>Border(content).IsTabStop(false)</example>
+    public static T IsTabStop<T>(this T el, bool isTabStop) where T : Element =>
+        Modify(el, new ElementModifiers { IsTabStop = isTabStop });
+
+    /// <summary>
+    /// Sets Control.TabIndex — Tab order position. Lower values receive focus first.
+    /// </summary>
+    /// <example>Button("Submit").TabIndex(1)</example>
+    public static T TabIndex<T>(this T el, int index) where T : Element =>
+        Modify(el, new ElementModifiers { TabIndex = index });
+
+    /// <summary>
+    /// Sets UIElement.AccessKey — the Alt+Key shortcut (underlined hint shown on Alt press).
+    /// </summary>
+    /// <example>Button("File", onClick).AccessKey("F")</example>
+    public static T AccessKey<T>(this T el, string key) where T : Element =>
+        Modify(el, new ElementModifiers { AccessKey = key });
+
+    // ════════════════════════════════════════════════════════════════
+    //  Accessibility — Tier 2/3 (lazy AccessibilityModifiers sub-record)
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Sets AutomationProperties.HelpText — supplemental text read by screen readers
+    /// after the Name. Analogous to SwiftUI's .accessibilityHint().
+    /// </summary>
+    /// <example>TextField(email, setEmail).HelpText("Enter your work email address")</example>
+    public static T HelpText<T>(this T el, string text) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { HelpText = text });
+
+    /// <summary>
+    /// Sets AutomationProperties.FullDescription — extended description for complex elements.
+    /// </summary>
+    /// <example>Chart(...).FullDescription("Bar chart showing Q1 revenue by region")</example>
+    public static T FullDescription<T>(this T el, string desc) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { FullDescription = desc });
+
+    /// <summary>
+    /// Sets AutomationProperties.LandmarkType (Main, Navigation, Search, Form, Custom).
+    /// Screen readers announce landmarks and let users jump between them.
+    /// </summary>
+    /// <example>VStack(children).Landmark(AutomationLandmarkType.Main)</example>
+    public static T Landmark<T>(this T el, Microsoft.UI.Xaml.Automation.Peers.AutomationLandmarkType type) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { LandmarkType = type });
+
+    /// <summary>
+    /// Sets AutomationProperties.AccessibilityView (Content, Control, Raw).
+    /// Use Raw to hide decorative elements from screen readers.
+    /// </summary>
+    /// <example>Image(decorativeUri).AccessibilityView(AccessibilityView.Raw)</example>
+    public static T AccessibilityView<T>(this T el, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView view) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { AccessibilityView = view });
+
+    /// <summary>
+    /// Hides element from screen readers entirely.
+    /// Shorthand for .AccessibilityView(AccessibilityView.Raw).
+    /// </summary>
+    /// <example>Icon(decorativeGlyph).AccessibilityHidden()</example>
+    public static T AccessibilityHidden<T>(this T el) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { AccessibilityView = Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw });
+
+    /// <summary>
+    /// Sets AutomationProperties.IsRequiredForForm. Screen readers announce "required".
+    /// </summary>
+    /// <example>TextField(name, setName).Required()</example>
+    public static T Required<T>(this T el) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { IsRequiredForForm = true });
+
+    /// <summary>
+    /// Sets AutomationProperties.LiveSetting. Screen readers announce content changes.
+    /// Polite = queued after current speech. Assertive = interrupts immediately.
+    /// </summary>
+    /// <example>Text(statusMessage).LiveRegion(AutomationLiveSetting.Polite)</example>
+    public static T LiveRegion<T>(this T el, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting mode = Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { LiveSetting = mode });
+
+    /// <summary>
+    /// Sets AutomationProperties.PositionInSet and SizeOfSet (e.g., "item 3 of 10").
+    /// </summary>
+    /// <example>ListItem(text).PositionInSet(3, 10)</example>
+    public static T PositionInSet<T>(this T el, int position, int size) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { PositionInSet = position, SizeOfSet = size });
+
+    /// <summary>
+    /// Sets AutomationProperties.Level — hierarchical depth (e.g., tree node depth).
+    /// </summary>
+    /// <example>TreeItem(text).HierarchyLevel(2)</example>
+    public static T HierarchyLevel<T>(this T el, int level) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { Level = level });
+
+    /// <summary>
+    /// Sets AutomationProperties.ItemStatus — status string announced by screen readers.
+    /// </summary>
+    /// <example>MailFolder("Inbox").ItemStatus("3 unread")</example>
+    public static T ItemStatus<T>(this T el, string status) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { ItemStatus = status });
+
+    /// <summary>
+    /// Associates this element with a labelling element via its AutomationId.
+    /// The reconciler resolves the reference at mount time.
+    /// </summary>
+    /// <example>TextField(email, setEmail).LabeledBy("EmailLabel")</example>
+    public static T LabeledBy<T>(this T el, string labelAutomationId) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { LabeledBy = labelAutomationId });
+
+    /// <summary>
+    /// Sets UIElement.TabFocusNavigation — how Tab navigates within a container.
+    /// Local = cycle within container. Once = enter once then leave. Cycle = loop forever.
+    /// </summary>
+    /// <example>ToolBar(buttons).TabNavigation(KeyboardNavigationMode.Once)</example>
+    public static T TabNavigation<T>(this T el, Microsoft.UI.Xaml.Input.KeyboardNavigationMode mode) where T : Element =>
+        ModifyA11y(el, new AccessibilityModifiers { TabFocusNavigation = mode });
+
+    // ════════════════════════════════════════════════════════════════
     //  ThemeShadow / Translation modifiers
     // ════════════════════════════════════════════════════════════════
 
@@ -912,6 +1040,13 @@ public static class ElementExtensions
 
     private static T Modify<T>(T el, ElementModifiers mods) where T : Element =>
         el with { Modifiers = el.Modifiers is not null ? el.Modifiers.Merge(mods) : mods };
+
+    private static T ModifyA11y<T>(T el, AccessibilityModifiers a11y) where T : Element
+    {
+        var existing = el.Modifiers?.Accessibility;
+        var merged = existing is not null ? existing.Merge(a11y) : a11y;
+        return Modify(el, new ElementModifiers { Accessibility = merged });
+    }
 
     private static T ModifyTheme<T>(T el, string property, ThemeRef theme) where T : Element
     {

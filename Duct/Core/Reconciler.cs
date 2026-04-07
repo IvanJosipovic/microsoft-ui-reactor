@@ -598,6 +598,25 @@ public sealed partial class Reconciler : IDisposable
         if (m.ElementSoundMode.HasValue && m.ElementSoundMode != oldM?.ElementSoundMode && fe is WinUI.Control ctrl)
             ctrl.ElementSoundMode = m.ElementSoundMode.Value;
 
+        // ── Accessibility — Tier 1 (inline properties) ──────────────
+        if (m.HeadingLevel.HasValue && m.HeadingLevel != oldM?.HeadingLevel)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHeadingLevel(fe, m.HeadingLevel.Value);
+
+        if (m.IsTabStop.HasValue && m.IsTabStop != oldM?.IsTabStop && fe is WinUI.Control tabCtrl)
+            tabCtrl.IsTabStop = m.IsTabStop.Value;
+
+        if (m.TabIndex.HasValue && m.TabIndex != oldM?.TabIndex && fe is WinUI.Control tabIdxCtrl)
+            tabIdxCtrl.TabIndex = m.TabIndex.Value;
+
+        if (m.AccessKey is not null && m.AccessKey != oldM?.AccessKey)
+            fe.AccessKey = m.AccessKey;
+
+        // ── Accessibility — Tier 2/3 (lazy sub-record) ─────────────
+        var a11y = m.Accessibility;
+        var oldA11y = oldM?.Accessibility;
+        if (a11y is not null || oldA11y is not null)
+            ApplyAccessibilityModifiers(fe, oldA11y, a11y);
+
         // ── Typography (FontFamily, FontSize, FontWeight) ──────────
         if (m.FontFamily is not null && !ReferenceEquals(m.FontFamily, oldM?.FontFamily))
         {
@@ -627,6 +646,48 @@ public sealed partial class Reconciler : IDisposable
 
     // ════════════════════════════════════════════════════════════════
     //  Declarative event handler management
+    // ════════════════════════════════════════════════════════════════
+    //  Accessibility modifiers (Tier 2/3 sub-record)
+    // ════════════════════════════════════════════════════════════════
+
+    private static void ApplyAccessibilityModifiers(FrameworkElement fe, AccessibilityModifiers? oldA, AccessibilityModifiers? a)
+    {
+        if (a is null) return;
+
+        if (a.HelpText is not null && a.HelpText != oldA?.HelpText)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(fe, a.HelpText);
+
+        if (a.FullDescription is not null && a.FullDescription != oldA?.FullDescription)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetFullDescription(fe, a.FullDescription);
+
+        if (a.LandmarkType.HasValue && a.LandmarkType != oldA?.LandmarkType)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetLandmarkType(fe, a.LandmarkType.Value);
+
+        if (a.AccessibilityView.HasValue && a.AccessibilityView != oldA?.AccessibilityView)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(fe, a.AccessibilityView.Value);
+
+        if (a.IsRequiredForForm.HasValue && a.IsRequiredForForm != oldA?.IsRequiredForForm)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetIsRequiredForForm(fe, a.IsRequiredForForm.Value);
+
+        if (a.LiveSetting.HasValue && a.LiveSetting != oldA?.LiveSetting)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(fe, a.LiveSetting.Value);
+
+        if (a.PositionInSet.HasValue && a.PositionInSet != oldA?.PositionInSet)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetPositionInSet(fe, a.PositionInSet.Value);
+
+        if (a.SizeOfSet.HasValue && a.SizeOfSet != oldA?.SizeOfSet)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetSizeOfSet(fe, a.SizeOfSet.Value);
+
+        if (a.Level.HasValue && a.Level != oldA?.Level)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetLevel(fe, a.Level.Value);
+
+        if (a.ItemStatus is not null && a.ItemStatus != oldA?.ItemStatus)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetItemStatus(fe, a.ItemStatus);
+
+        if (a.TabFocusNavigation.HasValue && a.TabFocusNavigation != oldA?.TabFocusNavigation)
+            fe.TabFocusNavigation = a.TabFocusNavigation.Value;
+    }
+
     // ════════════════════════════════════════════════════════════════
 
     /// <summary>

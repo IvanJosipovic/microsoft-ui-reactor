@@ -188,7 +188,14 @@ public abstract record Element
             // Skip RichToolTip, AttachedFlyout, ContextFlyout — rare, conservative false
             && a.RichToolTip is null && b.RichToolTip is null
             && a.AttachedFlyout is null && b.AttachedFlyout is null
-            && a.ContextFlyout is null && b.ContextFlyout is null;
+            && a.ContextFlyout is null && b.ContextFlyout is null
+            // Accessibility Tier 1
+            && a.HeadingLevel == b.HeadingLevel
+            && a.IsTabStop == b.IsTabStop
+            && a.TabIndex == b.TabIndex
+            && a.AccessKey == b.AccessKey
+            // Accessibility Tier 2/3 — short-circuit on null
+            && ReferenceEquals(a.Accessibility, b.Accessibility);
     }
 
     /// <summary>
@@ -328,6 +335,15 @@ public record ElementModifiers
     public double? PaddingInlineEnd { get; init; }
     public Thickness? BorderInlineStart { get; init; }
 
+    // ── Accessibility — Tier 1 (inline, commonly needed for WCAG AA) ─
+    public Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel? HeadingLevel { get; init; }
+    public bool? IsTabStop { get; init; }
+    public int? TabIndex { get; init; }
+    public string? AccessKey { get; init; }
+
+    // ── Accessibility — Tier 2/3 (lazy sub-record, zero allocation unless used) ─
+    public AccessibilityModifiers? Accessibility { get; init; }
+
     public ElementModifiers Merge(ElementModifiers other)
     {
         return this with
@@ -372,6 +388,77 @@ public record ElementModifiers
             PaddingInlineStart = other.PaddingInlineStart ?? PaddingInlineStart,
             PaddingInlineEnd = other.PaddingInlineEnd ?? PaddingInlineEnd,
             BorderInlineStart = other.BorderInlineStart ?? BorderInlineStart,
+            HeadingLevel = other.HeadingLevel ?? HeadingLevel,
+            IsTabStop = other.IsTabStop ?? IsTabStop,
+            TabIndex = other.TabIndex ?? TabIndex,
+            AccessKey = other.AccessKey ?? AccessKey,
+            Accessibility = other.Accessibility is not null
+                ? (Accessibility is not null ? Accessibility.Merge(other.Accessibility) : other.Accessibility)
+                : Accessibility,
+        };
+    }
+}
+
+/// <summary>
+/// Advanced accessibility properties (WCAG Tier 2/3). Stored as a lazy sub-record
+/// on ElementModifiers to avoid allocating storage for elements that don't need
+/// advanced accessibility annotations. All fluent extension methods create/merge
+/// this record automatically — developers never need to construct it directly.
+/// </summary>
+public record AccessibilityModifiers
+{
+    /// <summary>AutomationProperties.HelpText — supplemental description read after the Name.</summary>
+    public string? HelpText { get; init; }
+
+    /// <summary>AutomationProperties.FullDescription — extended description for complex elements.</summary>
+    public string? FullDescription { get; init; }
+
+    /// <summary>AutomationProperties.LandmarkType — landmark region (Main, Navigation, Search, Form).</summary>
+    public Microsoft.UI.Xaml.Automation.Peers.AutomationLandmarkType? LandmarkType { get; init; }
+
+    /// <summary>AutomationProperties.AccessibilityView — UIA tree visibility (Content, Control, Raw).</summary>
+    public Microsoft.UI.Xaml.Automation.Peers.AccessibilityView? AccessibilityView { get; init; }
+
+    /// <summary>AutomationProperties.IsRequiredForForm — screen readers announce "required".</summary>
+    public bool? IsRequiredForForm { get; init; }
+
+    /// <summary>AutomationProperties.LiveSetting — live region announcement mode (Polite, Assertive).</summary>
+    public Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting? LiveSetting { get; init; }
+
+    /// <summary>AutomationProperties.PositionInSet — ordinal position (1-based) in a group.</summary>
+    public int? PositionInSet { get; init; }
+
+    /// <summary>AutomationProperties.SizeOfSet — total count in the group.</summary>
+    public int? SizeOfSet { get; init; }
+
+    /// <summary>AutomationProperties.Level — hierarchical depth (e.g., tree node level).</summary>
+    public int? Level { get; init; }
+
+    /// <summary>AutomationProperties.ItemStatus — status string (e.g., "3 unread").</summary>
+    public string? ItemStatus { get; init; }
+
+    /// <summary>AutomationProperties.LabeledBy target AutomationId — resolved by the reconciler.</summary>
+    public string? LabeledBy { get; init; }
+
+    /// <summary>UIElement.TabFocusNavigation — Tab behavior within a container (Local, Once, Cycle).</summary>
+    public Microsoft.UI.Xaml.Input.KeyboardNavigationMode? TabFocusNavigation { get; init; }
+
+    public AccessibilityModifiers Merge(AccessibilityModifiers other)
+    {
+        return this with
+        {
+            HelpText = other.HelpText ?? HelpText,
+            FullDescription = other.FullDescription ?? FullDescription,
+            LandmarkType = other.LandmarkType ?? LandmarkType,
+            AccessibilityView = other.AccessibilityView ?? AccessibilityView,
+            IsRequiredForForm = other.IsRequiredForForm ?? IsRequiredForForm,
+            LiveSetting = other.LiveSetting ?? LiveSetting,
+            PositionInSet = other.PositionInSet ?? PositionInSet,
+            SizeOfSet = other.SizeOfSet ?? SizeOfSet,
+            Level = other.Level ?? Level,
+            ItemStatus = other.ItemStatus ?? ItemStatus,
+            LabeledBy = other.LabeledBy ?? LabeledBy,
+            TabFocusNavigation = other.TabFocusNavigation ?? TabFocusNavigation,
         };
     }
 }

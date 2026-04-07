@@ -110,6 +110,9 @@ internal static class FixtureRegistry
         "EventHandler_KeyDown",
         "EventHandler_Typography",
         "EventHandler_UseReducer",
+
+        // Accessibility (validated via out-of-process UIA tests)
+        "Accessibility_Showcase",
     ];
 
     public static Element? Build(string name, RenderContext ctx) => name switch
@@ -211,6 +214,9 @@ internal static class FixtureRegistry
         "EventHandler_KeyDown" => EventHandlerFixtures.KeyDownTest(ctx),
         "EventHandler_Typography" => EventHandlerFixtures.TypographyTest(ctx),
         "EventHandler_UseReducer" => EventHandlerFixtures.ReducerTest(ctx),
+
+        // Accessibility
+        "Accessibility_Showcase" => AccessibilityFixtures.AccessibilityShowcase(ctx),
 
         _ => null,
     };
