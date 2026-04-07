@@ -15,8 +15,8 @@ a reasonable hooks system. However, it suffers from several fundamental problems
 that would prevent any serious team from choosing it over the established
 frameworks:
 
-1. **Theming is architecturally broken** — any use of Duct's styling API silently
-   destroys dark mode and high contrast support
+1. **Theming now works for WinUI's built-in tokens but has real gaps** — custom
+   branded colors still require workarounds, and the implementation has perf cost
 2. **Navigation is non-existent** — the core navigation scenario (pages with back
    stack) is blocked
 3. **No global state mechanism** — no Context, no EnvironmentObject, no
@@ -31,10 +31,12 @@ frameworks:
    functionality is only accessible through it, making Duct a thin wrapper rather
    than an abstraction
 
-**Verdict:** Duct is a clever proof-of-concept that maps React's component model
-onto WinUI. It is not a production-ready UI framework. The gap between "works in
-a demo" and "ships in a real app" is enormous, and many of the gaps are
-architectural, not incremental.
+**Verdict:** Duct is an ambitious framework that maps React's component model
+onto WinUI with impressive breadth. Theming has improved from "broken" to
+"functional with caveats," and the tooling story (hot reload, preview) is
+stronger than most new frameworks. But navigation, global state, accessibility,
+and animation remain fundamental gaps that prevent production use. The distance
+from "impressive demo" to "ships to real users" is still significant.
 
 ---
 
@@ -520,46 +522,182 @@ entire component tree that uses any responsive hook.
 
 ## 6. Styling and Theming
 
-### The theming disaster
+### The theming story: from disaster to functional (with caveats)
 
-This is Duct's most critical architectural flaw. The project's own gap analysis
-labels it **P0** and "blocked for any real-world app."
+The previous version of this review called theming "architecturally broken" — a
+P0 blocker. That is no longer accurate. The `ThemeRef` system has landed and
+works. The honest assessment now: **theming is functional for the common case
+but has real implementation concerns and remaining gaps.**
 
-**The core problem:** Every Duct styling modifier (`.Background()`,
-`.Foreground()`, etc.) does a local-value property set on the WinUI control.
-In WinUI's dependency property system, local values have the *highest* precedence
-— higher than styles, higher than theme resources, higher than everything. Once
-you set `.Background("#FF5733")`, that control will be `#FF5733` forever,
-regardless of dark mode, high contrast, or any theme change.
+### What shipped
 
-**The impossible choice:**
-- Don't use any Duct color modifiers → your app looks plain but themes correctly
-- Use Duct color modifiers → your app looks custom but dark mode is broken
+**ThemeRef tokens and modifier overloads.** Duct now provides ~40 semantic theme
+tokens (`Theme.PrimaryText`, `Theme.Accent`, `Theme.CardBackground`, etc.) and
+`Theme.Ref("AnyResourceKey")` for custom WinUI resources. These plug into the
+existing modifier API naturally:
 
-**What React does:** CSS custom properties (`var(--primary-color)`) that resolve
-from theme context. Material UI's `ThemeProvider` + `useTheme()`. Styled-components
-theme prop. All allow themed values that react to context changes.
+```csharp
+Text("Hello").Foreground(Theme.PrimaryText)
+VStack(children).Background(Theme.CardBackground)
+Button("Go").Background(Theme.Accent)
+```
 
-**What SwiftUI does:** Semantic colors (`Color.primary`, `.accentColor`) that
-automatically resolve per theme. Asset catalogs with dark/light/HC variants. The
-system just works.
+**Theme change detection.** `DuctHost` subscribes to `ActualThemeChanged` on the
+root content element and triggers a full re-render. Theme switches propagate
+automatically — no developer action needed.
 
-**What Compose does:** `MaterialTheme` provides `colorScheme.primary`, etc.
-`isSystemInDarkTheme()` for detection. Theming is built into the foundation.
+**Reconciler integration via XAML Style injection.** The `ApplyThemeBindings`
+method constructs a WinUI `Style` with `{ThemeResource}` setters and assigns
+it to each element. This delegates theme resolution to WinUI's native machinery,
+which correctly handles Light/Dark/HighContrast and per-element
+`RequestedTheme` overrides.
 
-**What Duct does:** The theming design spec proposes a `ThemeRef` token system:
-`.Background(Theme.Accent)`. This is partially implemented (ThemeRef records
-exist, ThemeBindings dictionary exists on Element) but the reconciler support
-and theme change detection are incomplete. Until this ships and is the default,
-every Duct app with custom colors is broken in dark mode.
+**The three-tier model works.** Unstyled elements (Tier 3) theme automatically.
+Theme token references (Tier 2) resolve and re-resolve on theme change. Local
+concrete values (Tier 1) override everything, as documented. The "impossible
+choice" from the previous review is resolved — developers can now use
+`.Background(Theme.CardBackground)` for themed colors and
+`.Background("#FF5733")` for explicit overrides, and both behave correctly.
 
-**The high contrast nightmare:** High contrast mode is even worse. A Duct app
-that hard-codes *any* colors via modifiers violates Windows accessibility
-requirements. In high contrast mode, users expect all UI elements to use the
-system's high contrast palette. Duct makes it trivially easy to break this
-with no warning.
+### What's actually good about this
 
-### Other styling issues
+The architecture decision to generate `{ThemeResource}` styles rather than
+manually resolving brushes is smart. It means WinUI handles all the theme
+resolution complexity (theme dictionaries, merged dictionaries, HighContrast,
+per-element RequestedTheme overrides) rather than Duct trying to replicate it.
+This is the right call — let the platform do what it's good at.
+
+The token catalog is well-chosen. It covers the main WinUI semantic brush
+categories (text, accent, fill, stroke, background, signal) and `Theme.Ref()`
+provides an escape hatch for any resource key. A developer who sticks to these
+tokens gets correct dark mode and high contrast support for free.
+
+### What's still concerning (skeptic's view)
+
+**1. XamlReader.Load on every theme-bound element, every render.** The core of
+`ApplyThemeBindings` is:
+
+```csharp
+var xaml = $"<Style ...><Setter Property='...' Value='{{ThemeResource ...}}'/></Style>";
+var style = (Style)XamlReader.Load(xaml);
+fe.Style = style;
+```
+
+This constructs a XAML string, parses it through `XamlReader.Load()` (which
+invokes the XAML parser), creates a `Style` object, and assigns it to the
+control — on every mount AND every update. For a screen with 50 theme-bound
+elements, that's 50 XAML parse operations per render cycle. `XamlReader.Load`
+is not cheap — it involves string allocation, XML parsing, and WinUI object
+creation through the XAML type system.
+
+React's CSS custom properties are resolved by the browser's style engine with
+zero JavaScript cost. SwiftUI's semantic colors are resolved at draw time by
+the rendering pipeline. Compose's `MaterialTheme.colorScheme` is a
+`CompositionLocal` read with no parsing overhead. Duct's approach works but it's
+the heaviest implementation possible — string building + XML parsing + object
+allocation per element per render.
+
+There is no caching — if the same `Theme.Accent` token is used on 20 buttons,
+20 separate XAML strings are built and parsed, producing 20 separate Style
+objects. A style cache keyed by (targetType, bindingSet) would eliminate most
+of this cost.
+
+**2. Style assignment clobbers existing styles.** `ApplyThemeBindings` does
+`fe.Style = style` (with `BasedOn` chaining if a style already exists). But
+this means every theme-bound element gets a dynamically generated style that
+replaces (or chains on top of) whatever style WinUI would have naturally
+applied. This interacts poorly with:
+
+- `.ApplyStyle("AccentButtonStyle")` — the theme binding overwrites it (or
+  chains, changing precedence)
+- Implicit styles from WinUI's style system — the dynamically-applied style
+  becomes the effective style, potentially blocking implicit style resolution
+- Lightweight styling — when this is eventually implemented, it will need to
+  coordinate with the generated styles
+
+React and Compose don't have this problem because their theming operates at a
+different layer (CSS variables / composition locals) that doesn't conflict with
+the component styling system.
+
+**3. Hard-coded color values are still a trap with no guardrails.**
+`.Background("#FF5733")` still does a local-value set that silently breaks
+theming. The framework provides no warning, no lint, no diagnostic. A developer
+who writes `.Background("#FF5733")` instead of `.Background(Theme.Accent)` gets
+a working app in light mode and a broken app in dark mode with no indication of
+the mistake.
+
+SwiftUI solves this by making semantic colors the default — `Color.primary`,
+`Color.accentColor`. You have to go out of your way to use a hard-coded color.
+In Duct, hard-coded strings are the *first* thing developers learn (every
+tutorial, every sample until the Color Gallery), and theme tokens are the
+advanced feature. This is backwards — the pit of success should lead to themed
+colors, not hard-coded ones.
+
+**4. No custom theme resource definitions.** `Theme.Ref("key")` can reference
+any *existing* WinUI resource, but there's no way to define new theme resources
+from Duct. The `DuctThemeResources` class from the theming design spec is not
+implemented. This means:
+
+- No branded colors that adapt to light/dark (e.g., "Brand.Primary" that's blue
+  in light mode and light-blue in dark mode)
+- No app-specific semantic tokens (e.g., "PricingPositive" / "PricingNegative")
+- Developers must define custom resources by manually creating
+  `ResourceDictionary` entries via Application.Resources — the same escape
+  hatch that Duct is supposed to abstract away
+
+React's Material UI `createTheme()`, SwiftUI's asset catalogs with named colors,
+and Compose's `lightColorScheme()`/`darkColorScheme()` all provide this. Duct
+only lets you reference the platform's built-in palette.
+
+**5. No UseTheme / UseHighContrast hooks.** There's no way for a component to
+read the current theme or react to theme changes in its render logic. The
+`DuctHost` re-renders on theme change, but a component can't do:
+
+```csharp
+var isDark = UseTheme();  // ← doesn't exist
+return Text(isDark ? "🌙" : "☀");
+```
+
+The workaround is `.Set(fe => fe.ActualTheme)` in an effect, which is clunky
+and breaks the declarative model. SwiftUI has `@Environment(\.colorScheme)`.
+Compose has `isSystemInDarkTheme()`. React has `prefers-color-scheme` media
+queries.
+
+**6. No .RequestedTheme() modifier.** Setting per-element theme (e.g., a dark
+panel in a light app) requires `.Set(b => b.RequestedTheme = ElementTheme.Dark)`
+— the theming design spec proposes `.RequestedTheme(ElementTheme.Dark)` but
+it's not implemented. The gallery sample itself uses the `.Set()` workaround.
+
+**7. Only three properties support ThemeRef bindings.** `ApplyThemeBindings`
+maps "Background", "Foreground", and "BorderBrush" — that's it. There's no
+theme binding support for:
+- `Fill` / `Stroke` on shapes (Rectangle, Ellipse, Path)
+- `Foreground` on TextBlock (handled separately from Control.Foreground)
+- `PlaceholderForeground` on TextBox
+- `SelectionHighlightColor`, `CaretBrush` on text controls
+- Any other brush property
+
+SwiftUI's semantic colors work on any color property. Compose's
+`MaterialTheme.colorScheme` works anywhere. Duct's ThemeRef only works on the
+three most common brush properties.
+
+### Revised theming verdict
+
+**Previously: F (architecturally broken). Now: C+.**
+
+The ThemeRef system closes the P0 gap. A developer who uses `Theme.*` tokens
+gets correct dark mode and high contrast for background, foreground, and border.
+This is a significant improvement — the "impossible choice" is gone for the
+common case.
+
+But the implementation has performance concerns (XamlReader.Load per element per
+render), the API surface is narrow (3 properties, no custom resources, no hooks),
+there are no guardrails against hard-coded colors, and the style injection
+approach may cause conflicts with WinUI's own styling system. The competition's
+theming is built into the rendering pipeline; Duct's is bolted on via XAML
+string generation.
+
+### Other styling issues (unchanged)
 
 **No style composition or reuse.** SwiftUI has `ViewModifier` for creating
 reusable style bundles. Compose has `Modifier` which is composable. Duct has no
@@ -981,14 +1119,14 @@ SwiftUI, Compose).
 | **Global State** | F | A | A | A | Nothing — no Context equivalent |
 | **Reconciler** | B- | A | A- | A | Works but monolithic, no concurrent mode |
 | **Layout** | B+ | B+ | A | A | Flex is good; Grid is stringly-typed |
-| **Theming** | F | B+ | A | A | Architecturally broken |
+| **Theming** | C+ | B+ | A | A | ThemeRef works; XamlReader.Load perf concern; 3 props only; no custom resources |
 | **Navigation** | F | A | A | A | Blocked; roll your own |
 | **Lists/Collections** | B | B+ | A | A | Virtualization exists, no sections |
 | **Animation** | D | B | A | A | 5 implicit transitions, nothing else |
 | **Accessibility** | D- | B | A | A | 2/12+ properties, custom peers blocked |
 | **Input/Events** | C+ | B | A | A | Semantic events good, rest is .Set() |
 | **Commands** | F | N/A | N/A | N/A | No ICommand equivalent |
-| **Styling** | D | B+ | A | A | Broken theming undermines everything |
+| **Styling** | C- | B+ | A | A | No style composition; no lightweight styling; ApplyStyle is stringly-typed |
 | **Developer Experience** | C+ | A | B+ | B+ | Hot reload works; preview is screenshot-only; no devtools |
 | **Control Coverage** | A | N/A | A | A | 94% of WinUI wrapped |
 | **Error Handling** | B | B+ | D | D | ErrorBoundary exists (rare feature) |
@@ -1011,9 +1149,12 @@ But they also reveal the pain:
   state updates — the framework provides no async state management
 - **Outlook clone** uses string-based view switching (`currentPage switch { ... }`)
   because there's no navigation system
-- **Every sample** that uses custom colors is silently broken in dark mode
-- **None of the samples** demonstrate accessibility, theming, or animation
-  beyond basic implicit transitions
+- **Samples that use hard-coded colors** (e.g., `"#FF5733"`) are still broken
+  in dark mode — the ThemeRef system helps but only if developers use it
+- **The D3 Gallery Color Page** demonstrates theming well, with a light/dark
+  toggle — this is the one sample that showcases the new capability
+- **None of the other samples** demonstrate accessibility or animation beyond
+  basic implicit transitions
 
 These are showcase apps for the framework, and they can't demonstrate theming,
 navigation, accessibility, or animation because the framework doesn't support
@@ -1047,8 +1188,13 @@ them.
 
 ### What prevents Duct from being production-ready
 
-1. **Theming is broken.** Any styled control silently breaks in dark mode and
-   high contrast. This alone disqualifies Duct for any app that ships to users.
+1. **Theming works for built-in tokens but has gaps.** The ThemeRef system
+   closes the P0 blocker — `Theme.Accent`, `Theme.PrimaryText`, etc. resolve
+   correctly across Light/Dark/HighContrast. But the implementation uses
+   XamlReader.Load per element per render (perf concern), only covers 3 brush
+   properties, provides no way to define custom branded theme resources, and
+   offers no guardrails against hard-coded colors that silently break theming.
+   It's functional, not polished.
 
 2. **No navigation system.** The core scenario of multi-page apps with back
    stack is blocked. Building your own router is not acceptable for a framework.
