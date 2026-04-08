@@ -1799,10 +1799,14 @@ public sealed partial class Reconciler
         };
         _componentNodes[wrapper] = node;
 
+        // Pass the component's own wrapped rerender to children so that child state
+        // changes propagate SelfTriggered up through all component ancestors.
+        var componentRerender = CreateComponentRerender(wrapper, requestRerender);
+
         Element childElement;
         try
         {
-            component.Context.BeginRender(CreateComponentRerender(wrapper, requestRerender), _contextScope);
+            component.Context.BeginRender(componentRerender, _contextScope);
             childElement = component.Render();
             component.Context.FlushEffects();
         }
@@ -1811,7 +1815,7 @@ public sealed partial class Reconciler
             _logger.Log(DuctLogLevel.Error, $"Component Render() threw during mount: {compElement.GetType().Name}", ex);
             childElement = new TextElement($"⚠ Render error: {ex.Message}");
         }
-        var childControl = Mount(childElement, requestRerender);
+        var childControl = Mount(childElement, componentRerender);
 
         wrapper.Child = childControl;
         node.RenderedElement = childElement;
@@ -1828,10 +1832,14 @@ public sealed partial class Reconciler
         };
         _componentNodes[wrapper] = node;
 
+        // Pass the component's own wrapped rerender to children so that child state
+        // changes propagate SelfTriggered up through all component ancestors.
+        var componentRerender = CreateComponentRerender(wrapper, requestRerender);
+
         Element childElement;
         try
         {
-            ctx.BeginRender(CreateComponentRerender(wrapper, requestRerender), _contextScope);
+            ctx.BeginRender(componentRerender, _contextScope);
             childElement = funcElement.RenderFunc(ctx);
             ctx.FlushEffects();
         }
@@ -1840,7 +1848,7 @@ public sealed partial class Reconciler
             _logger.Log(DuctLogLevel.Error, "FuncComponent Render() threw during mount", ex);
             childElement = new TextElement($"⚠ Render error: {ex.Message}");
         }
-        var childControl = Mount(childElement, requestRerender);
+        var childControl = Mount(childElement, componentRerender);
 
         wrapper.Child = childControl;
         node.RenderedElement = childElement;
@@ -1858,10 +1866,14 @@ public sealed partial class Reconciler
         };
         _componentNodes[wrapper] = node;
 
+        // Pass the component's own wrapped rerender to children so that child state
+        // changes propagate SelfTriggered up through all component ancestors.
+        var componentRerender = CreateComponentRerender(wrapper, requestRerender);
+
         Element childElement;
         try
         {
-            ctx.BeginRender(CreateComponentRerender(wrapper, requestRerender), _contextScope);
+            ctx.BeginRender(componentRerender, _contextScope);
             childElement = memoElement.RenderFunc(ctx);
             ctx.FlushEffects();
         }
@@ -1870,7 +1882,7 @@ public sealed partial class Reconciler
             _logger.Log(DuctLogLevel.Error, "MemoComponent Render() threw during mount", ex);
             childElement = new TextElement($"⚠ Render error: {ex.Message}");
         }
-        var childControl = Mount(childElement, requestRerender);
+        var childControl = Mount(childElement, componentRerender);
 
         wrapper.Child = childControl;
         node.RenderedElement = childElement;

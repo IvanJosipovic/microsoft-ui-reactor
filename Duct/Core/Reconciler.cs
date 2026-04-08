@@ -246,6 +246,10 @@ public sealed partial class Reconciler : IDisposable
         }
 
         // ── Render the component ──
+        // Pass the component's own wrapped rerender to children so that child state
+        // changes propagate SelfTriggered up through all component ancestors.
+        var componentRerender = CreateComponentRerender(control, requestRerender);
+
         Element newChildElement;
         try
         {
@@ -258,16 +262,20 @@ public sealed partial class Reconciler : IDisposable
                     receiver.SetProps(compEl.Props);
                 }
 
-                node.Component.Context.BeginRender(
-                    CreateComponentRerender(control, requestRerender), _contextScope);
+                node.Component.Context.BeginRender(componentRerender, _contextScope);
                 newChildElement = node.Component.Render();
                 node.Component.Context.FlushEffects();
             }
             else if (node.Context is not null && newEl is FuncElement func)
             {
-                node.Context.BeginRender(
-                    CreateComponentRerender(control, requestRerender), _contextScope);
+                node.Context.BeginRender(componentRerender, _contextScope);
                 newChildElement = func.RenderFunc(node.Context);
+                node.Context.FlushEffects();
+            }
+            else if (node.Context is not null && newEl is MemoElement memo)
+            {
+                node.Context.BeginRender(componentRerender, _contextScope);
+                newChildElement = memo.RenderFunc(node.Context);
                 node.Context.FlushEffects();
             }
             else return;
@@ -282,7 +290,7 @@ public sealed partial class Reconciler : IDisposable
         // Each component is wrapped in a Border as an identity anchor, so we
         // reconcile the child inside the wrapper, not the wrapper itself.
         var existingChild = (control as Border)?.Child;
-        var newControl = Reconcile(node.RenderedElement, newChildElement, existingChild, requestRerender);
+        var newControl = Reconcile(node.RenderedElement, newChildElement, existingChild, componentRerender);
         if (control is Border border)
         {
             if (newControl != existingChild)
