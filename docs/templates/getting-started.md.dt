@@ -1,0 +1,196 @@
+---
+title: "Getting Started with Duct"
+app: getting-started
+order: 1
+audience: beginner
+goal: |
+  Walk a new developer through creating their first Duct app from scratch.
+  Cover project setup, the hello-world pattern, state management with UseState
+  and UseReducer, layout with VStack/HStack, and build two real mini-apps
+  (todo list, calculator). End with practical tips for new Duct developers.
+---
+
+# Getting Started with Duct
+
+<!-- ai:lock -->
+> **Prerequisites:** .NET 9+ and the Windows App SDK.
+<!-- /ai:lock -->
+
+Duct is a declarative UI framework for building native Windows apps in pure C#.
+No XAML, no data binding, no view models. You describe your UI as a function of
+state and Duct keeps the screen in sync.
+
+## Creating a Project
+
+Create a new console project and convert it to a WinUI desktop app:
+
+```
+dotnet new console -n MyApp
+cd MyApp
+```
+
+Edit your `.csproj` to target WinUI:
+
+<!-- ai:lock -->
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.*" />
+    <ProjectReference Include="..\Duct\Duct.csproj" />
+  </ItemGroup>
+</Project>
+```
+<!-- /ai:lock -->
+
+## Your First App
+
+Replace the contents of `App.cs` with this:
+
+```csharp snippet="getting-started/hello-world"
+```
+
+Run it with `dotnet run` and you'll see this:
+
+![Hello World app running](screenshot://getting-started/hello-world)
+
+Here's what's happening:
+
+- **`DuctApp.Run<T>`** launches a window and mounts your root component.
+- **`UseState`** returns the current value and a setter. When you call the
+  setter, Duct re-renders the component with the new value.
+- **`VStack`** stacks children vertically. The number `16` is the pixel spacing.
+- **`Text(...).FontSize(24).Bold()`** is the fluent modifier pattern — every
+  element supports chainable modifiers for styling and layout.
+
+Type in the text box and the greeting updates instantly. There's no event
+wiring or property notification — just state in, UI out.
+
+## Understanding State
+
+Every interactive UI needs state. In Duct, `UseState` is the primary hook for
+managing values that change over time.
+
+### Counter Example
+
+Here's a counter that tracks a single number:
+
+```csharp snippet="getting-started/usestate-counter"
+```
+
+![Counter with buttons](screenshot://getting-started/counter)
+
+Each call to `setCount` triggers a re-render. Duct diffs the old and new
+element trees and updates only the WinUI controls that actually changed.
+
+### Multiple State Values
+
+Components can call `UseState` multiple times — each call tracks an independent
+value:
+
+```csharp snippet="getting-started/multiple-state"
+```
+
+The `fullName` variable is derived from `firstName` and `lastName` on every
+render. In Duct, you don't need computed properties or bindings — plain C#
+expressions work because `Render()` runs every time state changes.
+
+## Layout Basics
+
+Duct provides a small set of layout primitives that compose together:
+
+```csharp snippet="getting-started/layout-basics"
+```
+
+![Layout demo](screenshot://getting-started/layout-basics)
+
+| Element | Purpose |
+|---------|---------|
+| `VStack` | Vertical stack (children top to bottom) |
+| `HStack` | Horizontal stack (children left to right) |
+| `Grid` | Row/column grid with proportional sizing |
+| `ScrollView` | Scrollable wrapper for overflow content |
+| `Border` | Container with background, corner radius, stroke |
+
+All layout elements accept an optional spacing parameter as their first
+argument: `VStack(12, child1, child2)` adds 12px between children.
+
+## Building a Todo App
+
+Let's put these pieces together into something real. A todo app needs a list
+of items, a way to add new ones, and checkboxes to mark them done.
+
+First, define a simple record for items:
+
+```csharp snippet="todo-app/todo-record"
+```
+
+Now the full component:
+
+```csharp snippet="todo-app/todo-app"
+```
+
+![Todo app](screenshot://todo-app/todo-app)
+
+Key patterns to notice:
+
+- **`UseReducer`** is like `UseState` but the setter receives a function
+  `Func<T, T>` — you transform the previous value into the next value. This
+  is the right tool when your new state depends on the old state (like
+  appending to a list).
+- **`items.Select(...).ToArray()`** maps data into elements. Duct reconciles
+  the list efficiently using keys.
+- **`WithKey`** gives each item a stable identity so Duct can reorder, add,
+  and remove items without rebuilding the entire list.
+- **`When(condition, () => element)`** conditionally renders content without
+  an if/else cluttering the tree.
+
+## Building a Calculator
+
+Here's a more complex example that manages multiple pieces of related state:
+
+```csharp snippet="calculator/calculator-app"
+```
+
+![Calculator](screenshot://calculator/calculator)
+
+This demonstrates how plain C# control flow (methods, switch expressions,
+local functions) works naturally inside Duct components. There's no special
+command pattern needed — just call `setDisplay(...)` and the UI updates.
+
+## Tips for New Duct Developers
+
+**Think in functions, not objects.** Your `Render()` method is a pure function
+from state to UI. Every time state changes, it runs again from the top. Don't
+try to mutate the UI imperatively.
+
+**Keep state as high as it needs to be, but no higher.** If only one component
+uses a value, `UseState` in that component. If siblings need to share state,
+lift it to their parent.
+
+**Use records for data.** C# records give you immutable data with value
+equality for free. Duct uses this for efficient memoization — if your props
+haven't changed structurally, the component skips re-rendering.
+
+**Prefer composition over inheritance.** Build small components that each do
+one thing, then compose them in parent components. You'll rarely need more than
+`Component` or `Component<TProps>` as a base class.
+
+**Fluent modifiers are your friend.** Instead of wrapping elements in layout
+containers for simple styling, chain modifiers: `Text("hi").Margin(8).Bold()`
+reads cleanly and avoids unnecessary nesting.
+
+## Next Steps
+
+- **Components and Props** — Break your app into reusable pieces with
+  `Component<TProps>` and typed record props
+- **Effects and Lifecycle** — Use `UseEffect` for side effects like timers,
+  file I/O, and API calls
+- **Collections** — Use `ListView<T>` and `LazyVStack<T>` for virtualized
+  scrolling over large datasets
+- **Navigation** — Build multi-page apps with `NavigationView` and `TabView`

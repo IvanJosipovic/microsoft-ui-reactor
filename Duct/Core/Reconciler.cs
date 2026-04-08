@@ -741,7 +741,7 @@ public sealed partial class Reconciler : IDisposable
         if (m.PaddingInlineStart.HasValue || m.PaddingInlineEnd.HasValue)
         {
             var isRtl = fe.FlowDirection == FlowDirection.RightToLeft;
-            var basePad = resolvedPadding ?? (fe is WinUI.Control pc ? pc.Padding : fe is WinUI.Border pb ? pb.Padding : new Thickness());
+            var basePad = resolvedPadding ?? (fe is WinUI.Control pc ? pc.Padding : fe is WinUI.Border pb ? pb.Padding : fe is WinUI.StackPanel psp ? psp.Padding : new Thickness());
             var left = isRtl ? (m.PaddingInlineEnd ?? basePad.Left) : (m.PaddingInlineStart ?? basePad.Left);
             var right = isRtl ? (m.PaddingInlineStart ?? basePad.Right) : (m.PaddingInlineEnd ?? basePad.Right);
             resolvedPadding = new Thickness(left, basePad.Top, right, basePad.Bottom);
@@ -750,6 +750,7 @@ public sealed partial class Reconciler : IDisposable
         {
             if (fe is WinUI.Control padCtrl) padCtrl.Padding = resolvedPadding.Value;
             else if (fe is WinUI.Border padBdr) padBdr.Padding = resolvedPadding.Value;
+            else if (fe is WinUI.StackPanel padSp) padSp.Padding = resolvedPadding.Value;
         }
         if (m.Width.HasValue && m.Width != oldM?.Width) fe.Width = m.Width.Value;
         if (m.Height.HasValue && m.Height != oldM?.Height) fe.Height = m.Height.Value;

@@ -49,6 +49,11 @@ if (arg == "loc")
     return Duct.Cli.Loc.LocCommand.Run(args.Skip(1).ToArray());
 }
 
+if (arg == "docs")
+{
+    return Duct.Cli.Docs.DocsCommand.Run(args.Skip(1).ToArray());
+}
+
 Console.Error.WriteLine($"Unknown option: {args[0]}");
 Console.Error.WriteLine();
 ShowHelp();
@@ -76,6 +81,7 @@ void ShowHelp()
     Console.WriteLine("  loc validate     Check ICU syntax and parameter consistency");
     Console.WriteLine("  loc status       Show translation coverage per locale");
     Console.WriteLine("  loc prune        Find unused localization keys");
+    Console.WriteLine("  docs compile     Compile documentation from templates and doc apps");
 }
 
 int ShowSkill()

@@ -1,0 +1,11 @@
+app:
+  title: "Todo App"
+  width: 550
+  height: 600
+  startup-delay: 1500
+
+screenshots:
+  - id: todo-app
+    description: "Todo list app with items checked off"
+    region: client
+    format: png

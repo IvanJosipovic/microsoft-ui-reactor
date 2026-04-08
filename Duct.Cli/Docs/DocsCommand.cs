@@ -1,0 +1,58 @@
+namespace Duct.Cli.Docs;
+
+/// <summary>
+/// Entry point for <c>duct docs</c> subcommands.
+/// </summary>
+internal static class DocsCommand
+{
+    public static int Run(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            ShowHelp();
+            return 0;
+        }
+
+        var subcommand = args[0].ToLowerInvariant();
+        var subArgs = args.Skip(1).ToArray();
+
+        return subcommand switch
+        {
+            "compile" => CompileCommand.Run(subArgs),
+            "--help" or "-h" => ShowHelpAndReturn(),
+            _ => Unknown(subcommand),
+        };
+    }
+
+    private static int ShowHelpAndReturn()
+    {
+        ShowHelp();
+        return 0;
+    }
+
+    private static void ShowHelp()
+    {
+        Console.WriteLine("duct docs — Documentation CLI");
+        Console.WriteLine();
+        Console.WriteLine("Usage: duct docs <command> [options]");
+        Console.WriteLine();
+        Console.WriteLine("Commands:");
+        Console.WriteLine("  compile    Compile documentation from templates and doc apps");
+        Console.WriteLine();
+        Console.WriteLine("Compile options:");
+        Console.WriteLine("  --topic <name>      Compile only a specific topic");
+        Console.WriteLine("  --no-screenshots    Skip screenshot capture");
+        Console.WriteLine("  --no-ai             Skip AI authoring");
+        Console.WriteLine("  --no-build          Skip building doc apps");
+        Console.WriteLine("  --validate-only     Check references without building");
+        Console.WriteLine("  --ci                Strict mode: fail on warnings");
+    }
+
+    private static int Unknown(string cmd)
+    {
+        Console.Error.WriteLine($"Unknown command: duct docs {cmd}");
+        Console.Error.WriteLine();
+        ShowHelp();
+        return 1;
+    }
+}
