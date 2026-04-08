@@ -14,6 +14,13 @@ public abstract class Component
     /// </summary>
     public abstract Element Render();
 
+    /// <summary>
+    /// Controls whether this propless component should re-render when its parent re-renders.
+    /// Default: false — propless components only re-render from their own state changes or context changes.
+    /// Override and return true to always re-render when the parent re-renders.
+    /// </summary>
+    protected internal virtual bool ShouldUpdate() => false;
+
     // ── Hook convenience methods (delegate to Context) ─────────────
 
     protected (T Value, Action<T> Set) UseState<T>(T initialValue)
@@ -66,6 +73,12 @@ public abstract class Component
 
     protected Localization.IntlAccessor UseIntl()
         => Context.UseIntl();
+
+    protected T UseContext<T>(DuctContext<T> context)
+        => Context.UseContext(context);
+
+    protected (T Value, Action<T> Set) UsePersisted<T>(string key, T initialValue)
+        => Context.UsePersisted(key, initialValue);
 }
 
 /// <summary>
@@ -88,4 +101,13 @@ public abstract class Component<TProps> : Component, IPropsReceiver
     public TProps Props { get; internal set; } = default!;
 
     void IPropsReceiver.SetProps(object props) => Props = (TProps)props;
+
+    /// <summary>
+    /// Controls whether this component should re-render when its parent re-renders with new props.
+    /// Default: structural equality via record Equals — record props get auto-comparison for free;
+    /// class props need an Equals override.
+    /// Override for custom comparison logic.
+    /// </summary>
+    protected internal virtual bool ShouldUpdate(TProps? oldProps, TProps? newProps)
+        => !Equals(oldProps, newProps);
 }

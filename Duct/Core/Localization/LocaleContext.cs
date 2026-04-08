@@ -1,9 +1,20 @@
 namespace Duct.Core.Localization;
 
 /// <summary>
-/// Ambient context for the current locale. LocaleProvider sets this;
-/// UseIntl() reads from it. Supports re-render subscriptions so components
-/// are notified when the locale changes.
+/// DuctContext-based locale context. The LocaleProvider component provides an IntlAccessor
+/// to its subtree via this context. Components consume it via UseIntl() or UseContext(IntlContexts.Locale).
+/// </summary>
+public static class IntlContexts
+{
+    /// <summary>
+    /// The DuctContext for locale/intl. Default is null — UseIntl() falls back to OS locale.
+    /// </summary>
+    public static readonly DuctContext<IntlAccessor?> Locale = new(defaultValue: null);
+}
+
+/// <summary>
+/// Legacy ambient context for the current locale.
+/// Kept for backward compatibility. New code should use IntlContexts.Locale via DuctContext.
 /// </summary>
 internal sealed class LocaleContext
 {

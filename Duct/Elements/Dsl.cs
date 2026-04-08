@@ -395,6 +395,14 @@ public static class UI
     /// </summary>
     public static FuncElement Func(Func<RenderContext, Element> render) => new(render);
 
+    /// <summary>
+    /// Define a memoized inline function component. Skips re-render when dependencies haven't changed.
+    /// Empty deps array = render once + own state changes only. Non-empty = re-render when any dep changes.
+    /// Usage: Memo(ctx => Text("stable"), someProp, otherProp)
+    /// </summary>
+    public static MemoElement Memo(Func<RenderContext, Element> render, params object?[] dependencies)
+        => new(render, dependencies.Length == 0 ? null : dependencies);
+
     // ── Conditional helpers ─────────────────────────────────────────
 
     /// <summary>

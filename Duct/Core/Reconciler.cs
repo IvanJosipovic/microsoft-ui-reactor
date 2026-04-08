@@ -26,6 +26,7 @@ public sealed partial class Reconciler : IDisposable
     private readonly Dictionary<Type, ITypeRegistration> _typeRegistry = new();
     private readonly IDuctLogger _logger;
     private readonly List<(ConnectedAnimation Animation, UIElement Target)> _pendingConnectedAnimationStarts = new();
+    private readonly ContextScope _contextScope = new();
     private int _errorBoundaryDepth;
 
     /// <summary>
@@ -194,6 +195,56 @@ public sealed partial class Reconciler : IDisposable
             return;
         }
 
+        // ── Memo check: skip render if props/context unchanged and not self-triggered ──
+        bool selfTriggered = node.SelfTriggered;
+        node.SelfTriggered = false;
+
+        if (!selfTriggered)
+        {
+            bool skipRender = false;
+
+            if (node.Component is not null && newEl is ComponentElement newCompEl)
+            {
+                // Class component memo check
+                var oldProps = node.PreviousProps;
+                var newProps = newCompEl.Props;
+
+                bool propsChanged;
+                if (node.Component is IPropsReceiver)
+                {
+                    // Component<TProps>: delegate to ShouldUpdate(oldProps, newProps)
+                    propsChanged = ShouldUpdateWithProps(node.Component, oldProps, newProps);
+                }
+                else
+                {
+                    // Propless Component: delegate to ShouldUpdate()
+                    propsChanged = node.Component.ShouldUpdate();
+                }
+
+                bool contextChanged = HasConsumedContextChanged(node);
+                skipRender = !propsChanged && !contextChanged;
+            }
+            else if (node.Context is not null && newEl is MemoElement newMemo)
+            {
+                // MemoElement memo check
+                var oldDeps = node.MemoDependencies;
+                var newDeps = newMemo.Dependencies;
+                bool depsChanged = oldDeps is null && newDeps is null
+                    ? false // both null = render once, never re-render from parent
+                    : oldDeps is null || newDeps is null || !DepsEqual(oldDeps, newDeps);
+                bool contextChanged = HasConsumedContextChanged(node);
+                skipRender = !depsChanged && !contextChanged;
+            }
+
+            if (skipRender)
+            {
+                // Still update the element reference (modifiers may have changed on the ComponentElement itself)
+                node.Element = newEl;
+                return;
+            }
+        }
+
+        // ── Render the component ──
         Element newChildElement;
         try
         {
@@ -206,13 +257,15 @@ public sealed partial class Reconciler : IDisposable
                     receiver.SetProps(compEl.Props);
                 }
 
-                node.Component.Context.BeginRender(requestRerender);
+                node.Component.Context.BeginRender(
+                    CreateComponentRerender(control, requestRerender), _contextScope);
                 newChildElement = node.Component.Render();
                 node.Component.Context.FlushEffects();
             }
             else if (node.Context is not null && newEl is FuncElement func)
             {
-                node.Context.BeginRender(requestRerender);
+                node.Context.BeginRender(
+                    CreateComponentRerender(control, requestRerender), _contextScope);
                 newChildElement = func.RenderFunc(node.Context);
                 node.Context.FlushEffects();
             }
@@ -237,6 +290,67 @@ public sealed partial class Reconciler : IDisposable
 
         node.RenderedElement = newChildElement;
         node.Element = newEl;
+        // Store current props for next memo comparison
+        if (newEl is ComponentElement compEl2)
+            node.PreviousProps = compEl2.Props;
+        else if (newEl is MemoElement memoEl)
+            node.MemoDependencies = memoEl.Dependencies;
+    }
+
+    /// <summary>
+    /// Creates a rerender callback that marks the component node as self-triggered
+    /// before invoking the parent requestRerender, so the memo check is bypassed.
+    /// </summary>
+    private Action CreateComponentRerender(UIElement control, Action requestRerender)
+    {
+        return () =>
+        {
+            if (_componentNodes.TryGetValue(control, out var node))
+                node.SelfTriggered = true;
+            requestRerender();
+        };
+    }
+
+    /// <summary>
+    /// Checks whether any context consumed by a component has changed since the last render.
+    /// </summary>
+    private bool HasConsumedContextChanged(ComponentNode node)
+    {
+        var renderCtx = node.Component?.Context ?? node.Context;
+        if (renderCtx is null) return false;
+
+        foreach (var ctxHook in renderCtx.ContextHooks)
+        {
+            var currentValue = _contextScope.Read(ctxHook.Context);
+            if (!Equals(currentValue, ctxHook.LastValue))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Calls ShouldUpdate(oldProps, newProps) on a Component&lt;TProps&gt; via dynamic dispatch.
+    /// </summary>
+    private static bool ShouldUpdateWithProps(Component component, object? oldProps, object? newProps)
+    {
+        // Use the base ShouldUpdate() when both are null (propless path shouldn't reach here,
+        // but guard anyway)
+        var compType = component.GetType();
+        var baseType = compType.BaseType;
+        while (baseType is not null && !baseType.IsGenericType)
+            baseType = baseType.BaseType;
+
+        if (baseType is not null && baseType.GetGenericTypeDefinition() == typeof(Component<>))
+        {
+            var method = compType.GetMethod("ShouldUpdate",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public,
+                null, new[] { baseType.GetGenericArguments()[0], baseType.GetGenericArguments()[0] }, null);
+            if (method is not null)
+                return (bool)method.Invoke(component, new[] { oldProps, newProps })!;
+        }
+
+        // Fallback: always re-render
+        return true;
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -428,12 +542,23 @@ public sealed partial class Reconciler : IDisposable
         if (oldEl.Key != newEl.Key) return false;
         if (oldEl is ComponentElement oldComp && newEl is ComponentElement newComp)
             return oldComp.ComponentType == newComp.ComponentType;
+        // MemoElement can always update to MemoElement (same type check above handles it)
         return true;
     }
 
     // ════════════════════════════════════════════════════════════════════
     //  Shared helpers (used by Mount + Update)
     // ════════════════════════════════════════════════════════════════════
+
+    private static bool DepsEqual(object?[] prev, object?[] next)
+    {
+        if (prev.Length != next.Length) return false;
+        for (int i = 0; i < prev.Length; i++)
+        {
+            if (!Equals(prev[i], next[i])) return false;
+        }
+        return true;
+    }
 
     internal static void ApplySetters<T>(Action<T>[] setters, T control) where T : class
     {
@@ -1171,6 +1296,12 @@ public sealed partial class Reconciler : IDisposable
         public Element? RenderedElement { get; set; }
         /// <summary>The ComponentElement or FuncElement that created this node.</summary>
         public Element? Element { get; set; }
+        /// <summary>Previous props for memo comparison (class components only).</summary>
+        public object? PreviousProps { get; set; }
+        /// <summary>Dependencies from the last MemoElement render (null = render once).</summary>
+        public object?[]? MemoDependencies { get; set; }
+        /// <summary>Set to true when a self-triggered re-render is queued (UseState setter).</summary>
+        public bool SelfTriggered { get; set; }
     }
 
     /// <summary>

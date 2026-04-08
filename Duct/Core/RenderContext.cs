@@ -9,11 +9,19 @@ public sealed class RenderContext
     private readonly List<HookState> _hooks = new();
     private int _hookIndex;
     private Action? _requestRerender;
+    private ContextScope? _contextScope;
 
     internal void BeginRender(Action requestRerender)
     {
         _hookIndex = 0;
         _requestRerender = requestRerender;
+    }
+
+    internal void BeginRender(Action requestRerender, ContextScope contextScope)
+    {
+        _hookIndex = 0;
+        _requestRerender = requestRerender;
+        _contextScope = contextScope;
     }
 
     /// <summary>
@@ -22,9 +30,9 @@ public sealed class RenderContext
     /// </summary>
     internal void UseStateSetterByIndex<T>(int index, T newValue)
     {
-        if (index < _hooks.Count)
+        if (index < _hooks.Count && _hooks[index] is ValueHookState<T> hook)
         {
-            _hooks[index].Value = newValue!;
+            hook.Value = newValue;
             _requestRerender?.Invoke();
         }
     }
@@ -37,26 +45,25 @@ public sealed class RenderContext
     {
         if (_hookIndex >= _hooks.Count)
         {
-            _hooks.Add(new HookState { Value = initialValue! });
+            _hooks.Add(new ValueHookState<T>(initialValue));
         }
 
-        var hook = _hooks[_hookIndex];
         var currentIndex = _hookIndex;
         _hookIndex++;
 
-        if (hook is not HookState || hook is EffectHookState or MemoHookState)
+        if (_hooks[currentIndex] is not ValueHookState<T> hook)
             throw new InvalidOperationException(
-                $"Hook at index {currentIndex} is {hook.GetType().Name}, expected HookState (UseState). " +
+                $"Hook at index {currentIndex} is {_hooks[currentIndex].GetType().Name}, expected ValueHookState<{typeof(T).Name}> (UseState). " +
                 "Hooks must be called in the same order every render.");
 
-        T current = (T)hook.Value;
+        T current = hook.Value;
 
         void Setter(T newValue)
         {
-            var h = _hooks[currentIndex];
-            if (!EqualityComparer<T>.Default.Equals((T)h.Value, newValue))
+            var h = (ValueHookState<T>)_hooks[currentIndex];
+            if (!EqualityComparer<T>.Default.Equals(h.Value, newValue))
             {
-                h.Value = newValue!;
+                h.Value = newValue;
                 _requestRerender?.Invoke();
             }
         }
@@ -72,28 +79,27 @@ public sealed class RenderContext
     {
         if (_hookIndex >= _hooks.Count)
         {
-            _hooks.Add(new HookState { Value = initialValue! });
+            _hooks.Add(new ValueHookState<T>(initialValue));
         }
 
-        var hook = _hooks[_hookIndex];
         var currentIndex = _hookIndex;
         _hookIndex++;
 
-        if (hook is not HookState || hook is EffectHookState or MemoHookState)
+        if (_hooks[currentIndex] is not ValueHookState<T> hook)
             throw new InvalidOperationException(
-                $"Hook at index {currentIndex} is {hook.GetType().Name}, expected HookState (UseReducer). " +
+                $"Hook at index {currentIndex} is {_hooks[currentIndex].GetType().Name}, expected ValueHookState<{typeof(T).Name}> (UseReducer). " +
                 "Hooks must be called in the same order every render.");
 
-        T current = (T)hook.Value;
+        T current = hook.Value;
 
         void Updater(Func<T, T> reducer)
         {
-            var h = _hooks[currentIndex];
-            var prev = (T)h.Value;
+            var h = (ValueHookState<T>)_hooks[currentIndex];
+            var prev = h.Value;
             var next = reducer(prev);
             if (!EqualityComparer<T>.Default.Equals(prev, next))
             {
-                h.Value = next!;
+                h.Value = next;
                 _requestRerender?.Invoke();
             }
         }
@@ -111,28 +117,27 @@ public sealed class RenderContext
     {
         if (_hookIndex >= _hooks.Count)
         {
-            _hooks.Add(new HookState { Value = initialValue! });
+            _hooks.Add(new ValueHookState<TState>(initialValue));
         }
 
-        var hook = _hooks[_hookIndex];
         var currentIndex = _hookIndex;
         _hookIndex++;
 
-        if (hook is not HookState || hook is EffectHookState or MemoHookState)
+        if (_hooks[currentIndex] is not ValueHookState<TState> hook)
             throw new InvalidOperationException(
-                $"Hook at index {currentIndex} is {hook.GetType().Name}, expected HookState (UseReducer). " +
+                $"Hook at index {currentIndex} is {_hooks[currentIndex].GetType().Name}, expected ValueHookState<{typeof(TState).Name}> (UseReducer). " +
                 "Hooks must be called in the same order every render.");
 
-        TState current = (TState)hook.Value;
+        TState current = hook.Value;
 
         void Dispatch(TAction action)
         {
-            var h = _hooks[currentIndex];
-            var prev = (TState)h.Value;
+            var h = (ValueHookState<TState>)_hooks[currentIndex];
+            var prev = h.Value;
             var next = reducer(prev, action);
             if (!EqualityComparer<TState>.Default.Equals(prev, next))
             {
-                h.Value = next!;
+                h.Value = next;
                 _requestRerender?.Invoke();
             }
         }
@@ -160,7 +165,8 @@ public sealed class RenderContext
 
         if (hook.Dependencies is null || !DepsEqual(hook.Dependencies, dependencies))
         {
-            hook.Cleanup?.Invoke();
+            hook.PendingCleanup = hook.Cleanup;
+            hook.Cleanup = null;
             hook.Dependencies = dependencies.ToArray();
             hook.Effect = effect;
             hook.Pending = true;
@@ -185,7 +191,8 @@ public sealed class RenderContext
 
         if (hook.Dependencies is null || !DepsEqual(hook.Dependencies, dependencies))
         {
-            hook.Cleanup?.Invoke();
+            hook.PendingCleanup = hook.Cleanup;
+            hook.Cleanup = null;
             hook.Dependencies = dependencies.ToArray();
             hook.EffectWithCleanup = effectWithCleanup;
             hook.Pending = true;
@@ -199,22 +206,22 @@ public sealed class RenderContext
     {
         if (_hookIndex >= _hooks.Count)
         {
-            _hooks.Add(new MemoHookState { Dependencies = null, Value = default! });
+            _hooks.Add(new MemoHookState<T> { Dependencies = null });
         }
 
-        if (_hooks[_hookIndex] is not MemoHookState hook)
+        if (_hooks[_hookIndex] is not MemoHookState<T> hook)
             throw new InvalidOperationException(
-                $"Hook at index {_hookIndex} is {_hooks[_hookIndex].GetType().Name}, expected MemoHookState. " +
+                $"Hook at index {_hookIndex} is {_hooks[_hookIndex].GetType().Name}, expected MemoHookState<{typeof(T).Name}>. " +
                 "Hooks must be called in the same order every render.");
         _hookIndex++;
 
         if (hook.Dependencies is null || !DepsEqual(hook.Dependencies, dependencies))
         {
-            hook.Value = factory()!;
+            hook.Value = factory();
             hook.Dependencies = dependencies.ToArray();
         }
 
-        return (T)hook.Value;
+        return hook.Value;
     }
 
     /// <summary>
@@ -232,16 +239,57 @@ public sealed class RenderContext
     {
         if (_hookIndex >= _hooks.Count)
         {
-            _hooks.Add(new HookState { Value = new Ref<T>(initialValue) });
+            _hooks.Add(new ValueHookState<Ref<T>>(new Ref<T>(initialValue)));
         }
 
-        var hook = _hooks[_hookIndex];
+        var currentIndex = _hookIndex;
         _hookIndex++;
-        if (hook.Value is not Ref<T> refValue)
+
+        if (_hooks[currentIndex] is not ValueHookState<Ref<T>> hook)
             throw new InvalidOperationException(
-                $"Hook at index {_hookIndex - 1} expected Ref<{typeof(T).Name}>, got {hook.Value?.GetType().Name ?? "null"}. " +
+                $"Hook at index {currentIndex} expected ValueHookState<Ref<{typeof(T).Name}>>, got {_hooks[currentIndex].GetType().Name}. " +
                 "Hooks must be called in the same order every render.");
-        return refValue;
+        return hook.Value;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Persisted state hooks
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Like UseState, but the value survives unmount/remount via an in-memory cache.
+    /// On first mount, uses cached value if available, otherwise uses initialValue.
+    /// Value is saved to cache on unmount.
+    /// </summary>
+    public (T Value, Action<T> Set) UsePersisted<T>(string key, T initialValue)
+    {
+        if (_hookIndex >= _hooks.Count)
+        {
+            T initial = PersistedStateCache.TryGet<T>(key, out var cached) ? cached : initialValue;
+            _hooks.Add(new PersistedHookState<T>(initial) { PersistKey = key });
+        }
+
+        var currentIndex = _hookIndex;
+        _hookIndex++;
+
+        if (_hooks[currentIndex] is not PersistedHookState<T> hook)
+            throw new InvalidOperationException(
+                $"Hook at index {currentIndex} is {_hooks[currentIndex].GetType().Name}, expected PersistedHookState<{typeof(T).Name}> (UsePersisted). " +
+                "Hooks must be called in the same order every render.");
+
+        T current = hook.Value;
+
+        void Setter(T newValue)
+        {
+            var h = (PersistedHookState<T>)_hooks[currentIndex];
+            if (!EqualityComparer<T>.Default.Equals(h.Value, newValue))
+            {
+                h.Value = newValue;
+                _requestRerender?.Invoke();
+            }
+        }
+
+        return (current, Setter);
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -326,6 +374,50 @@ public sealed class RenderContext
     }
 
     // ════════════════════════════════════════════════════════════════
+    //  Context hooks
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Reads the nearest ancestor's provided value for the given context.
+    /// Returns the context's DefaultValue if no provider exists in the ancestor chain.
+    /// Follows hook rules — must be called in the same order every render.
+    /// </summary>
+    public T UseContext<T>(DuctContext<T> context)
+    {
+        if (_hookIndex >= _hooks.Count)
+        {
+            _hooks.Add(new ContextHookState { Context = context });
+        }
+
+        if (_hooks[_hookIndex] is not ContextHookState hook)
+            throw new InvalidOperationException(
+                $"Hook at index {_hookIndex} is {_hooks[_hookIndex].GetType().Name}, expected ContextHookState (UseContext). " +
+                "Hooks must be called in the same order every render.");
+        _hookIndex++;
+
+        var value = _contextScope is not null
+            ? _contextScope.Read(context)
+            : context.DefaultValue;
+        hook.LastValue = value;
+        return value;
+    }
+
+    /// <summary>
+    /// Enumerates ContextHookState entries for memo change detection (Phase 3).
+    /// </summary>
+    internal IEnumerable<ContextHookState> ContextHooks
+    {
+        get
+        {
+            for (int i = 0; i < _hooks.Count; i++)
+            {
+                if (_hooks[i] is ContextHookState ctx)
+                    yield return ctx;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
     //  Localization hooks
     // ════════════════════════════════════════════════════════════════
 
@@ -333,24 +425,12 @@ public sealed class RenderContext
     /// Returns an IntlAccessor for the current locale. Re-renders this component
     /// when the locale changes via a parent LocaleProvider.
     /// If no LocaleProvider is present, returns a default accessor using the OS locale.
+    /// Uses DuctContext internally — the context system handles re-renders automatically.
     /// </summary>
     public Localization.IntlAccessor UseIntl()
     {
-        var (_, forceRender) = UseReducer(false);
-
-        var ctx = Localization.LocaleContext.Current;
-        var accessor = ctx?.Accessor ?? _defaultAccessor.Value;
-
-        UseEffect(() =>
-        {
-            if (ctx is null) return () => { };
-
-            void handler() => forceRender(v => !v);
-            ctx.Subscribe(handler);
-            return () => ctx.Unsubscribe(handler);
-        }, ctx?.Accessor.Locale ?? "");
-
-        return accessor;
+        var contextAccessor = UseContext(Localization.IntlContexts.Locale);
+        return contextAccessor ?? _defaultAccessor.Value;
     }
 
     private static readonly Lazy<Localization.IntlAccessor> _defaultAccessor = new(() =>
@@ -398,6 +478,24 @@ public sealed class RenderContext
 
     internal void FlushEffects()
     {
+        // Phase 1: Run all pending cleanups from previous effects
+        for (int i = 0; i < _hooks.Count; i++)
+        {
+            if (_hooks[i] is EffectHookState hook && hook.PendingCleanup is not null)
+            {
+                try
+                {
+                    hook.PendingCleanup();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Duct] Effect cleanup at index {i} threw: {ex}");
+                }
+                hook.PendingCleanup = null;
+            }
+        }
+
+        // Phase 2: Run all pending new effects
         for (int i = 0; i < _hooks.Count; i++)
         {
             if (_hooks[i] is not EffectHookState hook || !hook.Pending) continue;
@@ -425,6 +523,7 @@ public sealed class RenderContext
 
     internal void RunCleanups()
     {
+        // Phase 1: Run effect cleanups
         for (int i = 0; i < _hooks.Count; i++)
         {
             if (_hooks[i] is EffectHookState hook)
@@ -436,6 +535,22 @@ public sealed class RenderContext
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"[Duct] Cleanup at index {i} threw: {ex}");
+                }
+            }
+        }
+
+        // Phase 2: Save persisted state to cache
+        for (int i = 0; i < _hooks.Count; i++)
+        {
+            if (_hooks[i] is PersistedHookStateBase persisted)
+            {
+                try
+                {
+                    persisted.SaveToCache();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Duct] Persisted state save at index {i} threw: {ex}");
                 }
             }
         }
@@ -451,9 +566,12 @@ public sealed class RenderContext
         return true;
     }
 
-    private class HookState
+    internal abstract class HookState { }
+
+    private class ValueHookState<T> : HookState
     {
-        public object Value = default!;
+        public T Value;
+        public ValueHookState(T value) => Value = value;
     }
 
     private class EffectHookState : HookState
@@ -462,12 +580,33 @@ public sealed class RenderContext
         public Action? Effect;
         public Func<Action>? EffectWithCleanup;
         public Action? Cleanup;
+        public Action? PendingCleanup;
         public bool Pending;
     }
 
-    private class MemoHookState : HookState
+    private class MemoHookState<T> : HookState
     {
+        public T Value = default!;
         public object[]? Dependencies;
+    }
+
+    internal class ContextHookState : HookState
+    {
+        public DuctContextBase Context = default!;
+        public object? LastValue;
+    }
+
+    internal abstract class PersistedHookStateBase : HookState
+    {
+        public string PersistKey = default!;
+        public abstract void SaveToCache();
+    }
+
+    private class PersistedHookState<T> : PersistedHookStateBase
+    {
+        public T Value;
+        public PersistedHookState(T value) => Value = value;
+        public override void SaveToCache() => PersistedStateCache.Set(PersistKey, Value);
     }
 }
 

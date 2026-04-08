@@ -135,10 +135,38 @@ VStack(
 )
 ```
 
-**IMPORTANT:** Patch components do NOT accept props through constructor parameters.
-Each Component class is self-contained with its own state via hooks.
-To pass data between components, use shared state patterns or restructure as
-inline rendering within a parent component.
+### Component Props (typed data from parent)
+
+```csharp
+// Define a component that receives typed props:
+record UserCardProps(string Name, string Role);
+
+class UserCard : Component<UserCardProps>
+{
+    public override Element Render()
+    {
+        return VStack(Text(Props.Name).Bold(), Text(Props.Role).Opacity(0.6));
+    }
+}
+
+// Pass props from parent:
+Component<UserCard, UserCardProps>(new UserCardProps("Alice", "Admin"))
+```
+
+Use **record** props for free structural equality — the framework auto-skips re-renders
+when props haven't changed (see Memoization below). Class props without an `Equals`
+override use reference equality and re-render every time.
+
+### Memoized Function Components
+
+```csharp
+// Memo() skips re-renders when dependencies haven't changed.
+// Empty deps = render once + own state changes only:
+Memo(ctx => Text("Stable content"))
+
+// With deps = re-render when any dep changes:
+Memo(ctx => Text($"Hello, {name}"), name)
+```
 
 ---
 
@@ -224,9 +252,78 @@ UseEffect(() => { prevCount.Current = count; }, count);
 
 ### UseCollection\<T\>(collection) → IReadOnlyList\<T\> — tracks ObservableCollection changes
 
+### UseContext\<T\>(context) → T — read tree-scoped ambient state
+
+Reads a value provided by an ancestor via `.Provide()`. Returns the context's
+default if no provider exists. Re-renders automatically when the provided value changes.
+
+```csharp
+// Define a context (static field, typically on a static class):
+public static readonly DuctContext<string> ThemeCtx = new("light");
+
+// Provide a value to a subtree (modifier on any element):
+VStack(
+    Component<Header>(),
+    Component<Content>()
+).Provide(ThemeCtx, "dark")
+
+// Consume in any descendant component:
+class Header : Component
+{
+    public override Element Render()
+    {
+        var theme = UseContext(ThemeCtx);  // "dark" from ancestor
+        return Text($"Theme: {theme}");
+    }
+}
+```
+
+Nesting: inner `.Provide()` shadows outer for the same context. Sibling subtrees
+are independent — context from one subtree doesn't leak to another.
+
+### UsePersisted\<T\>(key, initialValue) → (T Value, Action\<T\> Set) — state that survives unmount
+
+Like `UseState`, but the value is saved to an in-memory cache on unmount and restored
+on remount. Use for scroll positions, form drafts, or tab state.
+
+```csharp
+var (scrollPos, setScrollPos) = UsePersisted("tab1-scroll", 0);
+```
+
+Different components sharing the same key share the cached state. `UseState` values
+are lost on unmount; `UsePersisted` values survive.
+
 ### UseWindowSize(window) → (double Width, double Height) — reactive window dimensions
 
 ### UseBreakpoint(window, minWidth) → bool — responsive breakpoint helper
+
+---
+
+## Memoization (Automatic Re-render Skipping)
+
+Components skip re-rendering by default when their parent re-renders but nothing relevant changed:
+
+| Component type | Default memo behavior |
+|---|---|
+| **Propless `Component`** | Skips parent-triggered re-renders (only re-renders from own state or context changes) |
+| **`Component<TProps>`** | Skips when `Equals(oldProps, newProps)` — record props get structural comparison for free |
+| **`Memo(ctx => ..., deps)`** | Skips when dependencies array hasn't changed. Null deps = render once only |
+
+Self-triggered re-renders (from `UseState` / `UseReducer` setters) always bypass memo.
+
+Override `ShouldUpdate` for custom comparison:
+```csharp
+class MyComponent : Component<MyProps>
+{
+    // Only re-render when Name changes, ignore Age
+    protected internal override bool ShouldUpdate(MyProps? old, MyProps? next)
+        => old?.Name != next?.Name;
+}
+```
+
+**Slots and memo:** Static slot content (e.g., `Text("label")`) allows memo skip because
+record equality holds. Slots with new lambda delegates (e.g., `Button("Go", () => ...)`)
+defeat memo — use `UseCallback` to stabilize delegate references when memo matters.
 
 ---
 
@@ -1343,7 +1440,9 @@ class SettingsPage : Component
 | `{condition && <X/>}` | `condition ? X() : null` |
 | `{items.map(i => <X/>)}` | `items.Select(i => X()).ToArray()` or `ForEach(items, i => X())` |
 | `<Component />` | `Component<MyComponent>()` |
-| `props` | N/A — components use hooks for all state |
+| `props` | `Component<TProps>` — typed props via `Props` property |
+| `createContext` + `useContext` | `DuctContext<T>` + `.Provide()` + `UseContext()` |
+| `React.memo()` | Auto — propless components skip by default; `Memo()` for function components |
 | `className="..."` | `.Set(el => ...)` for native property access |
 | `display: flex` | `Flex()` / `FlexRow()` / `FlexColumn()` |
 | `flex-grow: 1` | `.Flex(grow: 1)` |

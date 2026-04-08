@@ -33,7 +33,7 @@ internal sealed class LocaleProviderComponent : Component<LocaleProviderElement>
             new IntlAccessor(locale, resourceProvider, SharedMessageCache, defaultLocale, pseudoLocalize),
             locale, defaultLocale, pseudoLocalize);
 
-        // Manage the LocaleContext lifecycle
+        // Legacy: manage the old LocaleContext.Current lifecycle for backward compat
         Context.UseEffect(() =>
         {
             var ctx = new LocaleContext(accessor);
@@ -42,19 +42,15 @@ internal sealed class LocaleProviderComponent : Component<LocaleProviderElement>
 
             return () =>
             {
-                // Restore previous context on unmount (supports nesting)
                 LocaleContext.Current = previous;
             };
         });
 
-        // Update the accessor when locale changes (after initial mount)
         Context.UseEffect(() =>
         {
             if (LocaleContext.Current is { } ctx)
             {
                 ctx.UpdateAccessor(accessor);
-
-                // Flush cache for the old locale patterns when switching
                 SharedMessageCache.Flush();
             }
         }, locale);
@@ -62,10 +58,11 @@ internal sealed class LocaleProviderComponent : Component<LocaleProviderElement>
         // Wrap the child in a Border that sets FlowDirection on the visual tree.
         // WinUI inherits FlowDirection down the tree, so all descendants get RTL/LTR
         // layout automatically when the locale changes.
+        // Provide the IntlAccessor via DuctContext so descendants can UseContext(IntlContexts.Locale).
         var direction = accessor.Direction;
         return new BorderElement(Props.Child)
         {
             Setters = [b => b.FlowDirection = direction]
-        };
+        }.Provide(IntlContexts.Locale, accessor);
     }
 }

@@ -41,7 +41,18 @@ public sealed partial class Reconciler
             return null; // null = keep existing control as-is
         }
 
+        // Push context values onto scope before processing children
+        var ctxValues = newEl.ContextValues;
+        int ctxCount = 0;
+        if (ctxValues is { Count: > 0 })
+        {
+            _contextScope.Push(ctxValues);
+            ctxCount = ctxValues.Count;
+        }
+
         UIElement? result;
+        try
+        {
 
         // Registered types checked first
         if (_typeRegistry.TryGetValue(newEl.GetType(), out var reg))
@@ -218,6 +229,8 @@ public sealed partial class Reconciler
                 => UpdateComponent(oldEl, newEl, control, requestRerender),
             (FuncElement, FuncElement, _)
                 => UpdateComponent(oldEl, newEl, control, requestRerender),
+            (MemoElement, MemoElement, _)
+                => UpdateComponent(oldEl, newEl, control, requestRerender),
             _ => Mount(newEl, requestRerender),
         };
         }
@@ -240,6 +253,13 @@ public sealed partial class Reconciler
             ApplyLayoutAnimation(target, newEl.LayoutAnimation);
         else if (oldEl.LayoutAnimation is not null)
             ClearLayoutAnimation(target);
+
+        }
+        finally
+        {
+            if (ctxCount > 0)
+                _contextScope.Pop(ctxCount);
+        }
 
         return result;
     }

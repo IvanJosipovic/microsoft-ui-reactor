@@ -20,7 +20,18 @@ public sealed partial class Reconciler
             element = mod.Inner;
         }
 
+        // Push context values onto scope before processing children
+        var ctxValues = element.ContextValues;
+        int ctxCount = 0;
+        if (ctxValues is { Count: > 0 })
+        {
+            _contextScope.Push(ctxValues);
+            ctxCount = ctxValues.Count;
+        }
+
         UIElement? control;
+        try
+        {
 
         // Registered types checked first
         if (_typeRegistry.TryGetValue(element.GetType(), out var reg))
@@ -115,6 +126,7 @@ public sealed partial class Reconciler
             ErrorBoundaryElement eb => MountErrorBoundary(eb, requestRerender),
             ComponentElement comp => MountComponent(comp, requestRerender),
             FuncElement func => MountFuncComponent(func, requestRerender),
+            MemoElement memo => MountMemoComponent(memo, requestRerender),
             _ => null,
         };
         }
@@ -138,6 +150,13 @@ public sealed partial class Reconciler
         // Queue connected animation start if a prepared animation exists with this key
         if (control is not null && element.ConnectedAnimationKey is not null)
             QueueConnectedAnimationStart(control, element.ConnectedAnimationKey);
+
+        }
+        finally
+        {
+            if (ctxCount > 0)
+                _contextScope.Pop(ctxCount);
+        }
 
         return control;
     }
@@ -1628,10 +1647,20 @@ public sealed partial class Reconciler
         if (compElement.Props is not null && component is IPropsReceiver receiver)
             receiver.SetProps(compElement.Props);
 
+        // Each component gets its own Border wrapper as an identity anchor
+        // in _componentNodes, preventing key collisions when components nest.
+        var wrapper = new Border();
+        var node = new ComponentNode
+        {
+            Component = component, RenderedElement = null, Element = compElement,
+            PreviousProps = compElement.Props,
+        };
+        _componentNodes[wrapper] = node;
+
         Element childElement;
         try
         {
-            component.Context.BeginRender(requestRerender);
+            component.Context.BeginRender(CreateComponentRerender(wrapper, requestRerender), _contextScope);
             childElement = component.Render();
             component.Context.FlushEffects();
         }
@@ -1642,23 +1671,25 @@ public sealed partial class Reconciler
         }
         var childControl = Mount(childElement, requestRerender);
 
-        // Each component gets its own Border wrapper as an identity anchor
-        // in _componentNodes, preventing key collisions when components nest.
-        var wrapper = new Border { Child = childControl };
-        _componentNodes[wrapper] = new ComponentNode
-        {
-            Component = component, RenderedElement = childElement, Element = compElement,
-        };
+        wrapper.Child = childControl;
+        node.RenderedElement = childElement;
         return wrapper;
     }
 
     private UIElement MountFuncComponent(FuncElement funcElement, Action requestRerender)
     {
         var ctx = new RenderContext();
+        var wrapper = new Border();
+        var node = new ComponentNode
+        {
+            Context = ctx, RenderedElement = null, Element = funcElement,
+        };
+        _componentNodes[wrapper] = node;
+
         Element childElement;
         try
         {
-            ctx.BeginRender(requestRerender);
+            ctx.BeginRender(CreateComponentRerender(wrapper, requestRerender), _contextScope);
             childElement = funcElement.RenderFunc(ctx);
             ctx.FlushEffects();
         }
@@ -1669,11 +1700,38 @@ public sealed partial class Reconciler
         }
         var childControl = Mount(childElement, requestRerender);
 
-        var wrapper = new Border { Child = childControl };
-        _componentNodes[wrapper] = new ComponentNode
+        wrapper.Child = childControl;
+        node.RenderedElement = childElement;
+        return wrapper;
+    }
+
+    private UIElement MountMemoComponent(MemoElement memoElement, Action requestRerender)
+    {
+        var ctx = new RenderContext();
+        var wrapper = new Border();
+        var node = new ComponentNode
         {
-            Context = ctx, RenderedElement = childElement, Element = funcElement,
+            Context = ctx, RenderedElement = null, Element = memoElement,
+            MemoDependencies = memoElement.Dependencies,
         };
+        _componentNodes[wrapper] = node;
+
+        Element childElement;
+        try
+        {
+            ctx.BeginRender(CreateComponentRerender(wrapper, requestRerender), _contextScope);
+            childElement = memoElement.RenderFunc(ctx);
+            ctx.FlushEffects();
+        }
+        catch (Exception ex) when (_errorBoundaryDepth == 0)
+        {
+            _logger.Log(DuctLogLevel.Error, "MemoComponent Render() threw during mount", ex);
+            childElement = new TextElement($"⚠ Render error: {ex.Message}");
+        }
+        var childControl = Mount(childElement, requestRerender);
+
+        wrapper.Child = childControl;
+        node.RenderedElement = childElement;
         return wrapper;
     }
 

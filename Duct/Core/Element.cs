@@ -80,6 +80,13 @@ public abstract record Element
     public string? ConnectedAnimationKey { get; init; }
 
     /// <summary>
+    /// Context values provided to this element's subtree via .Provide().
+    /// The reconciler pushes these onto the context scope when entering
+    /// this element's subtree and pops them when leaving.
+    /// </summary>
+    public IReadOnlyDictionary<DuctContextBase, object?>? ContextValues { get; init; }
+
+    /// <summary>
     /// Gets the attached property data of the specified type, or null if not set.
     /// </summary>
     internal T? GetAttached<T>() where T : class =>
@@ -121,6 +128,7 @@ public abstract record Element
         if (!ModifiersEqual(a.Modifiers, b.Modifiers)) return false;
         if (!AttachedEqual(a.Attached, b.Attached)) return false;
         if (!ThemeBindingsEqual(a.ThemeBindings, b.ThemeBindings)) return false;
+        if (!ContextValuesEqual(a.ContextValues, b.ContextValues)) return false;
 
         return (a, b) switch
         {
@@ -248,6 +256,21 @@ public abstract record Element
         }
         return true;
     }
+
+    internal static bool ContextValuesEqual(IReadOnlyDictionary<DuctContextBase, object?>? a, IReadOnlyDictionary<DuctContextBase, object?>? b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a is null && b is null) return true;
+        if (a is null || b is null) return false;
+        if (a.Count != b.Count) return false;
+
+        foreach (var (key, valA) in a)
+        {
+            if (!b.TryGetValue(key, out var valB)) return false;
+            if (!Equals(valA, valB)) return false;
+        }
+        return true;
+    }
 }
 
 /// <summary>
@@ -300,6 +323,12 @@ public record ComponentElement(
 /// A component defined inline via a render function (like a React function component).
 /// </summary>
 public record FuncElement(Func<RenderContext, Element> RenderFunc) : Element;
+
+/// <summary>
+/// A memoized function component. Skips re-render when Dependencies haven't changed.
+/// null Dependencies = render once on mount + self-triggered state changes only.
+/// </summary>
+public record MemoElement(Func<RenderContext, Element> RenderFunc, object?[]? Dependencies = null) : Element;
 
 public record ElementModifiers
 {
