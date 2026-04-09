@@ -1,0 +1,32 @@
+app:
+  title: "Layout Demo"
+  width: 700
+  height: 650
+  startup-delay: 1500
+
+screenshots:
+  - id: vstack-hstack
+    description: "VStack and HStack layout demo"
+    component: StackDemo
+    region: client
+    format: png
+  - id: grid-layout
+    description: "Grid with columns, rows, and placement"
+    component: GridDemo
+    region: client
+    format: png
+  - id: scrollview-border
+    description: "ScrollView inside a styled Border"
+    component: ScrollBorderDemo
+    region: client
+    format: png
+  - id: expander-canvas
+    description: "Expander and Canvas elements"
+    component: ExpanderCanvasDemo
+    region: client
+    format: png
+  - id: responsive
+    description: "Responsive layout switching between HStack and VStack"
+    component: ResponsiveDemo
+    region: client
+    format: png

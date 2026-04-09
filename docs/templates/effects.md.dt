@@ -1,0 +1,108 @@
+---
+title: "Effects and Lifecycle"
+app: effects
+order: 11
+audience: intermediate
+goal: |
+  Teach UseEffect lifecycle: mount, update, cleanup. Cover timers, async data
+  loading, dependency arrays, and infinite-loop pitfalls.
+---
+
+# Effects and Lifecycle
+
+`UseEffect` runs side effects — code that reaches outside the
+[component's](components.md) render function. Timers, data fetching,
+subscriptions, and DOM manipulation all belong in effects, not in `Render()`.
+
+## Running Once on Mount
+
+Pass an empty dependency array to run an effect once when the component mounts:
+
+```csharp snippet="effects/mount-effect"
+```
+
+![Mount effect with loaded timestamp](screenshot://effects/mount-effect)
+
+The empty `Array.Empty<object>()` dependency array tells Duct this effect has
+no external dependencies. It runs once after the first render and never again.
+
+## Running When Dependencies Change
+
+Pass values in the dependency array to re-run the effect when those values
+change:
+
+```csharp snippet="effects/dependency-effect"
+```
+
+![Search with debounced query](screenshot://effects/dependency-effect)
+
+Every time `query` changes, the effect runs again. Duct compares the current
+dependencies to the previous ones using structural equality. If nothing
+changed, the effect is skipped.
+
+## Cleanup with Timers
+
+When an effect creates a resource (timer, subscription, event handler), return
+a cleanup function. Duct calls it before re-running the effect and when the
+component unmounts:
+
+```csharp snippet="effects/timer-cleanup"
+```
+
+![Timer counting up with start/stop](screenshot://effects/timer-cleanup)
+
+The `Func<Action>` overload of `UseEffect` returns a cleanup function. Here
+the cleanup disposes the timer, preventing leaks when the component unmounts
+or when `isRunning` changes.
+
+## Async Data Loading
+
+Use `UseEffect` with [`UseState`](hooks.md) to load data asynchronously:
+
+```csharp snippet="effects/async-loading"
+```
+
+![Loading indicator then data](screenshot://effects/async-loading)
+
+The effect fires on mount, starts an async task, and updates state when it
+completes. The component re-renders automatically when `setItems` is called.
+
+## Avoiding Infinite Loops
+
+A common mistake is calling a state setter unconditionally inside an effect
+with that state in its dependency array:
+
+```csharp snippet="effects/infinite-loop-warning"
+```
+
+This would re-render, re-run the effect, set state again, re-render, and
+loop forever. Always guard state updates with a condition, or remove the
+changing value from the dependency array.
+
+## Tips
+
+**Use empty deps for one-time setup.** `UseEffect(action, Array.Empty<object>())`
+is the equivalent of "run on mount." Use it for initial data fetching, event
+registration, or logging.
+
+**Always clean up resources.** If your effect creates a timer, subscription, or
+event handler, return a cleanup function. Leaked resources cause bugs that are
+hard to trace.
+
+**Keep dependency arrays honest.** Include every value the effect reads from
+component state. Omitting a dependency doesn't prevent the read — it prevents
+the re-run, leading to stale closures.
+
+**Don't call setState unconditionally in an effect that depends on that state.**
+This creates an infinite loop. Guard with a condition or restructure the logic.
+
+**Prefer [`UseReducer`](hooks.md) for complex effect-driven state.** When an
+effect needs to update multiple related values, a reducer keeps the logic in
+one place and avoids cascading re-renders.
+
+## Next Steps
+
+- **[Styling and Theming](styling.md)** — Previous: apply theme tokens, colors, and dark/light mode
+- **[Commanding](commanding.md)** — Next: bundle actions with labels, icons, and accelerators
+- **[Hooks](hooks.md)** — Deep dive into UseState, UseReducer, and other hooks used by effects
+- **[Advanced Patterns](advanced.md)** — Combine effects with other hooks for complex scenarios

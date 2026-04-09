@@ -1,0 +1,130 @@
+---
+title: "Duct"
+app: readme
+order: 0
+audience: beginner
+goal: |
+  Landing page: what Duct is, why no XAML, links to all topics in the docset.
+  Concise and inviting — not a tutorial.
+---
+
+# Duct
+
+Duct is a declarative UI framework for building native Windows desktop apps in
+pure C#. No XAML. No data binding. No view models. You describe your UI as a
+function of state, and Duct keeps the screen in sync.
+
+## Why Duct?
+
+**Pure C# from top to bottom.** Your entire app — layout, styling, state,
+logic — lives in `.cs` files. No markup languages, no code-behind split, no
+designer files.
+
+**Declarative rendering.** You write a `Render()` method that returns your UI.
+When state changes, Duct diffs the old and new element trees and patches only
+what changed in the native WinUI controls.
+
+**Hooks for state management.** `UseState`, `UseReducer`, `UseEffect`, and
+friends give you React-style state management without the JavaScript.
+
+**Native performance.** Duct renders to real WinUI 3 controls. Your app is a
+standard Windows desktop app — no web views, no Electron, no interpretation
+layer.
+
+## Quick Look
+
+A complete Duct app in one file:
+
+```csharp snippet="readme/hello-world"
+```
+
+![Hello world component](screenshot://readme/hello-world)
+
+State and interactivity in a few lines:
+
+```csharp snippet="readme/counter"
+```
+
+![Counter demo](screenshot://readme/counter)
+
+Built-in text styling:
+
+```csharp snippet="readme/styled-text"
+```
+
+![Styled text elements](screenshot://readme/styled-text)
+
+## How It Works
+
+1. You define [**components**](components.md) — classes with a `Render()` method that returns
+   an element tree.
+2. You manage state with [**hooks**](hooks.md) — `UseState`, `UseReducer`, `UseEffect`,
+   and more — called inside `Render()`.
+3. When state changes, Duct calls `Render()` again, diffs the result, and
+   updates only the WinUI controls that changed.
+
+That's it. No event subscriptions to manage, no property-changed notifications
+to wire up, no dispatcher threading to worry about.
+
+## Documentation
+
+### Beginner
+
+- **[Getting Started](getting-started.md)** — Create your first app, manage state, build a todo list
+- **[Dev Tooling](dev-tooling.md)** — Preview mode, hot reload, development workflow
+- **[Components](components.md)** — Component classes, props, function components, composition
+- **[Hooks](hooks.md)** — UseState, UseReducer, UseEffect, UseMemo, UseRef, UseCallback
+- **[Layout](layout.md)** — VStack, HStack, Grid, ScrollView, Border, responsive patterns
+- **[Flex Layout](flex-layout.md)** — Flexible box layout for adaptive UIs
+
+### Intermediate
+
+- **[Forms and Input](forms.md)** — Text fields, checkboxes, sliders, validation, data entry
+- **[Collections](collections.md)** — ListView, LazyVStack, virtualized scrolling for large datasets
+- **[Navigation](navigation.md)** — NavigationView, TabView, multi-page apps, routing
+- **[Styling and Theming](styling.md)** — Colors, typography, dark/light themes, custom styles
+- **[Effects and Lifecycle](effects.md)** — UseEffect patterns, cleanup, async work, timers
+- **[Commanding](commanding.md)** — Commands, keyboard shortcuts, button actions
+
+### Advanced
+
+- **[Context](context.md)** — Share state across the component tree without prop drilling
+- **[Accessibility](accessibility.md)** — Screen readers, keyboard navigation, ARIA patterns
+- **[Localization](localization.md)** — Multi-language support, resource strings, RTL layouts
+- **[Animation](animation.md)** — Transitions, keyframes, animated state changes
+- **[Advanced Patterns](advanced.md)** — Performance tuning, custom hooks, large-scale architecture
+
+## Minimal Project Setup
+
+Create a console project, then edit the `.csproj`:
+
+<!-- ai:lock -->
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.*" />
+    <ProjectReference Include="..\Duct\Duct.csproj" />
+  </ItemGroup>
+</Project>
+```
+<!-- /ai:lock -->
+
+Replace `App.cs` with a component and a `DuctApp.Run<T>()` call, and run with
+`dotnet run`. That's your first Duct app.
+
+## Tips
+
+**Start with function components.** For quick experiments, use
+`DuctApp.Run("Title", ctx => { ... })` — no class needed.
+
+**Read the [hooks page](hooks.md).** Hooks are the core of Duct. Understanding `UseState`
+and `UseEffect` unlocks everything else.
+
+**Keep components small.** Extract pieces into their own components early.
+Composition is always easier to reason about than a single giant `Render()`.

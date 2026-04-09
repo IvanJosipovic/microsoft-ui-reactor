@@ -1,0 +1,126 @@
+---
+title: "Dev Tooling"
+app: dev-tooling
+order: 2
+audience: beginner
+goal: |
+  Explain dotnet watch + preview mode workflow, VS Code integration,
+  hot reload workflow, and the development iteration cycle.
+---
+
+# Dev Tooling
+
+Duct's development workflow centers on `dotnet watch` and preview mode. You
+edit code, save, and see changes in a running window — no manual restart.
+
+## Preview Mode
+
+Pass `preview: true` to `DuctApp.Run` to enable preview mode. This connects
+your app to the Duct hot reload pipeline:
+
+```csharp snippet="dev-tooling/entry-point"
+```
+
+The `#if DEBUG` guard ensures preview mode is only active in debug builds.
+Release builds skip it entirely — no overhead, no extra dependencies.
+
+## Running with Hot Reload
+
+Start your app with `dotnet watch`:
+
+<!-- ai:lock -->
+```
+dotnet watch run
+```
+<!-- /ai:lock -->
+
+This launches the app and watches your `.cs` files for changes. When you save,
+`dotnet watch` recompiles and Duct reloads the component tree. Your app state
+resets, but the window stays open.
+
+Here's what the preview app looks like running:
+
+```csharp snippet="dev-tooling/preview-app"
+```
+
+![Preview mode demo](screenshot://dev-tooling/preview-app)
+
+Edit the `message` default value or add a new element, save the file, and
+watch the window update.
+
+## Function Component Entry Point
+
+For quick experiments, skip the class entirely. Pass a lambda to
+[`DuctApp.Run`](components.md):
+
+```csharp snippet="dev-tooling/function-entry"
+```
+
+This is useful for throwaway prototypes or testing a single interaction. You
+get the same hot reload behavior — edit the lambda, save, see the result.
+
+## The Iteration Cycle
+
+The typical workflow looks like this:
+
+1. **Run** `dotnet watch run` in your terminal.
+2. **Edit** a component in your editor.
+3. **Save** the file — `dotnet watch` detects the change and recompiles.
+4. **See** the updated UI in the running window.
+
+No build step to invoke manually. No "rebuild and relaunch" cycle. The app
+stays running and the window stays positioned where you left it.
+
+```csharp snippet="dev-tooling/iteration-demo"
+```
+
+![Iteration demo](screenshot://dev-tooling/iteration-demo)
+
+## VS Code Integration
+
+Duct has no special VS Code extension requirement. The standard C# Dev Kit
+works well:
+
+- **IntelliSense** — `using static Duct.UI` brings all element factories
+  (`Text`, `VStack`, `Button`, etc.) into scope. You get autocomplete on every
+  element and modifier.
+- **Terminal** — run `dotnet watch run` in the VS Code integrated terminal.
+  The app window appears alongside your editor.
+- **Errors** — compile errors appear in the Problems panel. Fix the error,
+  save, and `dotnet watch` retries automatically.
+
+## Debug vs Release
+
+| | Debug | Release |
+|---|---|---|
+| Preview mode | Active (hot reload enabled) | Skipped |
+| Optimizations | Off | On |
+| Window behavior | Stays open on recompile | Normal launch |
+
+Use `dotnet run -c Release` for a production build. The `#if DEBUG` guard
+removes the `preview: true` parameter entirely, so there is no preview
+infrastructure in release binaries.
+
+## Tips
+
+**Keep dotnet watch running.** Don't stop and restart it between edits. It
+handles recompilation and reconnection automatically.
+
+**Use small components.** Smaller components reload faster because less of the
+tree needs to be rebuilt. Extract pieces early.
+
+**Check the terminal.** When hot reload fails (usually a syntax error),
+`dotnet watch` prints the error. Fix it and save — it retries.
+
+**Use [function components](components.md) for experiments.** `DuctApp.Run("Test", ctx => ...)`
+is the fastest way to try an idea. No class boilerplate.
+
+**ARM64 builds for benchmarks.** If you're on ARM64 hardware, build with
+`dotnet run -r win-arm64` to get native performance numbers.
+
+## Next Steps
+
+- **[Getting Started](getting-started.md)** — Previous: create your first app and learn the basics
+- **[Components](components.md)** — Next: component classes, props, function components, and composition
+- **[Hooks](hooks.md)** — Learn the state management primitives used inside components
+- **[Effects and Lifecycle](effects.md)** — Use `UseEffect` for timers, subscriptions, and async work

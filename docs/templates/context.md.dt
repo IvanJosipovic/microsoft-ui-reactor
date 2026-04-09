@@ -1,0 +1,108 @@
+---
+title: "Context"
+app: context
+order: 13
+audience: intermediate
+goal: |
+  Teach DuctContext<T>, the .Provide modifier, UseContext hook, nested/overridden
+  contexts, and a practical theme-switching example.
+---
+
+# Context
+
+Context lets you pass data through the [component](components.md) tree without
+threading it through every level of props. Define a `DuctContext<T>`, provide
+a value at any level, and any descendant can read it with `UseContext`.
+
+## Creating a Context
+
+A context is a static field with a default value:
+
+```csharp snippet="context/create-context"
+```
+
+The default value is used when a component calls `UseContext` but no ancestor
+has provided a value. Choose a sensible default — it makes components work
+standalone during development.
+
+## Providing and Consuming
+
+Use `.Provide()` on any element to supply a value to its subtree. Use
+`UseContext()` in any descendant to read it:
+
+```csharp snippet="context/provide-consume"
+```
+
+![Provider and consumer components](screenshot://context/provide-consume)
+
+`.Provide()` is a modifier like `.Padding()` or `.Background()` (see
+[Styling and Theming](styling.md)) — it works on any element. The value
+propagates to every descendant, no matter how deep.
+
+## Theme Switching with Context
+
+A common use case is a theme toggle that affects an entire subtree. Here the
+root component provides a theme value, and child components consume it:
+
+```csharp snippet="context/theme-switch"
+```
+
+![Theme toggle with light and dark panels](screenshot://context/theme-switch)
+
+The `ThemePanel` component reads the context and applies `ElementTheme`
+accordingly. When the toggle changes the provided value, all consumers
+re-render with the new theme.
+
+## Nested Context Overrides
+
+A child provider overrides its parent's value for its own subtree. Siblings
+keep the original value:
+
+```csharp snippet="context/nested-override"
+```
+
+![Nested contexts with different values](screenshot://context/nested-override)
+
+The inner `.Provide()` only affects descendants of that element. The sibling
+subtree still sees the parent's value. This lets you create local overrides
+without affecting the rest of the tree.
+
+## Multiple Contexts
+
+Components can provide and consume multiple contexts simultaneously. Each
+context is independent:
+
+```csharp snippet="context/multiple-contexts"
+```
+
+![Component reading two contexts](screenshot://context/multiple-contexts)
+
+Each `DuctContext<T>` is a separate channel. Providing one doesn't affect
+another. A component can call `UseContext` as many times as it needs.
+
+## Tips
+
+**Use context for cross-cutting concerns.** Theme, locale, auth state, and
+feature flags are good candidates. Props are better for component-specific
+data.
+
+**Always set a meaningful default.** Components that read context should work
+even without a provider — the default enables standalone testing and preview.
+
+**Keep context values immutable.** Provide a new value to trigger re-renders.
+Mutating the existing object won't notify consumers.
+
+**Don't overuse context.** If data only flows one or two levels down, pass it
+as props. Context is for data that many components at different depths need.
+
+**Combine with [`UseState`](hooks.md) for dynamic context.** Store the value
+in state at the provider level, and consumers update automatically when you
+call the setter.
+
+## Next Steps
+
+- **[Commanding](commanding.md)** — Previous: bundle actions with labels, icons, and keyboard accelerators
+- **[Accessibility](accessibility.md)** — Next: add screen reader support and keyboard navigation
+- **[Hooks](hooks.md)** — Learn about UseContext, UseState, and other hooks that power context
+- **[Styling and Theming](styling.md)** — Use context to propagate theme values across your app
+- **[Effects and Lifecycle](effects.md)** — Trigger side effects when context values change

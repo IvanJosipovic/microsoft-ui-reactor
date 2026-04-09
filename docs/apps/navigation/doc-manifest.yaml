@@ -1,0 +1,32 @@
+app:
+  title: "Navigation"
+  width: 800
+  height: 600
+  startup-delay: 1500
+
+screenshots:
+  - id: basic-navigation
+    description: "Basic navigation with buttons and NavigationHost"
+    component: BasicNavDemo
+    region: client
+    format: png
+  - id: navigation-view
+    description: "NavigationView with sidebar menu"
+    component: NavViewDemo
+    region: client
+    format: png
+  - id: stack-operations
+    description: "Navigate, Replace, Reset, GoBack, GoForward"
+    component: StackOperationsDemo
+    region: client
+    format: png
+  - id: lifecycle
+    description: "Navigation lifecycle event log"
+    component: LifecyclePage
+    region: client
+    format: png
+  - id: tab-navigation
+    description: "TabView with three document tabs"
+    component: TabNavDemo
+    region: client
+    format: png

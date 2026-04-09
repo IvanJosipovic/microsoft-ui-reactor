@@ -1,0 +1,147 @@
+---
+title: "Animation"
+app: animation
+order: 16
+audience: advanced
+goal: |
+  Cover implicit transitions (opacity, scale, translate, background),
+  LayoutAnimation, ConnectedAnimation, theme transitions; combining transitions.
+---
+
+# Animation
+
+Duct animations are declarative. You set the target value (opacity, scale,
+translation) and attach a transition modifier. When the value changes on the
+next render — driven by [hooks](hooks.md) and state — WinUI animates from
+the old value to the new one automatically.
+
+## Opacity Transition
+
+`.OpacityTransition()` animates opacity changes. Set `.Opacity()` to your
+target value and the transition handles the rest:
+
+```csharp snippet="animation/opacity-transition"
+```
+
+![Opacity transition](screenshot://animation/opacity-transition)
+
+The optional `TimeSpan` parameter controls duration. The default is 300ms.
+Use this for fade-in/fade-out on showing and hiding elements.
+
+## Scale Transition
+
+`.ScaleTransition()` animates scale changes. Set `.Scale()` to the target
+factor:
+
+```csharp snippet="animation/scale-transition"
+```
+
+![Scale transition](screenshot://animation/scale-transition)
+
+Scale uses the element's center as the transform origin. A value of `1.0f` is
+normal size, `1.5f` is 150%. You can pass a custom `Vector3Transition` to
+control which axes animate.
+
+## Translation Transition
+
+`.TranslationTransition()` animates position offsets. Set `.Translation()`
+to the target X, Y, Z offset in pixels:
+
+```csharp snippet="animation/translation-transition"
+```
+
+![Translation transition](screenshot://animation/translation-transition)
+
+Translation offsets are relative to the element's layout position. Positive X
+moves right, positive Y moves down. The element still occupies its original
+layout space — only the visual position changes.
+
+## Background Transition
+
+`.BackgroundTransition()` animates background color changes on `VStack`,
+`HStack`, and `Grid` elements:
+
+```csharp snippet="animation/background-transition"
+```
+
+![Background transition](screenshot://animation/background-transition)
+
+Background transitions use WinUI's `BrushTransition`. They only work on
+panel elements (`StackPanel`, `Grid`) because WinUI restricts
+`BackgroundTransition` to those types.
+
+## Combining Transitions
+
+You can chain multiple transition modifiers on a single element. Each
+property animates independently:
+
+```csharp snippet="animation/combined-transitions"
+```
+
+![Combined transitions](screenshot://animation/combined-transitions)
+
+Each transition modifier is independent — `.OpacityTransition()` animates
+opacity while `.ScaleTransition()` animates scale simultaneously. Set the
+target values (`.Opacity()`, `.Scale()`, `.Translation()`) and the
+transitions handle the animation for each property in parallel.
+
+## Layout Animation
+
+`.LayoutAnimation()` animates elements when their position changes due to
+layout reflow — items entering, leaving, or reordering in a [collection](collections.md):
+
+```csharp snippet="animation/layout-animation"
+```
+
+![Layout animation](screenshot://animation/layout-animation)
+
+Layout animation works at the Composition layer. When WinUI repositions an
+element (e.g., a sibling is added or removed), Duct animates from the old
+position to the new one. Use `.WithKey()` on each element so the reconciler
+can track identity across reorders.
+
+You can also use `.LayoutAnimation(TimeSpan)` for a custom duration or
+`.SpringLayoutAnimation()` for a bouncy feel.
+
+## Connected Animation
+
+`.ConnectedAnimation(key)` creates a visual continuity effect between two
+views. When an element with a key is unmounted and another with the same key
+is mounted, WinUI animates a snapshot from the old position to the new one:
+
+```csharp snippet="animation/connected-animation"
+```
+
+![Connected animation](screenshot://animation/connected-animation)
+
+Both the source and destination elements must use the same key string. The
+animation runs automatically when the reconciler detects the transition.
+Use connected animations for list-to-detail [navigation](navigation.md)
+where an element "flies" from the list into the detail view.
+
+## Tips
+
+**Keep durations short.** 200--400ms feels responsive. Anything over 500ms
+feels sluggish. Use the default duration unless you have a specific reason.
+
+**Use `.OpacityTransition()` for show/hide.** It is the lightest transition
+and works on every element type. Prefer it over scale or translation for
+simple visibility toggles.
+
+**Combine transitions sparingly.** One or two transitions per element is
+natural. Three or more competing animations can feel chaotic.
+
+**Always set `.WithKey()` with layout animations.** Without stable keys, the
+reconciler cannot track which element moved where, and the animation falls
+back to a simple fade.
+
+**Test connected animations with real navigation.** They depend on the
+reconciler detecting mount/unmount pairs. If both elements are visible
+simultaneously, no animation plays.
+
+## Next Steps
+
+- **[Localization](localization.md)** — previous topic: translate strings, format numbers/dates, and support RTL layouts
+- **[Advanced Patterns](advanced.md)** — next topic: error boundaries, memoization, escape hatches, and observable binding
+- **[Navigation](navigation.md)** — pair connected animations with page transitions
+- **[Collections](collections.md)** — animate list items as they enter, reorder, and leave

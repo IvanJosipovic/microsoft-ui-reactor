@@ -1,0 +1,115 @@
+---
+title: "Forms and Input"
+app: forms
+order: 7
+audience: intermediate
+goal: |
+  Cover all input controls: TextField, CheckBox, ComboBox, Slider, NumberBox,
+  PasswordBox, RadioButtons, ToggleSwitch. Teach the controlled-input pattern,
+  validation with derived state, and practical form composition with submit.
+---
+
+# Forms and Input
+
+Every form control in Duct follows the controlled-input pattern: you own the
+value, you provide the change handler, and the control reflects your state.
+There is no two-way binding. The data always flows one direction.
+
+## The Controlled-Input Pattern
+
+Pass the current value and a setter. When the user types, `onChange` fires
+with the new value. You call the setter, Duct re-renders, and the control
+shows the updated text:
+
+```csharp snippet="forms/controlled-input"
+```
+
+![Controlled input](screenshot://forms/controlled-input)
+
+This is the same [`UseState`](hooks.md) pattern from [Getting Started](getting-started.md),
+applied to form inputs. The control never holds its own state — your component
+is the single source of truth.
+
+## Input Control Types
+
+Duct provides controls for every common input type. Each follows the same
+pattern: current value in, change handler out.
+
+```csharp snippet="forms/input-types"
+```
+
+![All input types](screenshot://forms/input-types)
+
+| Control | Value type | Change handler |
+|---------|-----------|---------------|
+| `TextField` | `string` | `Action<string>` |
+| `PasswordBox` | `string` | `Action<string>` |
+| `Slider` | `double` | `Action<double>` |
+| `NumberBox` | `double` | `Action<double>` |
+| `CheckBox` | `bool` | `Action<bool>` |
+| `ToggleSwitch` | `bool` | `Action<bool>` |
+| `ComboBox` | `int` (index) | `Action<int>` |
+| `RadioButtons` | `int` (index) | `Action<int>` |
+
+All controls accept optional parameters for labels, headers, and placeholder
+text. Check the API reference for each control's full signature.
+
+## Validation
+
+Since your component owns all form state, validation is plain C# logic. Derive
+booleans from the current values and use them to show error messages and
+disable the submit button:
+
+```csharp snippet="forms/validation"
+```
+
+![Validation demo](screenshot://forms/validation)
+
+Key patterns:
+
+- **Derive validity from state.** `emailValid` and `ageValid` are computed on
+  every render. No validation framework needed.
+- **`When()` for conditional messages.** Show error text only when the field
+  has been touched and is invalid.
+- **`.Disabled(!formValid)`** prevents submission until all fields pass.
+
+## Putting It Together: Registration Form
+
+Here is a complete registration form that combines multiple input types,
+validation, and a submit action:
+
+```csharp snippet="forms/registration-form"
+```
+
+![Registration form](screenshot://forms/registration-form)
+
+After submission, the component switches to a confirmation view. The
+`setSubmitted(true)` call triggers a re-render, and the early return at the
+top of `Render()` shows the success message instead of the form.
+
+## Tips
+
+**Always use controlled inputs.** Never let a control manage its own state.
+Your `Render()` method is the single source of truth — if you need to
+pre-fill, validate, or reset a field, you just set the state value.
+
+**Derive validation, don't store it.** Instead of keeping `isEmailValid` in
+state, compute it from `email` on every render. This eliminates sync bugs
+where validation state gets out of date with the actual value.
+
+**Use `When()` for inline error messages.** It reads cleanly and avoids
+extra nesting compared to if/else blocks in the middle of your element tree.
+
+**Reset forms by resetting state.** Call every setter with its initial value.
+Since your component owns all state, there is no hidden form state to clear.
+
+**Group related fields visually.** Use [`VStack`](layout.md) with spacing to group
+related inputs, and `SubHeading` or `Text().Bold()` to label each section of a
+longer form.
+
+## Next Steps
+
+- **[Flex Layout](flex-layout.md)** — advanced alignment and wrapping for complex form layouts
+- **[Collections](collections.md)** — render lists, grids, and virtualized data sets
+- **[Hooks](hooks.md)** — UseState, UseMemo, and other hooks that power form logic
+- **[Commanding](commanding.md)** — wire submit buttons to async commands with busy/error handling

@@ -62,9 +62,9 @@ Run it with `dotnet run` and you'll see this:
 Here's what's happening:
 
 - **`DuctApp.Run<T>`** launches a window and mounts your root component.
-- **`UseState`** returns the current value and a setter. When you call the
+- **[`UseState`](hooks.md)** returns the current value and a setter. When you call the
   setter, Duct re-renders the component with the new value.
-- **`VStack`** stacks children vertically. The number `16` is the pixel spacing.
+- **[`VStack`](layout.md)** stacks children vertically. The number `16` is the pixel spacing.
 - **`Text(...).FontSize(24).Bold()`** is the fluent modifier pattern — every
   element supports chainable modifiers for styling and layout.
 
@@ -139,7 +139,7 @@ Now the full component:
 
 Key patterns to notice:
 
-- **`UseReducer`** is like `UseState` but the setter receives a function
+- **[`UseReducer`](hooks.md)** is like `UseState` but the setter receives a function
   `Func<T, T>` — you transform the previous value into the next value. This
   is the right tool when your new state depends on the old state (like
   appending to a list).
@@ -187,10 +187,8 @@ reads cleanly and avoids unnecessary nesting.
 
 ## Next Steps
 
-- **Components and Props** — Break your app into reusable pieces with
-  `Component<TProps>` and typed record props
-- **Effects and Lifecycle** — Use `UseEffect` for side effects like timers,
-  file I/O, and API calls
-- **Collections** — Use `ListView<T>` and `LazyVStack<T>` for virtualized
-  scrolling over large datasets
-- **Navigation** — Build multi-page apps with `NavigationView` and `TabView`
+- **[Dev Tooling](dev-tooling.md)** — Set up hot reload and preview mode for a faster development loop
+- **[Components](components.md)** — Break your app into reusable pieces with `Component<TProps>` and typed record props
+- **[Hooks](hooks.md)** — Deep dive into UseState, UseReducer, UseEffect, UseMemo, and more
+- **[Layout](layout.md)** — Master VStack, HStack, Grid, and responsive patterns
+- **[Effects and Lifecycle](effects.md)** — Use `UseEffect` for side effects like timers, file I/O, and API calls

@@ -1,0 +1,130 @@
+---
+title: "Components"
+app: components
+order: 3
+audience: beginner
+goal: |
+  Cover Component, Component<TProps>, record props, composition, ShouldUpdate,
+  function components via DuctApp.Run(ctx => ...) and Func(ctx => ...).
+---
+
+# Components
+
+Components are the building blocks of a Duct app. Each component is a class
+with a `Render()` method that returns an element tree describing its UI.
+
+## Basic Component
+
+Extend `Component` and override `Render()`:
+
+```csharp snippet="components/basic-component"
+```
+
+![Basic component](screenshot://components/basic-component)
+
+`Render()` is called every time state changes. You call [hooks](hooks.md) like `UseState`
+at the top, then return an element tree. Duct diffs the result against the
+previous render and patches only the controls that changed.
+
+## Props with Records
+
+When a component needs input from its parent, define a C# record for its
+props and extend `Component<TProps>`:
+
+```csharp snippet="components/props-record"
+```
+
+```csharp snippet="components/props-component"
+```
+
+![Props component](screenshot://components/props-component)
+
+Records give you immutable data with value equality. Duct uses this for
+automatic memoization — if the parent re-renders but the props haven't
+changed structurally, the child skips its `Render()` call.
+
+Access props via `Props.PropertyName` inside `Render()`. The parent sets
+props by assigning the `Props` property when creating the component instance.
+
+## Custom ShouldUpdate
+
+Override `ShouldUpdate` to control when a component re-renders:
+
+```csharp snippet="components/should-update"
+```
+
+The default behavior for `Component<TProps>` uses `Equals()` — which with
+records means structural equality. Override `ShouldUpdate` when you want
+coarser control, like ignoring cosmetic prop changes.
+
+For propless `Component`, `ShouldUpdate()` returns `false` by default,
+meaning the component only re-renders from its own state changes. Override
+and return `true` to re-render whenever the parent re-renders.
+
+## Function Components
+
+Not everything needs a class. Use `Func` for lightweight inline components:
+
+```csharp snippet="components/function-component"
+```
+
+![Function component](screenshot://components/function-component)
+
+- **`Func(ctx => { ... })`** — an inline component with its own hook state.
+  The `ctx` parameter is a `RenderContext` that provides `UseState`,
+  `UseEffect`, and all other hooks.
+- **`Memo(ctx => { ... }, deps)`** — like `Func`, but only re-renders when
+  the dependency values change. Use this for expensive subtrees (see [Hooks](hooks.md) for `UseMemo`).
+
+You can also use a function component as the app root:
+
+<!-- ai:lock -->
+```csharp
+DuctApp.Run("Title", ctx => {
+    var (n, setN) = ctx.UseState(0);
+    return Text($"{n}");
+}, width: 400, height: 300);
+```
+<!-- /ai:lock -->
+
+## Composition
+
+Build complex UIs by nesting components:
+
+```csharp snippet="components/composition"
+```
+
+![Composed components](screenshot://components/composition)
+
+Each component manages its own state independently. The parent creates child
+components with `new` and sets their `Props`. Duct handles the rest —
+mounting, updating, and unmounting as the tree changes.
+
+## Tips
+
+**Use records for props.** They give you immutable data, value equality, and
+`with` expressions for free. Duct's memoization depends on `Equals()` working
+correctly.
+
+**Prefer composition over deep inheritance.** `Component` and
+`Component<TProps>` are the only base classes you need. Build complexity
+through nesting, not class hierarchies.
+
+**Use `Func` for one-off components.** If a component is only used in one
+place and has simple state, an inline `Func(ctx => ...)` avoids the class
+boilerplate.
+
+**Keep Render() pure.** Don't mutate external state or perform I/O inside
+`Render()`. Use [`UseEffect`](effects.md) for side effects. `Render()` should be a pure
+function from (state + props) to elements.
+
+**Name components after what they display, not what they do.** `Alert`,
+`UserCard`, `SettingsPanel` — not `AlertHandler`, `UserManager`,
+`SettingsProcessor`.
+
+## Next Steps
+
+- **[Hooks](hooks.md)** — Next: deep dive into UseState, UseReducer, UseEffect, and all the hooks
+- **[Dev Tooling](dev-tooling.md)** — Previous: hot reload and preview mode for faster iteration
+- **[Layout](layout.md)** — Arrange components with VStack, HStack, Grid, and responsive patterns
+- **[Styling and Theming](styling.md)** — Apply colors, typography, and themes to your components

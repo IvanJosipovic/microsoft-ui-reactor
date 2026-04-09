@@ -1,0 +1,139 @@
+---
+title: "Collections"
+app: collections
+order: 8
+audience: intermediate
+goal: |
+  Cover ListView<T>, LazyVStack<T>, GridView<T>, ForEach, and WithKey.
+  Teach virtualization, key selection for stable identity, and when to use
+  each collection type.
+---
+
+# Collections
+
+When you need to render a list of data, Duct provides three typed collection
+elements and a simple `ForEach` helper. Each takes your data, a key selector,
+and a view builder function that returns an [element](components.md).
+
+## Sample Data
+
+The examples on this page use a shared `Contact` record and sample data
+generator:
+
+```csharp snippet="collections/sample-data"
+```
+
+## ListView
+
+`ListView<T>` renders a scrollable vertical list. Pass your data, a function
+that returns a unique key for each item, and a builder that turns each item
+into an element:
+
+```csharp snippet="collections/listview"
+```
+
+![ListView with contacts](screenshot://collections/listview)
+
+The `keySelector` parameter (`c => c.Id`) tells Duct how to identify each
+item. When your data changes, Duct uses keys to match old items to new ones
+and update only what changed — no full-list rebuild.
+
+## LazyVStack (Virtualized)
+
+`LazyVStack<T>` looks like `ListView<T>` but only creates elements for items
+currently visible on screen. Use it for large datasets:
+
+```csharp snippet="collections/lazyvstack"
+```
+
+![LazyVStack with 50 items](screenshot://collections/lazyvstack)
+
+Even with 50 items in the list, `LazyVStack` only materializes the rows
+you can see. As you scroll, it creates new rows and recycles old ones. This
+keeps memory usage constant regardless of list size.
+
+When to use which:
+
+| Collection | Virtualized | Best for |
+|-----------|------------|---------|
+| `ListView<T>` | No | Small lists (< 50 items) |
+| `LazyVStack<T>` | Yes | Large lists (50+ items) |
+
+## GridView
+
+`GridView<T>` lays items out in a wrapping grid. The framework determines
+column count based on item width and available space:
+
+```csharp snippet="collections/gridview"
+```
+
+![GridView with contact cards](screenshot://collections/gridview)
+
+Each item is sized by the element you return from the view builder. The
+grid automatically wraps items into rows based on the container width.
+
+## ForEach
+
+For small, non-virtualized inline lists, use `ForEach`. It maps a collection
+to elements without creating a scrollable container:
+
+```csharp snippet="collections/foreach"
+```
+
+![ForEach colored tags](screenshot://collections/foreach)
+
+`ForEach` is a convenience for `items.Select(render).ToArray()` that works
+directly inside element trees. Use it when you want to inline a small list
+of items inside a larger [layout](layout.md).
+
+## Stable Identity with WithKey
+
+When rendering dynamic lists, always give each item a stable key with
+`.WithKey()`. Without keys, Duct matches items by position — adding or
+removing an item causes every subsequent item to be rebuilt:
+
+```csharp snippet="collections/withkey"
+```
+
+![WithKey demo](screenshot://collections/withkey)
+
+The typed collections (`ListView<T>`, `LazyVStack<T>`, `GridView<T>`) handle
+keying automatically through their `keySelector` parameter. You only need
+`.WithKey()` manually when using `ForEach`, `Select().ToArray()`, or other
+manual list rendering.
+
+Rules for good keys:
+
+- **Use a stable identifier** from your data (database ID, unique name).
+  Avoid using the array index as a key — it defeats the purpose.
+- **Keys must be unique** within their sibling list. Duplicates cause
+  undefined reconciliation behavior.
+- **Keys should be strings.** The `WithKey` modifier accepts a string.
+
+## Tips
+
+**Use `keySelector` wisely.** The key must uniquely identify each item across
+re-renders. A database ID or GUID is ideal. Avoid index-based keys like
+`i.ToString()` — they break when items are reordered or removed.
+
+**Prefer `LazyVStack<T>` for anything beyond a handful of items.** The
+virtualization overhead is negligible, but the memory savings with large lists
+are significant.
+
+**Keep view builders simple.** The function you pass to `ListView<T>` runs
+for every visible item on every render. Extract complex item layouts into
+their own [`Component<TProps>`](components.md) to get automatic memoization.
+
+**Use `ForEach` for inline lists, typed collections for scrollable lists.**
+`ForEach` does not create a scroll container — it just maps data to elements.
+For scrollable content, use `ListView<T>` or `LazyVStack<T>`.
+
+**Remember the `index` parameter.** All view builders receive `(T item, int index)`.
+Use the index for display (row numbers) but not for keys.
+
+## Next Steps
+
+- **[Forms and Input](forms.md)** — controlled input controls and validation patterns
+- **[Navigation](navigation.md)** — stack-based routing, NavigationView, and tabs
+- **[Flex Layout](flex-layout.md)** — wrapping grids and proportional sizing for collection items
+- **[Components](components.md)** — extract item templates into reusable memoized components

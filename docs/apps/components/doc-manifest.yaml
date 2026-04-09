@@ -1,0 +1,27 @@
+app:
+  title: "Components Demo"
+  width: 650
+  height: 550
+  startup-delay: 1500
+
+screenshots:
+  - id: basic-component
+    description: "Basic component with state"
+    component: Greeting
+    region: client
+    format: png
+  - id: props-component
+    description: "Component with typed record props"
+    component: Alert
+    region: client
+    format: png
+  - id: function-component
+    description: "Function components with Func and Memo"
+    component: FunctionComponentDemo
+    region: client
+    format: png
+  - id: composition
+    description: "All component patterns composed together"
+    component: ComponentsApp
+    region: client
+    format: png

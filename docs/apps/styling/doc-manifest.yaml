@@ -1,0 +1,27 @@
+app:
+  title: "Styling and Theming"
+  width: 650
+  height: 700
+  startup-delay: 1500
+
+screenshots:
+  - id: theme-tokens
+    description: "Themed text with primary, secondary, accent, and accent background"
+    component: ThemeTokensExample
+    region: client
+    format: png
+  - id: card-layout
+    description: "Dashboard cards with themed backgrounds and accent values"
+    component: CardLayoutExample
+    region: client
+    format: png
+  - id: signal-colors
+    description: "Signal color badges for info, success, warning, error"
+    component: SignalColorsExample
+    region: client
+    format: png
+  - id: dark-light-toggle
+    description: "Toggle switch controlling dark/light mode on a card panel"
+    component: DarkLightToggleExample
+    region: client
+    format: png

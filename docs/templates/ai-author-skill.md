@@ -217,6 +217,46 @@ End each page with 3-5 practical tips relevant to the topic. Format as bold
 lead sentence followed by explanation paragraph. Tips should be actionable
 and specific to Duct, not generic programming advice.
 
+### Cross-Links and Navigation
+
+Every page must be reachable through link traversal from the readme. Follow
+these rules:
+
+- **Readme links to all topics.** The readme landing page must contain a
+  categorized list linking to every topic in the docset.
+- **Next Steps section.** Every topic page (except readme) must end with a
+  `## Next Steps` section after the Tips section. List 3-5 related topics
+  as Markdown links using relative paths: `[Title](topic.md)`.
+- **Inline links.** When prose mentions a concept covered in another topic,
+  link to it inline: "see [Effects and Lifecycle](effects.md) for details."
+- **Previous/Next.** Include a sequential link to the previous and next topic
+  by order number so readers can follow the learning path linearly.
+- **Link format.** Use relative `.md` paths: `[Getting Started](getting-started.md)`.
+  Do not use absolute paths or `screenshot://` syntax for page links.
+
+**Topic order for sequential navigation:**
+
+| Order | Topic | File |
+|-------|-------|------|
+| 0 | Duct (readme) | `readme.md` |
+| 1 | Getting Started | `getting-started.md` |
+| 2 | Dev Tooling | `dev-tooling.md` |
+| 3 | Components | `components.md` |
+| 4 | Hooks | `hooks.md` |
+| 5 | Layout | `layout.md` |
+| 6 | Flex Layout | `flex-layout.md` |
+| 7 | Forms and Input | `forms.md` |
+| 8 | Collections | `collections.md` |
+| 9 | Navigation | `navigation.md` |
+| 10 | Styling and Theming | `styling.md` |
+| 11 | Effects and Lifecycle | `effects.md` |
+| 12 | Commanding | `commanding.md` |
+| 13 | Context | `context.md` |
+| 14 | Accessibility | `accessibility.md` |
+| 15 | Localization | `localization.md` |
+| 16 | Animation | `animation.md` |
+| 17 | Advanced Patterns | `advanced.md` |
+
 ---
 
 ## Duct API Quick Reference
@@ -251,16 +291,48 @@ class MyComponent : Component<MyProps>
 
 ### Hooks (call only inside Render)
 
+**Core state & computation:**
+
 | Hook | Signature | Purpose |
 |------|-----------|---------|
 | `UseState` | `(T, Action<T>) UseState<T>(T initial)` | Reactive state |
 | `UseReducer` | `(T, Action<Func<T,T>>) UseReducer<T>(T initial)` | State with functional updater |
+| `UseReducer` | `(TState, Action<TAction>) UseReducer<TState,TAction>(Func<TState,TAction,TState> reducer, TState initial)` | Redux-style reducer |
 | `UseEffect` | `void UseEffect(Action effect, params object[] deps)` | Side effects |
 | `UseEffect` | `void UseEffect(Func<Action> effect, params object[] deps)` | Effect with cleanup |
 | `UseMemo` | `T UseMemo<T>(Func<T> factory, params object[] deps)` | Memoized computation |
 | `UseRef` | `Ref<T> UseRef<T>(T initial)` | Mutable ref across renders |
-| `UseContext` | `T UseContext<T>(DuctContext<T> ctx)` | Read ambient context |
 | `UseCallback` | `Action UseCallback(Action cb, params object[] deps)` | Stable callback reference |
+| `UseContext` | `T UseContext<T>(DuctContext<T> ctx)` | Read ambient context |
+
+**Data binding & persistence:**
+
+| Hook | Signature | Purpose |
+|------|-----------|---------|
+| `UsePersisted` | `(T, Action<T>) UsePersisted<T>(string key, T initial)` | Local-storage-backed state |
+| `UseObservableTree` | `T UseObservableTree<T>(T source)` | Re-render on any INotifyPropertyChanged |
+| `UseObservable` | `T UseObservable<T>(T source)` | Re-render on direct property changes |
+| `UseObservableProperty` | `TProp UseObservableProperty<T,TProp>(T src, Func<T,TProp> sel, string prop)` | Track a single property |
+| `UseCollection` | `IReadOnlyList<T> UseCollection<T>(ObservableCollection<T> col)` | Track observable collection changes |
+
+**Navigation:**
+
+| Hook | Signature | Purpose |
+|------|-----------|---------|
+| `UseNavigation` | `NavigationHandle<TRoute> UseNavigation<TRoute>(TRoute initial)` | Create a navigation stack (root) |
+| `UseNavigation` | `NavigationHandle<TRoute> UseNavigation<TRoute>()` | Access ancestor navigation via context |
+| `UseNavigationLifecycle` | `void UseNavigationLifecycle(onNavigatedTo?, onNavigatingFrom?, onNavigatedFrom?)` | Page lifecycle callbacks |
+| `UseSystemBackButton` | `void UseSystemBackButton<TRoute>(NavigationHandle<TRoute> nav, Window win)` | Wire system back button |
+
+**Framework integration:**
+
+| Hook | Signature | Purpose |
+|------|-----------|---------|
+| `UseCommand` | `DuctCommand UseCommand(DuctCommand cmd)` | Command lifecycle + async tracking |
+| `UseCommand<T>` | `DuctCommand<T> UseCommand<T>(DuctCommand<T> cmd)` | Parameterized command tracking |
+| `UseWindowSize` | `(double W, double H) UseWindowSize(Window win)` | Reactive window dimensions |
+| `UseBreakpoint` | `bool UseBreakpoint(Window win, double minWidth)` | Media-query-style breakpoint |
+| `UseIntl` | `IntlAccessor UseIntl()` | Localization accessor (formatting, strings) |
 
 ### Common Elements
 
@@ -302,20 +374,32 @@ class MyComponent : Component<MyProps>
 
 Generate these as `<topic>.md.dt` + `docs/apps/<topic>/` pairs:
 
-0. **readme** - landing page with description of project and links to other pages
-1. **getting-started** — Project setup, hello world, state, layout, mini-apps
-2. **dev-tooling** - dotnet watch + preview mode on apps, vs code extension, duct CLI, etc.
-3. **components** - Component class, props, composition, ShouldUpdate
-4. **hooks** — UseState, UseReducer, UseEffect, UseMemo, UseRef deep dive
-5. **layout** — VStack, HStack, Grid, Flex, ScrollView, responsive patterns
-6. **collections** — ListView, LazyVStack, GridView, virtualization, keys
-7. **navigation** — NavigationView, TabView, BreadcrumbBar, Pivot
-8. **styling** — Theming, brushes, dark/light mode, WinUI resource access
-9. **forms** — TextField, CheckBox, ComboBox, validation patterns
-10. **effects** — UseEffect patterns, timers, file I/O, async data loading
-11. **commanding** — DuctCommand, StandardCommand, keyboard accelerators
-12. **context** — DuctContext, providing/consuming values, theme context
-13. **advanced** — ErrorBoundary, Memo, performance tuning, interop with WinUI
+### Beginner
+
+0. **readme** — Landing page: what Duct is, why no XAML, links to all topics
+1. **getting-started** *(done)* — Project setup, hello world, state, layout, todo + calculator mini-apps
+2. **dev-tooling** — `dotnet watch` + preview mode, VS Code extension, `duct` CLI, hot reload workflow
+3. **components** — `Component`, `Component<TProps>`, record props, composition, `ShouldUpdate`, function components via `DuctApp.Run(ctx => ...)`
+4. **hooks** — Deep dive: UseState, UseReducer (both overloads), UseEffect (with cleanup), UseMemo, UseRef, UseCallback; hook rules and ordering
+5. **layout** — VStack, HStack, Grid, ScrollView, Border, Expander, Canvas; spacing, alignment, responsive patterns with UseWindowSize/UseBreakpoint
+
+### Intermediate
+
+6. **flex-layout** — FlexPanel powered by Yoga (CSS Flexbox): direction, justify, align, wrap, grow/shrink/basis, gap, absolute positioning; when to use Flex vs. VStack/Grid
+7. **forms** — TextField, CheckBox, ComboBox, Slider, NumberBox, PasswordBox, RadioButtons, ToggleSwitch; validation patterns and controlled-input idioms
+8. **collections** — ListView\<T\>, LazyVStack\<T\>, GridView\<T\>; virtualization, key selection, ForEach, stable identity with WithKey
+9. **navigation** — UseNavigation\<TRoute\> hook, NavigationHandle, type-safe stack-based routing, NavigationView/TabView/BreadcrumbBar elements, DeepLinkMap for URL routing, NavigationCache, page lifecycle (UseNavigationLifecycle), UseSystemBackButton, animated transitions via TransitionEngine
+10. **styling** — Theming, brushes, dark/light mode, Theme.Accent, WinUI resource access, ApplyStyle, fonts, CornerRadius
+11. **effects** — UseEffect lifecycle: mount, update, cleanup; timers, async data loading, file I/O, dependency arrays, infinite-loop pitfalls
+12. **commanding** — DuctCommand, DuctCommand\<T\>, StandardCommand, UseCommand hook, keyboard accelerators, async commands with IsExecuting tracking
+13. **context** — DuctContext\<T\>, ContextProvider, UseContext, nested/overridden contexts; theme context as a worked example
+
+### Advanced
+
+14. **accessibility** — AutomationName, HeadingLevel, landmarks, live regions, IsTabStop/TabIndex, AccessKey, FullDescription; tiered modifier pattern (common vs. advanced); WCAG compliance patterns
+15. **localization** — LocaleProvider, UseIntl, RtlHelper, logical layout properties (MarginInlineStart/End), string resource providers, date/number formatting, pseudo-localization for testing
+16. **animation** — Implicit transitions (opacity, scale, translate, background), LayoutAnimation, ConnectedAnimation, theme transitions; combining transitions for polish
+17. **advanced** — ErrorBoundary + fallback UI, Memo for subtree skip, performance tuning (ElementPool, batched renders, bitmask diffs), WinUI escape hatch (`.Set()`), XAML interop (XamlHostElement), observable data binding (UseObservableTree, UseCollection)
 
 ---
 
@@ -330,4 +414,6 @@ Generate these as `<topic>.md.dt` + `docs/apps/<topic>/` pairs:
 - [ ] Snippets are under 30 lines each
 - [ ] Prose explains code *after* showing it, not before
 - [ ] Tips are specific to Duct, not generic programming advice
+- [ ] Page has a `## Next Steps` section with links to related and sequential topics
+- [ ] Readme links to all topic pages; all pages are reachable via link traversal
 - [ ] Run `duct docs compile --validate-only` to check all references resolve

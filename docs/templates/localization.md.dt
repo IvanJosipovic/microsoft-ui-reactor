@@ -1,0 +1,137 @@
+---
+title: "Localization"
+app: localization
+order: 15
+audience: advanced
+goal: |
+  Cover LocaleProvider, UseIntl, RtlHelper, string resource providers,
+  date/number formatting, pseudo-localization for testing.
+---
+
+# Localization
+
+Duct's localization system wraps your component tree in a `LocaleProvider`
+that supplies an `IntlAccessor` to every descendant via [context](context.md).
+You look up messages, format numbers and dates, and detect RTL layouts — all
+locale-aware, all reactive.
+
+## String Resource Provider
+
+You start by implementing `IStringResourceProvider`. It maps a locale,
+namespace, and key to a translated string. For production apps, use
+`ReswResourceProvider` to load `.resw` files. For demos and tests, an
+in-memory dictionary works:
+
+```csharp snippet="localization/resource-provider"
+```
+
+The `GetString` method receives the full locale tag (e.g., `"fr-FR"`), the
+namespace (matching the `.resw` file name), and the key. Return `null` for
+missing keys — the system falls back to the default locale automatically.
+
+## LocaleProvider
+
+Wrap your app tree with `LocaleProvider`. It takes a locale string, a child
+element, and an optional resource provider:
+
+```csharp snippet="localization/locale-provider"
+```
+
+![Locale switcher with LocaleProvider](screenshot://localization/locale-provider)
+
+When the locale changes (here via a `ComboBox`), `LocaleProvider` re-renders
+its subtree with a new `IntlAccessor`. Every component that calls `UseIntl()`
+picks up the new locale automatically.
+
+## Message Lookup
+
+Call `UseIntl()` in any descendant — it is a [hook](hooks.md) — to get the
+`IntlAccessor`. Use `.Message()` to look up translated strings by key. Pass
+arguments as an anonymous object for interpolation:
+
+```csharp snippet="localization/useintl-messages"
+```
+
+![Localized messages](screenshot://localization/useintl-messages)
+
+`MessageKey` takes a namespace and key. The namespace maps to your `.resw`
+file name (e.g., `"App"` for `App.resw`). The accessor also exposes the
+current `Locale`, `Direction`, and `IsRtl` flag.
+
+## Formatting Numbers and Dates
+
+`IntlAccessor` provides locale-aware formatting for numbers, dates, and
+lists. Each method returns a string formatted according to the current
+locale's rules:
+
+```csharp snippet="localization/format-numbers-dates"
+```
+
+![Formatted numbers and dates](screenshot://localization/format-numbers-dates)
+
+| Method | Options |
+|--------|---------|
+| `FormatNumber(value, options?)` | `NumberStyle.Default`, `.Currency`, `.Percent`; fraction digit control |
+| `FormatDate(value, options?)` | `DateStyle.Short`, `.Long`, `.Full`, `.Default` |
+| `FormatList(values, type)` | `ListFormatType.Conjunction` ("and") or `.Disjunction` ("or") |
+
+Formatting follows the locale's conventions — decimal separators, date order,
+currency symbols, and list conjunctions all adapt automatically.
+
+## RTL Detection
+
+Use `RtlHelper.IsRtlLocale()` to check whether a locale is right-to-left.
+The `IntlAccessor` exposes `IsRtl` and `Direction` for the active locale:
+
+```csharp snippet="localization/rtl-detection"
+```
+
+![RTL detection](screenshot://localization/rtl-detection)
+
+Arabic, Hebrew, Farsi, Urdu, and several other languages are detected as RTL.
+Use `intl.Direction` to set `FlowDirection` on your [layout](layout.md)
+containers so text and UI elements flow correctly.
+
+## Pseudo-Localization
+
+Pseudo-localization replaces characters with accented equivalents and adds
+padding to expose hardcoded strings and truncation issues. Enable it by
+setting `pseudoLocalize: true` on `LocaleProvider`:
+
+```csharp snippet="localization/pseudo-localization"
+```
+
+![Pseudo-localization](screenshot://localization/pseudo-localization)
+
+Run pseudo-localization during development to catch problems early: strings
+that were not routed through `intl.Message()` appear unchanged, making them
+easy to spot. The padded text reveals truncation in fixed-width layouts.
+
+## Tips
+
+**Always wrap with `LocaleProvider` at the root.** Components that call
+`UseIntl()` without a provider fall back to the OS locale, but you lose
+control over locale switching and resource loading.
+
+**Use namespaced keys.** Organize your `.resw` files by feature area
+(`"Settings"`, `"Checkout"`, `"Common"`) so translations stay manageable as
+the app grows.
+
+**Test with pseudo-localization early.** Turn it on in debug builds. It costs
+nothing at runtime and catches layout issues that only surface in German or
+Arabic.
+
+**Format all user-visible numbers and dates.** Never call `.ToString()`
+directly. `FormatNumber` and `FormatDate` handle thousands separators, decimal
+symbols, and date ordering for every locale.
+
+**Check `intl.IsRtl` for layout-sensitive logic.** If you have directional
+icons (arrows, chevrons) or absolute positioning, flip them when the locale
+is RTL.
+
+## Next Steps
+
+- **[Accessibility](accessibility.md)** — previous topic: label controls, set landmarks, and support screen readers
+- **[Animation](animation.md)** — next topic: add transitions and layout animations to your UI
+- **[Context](context.md)** — understand the provider pattern that `LocaleProvider` uses under the hood
+- **[Forms and Input](forms.md)** — localize form labels, placeholders, and validation messages

@@ -1,0 +1,187 @@
+---
+title: "Hooks"
+app: hooks
+order: 4
+audience: beginner
+goal: |
+  Deep dive into UseState, UseReducer (both overloads), UseEffect (with cleanup),
+  UseMemo, UseRef, UseCallback. Hook rules and ordering.
+---
+
+# Hooks
+
+Hooks are functions you call inside [`Render()`](components.md) to manage state, side effects,
+and memoization. They replace the need for view models, event handlers, and
+lifecycle methods.
+
+## UseState
+
+The most common hook. Returns the current value and a setter function:
+
+```csharp snippet="hooks/usestate"
+```
+
+![UseState demo](screenshot://hooks/usestate)
+
+Call `setColor("#FF0000")` and Duct re-renders the component with the new
+value. The setter also accepts a function: `setSize(s => s + 1)` — this is
+safer when the update depends on the previous value.
+
+## UseReducer (Functional)
+
+When your new state depends on the old state, `UseReducer` is cleaner than
+`UseState`. The updater receives a `Func<T, T>` — a function that transforms
+the previous value:
+
+```csharp snippet="hooks/usereducer"
+```
+
+![UseReducer demo](screenshot://hooks/usereducer)
+
+`updateItems(list => new List<string>(list) { input })` appends to the list
+by creating a new copy. This avoids mutation bugs — you always produce a new
+value from the old one.
+
+## UseReducer (Redux-Style)
+
+For complex state with multiple action types, use the Redux-style overload.
+Define a state record, action types, and a reducer function:
+
+```csharp snippet="hooks/usereducer-redux"
+```
+
+![Redux-style reducer](screenshot://hooks/usereducer-redux)
+
+The reducer `(state, action) => newState` is a pure function. Each action type
+maps to a state transformation. This pattern scales well — adding new actions
+doesn't change existing logic.
+
+## UseEffect
+
+Run side effects (timers, subscriptions, async work) after a render. The
+dependencies array controls when the effect re-runs:
+
+```csharp snippet="hooks/useeffect"
+```
+
+![UseEffect timer](screenshot://hooks/useeffect)
+
+Key details:
+
+- The effect runs **after** the render completes, not during.
+- Return a **cleanup function** to dispose resources. Duct calls it before
+  re-running the effect and when the component unmounts.
+- **Empty dependencies** `UseEffect(() => { ... })` — runs once on mount.
+- **With dependencies** `UseEffect(() => { ... }, running)` — runs when
+  `running` changes.
+
+## UseMemo
+
+Cache an expensive computation so it only recalculates when its inputs change:
+
+```csharp snippet="hooks/usememo"
+```
+
+![UseMemo demo](screenshot://hooks/usememo)
+
+`UseMemo` compares the dependency values between renders. If they haven't
+changed, it returns the cached result. Use it for string processing, filtering
+large lists, or any computation you don't want to repeat every render.
+
+## UseRef
+
+Store a mutable value that persists across renders without triggering
+re-renders:
+
+```csharp snippet="hooks/useref"
+```
+
+![UseRef demo](screenshot://hooks/useref)
+
+`UseRef` returns a `Ref<T>` with a `.Current` property. Changing `.Current`
+does **not** cause a re-render. This is useful for:
+
+- Counting renders
+- Storing previous values for comparison
+- Holding references to timers or cancellation tokens
+
+## UseCallback
+
+Stabilize a callback reference so child components don't re-render
+unnecessarily:
+
+```csharp snippet="hooks/usecallback"
+```
+
+![UseCallback demo](screenshot://hooks/usecallback)
+
+Without `UseCallback`, the lambda `() => setCount(c => c + 1)` would be a new
+object every render. `UseCallback` returns the same delegate instance as long
+as the dependencies haven't changed. This matters when passing callbacks to
+memoized [child components](components.md).
+
+## Hook Rules
+
+Hooks must be called **in the same order** every render. Duct tracks hooks by
+their position in the call sequence — the first `UseState` call always maps to
+the first state slot, the second to the second, and so on.
+
+**Do:**
+<!-- ai:lock -->
+```csharp
+public override Element Render()
+{
+    var (a, setA) = UseState(0);     // always first
+    var (b, setB) = UseState("");    // always second
+    UseEffect(() => { ... }, a);     // always third
+    return Text($"{a} {b}");
+}
+```
+<!-- /ai:lock -->
+
+**Don't:**
+<!-- ai:lock -->
+```csharp
+public override Element Render()
+{
+    var (a, setA) = UseState(0);
+    if (a > 0)
+        UseEffect(() => { ... }, a);  // WRONG: conditional hook
+    return Text($"{a}");
+}
+```
+<!-- /ai:lock -->
+
+Put the condition **inside** the hook instead:
+<!-- ai:lock -->
+```csharp
+UseEffect(() => { if (a > 0) { /* ... */ } }, a);
+```
+<!-- /ai:lock -->
+
+## Tips
+
+**Use the functional setter for derived updates.** `setCount(c => c + 1)` is
+safer than `setCount(count + 1)` when multiple updates might batch together.
+
+**Always return cleanup from effects that create resources.** Timers,
+subscriptions, and event handlers must be disposed. The cleanup function is
+your only chance to do it.
+
+**Don't overuse UseMemo.** Simple expressions like `$"{first} {last}"` are
+cheap. Only memoize when the computation is genuinely expensive or the result
+is passed as a dependency elsewhere.
+
+**UseRef is not for UI values.** If changing a value should update the screen,
+use `UseState`. `UseRef` is for bookkeeping that doesn't affect rendering.
+
+**Keep effects focused.** One effect per concern. Don't combine a timer and an
+API call in the same `UseEffect` — split them into separate hooks with their
+own dependency arrays. See [Effects and Lifecycle](effects.md) for advanced patterns.
+
+## Next Steps
+
+- **[Layout](layout.md)** — Next: arrange your UI with VStack, HStack, Grid, and responsive patterns
+- **[Components](components.md)** — Previous: component classes, props, and composition
+- **[Effects and Lifecycle](effects.md)** — Advanced UseEffect patterns, cleanup, and async work
+- **[Context](context.md)** — Share state across the tree without prop drilling

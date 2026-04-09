@@ -1,0 +1,32 @@
+app:
+  title: "Collections"
+  width: 700
+  height: 600
+  startup-delay: 1500
+
+screenshots:
+  - id: listview
+    description: "ListView with contact data"
+    component: ListViewDemo
+    region: client
+    format: png
+  - id: lazyvstack
+    description: "LazyVStack with 50 virtualized items"
+    component: LazyVStackDemo
+    region: client
+    format: png
+  - id: gridview
+    description: "GridView with contact cards"
+    component: GridViewDemo
+    region: client
+    format: png
+  - id: foreach
+    description: "ForEach rendering colored tags"
+    component: ForEachDemo
+    region: client
+    format: png
+  - id: withkey
+    description: "Dynamic list with WithKey for stable identity"
+    component: WithKeyDemo
+    region: client
+    format: png

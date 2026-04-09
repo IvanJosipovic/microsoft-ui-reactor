@@ -1,0 +1,27 @@
+app:
+  title: "Forms"
+  width: 600
+  height: 700
+  startup-delay: 1500
+
+screenshots:
+  - id: controlled-input
+    description: "Controlled text input with live preview"
+    component: ControlledInputDemo
+    region: client
+    format: png
+  - id: input-types
+    description: "All input control types in a form"
+    component: InputTypesDemo
+    region: client
+    format: png
+  - id: validation
+    description: "Form validation with error messages"
+    component: ValidationDemo
+    region: client
+    format: png
+  - id: registration-form
+    description: "Complete registration form with submit"
+    component: RegistrationForm
+    region: client
+    format: png

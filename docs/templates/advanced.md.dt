@@ -1,0 +1,139 @@
+---
+title: "Advanced Patterns"
+app: advanced
+order: 17
+audience: advanced
+goal: |
+  Cover ErrorBoundary + fallback UI, Memo for subtree skip, performance tuning,
+  WinUI escape hatch (.Set()), observable data binding (UseObservableTree,
+  UseCollection).
+---
+
+# Advanced Patterns
+
+This page covers escape hatches and performance tools for when the standard
+declarative API is not enough: error boundaries for resilience, `Memo` for
+render skipping, `.Set()` for raw WinUI access, and observable
+[hooks](hooks.md) for bridging to MVVM view models.
+
+## Error Boundary
+
+`ErrorBoundary` wraps a subtree and catches exceptions during rendering.
+Instead of crashing the app, it displays a fallback element:
+
+```csharp snippet="advanced/error-boundary"
+```
+
+![Error boundary with fallback](screenshot://advanced/error-boundary)
+
+The first argument is the child subtree. The second is a fallback — either a
+static element or a function that receives the `Exception`. When the
+`ErrorBoundary` re-renders (e.g., its parent updates), it retries the child.
+This gives the user a chance to recover by changing state that caused the
+crash.
+
+## Memo
+
+`Memo` skips re-rendering an entire subtree when its dependencies have not
+changed. The parent can re-render freely — the memoized subtree stays frozen:
+
+```csharp snippet="advanced/memo-subtree"
+```
+
+![Memo skipping re-render](screenshot://advanced/memo-subtree)
+
+`Memo` takes a render function and a list of dependencies. The subtree only
+re-renders when at least one dependency changes (by reference equality).
+Clicking "Increment" re-renders the parent, but the memoized border stays
+untouched because `label` has not changed.
+
+Use `Memo` for expensive subtrees — large [collections](collections.md),
+complex charts, or deeply nested [component](components.md) trees that do not
+depend on frequently changing state.
+
+## .Set() Escape Hatch
+
+`.Set()` gives you direct access to the underlying WinUI control. Use it
+when Duct does not expose a property you need:
+
+```csharp snippet="advanced/set-escape-hatch"
+```
+
+![.Set() escape hatch](screenshot://advanced/set-escape-hatch)
+
+Each element type has a typed `.Set()` overload. `Button` receives an
+`Action<Microsoft.UI.Xaml.Controls.Button>`, `Text` receives
+`Action<TextBlock>`, and so on. The callback runs at both mount and update,
+so set properties idempotently — do not accumulate event handlers. Use
+`.OnMount()` instead when you need to attach handlers exactly once.
+
+## UseObservableTree
+
+`UseObservableTree` bridges `INotifyPropertyChanged` view models into the
+declarative render cycle. It subscribes to property changes at every depth
+and re-renders the component when any nested property fires.
+
+Define a standard INPC view model:
+
+```csharp snippet="advanced/observable-viewmodel-class"
+```
+
+Then bind it in a component with `UseObservableTree`:
+
+```csharp snippet="advanced/observable-viewmodel"
+```
+
+![Observable view model](screenshot://advanced/observable-viewmodel)
+
+The view model is a plain C# class with `INotifyPropertyChanged`. You mutate
+it directly (`vm.UserName = v`) and Duct re-renders. This is the bridge for
+teams migrating from MVVM — existing view models work without modification.
+
+`UseObservable(source)` is the shallow variant: it only subscribes to the
+source object's own `PropertyChanged` events, not nested objects.
+
+## UseCollection
+
+`UseCollection` tracks an `ObservableCollection<T>` and re-renders when
+items are added, removed, or the collection is reset:
+
+```csharp snippet="advanced/observable-collection"
+```
+
+![Observable collection](screenshot://advanced/observable-collection)
+
+The hook returns `IReadOnlyList<T>` — you read from it in render, and
+mutate the original `ObservableCollection` in event handlers. Duct
+subscribes to `CollectionChanged` and triggers a re-render on any
+modification.
+
+## Tips
+
+**Wrap third-party components in `ErrorBoundary`.** If a plugin or external
+component throws, the boundary prevents it from taking down your entire app.
+Combine with a "Retry" button in the fallback to let users recover.
+
+**Profile before memoizing.** `Memo` adds complexity. Only use it when you
+have measured a re-render bottleneck. Most subtrees are fast enough without
+it.
+
+**Prefer declarative modifiers over `.Set()`.** Every `.Set()` call is an
+escape hatch that bypasses Duct's diffing. Use it only for properties that
+Duct does not expose. If you find yourself using `.Set()` frequently,
+consider filing an issue to add first-class support.
+
+**Keep view models outside the component.** Store them as `static` fields or
+inject them via [context](context.md). Creating a new view model inside
+`Render()` would allocate a fresh object on every render and lose all state.
+
+**Use `UseObservable` when depth is one level.** `UseObservableTree` walks
+the entire object graph on every change. For flat view models with no nested
+INPC objects, `UseObservable` is cheaper.
+
+## Next Steps
+
+- **[Animation](animation.md)** — previous topic: declarative transitions, layout animations, and connected animations
+- **[Duct](readme.md)** — back to the index: overview of the framework and full topic list
+- **[Hooks](hooks.md)** — review the hook system that `UseObservableTree` and `UseCollection` build on
+- **[Effects and Lifecycle](effects.md)** — manage side effects alongside observable data binding
+- **[Components](components.md)** — revisit component fundamentals for structuring large apps
