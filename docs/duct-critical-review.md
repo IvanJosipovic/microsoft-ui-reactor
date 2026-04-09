@@ -11,39 +11,61 @@ rather than a principled declarative UI framework.
 
 Duct is an ambitious attempt to bring React-style declarative UI to WinUI 3.
 It has impressive breadth of control coverage (94% of WinUI controls wrapped),
-a now-solid component model foundation, and a faithful hooks system. It has
-closed its most critical architectural gaps but still has significant remaining
-problems:
+a now-solid component model foundation, and a faithful hooks system. The two
+largest gaps from the previous review — navigation and commanding — have both
+shipped as comprehensive systems. But significant problems remain, and some of
+the new features have implementation concerns that temper the enthusiasm:
 
 1. **The component model is now a real framework foundation** — context system,
    memoization, generic hook state, persisted state, and post-render effect
    cleanup have all landed, closing the most fundamental gaps
-2. **Navigation is non-existent** — the core navigation scenario (pages with back
-   stack) is blocked
-3. **The DSL is constrained by C# language limitations** — verbose, repetitive,
+2. **Navigation has shipped and is architecturally strong** — type-safe routes,
+   developer-owned back stack, composition-layer transitions, lifecycle guards,
+   LRU caching, serialization, and deep linking. The design is competitive with
+   Compose Navigation 3 and ahead of SwiftUI's type-erased NavigationPath. But
+   connected transitions are a stub, E2E tests are unexecuted, and there's no
+   adaptive multi-pane layout story
+3. **Commanding is a genuine differentiator** — define-once commands with
+   metadata bundling, 16 standard commands, async lifecycle, focus-scoped
+   keyboard accelerators, and ICommand interop. No competing framework (React,
+   SwiftUI, Compose) provides this out of the box. But accelerators rebuild on
+   every render, standard command labels aren't localized, and there's no command
+   routing to the focused view
+4. **The DSL is constrained by C# language limitations** — verbose, repetitive,
    and leaky compared to JSX, SwiftUI's result builders, or Compose's Kotlin DSL
-4. **Theming works for WinUI's built-in tokens but has real gaps** — custom
+5. **Theming works for WinUI's built-in tokens but has real gaps** — custom
    branded colors still require workarounds, and the implementation has perf cost
-5. **Accessibility has improved significantly but still has structural limits** —
+6. **Accessibility has improved significantly but still has structural limits** —
    16 properties exposed with real UIA tests, but hooks, diagnostics, and custom
    automation peers remain unbuilt
-6. **Animation has broadened but remains limited in scope** — layout animations,
+7. **Animation has broadened but remains limited in scope** — layout animations,
    springs, and connected animations now exist, but still no value-driven
    animation, no keyframe DSL, and implicit transitions are capped at 5 properties
-7. **The `.Set()` escape hatch is load-bearing** — a huge fraction of WinUI's
-   functionality is only accessible through it, making Duct a thin wrapper rather
-   than an abstraction
+8. **The `.Set()` escape hatch is still load-bearing** — navigation and commanding
+   reduce its surface area, but the majority of input handling, gestures, advanced
+   styling, and composition-layer access still require it
 
-**Verdict:** Duct has crossed an important threshold. The component model — the
-foundation that everything else builds on — now has context, memoization, generic
-hooks, state persistence, and proper effect cleanup. These aren't incremental
-improvements; they close the gaps that made Duct a non-starter for any app with
-cross-cutting concerns. Theming, accessibility, and animation have all improved
-from "missing or broken" to "functional with caveats," and the tooling story (hot
-reload, preview) is stronger than most new frameworks. Navigation remains the
-single largest fundamental gap. The distance from "impressive demo" to "ships to
-real users" has narrowed meaningfully — the foundation is now solid, but the
-higher-level features built on top of it still have scope limitations.
+**Verdict:** Duct has crossed a second important threshold. The first was the
+component model foundation (context, memoization, hooks). The second is the
+application architecture layer: navigation and commanding are the features that
+separate "a component library" from "a framework you can build a real app with."
+Both are now shipped, tested, and demonstrated in sample apps. Navigation in
+particular is architecturally competitive with the industry's latest thinking —
+Compose Navigation 3 (stable Nov 2025) made the same philosophical choices
+(developer-owned typed stack, declarative destination mapping) that Duct
+independently arrived at. Commanding fills a gap that literally no competitor
+has filled — every serious app builds a custom command registry, and Duct
+provides one as a first-class feature.
+
+The distance from "impressive demo" to "ships to real users" has narrowed
+substantially. The critical path now runs through the mid-tier features:
+theming needs to be more than 3 properties, accessibility needs the semantic
+and imperative layers, animation needs general-purpose value-driven support.
+The `.Set()` escape hatch carries less weight than before — navigation and
+commanding reclaimed meaningful surface area — but it's still the answer for
+too many scenarios. The framework is no longer blocked on any single P0 gap,
+but the sum of its P1/P2 gaps still adds up to a significant distance from
+production-readiness for apps that need polish.
 
 ---
 
@@ -56,14 +78,15 @@ higher-level features built on top of it still have scope limitations.
 5. [Layout System](#5-layout-system)
 6. [Styling and Theming](#6-styling-and-theming)
 7. [Navigation](#7-navigation)
-8. [Lists and Collections](#8-lists-and-collections)
-9. [Animation](#9-animation)
-10. [Accessibility](#10-accessibility)
-11. [Input Handling and Events](#11-input-handling-and-events)
-12. [Developer Experience](#12-developer-experience)
-13. [The .Set() Problem](#13-the-set-problem)
-14. [Component-by-Component Scorecard](#14-component-by-component-scorecard)
-15. [Conclusion](#15-conclusion)
+8. [Commanding](#8-commanding)
+9. [Lists and Collections](#9-lists-and-collections)
+10. [Animation](#10-animation)
+11. [Accessibility](#11-accessibility)
+12. [Input Handling and Events](#12-input-handling-and-events)
+13. [Developer Experience](#13-developer-experience)
+14. [The .Set() Problem](#14-the-set-problem)
+15. [Component-by-Component Scorecard](#15-component-by-component-scorecard)
+16. [Conclusion](#16-conclusion)
 
 ---
 
@@ -917,52 +940,502 @@ compile-time validation.
 
 ## 7. Navigation
 
-### The gap
+### The navigation story: from "architecturally blocked" to competitive
 
-Navigation is the second most critical gap after theming. The gap analysis says
-it plainly: "Navigation is generally broken."
+The previous version of this review scored Navigation at F — "Roll your own
+string-based switch statement." That was the single most damning critique in the
+document. A comprehensive navigation system has now shipped: type-safe routes,
+developer-owned back stack, composition-layer GPU transitions, lifecycle hooks
+with cancellation guards, LRU page caching, JSON state serialization, deep
+linking, and NavigationView integration. 117 unit tests across 6 test files
+validate the implementation. A feature-complete sample app demonstrates all
+capabilities. The honest assessment now: **navigation is architecturally strong
+and competitive with the industry's latest thinking, but has implementation gaps
+and missing E2E validation that temper confidence.**
 
-**The core problem:** WinUI's Frame/Page navigation requires `Page` subclasses,
-which require XAML code-behind files. Duct is pure C# — no XAML files. Therefore,
-Frame/Page navigation is *architecturally blocked*.
+### What Duct has now
 
-**The workaround:**
 ```csharp
-var (currentPage, setCurrentPage) = UseState("home");
-return NavigationView(menuItems,
-    currentPage switch {
-        "home" => Component<HomePage>(),
-        "settings" => Component<SettingsPage>(),
-        _ => Text("404")
-    }
+// Define routes as C# records — type-safe, serializable, pattern-matchable
+record HomeRoute;
+record DetailRoute(int Id);
+record SettingsRoute;
+record ProfileRoute(string UserId, string? Tab = null);
+
+// Root: create navigation stack with initial route
+var nav = UseNavigation<AppRoute>(initial: new HomeRoute());
+
+// Child: retrieve ancestor's handle via DuctContext
+var nav = UseNavigation<AppRoute>();
+
+// Navigate with full type safety
+nav.Navigate(new DetailRoute(42));
+nav.GoBack();
+nav.GoForward();
+nav.Replace(new SettingsRoute());
+nav.Reset(new HomeRoute());       // clear stack
+nav.PopTo(r => r is HomeRoute);   // pop until match
+
+// Render current route
+NavigationHost(nav, route => route switch {
+    HomeRoute => Component<HomePage>(),
+    DetailRoute d => Component<DetailPage, int>(d.Id),
+    SettingsRoute => Component<SettingsPage>(),
+    _ => Text("Unknown route")
+}) with {
+    Transition = NavigationTransition.Slide(),
+    CacheMode = NavigationCacheMode.Enabled,
+    CacheSize = 10
+}
+
+// Lifecycle hooks with navigation guards
+UseNavigationLifecycle(
+    onNavigatedTo: ctx => LoadData(ctx.Route),
+    onNavigatingFrom: ctx => { if (hasUnsavedChanges) ctx.Cancel(); },
+    onNavigatedFrom: ctx => Cleanup()
 );
+
+// State serialization
+var json = nav.GetState();   // full stack to JSON
+nav.SetState(json);          // restore from JSON
+
+// Deep linking
+var deepLinks = new DeepLinkMap<AppRoute>()
+    .Map("/detail/{id:int}", args => new DetailRoute(args.Get<int>("id")))
+    .Map("/settings", _ => new SettingsRoute());
+
+// NavigationView integration
+NavigationView(menuItems,
+    NavigationHost(nav, routeMap)
+).WithNavigation(nav, routeToTag, tagToRoute)
 ```
 
-**What this loses:**
-- No back stack — pressing Back does nothing unless you manually implement a
-  stack
-- No navigation transitions — page changes are instant with no animation
-- No parameter passing framework — you hand-roll props
-- No deep linking — can't restore navigation state from a URL or activation arg
-- No navigation lifecycle (willAppear, willDisappear)
-- No nested navigation (nav stacks within tabs)
+### What the competition provides now (2026 update)
 
-**What the competition provides:**
+**React Router v7** (stable, Nov 2024+): Three operating modes (declarative,
+data, framework). Type safety via code generation (`npx react-router typegen`).
+View Transitions API integration. Data loaders/actions for SSR. **But**: the
+back stack is opaque — developers interact via `useNavigate()`, not by owning
+the stack. Type safety is bolt-on (code-generated `.d.ts`), not intrinsic.
 
-React: React Router with URL-based routing, nested routes, loaders, lazy loading,
-transitions, `useNavigate()`, `useParams()`, `useSearchParams()`.
+**TanStack Router** (v1.0 via TanStack Start, March 2026): 100% type-safe
+routing with full inference — no code generation. Search params as typed state.
+This is now the type-safety gold standard in the React ecosystem.
 
-SwiftUI: `NavigationStack` with value-type routing, `navigationDestination(for:)`,
-`NavigationPath` (serializable for state restoration), animated transitions.
+**SwiftUI NavigationStack** (iOS 16+, refreshed WWDC 2025): `NavigationPath`
+is developer-owned and `Codable` (serializable). `navigationDestination(for:)`
+maps types to views. WWDC 2025 added "Liquid Glass" visual refresh and improved
+deep-linking. **But**: `NavigationPath` is type-erased — you can append and
+count, but can't inspect or modify entries by type without workarounds.
 
-Compose: `NavHost` + `NavController`, route-based navigation with arguments,
-deep link support, back stack management, `AnimatedNavHost` for transitions.
+**Compose Navigation 3** (stable Nov 2025 — **the biggest competitive shift
+since the last review**): Ground-up rewrite that mirrors Duct's philosophy
+almost exactly. Developer-owned back stack (`SnapshotStateList<T>`). Type-safe
+routes via `@Serializable` data classes. `NavDisplay` observes the list and
+renders content. `Scene`/`SceneStrategy` for adaptive multi-pane layouts
+(list-detail on wide screens). **This is now the direct competitor to Duct's
+navigation model.**
 
-**Duct:** Roll your own string-based switch statement.
+| Capability | Duct | React Router v7 | SwiftUI | Compose Nav3 |
+|---|---|---|---|---|
+| Type-safe routes | Native (C# records) | Codegen | Native (Swift types) | Native (@Serializable) |
+| Developer-owned back stack | Yes (IReadOnlyList) | No (opaque) | Partial (type-erased) | Yes (SnapshotStateList) |
+| GPU-accelerated transitions | Yes (composition layer) | View Transitions API | System-managed | Basic |
+| Lifecycle guards (cancel nav) | Yes | useBlocker() | beforeRemove | Developer-managed |
+| Page caching (LRU) | Yes | N/A | N/A | Developer-managed |
+| State serialization | Yes (JSON) | N/A | Codable | Developer-managed |
+| Deep linking | Yes (pattern matching) | Built-in (URL) | Built-in (URI) | Developer-managed |
+| Adaptive multi-pane | No | N/A (web) | Limited | Yes (SceneStrategy) |
+| Nested navigation | Yes (independent stacks) | Yes | Yes | Yes |
+| NavigationView chrome | Yes (auto-sync) | N/A | Built-in | N/A |
+
+### What's actually good about this (credit where due)
+
+**The architectural decision to bypass WinUI Frame is correct and
+well-justified.** The design spec documents exactly why Frame doesn't work:
+XAML type metadata requirements, IPage interface hard-casts, parameterless
+constructor constraints, no extension points. These are hard constraints in
+WinUI's C++ code. Rather than fighting the platform, Duct built its own
+navigation on a `ContentPresenter`/`Grid` host with the reconciler managing
+content swap. This is the same architectural choice Compose Nav3 made —
+own the stack, own the rendering, let the framework manage it.
+
+**The developer-owned back stack is the right call.** Both Compose Nav3 and
+SwiftUI converged on "navigation state is a list the developer controls." Duct
+arrived at this independently. `NavigationStack<TRoute>` with `Navigate`,
+`GoBack`, `GoForward`, `Replace`, `Reset`, `PopTo` is a clean, complete API
+surface. The stack is an `IReadOnlyList<TRoute>` — inspectable, serializable,
+testable. SwiftUI's `NavigationPath` is type-erased (you can't pattern-match on
+entries), which is arguably worse.
+
+**C# records as routes is clever.** Records give you structural equality,
+immutability, `with` expressions, pattern matching in `switch`, and JSON
+serialization for free. A `DetailRoute(int Id)` is more type-safe and more
+ergonomic than Compose Nav3's `@Serializable data class Detail(val id: Int)`
+(roughly equivalent) and strictly better than React Router's string-template
+params (`"/detail/:id"`).
+
+**Composition-layer transitions are a genuine differentiator.** The transition
+engine uses `ElementCompositionPreview.GetElementVisual()` and runs slide/fade/
+drill-in/spring animations on the compositor thread — zero managed-code
+callbacks during animation, zero UI thread blocking. The automatic direction
+reversal on GoBack (slide-from-right becomes slide-to-right) is a nice touch.
+Per-navigation transition overrides (`nav.Navigate(route, new NavigateOptions {
+Transition = NavigationTransition.DrillIn() })`) provide fine-grained control.
+No competitor has GPU-accelerated transitions as a first-class navigation
+feature.
+
+**The lifecycle hook system is well-designed.** `UseNavigationLifecycle` with
+`onNavigatedTo`, `onNavigatingFrom` (with cancellation), and `onNavigatedFrom`
+follows the established navigation lifecycle pattern. The ordering is correct:
+guard fires before stack mutation, mount and `onNavigatedTo` happen on the new
+page, `onNavigatedFrom` fires after the old page is swapped out. The
+cancellation mechanism (via `NavigatingFromContext.Cancel()`) is clean and
+the guard runs synchronously before the stack mutates — no race conditions.
+
+**The NavigationView integration is thoughtful.** `.WithNavigation(nav,
+routeToTag, tagToRoute)` auto-syncs selected item, wires selection change to
+navigate, and manages back button visibility/state. This is the kind of
+framework integration that eliminates 30+ lines of boilerplate in every app.
+
+**117 unit tests is substantial coverage.** The test suite covers stack
+operations, host rendering, lifecycle ordering, caching, serialization/deep
+linking, and NavigationView sync. The self-host test pattern (driving navigation
+without WinUI controls) enables fast, reliable CI.
+
+### What's still concerning (skeptic's view)
+
+**1. ConnectedTransition is a stub.** The `NavigationTransition.Connected()`
+factory exists and is documented, but `TransitionEngine.RunTransition` logs a
+warning and falls back to `SlideTransition`. This is a spec-driven API that
+doesn't work. A developer who writes `Transition = NavigationTransition.Connected()`
+gets a slide instead of a connected animation, with the only indication being a
+debug log message. Shipping a named API that doesn't do what the name says is
+worse than not shipping it — it's a trap. SwiftUI's `matchedGeometryEffect` and
+Compose's `SharedTransitionLayout` both work. Duct's doesn't.
+
+**2. E2E Appium tests are fixtures only — not executed.** The navigation
+implementation tasks show 6 E2E test scenarios marked as incomplete: NavigationView
+click, back button, navigation guards, multi-level deep navigation, selection
+sync, and tab state preservation. The 117 unit tests validate internal logic, but
+nobody has verified that pushing a route actually shows the right page on screen,
+that transitions are visible, or that NavigationView selection syncs visually.
+For a feature this central, the gap between "unit tests pass" and "it works in a
+real window" is not trivial.
+
+**3. No adaptive multi-pane layout.** Compose Nav3's `Scene`/`SceneStrategy`
+abstraction handles the list-detail pattern: on a wide screen, show list and
+detail side-by-side; on a narrow screen, push detail onto the stack. This is
+increasingly important even for desktop apps (think adaptive panels in Outlook,
+Teams, VS Code). Duct's navigation is strictly single-pane — one route renders
+one page. Building a master-detail layout requires manual composition outside the
+navigation system. For a desktop-first framework, this is an odd omission.
+
+**4. Deep link patterns are stringly-typed at the boundary.** `DeepLinkMap.Map(
+"/detail/{id:int}", args => ...)` uses string patterns with string parameter
+names. A typo in `"{id:int}"` silently fails to match. The `RouteArgs.Get<T>(
+"id")` call is a string-keyed dictionary lookup with a runtime cast. The irony
+is thick — Duct chose C# records for routes specifically for type safety, then
+introduced string-based pattern matching at the deep link boundary. The type
+safety is only skin deep: the deep link system connects untyped URI strings to
+typed routes through a stringly-typed middle layer.
+
+**5. The Grid wrapper adds another invisible element.** `MountNavigationHost`
+creates a Grid as the container for navigation content. This is the same
+problem as the Border wrapper for components (Section 4, critique #5) — the
+WinUI visual tree accumulates framework-internal containers that participate in
+layout but serve no visual purpose. A NavigationHost inside a component inside
+a NavigationView produces: NavigationView > ... > Border (component) >
+Grid (nav host) > content. Every extra layout container costs measure/arrange
+time.
+
+**6. Cache restore may skip transitions.** When a cached page is restored, the
+reconciler skips remounting (the cached `UIElement` is reattached directly).
+It's unclear whether transitions run during cache restore. If they don't, the
+user sees an instant snap when navigating back to a cached page but a smooth
+slide when navigating to an uncached one — an inconsistency that would feel
+broken.
+
+**7. No navigation middleware or route guards beyond `onNavigatingFrom`.**
+React Router has loaders that fetch data before navigation completes. SwiftUI
+has `navigationDestination` modifiers that can be conditional. Duct's guard
+system is limited to the outgoing page — there's no mechanism for the
+*destination* to reject or defer navigation (e.g., "load data first, show
+loading state, then transition"). The `onNavigatingFrom` guard is useful for
+"are you sure?" dialogs but not for data-dependent navigation.
+
+**8. UseSystemBackButton is a separate opt-in hook.** The developer must
+explicitly call `UseSystemBackButton(nav, window)` to wire Alt+Left and the
+system back button. For a desktop framework where back-navigation is a core
+interaction, this should be default behavior that you opt *out* of, not opt
+*in* to. Every NavigationHost should respond to Alt+Left unless told not to.
+
+**9. The sample app is the only integration test.** The NavigationDemo sample
+app is comprehensive (routes, guards, transitions, caching, deep linking,
+nested navigation). But it's a demo, not a test. There's no automated
+verification that it works. The existing showcase apps (Outlook clone, file
+manager) haven't been updated to use the new navigation system — meaning the
+framework's most complex apps still use the hand-rolled `UseState` switch
+pattern.
+
+### Revised navigation verdict
+
+**Previously: F (blocked). Now: B+.**
+
+The improvement is extraordinary — from "architecturally blocked" to a
+comprehensive system that's competitive with the industry's latest and best.
+The type-safe route model, developer-owned back stack, and composition-layer
+transitions are genuinely strong. The design philosophy aligns with the modern
+consensus (Compose Nav3, SwiftUI NavigationStack) and the implementation is
+substantial (117 tests, 1200+ lines of core code, full sample app).
+
+The grade is B+ rather than A because of real gaps: ConnectedTransition is a
+stub, E2E tests are unexecuted, no adaptive multi-pane layout, deep linking
+reintroduces string-typing, and the showcase apps haven't adopted it. The
+navigation system is architecturally sound but not yet battle-tested. A B+ for
+a feature that was an F three months ago is a remarkable trajectory — but the
+last 20% (adaptive layouts, connected transitions, E2E validation, showcase
+adoption) is where production confidence comes from.
 
 ---
 
-## 8. Lists and Collections
+## 8. Commanding
+
+### The commanding story: a novel framework feature with real gaps
+
+The previous version of this review scored Commands at F — "No ICommand
+equivalent." A comprehensive commanding system has now shipped: immutable
+`DuctCommand` records that bundle execute + canExecute + label + icon +
+description + keyboard accelerator, 16 standard commands, a `UseCommand` hook
+for async lifecycle, focus-scoped keyboard accelerators via `CommandHost`,
+command-aware DSL overloads for Button/AppBarButton/MenuItem, and ICommand
+interop. The honest assessment: **commanding is a genuine framework
+differentiator — no competing declarative framework provides this — but it
+has performance concerns and missing capabilities that limit its claim to
+being a complete solution.**
+
+### Why this matters (the competitive context)
+
+The commanding design spec's research is correct and worth repeating:
+
+- **React** has no command abstraction. Third-party command palette libraries
+  (`cmdk`, `kbar`) are UI components, not command registries.
+- **SwiftUI** has `CommandMenu`/`CommandGroup` for macOS menu bars and (as of
+  iPadOS 26) iPad menu bars. But there's no bundling — each menu item repeats
+  its label, icon, shortcut, and action. No "define once, use everywhere."
+- **Compose** has nothing. No commanding abstraction whatsoever.
+- **Every serious app builds a custom command registry.** VS Code, Files App,
+  Windows Terminal all rolled their own. This is a real, unsolved gap.
+
+Duct filling this gap is the single most novel feature in the framework. It's
+the one area where a skeptic has to concede: Duct provides something the
+competition genuinely doesn't.
+
+### What Duct has now
+
+```csharp
+// Define once — immutable record with all metadata
+var saveCmd = new DuctCommand {
+    Label = "Save",
+    ExecuteAsync = async () => await SaveDocumentAsync(),
+    Icon = new SymbolIconData("Save"),
+    Accelerator = new KeyboardAcceleratorData(VirtualKey.S, VirtualKeyModifiers.Control),
+    CanExecute = isDirty,
+    Description = "Save the current document"
+};
+
+// Or use standard commands (16 built-in)
+var cutCmd = StandardCommand.Cut(() => CutSelection(), canExecute: hasSelection);
+var copyCmd = StandardCommand.Copy(() => CopySelection(), canExecute: hasSelection);
+var pasteCmd = StandardCommand.Paste(() => PasteFromClipboard());
+
+// UseCommand hook for async lifecycle (auto-debounce, IsExecuting tracking)
+var save = UseCommand(saveCmd);
+// save.IsExecuting is true during async operation
+// save.IsEnabled is false while executing — buttons auto-disable
+
+// Use in N surfaces from one definition
+CommandBar(
+    AppBarButton(cutCmd),    // auto-maps Label, Icon, Accelerator, IsEnabled
+    AppBarButton(copyCmd),
+    AppBarButton(pasteCmd)
+)
+MenuBar(
+    MenuBarItem("Edit",
+        MenuItem(cutCmd),    // same command, same metadata, different surface
+        MenuItem(copyCmd),
+        MenuItem(pasteCmd)
+    )
+)
+
+// Per-site overrides via record with-expressions
+MenuItem(deleteCmd with { Label = "Remove from list" })
+
+// Focus-scoped keyboard accelerators
+CommandHost([saveCmd, undoCmd, redoCmd],
+    VStack(editorContent)    // Ctrl+S/Z/Y only work inside this region
+)
+
+// Parameterized commands
+var deleteItem = new DuctCommand<Item> {
+    Label = "Delete",
+    Execute = item => RemoveItem(item),
+    Icon = new SymbolIconData("Delete"),
+    CanExecute = canDelete
+};
+MenuItem(deleteItem, selectedItem)  // binds parameter at use site
+
+// ICommand interop for migration
+var legacyCmd = CommandInterop.FromCommand(viewModel.SaveCommand, "Save");
+```
+
+### What's actually good about this (credit where due)
+
+**The "CanExecute is a bool" design is brilliant in context.** Traditional
+`ICommand` uses `CanExecuteChanged` events to notify the UI when enablement
+changes. This is an event-based mechanism fighting a reactive framework. Duct's
+approach: commands are created during `Render()`, which runs on every state
+change. `CanExecute` is just a bool that naturally reflects current state
+because `isDirty` or `hasSelection` are already reactive. No events needed.
+The framework's re-render cycle IS the notification mechanism. This is the
+insight that makes the whole design work — it eliminates the impedance mismatch
+between ICommand's event model and Duct's declarative model.
+
+**The "define once, use everywhere" pattern works.** One `DuctCommand` drives
+`AppBarButton`, `MenuItem`, `Button`, keyboard accelerator, and tooltip from a
+single definition. The DSL overloads (`Button(cmd)`, `AppBarButton(cmd)`,
+`MenuItem(cmd)`) auto-map all metadata fields to the appropriate WinUI
+properties. Per-site overrides via `cmd with { Label = "..." }` let you
+customize without duplicating. This is exactly the capability VS Code, Files,
+and Windows Terminal all built custom registries to achieve.
+
+**StandardCommand is a nice convenience.** `StandardCommand.Cut(action)` gives
+you the correct icon (SymbolIcon("Cut")), the correct keyboard accelerator
+(Ctrl+X), and a label — ready to use. All 16 standard commands (Cut, Copy,
+Paste, Undo, Redo, Delete, SelectAll, Save, Open, Close, Share, Play, Pause,
+Stop, Forward, Backward) are implemented. This eliminates the "look up the
+right icon and accelerator" dance that wastes time in every WinUI app.
+
+**UseCommand for async is well-designed.** The hook wraps async commands with
+`IsExecuting` tracking and re-entrance prevention. During `ExecuteAsync`, the
+command auto-disables (buttons go gray). When it completes, it re-enables.
+The implementation is clean: `UseState(false)` for the executing flag,
+`UseMemo` for the wrapped execute with the guard. Sync-only commands skip hook
+state entirely (no slot waste), which is a thoughtful optimization.
+
+**Focus-scoped accelerators are the right model for desktop.** `CommandHost`
+creates a region where keyboard accelerators are active only when focus is
+within the host. This solves the "Ctrl+S means different things in different
+panels" problem that desktop apps face. The implementation checks
+`IsDescendantOf(focused, host)` before invoking — simple and correct.
+
+### What's still concerning (skeptic's view)
+
+**1. Accelerators are rebuilt on every render.** `UpdateCommandHost` clears and
+recreates all `KeyboardAccelerator` objects on the WinUI `UIElement` every
+render cycle. This is O(n) COM interop calls per render per CommandHost, where
+n is the number of commands with accelerators. The reason is that accelerator
+event handlers capture command closures that reference current state — so they
+need fresh closures each render. This is functionally correct but
+architecturally expensive. React avoids this with event delegation. Compose
+avoids it by not having keyboard accelerators. Duct's approach is the most
+direct and the most wasteful.
+
+For a CommandHost with 20 commands (not unusual for a document editor's main
+region), that's 20 accelerator creates + 20 accelerator destroys per render.
+Each involves COM interop to the WinUI layer. If the component re-renders
+frequently (e.g., on every keystroke in a text field), this compounds quickly.
+
+**2. StandardCommand labels are English-only.** `StandardCommand.Cut` has
+`Label = "Cut"`. Not `Label = Intl("Cut")`. Not `Label = loc.GetString("Cut")`.
+Just a hard-coded English string. This is surprising given that Duct has a full
+ICU-based localization system with `DuctContext<IntlAccessor?>` integration.
+The framework's own standard commands don't use the framework's own
+localization system. A developer localizing their app will discover that
+toolbar buttons say "Cut"/"Copy"/"Paste" in English regardless of locale, and
+the fix is to create their own command definitions instead of using
+`StandardCommand`. This defeats the purpose of standard commands.
+
+For comparison, WinUI's `StandardUICommand` has localized labels for all
+supported Windows languages. Duct's `StandardCommand` is a regression from the
+platform it's built on.
+
+**3. No command routing to the focused view.** The design spec lists "command
+routing to focused view" as a non-goal ("future work — needs focus management
+first"). But this is the core use case for Cut/Copy/Paste in a multi-document
+or multi-panel app. When the user presses Ctrl+C, which panel's selection gets
+copied? `CommandHost` scopes accelerators to a region, but it doesn't solve
+the routing problem — if two editors are both inside the same CommandHost, the
+command fires on whatever closure was captured at render time, not on the
+focused editor.
+
+SwiftUI solves this with `FocusedValue`/`FocusedObject` — the focused view
+publishes its cut/copy/paste handlers, and the menu bar reads them. WPF solved
+this with `RoutedUICommand` and command routing through the visual tree. Duct
+has neither. For a desktop framework, this is a conspicuous gap.
+
+**4. No command palette UI.** The commanding design spec lists this as future
+work. The registry data model (commands with labels, icons, accelerators) is
+the perfect foundation for a VS Code-style command palette. But the framework
+doesn't provide the palette itself. Given that Duct aims to be an opinionated
+framework (not just a component library), shipping the registry without the
+palette is like shipping a search index without a search box.
+
+**5. CommandHost creates another invisible Grid wrapper.** `MountCommandHost`
+creates a Grid to host the accelerators. This is the third invisible wrapper
+(component Border, NavigationHost Grid, CommandHost Grid) that accumulates in
+the visual tree. A component with a navigation host and a command host produces
+Border > Grid > Grid > content — three extra layout containers.
+
+**6. IsDescendantOf visual tree walk on every key press.** When any keyboard
+accelerator fires inside a CommandHost, the handler walks the WinUI visual tree
+upward from the focused element to check if it's a descendant of the host. For
+deep visual trees (which Duct creates via its wrapper elements), this is O(d)
+per key press where d is tree depth. Most key presses in a document editor fire
+a KeyDown → accelerator check chain. This isn't catastrophic, but it's another
+tax on a hot path.
+
+**7. No batch command registration.** Each `CommandHost` independently manages
+its accelerators. If multiple `CommandHost` elements exist (e.g., one for
+document commands, one for panel commands), accelerators are registered on
+separate WinUI elements. There's no global registry, no deduplication, no
+priority system. If two CommandHosts register Ctrl+S, both fire (or one
+shadows the other depending on focus). The design spec mentions a global
+command registry as future work, but the current system is purely local.
+
+**8. DuctCommand equality may defeat memoization.** `DuctCommand` is a record,
+so its `Equals` compares all fields structurally — including `Execute` (an
+`Action`) and `ExecuteAsync` (a `Func<Task>`). Delegate equality in C# compares
+target + method — two lambdas that capture different closure state are never
+equal, even if they do the same thing. This means a `DuctCommand` created in
+`Render()` is *always* unequal to the one from the previous render (because the
+lambda captures fresh state). Components that receive commands as props will
+always fail the memo check, defeating the default-on memoization from Section 2.
+The `UseCommand` hook doesn't address this — it wraps the command but returns a
+new record each time.
+
+### Revised commanding verdict
+
+**Previously: F (no ICommand equivalent). Now: B+.**
+
+The improvement is a leap, and the feature is genuinely novel. No competing
+declarative framework provides define-once commands with metadata bundling,
+standard commands, async lifecycle, and focus-scoped accelerators. Duct is
+ahead of the entire competition here — not catching up, actually leading. The
+API design is clean, the integration with the DSL is natural, and the
+`UseCommand` hook for async is well-considered.
+
+The grade is B+ rather than A because of implementation concerns: accelerator
+rebuild on every render, un-localized standard commands (ironic given the
+localization system exists), no command routing to the focused view, delegate
+equality defeating memoization, and the missing command palette UI. The
+foundation is strong — a command palette, localization, and routing can all be
+built on top of what exists. But "the foundation enables it" and "it's shipped"
+are different claims, and this review scores what's shipped.
+
+---
+
+## 9. Lists and Collections
 
 ### What Duct has
 
@@ -1009,7 +1482,7 @@ could provide a convenience API like `ListView(items, template, emptyState)`.
 
 ---
 
-## 9. Animation
+## 10. Animation
 
 ### The animation story: from 5 transitions to a real (if narrow) system
 
@@ -1273,7 +1746,7 @@ transitions and the rich animation expectations of modern UI development.
 
 ---
 
-## 10. Accessibility
+## 11. Accessibility
 
 ### The accessibility story: from checkbox to credible foundation (with limits)
 
@@ -1505,7 +1978,7 @@ diagnostic layers that those frameworks provide.
 
 ---
 
-## 11. Input Handling and Events
+## 12. Input Handling and Events
 
 ### What Duct has
 
@@ -1531,13 +2004,14 @@ render cycle. This is O(n) COM interop calls per render per element with event
 handlers. React avoids this with event delegation (one handler on the document).
 SwiftUI and Compose handle it at the framework level.
 
-**3. No command abstraction.** The gap analysis identifies this as P0. WinUI's
-`ICommand` bundles execute + canExecute + change notification. Duct has bare
-`Action` callbacks. This means:
-- No automatic button disabling when a command can't execute
-- No reusable command objects (label + icon + accelerator + action)
-- No `StandardUICommand` equivalents (Cut/Copy/Paste)
-- Every button's enabled state must be separately managed
+**3. Commanding exists but doesn't cover all input surfaces.** The new
+commanding system (Section 8) closes the P0 gap — `DuctCommand` bundles
+execute + canExecute + metadata, and `UseCommand` handles async lifecycle. But
+the commanding system only integrates with `Button`, `AppBarButton`, and
+`MenuItem`. Other command-capable controls (`SplitButton`, `SwipeItem`,
+`ContentDialog` actions) still use bare `Action` callbacks. And the absence of
+command routing to the focused view (Section 8, critique #3) means Cut/Copy/
+Paste in multi-panel apps still requires manual wiring.
 
 **4. Six pointer events but no PointerEntered/Exited modifiers.** The
 declarative event handlers include pressed/moved/released but not entered/exited.
@@ -1552,7 +2026,7 @@ touch apps.
 
 ---
 
-## 12. Developer Experience
+## 13. Developer Experience
 
 ### What's good
 
@@ -1625,7 +2099,7 @@ Inspector. Duct has nothing.
 
 ---
 
-## 13. The .Set() Problem
+## 14. The .Set() Problem
 
 ### The escape hatch that carries the framework
 
@@ -1685,7 +2159,7 @@ from control properties back to component state.
 
 ---
 
-## 14. Component-by-Component Scorecard
+## 15. Component-by-Component Scorecard
 
 How Duct's individual feature areas compare to the mature frameworks (React,
 SwiftUI, Compose).
@@ -1698,12 +2172,12 @@ SwiftUI, Compose).
 | **Reconciler** | B- | A | A- | A | Works but monolithic, no concurrent mode |
 | **Layout** | B+ | B+ | A | A | Flex is good; Grid is stringly-typed |
 | **Theming** | C+ | B+ | A | A | ThemeRef works; XamlReader.Load perf concern; 3 props only; no custom resources |
-| **Navigation** | F | A | A | A | Blocked; roll your own |
+| **Navigation** | B+ | A | A | A | Type-safe routes, dev-owned stack, GPU transitions, lifecycle guards, caching, serialization, deep linking; ConnectedTransition is stub, no adaptive multi-pane, E2E tests unexecuted |
+| **Commanding** | B+ | N/A | C+ | N/A | Define-once commands, 16 standard, async lifecycle, focus-scoped accelerators; no competitor has this. Accelerator rebuild per render, labels not localized, no command routing, no palette UI |
 | **Lists/Collections** | B | B+ | A | A | Virtualization exists, no sections |
 | **Animation** | C | B | A | A | Layout animations + springs + connected; still no value-driven, no enter/exit, 5-property limit |
 | **Accessibility** | C+ | B | A | A | 16 modifiers, UIA E2E tests; no custom peers, no hooks, no diagnostics |
-| **Input/Events** | C+ | B | A | A | Semantic events good, rest is .Set() |
-| **Commands** | F | N/A | N/A | N/A | No ICommand equivalent |
+| **Input/Events** | C | B | A | A | Semantic events good; commanding helps but no gesture system, no pointer enter/exit, rest is .Set() |
 | **Styling** | C- | B+ | A | A | No style composition; no lightweight styling; ApplyStyle is stringly-typed |
 | **Developer Experience** | C+ | A | B+ | B+ | Hot reload works; preview is screenshot-only; no devtools |
 | **Control Coverage** | A | N/A | A | A | 94% of WinUI wrapped |
@@ -1713,150 +2187,189 @@ SwiftUI, Compose).
 
 ---
 
-## 15. Conclusion
+## 16. Conclusion
 
-### The sample apps are telling
+### The sample apps are telling — and the story has shifted
 
-Duct has ambitious sample apps: an Outlook clone with email and calendar views,
-a file manager with async file watching and lazy TreeView loading, a registry
-editor with multiple edit dialogs, and a word puzzle game. These demonstrate that
-non-trivial UIs *can* be built with Duct.
+Duct now has six sample apps: the original four (Outlook clone, file manager,
+registry editor, word puzzle game) plus NavigationDemo and CommandingDemo. The
+new samples demonstrate their respective features comprehensively:
+NavigationDemo covers routes, guards, transitions, caching, deep linking, and
+nested navigation. CommandingDemo covers standard commands, async lifecycle,
+parameterized commands, focus-scoped accelerators, per-site overrides, and
+context-based command sharing.
 
-But they also reveal the pain:
-- **DuctFiles** requires manual `SynchronizationContext` capture for off-thread
-  state updates — the framework provides no async state management
-- **Outlook clone** uses string-based view switching (`currentPage switch { ... }`)
-  because there's no navigation system
-- **Samples that use hard-coded colors** (e.g., `"#FF5733"`) are still broken
-  in dark mode — the ThemeRef system helps but only if developers use it
-- **The D3 Gallery Color Page** demonstrates theming well, with a light/dark
-  toggle — this is the one sample that showcases the new capability
-- **None of the samples** use the new context system, memoization, or persisted
-  state — the component model improvements are validated by tests but not by the
-  showcase apps
-- **None of the other samples** demonstrate the new accessibility modifiers or
-  the new animation capabilities beyond basic implicit transitions
+But the original showcase apps remain frozen in time:
+- **Outlook clone** still uses string-based view switching (`currentPage switch
+  { ... }`) — it hasn't adopted the navigation system that was built to solve
+  exactly this problem
+- **DuctFiles** still requires manual `SynchronizationContext` capture for
+  off-thread state updates — no async state management
+- **Samples that use hard-coded colors** are still broken in dark mode
+- **None of the original samples** use the context system, memoization,
+  persisted state, commanding, navigation, or the new accessibility modifiers
 
-The showcase apps are the framework's best foot forward, and they haven't been
-updated to use the new component model features. The Outlook clone could use
-`DuctContext` for user session and theme preference instead of prop drilling.
-The file manager could use `UsePersisted` for scroll position and expanded
-tree nodes. The word puzzle game could use `Memo` to skip re-rendering the
-keyboard when only the board changes. These are exactly the scenarios the new
-features are designed for — demonstrating them in the showcase apps would
-significantly increase confidence in the component model.
+This is a pattern: every new feature ships with its own isolated demo app, but
+the showcase apps — the ones that prove the framework works for *real* UIs —
+don't adopt the new features. The Outlook clone is the most telling case: it's
+the framework's most complex app, it has the navigation problem, and the
+navigation system was explicitly designed to solve it. It's still using
+`UseState<string>`.
+
+The gap between "feature works in isolation" and "feature works in a real app"
+is where production confidence lives. Duct keeps building features and demo
+apps without going back to prove they compose in the existing showcase apps.
+This is a red flag for a framework that wants to be production-ready.
 
 ### What Duct gets right
 
 1. **The component model foundation is now solid.** Context, memoization, generic
    hooks, persisted state, post-render effect cleanup — these are the core
    mechanics that every declarative UI framework needs, and they're now
-   implemented with correct semantics. The context system is well-designed (tree-
-   scoped, shadow-capable, automatic re-render on change). Default-on memoization
-   leverages C# records for zero-effort structural comparison. The test coverage
-   (105+ tests across 6 new test files) validates realistic component patterns.
+   implemented with correct semantics.
 
-2. **Control coverage is impressive.** 94% of WinUI controls wrapped with
+2. **Navigation is architecturally competitive.** Type-safe routes via C#
+   records, developer-owned back stack, composition-layer GPU transitions,
+   lifecycle guards with cancellation, LRU caching, state serialization, deep
+   linking. The design independently converged with Compose Nav3's philosophy
+   and is arguably stronger on type safety (C# records vs Kotlin data classes)
+   and transitions (composition layer vs basic animation).
+
+3. **Commanding is a genuine differentiator.** No competing declarative framework
+   provides define-once commands with metadata bundling, standard commands, async
+   lifecycle, and focus-scoped accelerators. Duct is ahead of the field here.
+
+4. **Control coverage is impressive.** 94% of WinUI controls wrapped with
    clean factory APIs. This is a huge amount of tedious work done well.
 
-3. **The hooks system is faithful to React and now correctly implemented.**
-   UseState, UseReducer, UseEffect, UseMemo, UseRef, UseContext, UsePersisted
-   — all work as expected. Generic hook state eliminates boxing. Effect cleanup
-   runs post-render. The React mental model transfers cleanly.
+5. **The hooks system is faithful to React and now correctly implemented.**
+   UseState, UseReducer, UseEffect, UseMemo, UseRef, UseContext, UseNavigation,
+   UseCommand, UsePersisted — the hook surface area has grown meaningfully and
+   the React mental model transfers cleanly.
 
-4. **ErrorBoundary exists.** Neither SwiftUI nor Compose has this. Duct's error
+6. **ErrorBoundary exists.** Neither SwiftUI nor Compose has this. Duct's error
    boundary is a genuine differentiator for resilient UIs.
 
-5. **FlexPanel is ambitious and useful.** A full Flexbox implementation on WinUI
+7. **FlexPanel is ambitious and useful.** A full Flexbox implementation on WinUI
    provides layout capabilities that WinUI itself doesn't have.
 
-6. **Type safety over XAML.** No more binding errors, DataContext confusion, or
+8. **Type safety over XAML.** No more binding errors, DataContext confusion, or
    resource-not-found runtime failures. The C# compiler catches real mistakes.
+   Navigation and commanding extend this further — routes are types, commands
+   are records, everything is compiler-checked.
 
-7. **Observable interop.** UseObservable, UseObservableTree, UseObservableProperty,
-   and UseCollection bridge cleanly to MVVM, which is essential for incremental
-   adoption. UseObservableTree provides deep recursive subscription that goes
-   beyond what React offers out of the box.
+9. **Observable interop.** UseObservable, UseObservableTree, UseObservableProperty,
+   and UseCollection bridge cleanly to MVVM. Essential for incremental adoption
+   in existing WinUI codebases.
 
-8. **Hot reload and preview tooling.** The `MetadataUpdateHandler` integration
-   preserves hook state across code edits, `--preview` isolates components, and
-   the VS Code extension with HTTP frame streaming is a thoughtful developer
-   experience investment. This is more than most new frameworks ship with.
-
-9. **The localization system validates the framework's own abstractions.** The
-   migration of LocaleProvider from a hand-rolled hack to `DuctContext<IntlAccessor?>`
-   proves the context system works for real use cases. When a framework's own
-   features are built on its own primitives, that's a sign of good architecture.
+10. **The localization system validates the framework's own abstractions.** The
+    migration of LocaleProvider to `DuctContext<IntlAccessor?>` proves the context
+    system works for real cross-cutting concerns. Navigation uses DuctContext for
+    sharing handles. Commanding can use DuctContext for sharing commands. When
+    multiple framework features build on the same primitive, that's good
+    architecture.
 
 ### What prevents Duct from being production-ready
 
-1. **No navigation system.** The core scenario of multi-page apps with back
-   stack is blocked. Building your own router is not acceptable for a framework.
-   This is now the single biggest gap — and with the context system in place,
-   a navigation system could plausibly be built on top of DuctContext for router
-   state. The foundation is there; the feature isn't.
+1. **The showcase apps don't use the framework's own features.** This is the
+   most damning critique I can level. Navigation, commanding, context, memoization,
+   persisted state — none of these are used in the Outlook clone, file manager,
+   registry editor, or word puzzle game. Each feature has its own isolated demo
+   app, but nobody has proven they compose in a complex real-world UI. Until the
+   Outlook clone navigates with `UseNavigation`, uses `DuctContext` for session
+   state, and surfaces Cut/Copy/Paste through `StandardCommand`, the framework's
+   production-readiness is theoretical.
 
-2. **Theming works for built-in tokens but has gaps.** The ThemeRef system
-   closes the P0 blocker — `Theme.Accent`, `Theme.PrimaryText`, etc. resolve
-   correctly across Light/Dark/HighContrast. But the implementation uses
-   XamlReader.Load per element per render (perf concern), only covers 3 brush
-   properties, provides no way to define custom branded theme resources, and
-   offers no guardrails against hard-coded colors that silently break theming.
-   It's functional, not polished.
+2. **Theming is still too thin.** XamlReader.Load per element per render, only 3
+   brush properties, no custom branded theme resources, no guardrails against
+   hard-coded colors. The ThemeRef system closed the P0 blocker but hasn't been
+   deepened. A real app with brand colors and custom token sets will hit the
+   ceiling quickly.
 
-3. **Accessibility has a solid annotation layer but no semantic, imperative,
-   or diagnostic layers.** 16 modifiers and 12 UIA tests cover WCAG A
-   annotations, but custom automation peers are blocked, accessibility hooks
-   are unbuilt, and there's no diagnostics or linting.
+3. **Accessibility lacks the hard layers.** 16 modifiers and 12 UIA tests are
+   solid annotations, but custom automation peers are blocked (components can't
+   describe their own semantics), accessibility hooks are unbuilt, and there's no
+   diagnostics or linting. The annotation layer is the easy part.
 
-4. **Animation covers layout motion but not general-purpose state animation.**
-   Layout animations with springs and connected animations are real capabilities,
-   but value-driven animation, enter/exit for individual elements, keyframes,
-   and easing control are all missing. The 5-property implicit transition limit
-   is a WinUI platform constraint that the framework hasn't worked around.
+4. **Animation is still narrow.** Layout animations + springs + connected
+   animations cover motion. But value-driven animation, enter/exit for individual
+   elements, keyframes, and easing control are all missing. The 5-property
+   implicit transition limit is a WinUI constraint the framework hasn't worked
+   around.
 
-5. **.Set() carries too much weight.** When the escape hatch is required for the
-   majority of platform features, the abstraction isn't thick enough.
+5. **.Set() still carries too much weight.** Navigation and commanding reclaimed
+   meaningful surface area. But gestures, pointer enter/exit, right-tap,
+   double-tap, drag-and-drop, composition-layer effects, materials, and most
+   windowing APIs still require `.Set()`. The abstraction is thicker than before
+   but still not thick enough for a "you don't need to know WinUI" claim.
 
-6. **Component model implementation has performance concerns.** Reflection-based
-   `ShouldUpdateWithProps`, boxing in context scope, unbounded persisted state
-   cache — the designs are right but the implementations have costs that will
-   show up in large apps. These are all fixable, but they need to be fixed.
+6. **Performance concerns accumulate.** Reflection-based ShouldUpdateWithProps
+   (Section 2), boxing in context scope (Section 2), unbounded persisted state
+   cache (Section 2), XamlReader.Load per themed element (Section 6),
+   accelerator rebuild per render (Section 8), invisible Border/Grid wrappers
+   adding layout cost (Sections 4, 7, 8). Each is individually minor. Together,
+   they paint a picture of a framework that hasn't done a performance pass. No
+   profiling tools exist to even measure these costs (Section 13).
 
-### The fundamental question
+7. **E2E test gaps for the newest features.** Navigation's E2E Appium tests are
+   fixtures-only (not executed). Commanding has no integration tests. The unit
+   test coverage is strong (117 navigation tests, comprehensive commanding
+   tests), but nobody has verified these features work in a real WinUI window.
+   For features this central, the gap between "unit tests pass" and "it works
+   end-to-end" matters.
+
+### The fundamental question (revisited)
 
 Is Duct a *framework* or a *wrapper*?
 
-A framework provides opinions, abstractions, and capabilities that make you more
-productive than using the underlying platform directly. React, SwiftUI, and
-Compose all provide this: you think in the framework's model, not the platform's.
+The previous version of this review posed this question and concluded "moving
+toward framework." That's still true, and the movement has accelerated. The
+component model (context, hooks, memoization), navigation (type-safe routing,
+developer-owned stack, transitions), and commanding (define-once commands,
+standard commands, async lifecycle) are genuine framework-level abstractions.
+A developer can now build a multi-page app with shared state, keyboard
+shortcuts, and navigation transitions thinking entirely in Duct's model.
 
-A wrapper provides a different syntax for the same platform with a thinner API.
-You still need to understand the underlying platform, and you reach through the
-wrapper constantly via escape hatches.
+But the framework-vs-wrapper question has refined. Duct is no longer a wrapper
+for the parts it covers. The problem is coverage: too many common scenarios
+still require `.Set()`, and the features that exist haven't been stress-tested
+in the framework's own showcase apps. The framework's ambition exceeds its
+integration testing.
 
-Duct has moved meaningfully toward "framework" with this diff. The component
-model — context, memoization, generic hooks, persisted state, effect lifecycle
-— is now a real framework foundation, not just a thin veneer over WinUI. A
-developer building a Duct app can now think in Duct's model for state management,
-cross-cutting concerns, and component composition. The reconciler, hooks system,
-and now the context system are genuine framework-level abstractions.
+The competitive landscape has also shifted. When this review was first written,
+Compose Navigation used strings and an opaque controller. Now Compose Navigation
+3 (stable Nov 2025) uses developer-owned typed stacks — the same model Duct
+chose. SwiftUI's NavigationStack is mature. React Router v7 has view transitions
+and TanStack Router has full type inference. The window where "declarative
+navigation for WinUI" was a novelty has closed; now it needs to be competitive
+in quality, not just existence.
 
-But navigation and a large fraction of input handling are still "just use WinUI
-through .Set()." Theming, accessibility, and animation have all moved from "just
-use .Set()" to "real modifier systems with reconciler integration," but they each
-have significant scope limitations. The framework is growing outward from a
-now-solid core, but the outer layers are still incomplete.
+Duct's strongest position is commanding — it's genuinely ahead of the entire
+industry. Its navigation is competitive. Its component model is solid. The
+mid-tier features (theming, accessibility, animation) are functional with scope
+limitations. The `.Set()` surface area is smaller but still too large.
 
-To become production-ready, Duct needs to:
-1. Build a navigation system (the context infrastructure now makes this feasible)
-2. Finish the theming story (style caching, custom resources, more properties)
-3. Continue expanding the accessibility and animation surfaces
-4. Address the performance concerns in the component model (cache reflection,
-   eliminate context boxing)
+### To become production-ready, Duct needs to:
 
-The trajectory is right. The foundation was the hardest and most important part,
-and it's now in place. The remaining work is substantial but incremental — each
-feature area needs to be deepened, not rethought from scratch. That's a
-meaningfully different position than "claiming to be a declarative framework
-while requiring imperative escape hatches for most real-world scenarios."
+1. **Adopt its own features in the showcase apps.** The Outlook clone should
+   use UseNavigation, DuctContext, StandardCommand, and UsePersisted. This is
+   the highest-leverage work — it proves composition and finds real bugs.
+2. **Execute E2E tests for navigation and commanding.** The Appium fixtures
+   exist. Run them. Automate them in CI.
+3. **Do a performance pass.** Profile a real render cycle. Measure the cost of
+   reflection-based ShouldUpdate, XamlReader.Load theming, accelerator rebuild,
+   and wrapper elements. Fix what's expensive.
+4. **Localize StandardCommand labels.** The framework's own commanding system
+   should use the framework's own localization system. This is embarrassing in
+   its absence.
+5. **Finish the theming story.** Style caching for XamlReader.Load, more than 3
+   brush properties, custom theme resource definitions.
+6. **Add command routing to the focused view.** This is the missing piece that
+   makes Cut/Copy/Paste work in multi-panel apps.
+
+The trajectory is right. The foundation is solid. Navigation and commanding have
+moved Duct from "component library with hooks" to "framework with application
+architecture." But the gap between "features exist" and "features are production-
+quality and compose in real apps" is where the remaining work lives. That gap is
+narrower than before — and for the first time, there's a feature (commanding)
+where Duct is genuinely ahead of the competition, not just catching up.
