@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using WinUI = Microsoft.UI.Xaml.Controls;
@@ -10,6 +11,28 @@ namespace Duct.Core;
 /// </summary>
 public sealed class ElementPool
 {
+    /// <summary>
+    /// Tracks UIElements that have had GetElementVisual() called on them.
+    /// These elements permanently lose the ability to use XAML implicit transition APIs
+    /// (OpacityTransition, ScaleTransition, etc.), so they must not be pooled — a future
+    /// user of the element might need those APIs.
+    /// </summary>
+    private static readonly ConditionalWeakTable<UIElement, object> _compositorTainted = new();
+
+    /// <summary>
+    /// Marks a UIElement as having been accessed via GetElementVisual().
+    /// Called by reconciler code that touches the composition Visual.
+    /// </summary>
+    internal static void MarkCompositorTainted(UIElement element)
+    {
+        _compositorTainted.AddOrUpdate(element, true);
+    }
+
+    internal static bool IsCompositorTainted(UIElement element)
+    {
+        return _compositorTainted.TryGetValue(element, out _);
+    }
+
     private const int MaxPerType = 32;
 
     /// <summary>
@@ -97,6 +120,10 @@ public sealed class ElementPool
         if (!Enabled) return;
         var type = element.GetType();
         if (!PoolableTypes.Contains(type)) return;
+
+        // Don't pool elements that had GetElementVisual() called — they permanently
+        // lose XAML implicit transition API access (OpacityTransition, etc.).
+        if (IsCompositorTainted(element)) return;
 
         if (!_pools.TryGetValue(type, out var stack))
         {

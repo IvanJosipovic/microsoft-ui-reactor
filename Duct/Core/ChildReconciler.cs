@@ -88,20 +88,21 @@ internal static class ChildReconciler
             }
             else
             {
-                // Type mismatch — unmount old, mount new
-                reconciler.UnmountChild(children.Get(i));
+                // Type mismatch — mount new, replace old with exit transition support
                 var newControl = reconciler.Mount(newEl, requestRerender);
                 if (newControl is not null)
-                    children.Replace(i, newControl);
+                    reconciler.ReplaceChildWithExitTransition(children, i, newControl);
+                else
+                {
+                    reconciler.UnmountChild(children.Get(i));
+                }
             }
         }
 
         // Remove excess old children (from end to start to keep indices stable)
         for (int i = childCount - 1; i >= common; i--)
         {
-            var old = children.Get(i);
-            children.RemoveAt(i);
-            reconciler.UnmountAndPool(old);
+            reconciler.RemoveChildWithExitTransition(children, i);
         }
 
         // Insert new children beyond old count
@@ -199,9 +200,7 @@ internal static class ChildReconciler
                 int panelIdx = prefixLen + i;
                 if (panelIdx < children.Count)
                 {
-                    var old = children.Get(panelIdx);
-                    children.RemoveAt(panelIdx);
-                    reconciler.UnmountAndPool(old);
+                    reconciler.RemoveChildWithExitTransition(children, panelIdx);
                 }
             }
             return;
@@ -261,9 +260,7 @@ internal static class ChildReconciler
                 int panelIdx = prefixLen + i;
                 if (panelIdx < children.Count)
                 {
-                    var old = children.Get(panelIdx);
-                    children.RemoveAt(panelIdx);
-                    reconciler.UnmountAndPool(old);
+                    reconciler.RemoveChildWithExitTransition(children, panelIdx);
                 }
             }
         }

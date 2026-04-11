@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Duct.Animation;
 using Duct.Core;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -54,6 +55,7 @@ public sealed partial class DuctHostControl : ContentControl, IDisposable
     private bool _needsRerender;     // only touched on UI thread
     private bool _themeListenerAttached;
     private volatile bool _disposed;
+    private Curve? _pendingAnimationCurve;
 
     // Render phase timing instrumentation
     private readonly Stopwatch _phaseSw = new();
@@ -163,6 +165,9 @@ public sealed partial class DuctHostControl : ContentControl, IDisposable
     {
         if (_disposed) return;
 
+        if (AnimationScope.HasScope)
+            _pendingAnimationCurve = AnimationScope.Current;
+
         // During render: just flag — the render loop will re-enqueue after Render().
         if (_isRendering)
         {
@@ -244,12 +249,25 @@ public sealed partial class DuctHostControl : ContentControl, IDisposable
 
             _phaseSw.Restart();
 
-            var newControl = _reconciler.Reconcile(
-                _currentTree,
-                newTree,
-                _currentControl,
-                RequestRender
-            );
+            var capturedCurve = Interlocked.Exchange(ref _pendingAnimationCurve, null);
+            if (capturedCurve is not null)
+                AnimationScope.PushScope(capturedCurve);
+
+            UIElement? newControl;
+            try
+            {
+                newControl = _reconciler.Reconcile(
+                    _currentTree,
+                    newTree,
+                    _currentControl,
+                    RequestRender
+                );
+            }
+            finally
+            {
+                if (capturedCurve is not null)
+                    AnimationScope.PopScope();
+            }
 
             if (newControl != _currentControl)
             {

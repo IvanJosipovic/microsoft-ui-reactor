@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Duct.Animation;
 using Duct.Core;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -31,6 +32,11 @@ public sealed class DuctHost
     private bool _needsRerender;   // only touched on UI thread
     private bool _themeListenerAttached;
     private volatile bool _disposed;
+
+    // Captured AnimationScope curve — when a state setter is called inside
+    // WithAnimation, the scope is synchronous but the render is async.
+    // We capture the curve here so the reconcile pass can restore it.
+    private Curve? _pendingAnimationCurve;
 
     // Render phase timing instrumentation
     private readonly Stopwatch _phaseSw = new();
@@ -113,6 +119,11 @@ public sealed class DuctHost
     {
         if (_disposed) return;
 
+        // Capture ambient animation curve so the async render pass can restore it.
+        // Multiple state changes may fire before the render — last curve wins.
+        if (AnimationScope.HasScope)
+            _pendingAnimationCurve = AnimationScope.Current;
+
         // During render: just flag — the render loop will re-enqueue after Render().
         if (_isRendering)
         {
@@ -194,12 +205,27 @@ public sealed class DuctHost
 
             _phaseSw.Restart();
 
-            var newControl = _reconciler.Reconcile(
-                _currentTree,
-                newTree,
-                _currentControl,
-                RequestRender
-            );
+            // Restore captured animation scope so ApplyModifiers routes through
+            // compositor animations instead of direct property sets.
+            var capturedCurve = Interlocked.Exchange(ref _pendingAnimationCurve, null);
+            if (capturedCurve is not null)
+                AnimationScope.PushScope(capturedCurve);
+
+            UIElement? newControl;
+            try
+            {
+                newControl = _reconciler.Reconcile(
+                    _currentTree,
+                    newTree,
+                    _currentControl,
+                    RequestRender
+                );
+            }
+            finally
+            {
+                if (capturedCurve is not null)
+                    AnimationScope.PopScope();
+            }
 
             if (newControl != _currentControl)
             {

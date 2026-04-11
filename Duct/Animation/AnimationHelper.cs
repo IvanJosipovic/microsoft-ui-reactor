@@ -1,4 +1,5 @@
 using System.Numerics;
+using Duct.Core;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Hosting;
@@ -18,8 +19,13 @@ internal static class AnimationHelper
     /// </summary>
     internal static void SetOrAnimate(UIElement element, string property, float value)
     {
-        var curve = AnimationScope.Current;
-        if (curve is null || !AnimationScope.HasScope)
+        // Resolve animation curve: prefer ambient WithAnimation scope,
+        // fall back to element's .Animate() config curve.
+        var curve = AnimationScope.HasScope ? AnimationScope.Current : null;
+        curve ??= (element is FrameworkElement fe && fe.Tag is Element tagEl)
+            ? tagEl.AnimationConfig?.Curve : null;
+
+        if (curve is null)
         {
             SetScalarDirect(element, property, value);
             return;
@@ -227,12 +233,68 @@ internal static class AnimationHelper
     /// <summary>
     /// Maps Duct property names to WinUI compositor facade property names.
     /// </summary>
+    /// <summary>
+    /// Sets a Vector3 property on a UIElement, animating via the compositor if
+    /// <see cref="AnimationScope.Current"/> is non-null.
+    /// </summary>
+    internal static void SetOrAnimateVector3(UIElement element, string property, Vector3 value)
+    {
+        var curve = AnimationScope.HasScope ? AnimationScope.Current : null;
+        curve ??= (element is FrameworkElement fe && fe.Tag is Element tagEl)
+            ? tagEl.AnimationConfig?.Curve : null;
+
+        if (curve is null)
+        {
+            SetVector3Direct(element, property, value);
+            return;
+        }
+
+        var visual = ElementCompositionPreview.GetElementVisual(element);
+        var compositor = visual.Compositor;
+        var target = CompositorPropertyName(property);
+
+        switch (curve)
+        {
+            case SpringCurve spring:
+            {
+                var anim = compositor.CreateSpringVector3Animation();
+                anim.DampingRatio = spring.DampingRatio;
+                anim.Period = TimeSpan.FromSeconds(spring.Period);
+                anim.FinalValue = value;
+                visual.StartAnimation(target, anim);
+                break;
+            }
+            case EaseCurve ease:
+            {
+                var anim = compositor.CreateVector3KeyFrameAnimation();
+                var easing = compositor.CreateCubicBezierEasingFunction(
+                    new Vector2(ease.Easing.X1, ease.Easing.Y1),
+                    new Vector2(ease.Easing.X2, ease.Easing.Y2));
+                anim.InsertKeyFrame(1.0f, value, easing);
+                anim.Duration = ease.Duration;
+                visual.StartAnimation(target, anim);
+                break;
+            }
+            case LinearCurve linear:
+            {
+                var anim = compositor.CreateVector3KeyFrameAnimation();
+                anim.InsertKeyFrame(1.0f, value);
+                anim.Duration = linear.Duration;
+                visual.StartAnimation(target, anim);
+                break;
+            }
+            default:
+                SetVector3Direct(element, property, value);
+                break;
+        }
+    }
+
     private static string CompositorPropertyName(string property) => property switch
     {
         "Opacity" => "Opacity",
         "Scale" => "Scale",
         "Rotation" => "RotationAngle",
-        "Translation" => "Offset",
+        "Translation" => "Translation",
         "CenterPoint" => "CenterPoint",
         _ => property,
     };
@@ -246,6 +308,22 @@ internal static class AnimationHelper
                 break;
             case "Rotation":
                 element.Rotation = value;
+                break;
+        }
+    }
+
+    private static void SetVector3Direct(UIElement element, string property, Vector3 value)
+    {
+        switch (property)
+        {
+            case "Scale":
+                element.Scale = value;
+                break;
+            case "Translation":
+                element.Translation = value;
+                break;
+            case "CenterPoint":
+                element.CenterPoint = value;
                 break;
         }
     }

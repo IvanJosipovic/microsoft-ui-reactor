@@ -482,6 +482,10 @@ public record ElementModifiers
     public HorizontalAlignment? HorizontalAlignment { get; init; }
     public VerticalAlignment? VerticalAlignment { get; init; }
     public double? Opacity { get; init; }
+    public System.Numerics.Vector3? Scale { get; init; }
+    public float? Rotation { get; init; }
+    public System.Numerics.Vector3? Translation { get; init; }
+    public System.Numerics.Vector3? CenterPoint { get; init; }
     public bool? IsVisible { get; init; }
     public string? ToolTip { get; init; }
     public Element? RichToolTip { get; init; }
@@ -544,6 +548,10 @@ public record ElementModifiers
             HorizontalAlignment = other.HorizontalAlignment ?? HorizontalAlignment,
             VerticalAlignment = other.VerticalAlignment ?? VerticalAlignment,
             Opacity = other.Opacity ?? Opacity,
+            Scale = other.Scale ?? Scale,
+            Rotation = other.Rotation ?? Rotation,
+            Translation = other.Translation ?? Translation,
+            CenterPoint = other.CenterPoint ?? CenterPoint,
             IsVisible = other.IsVisible ?? IsVisible,
             ToolTip = other.ToolTip ?? ToolTip,
             RichToolTip = other.RichToolTip ?? RichToolTip,

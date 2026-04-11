@@ -115,6 +115,18 @@ public static class ElementExtensions
     public static T Opacity<T>(this T el, double opacity) where T : Element =>
         Modify(el, new ElementModifiers { Opacity = opacity });
 
+    public static T Scale<T>(this T el, System.Numerics.Vector3 scale) where T : Element =>
+        Modify(el, new ElementModifiers { Scale = scale });
+
+    public static T Scale<T>(this T el, float uniform) where T : Element =>
+        Modify(el, new ElementModifiers { Scale = new System.Numerics.Vector3(uniform, uniform, 1f) });
+
+    public static T Rotation<T>(this T el, float degrees) where T : Element =>
+        Modify(el, new ElementModifiers { Rotation = degrees });
+
+    public static T CenterPoint<T>(this T el, System.Numerics.Vector3 center) where T : Element =>
+        Modify(el, new ElementModifiers { CenterPoint = center });
+
     // ── Typography (any Control or TextBlock) ─────────────────────
     // These set font properties via ElementModifiers, so they work on ANY element
     // (buttons, borders wrapping text, etc.) — not just TextElement.
@@ -1137,9 +1149,10 @@ public static class ElementExtensions
     /// <summary>
     /// Sets the Translation property (Vector3) on the element's control.
     /// Commonly used with ThemeShadow for z-depth effects.
+    /// Routes through AnimationHelper so WithAnimation scopes animate the change.
     /// </summary>
     public static T Translation<T>(this T el, float x, float y, float z) where T : Element =>
-        el.OnMount(fe => fe.Translation = new System.Numerics.Vector3(x, y, z));
+        Modify(el, new ElementModifiers { Translation = new System.Numerics.Vector3(x, y, z) });
 
     // ════════════════════════════════════════════════════════════════
     //  Compositor property animation (.Animate() modifier)

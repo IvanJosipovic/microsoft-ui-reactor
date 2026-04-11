@@ -35,6 +35,25 @@ public static class AnimationScope
     }
 
     /// <summary>
+    /// Pushes a curve onto the animation scope. Must be paired with <see cref="PopScope"/>.
+    /// Used by the render host to restore a captured animation scope across async boundaries.
+    /// </summary>
+    internal static void PushScope(Curve? curve)
+    {
+        _current = curve;
+        _hasScope = true;
+    }
+
+    /// <summary>
+    /// Pops the animation scope pushed by <see cref="PushScope"/>.
+    /// </summary>
+    internal static void PopScope()
+    {
+        _current = null;
+        _hasScope = false;
+    }
+
+    /// <summary>
     /// Async variant: runs the action with ambient animation, then returns a Task
     /// that completes when all compositor animations started during the scope finish.
     /// Uses CompositionScopedBatch for completion tracking.

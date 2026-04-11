@@ -32,6 +32,38 @@ public sealed partial class Reconciler : IDisposable
     private readonly ContextScope _contextScope = new();
     private int _errorBoundaryDepth;
 
+    /// <summary>
+    /// Thread-static stagger context for enter transitions. When a parent with StaggerConfig
+    /// mounts children, it pushes this context so each child's ApplyEnterTransition can
+    /// compute stagger delay from its index among siblings.
+    /// </summary>
+    [ThreadStatic] private static StaggerScope? _staggerScope;
+
+    private sealed class StaggerScope
+    {
+        public TimeSpan Delay;
+        public int NextIndex;
+        public StaggerScope? Previous;
+    }
+
+    private static void PushStaggerScope(TimeSpan delay)
+    {
+        _staggerScope = new StaggerScope { Delay = delay, NextIndex = 0, Previous = _staggerScope };
+    }
+
+    private static void PopStaggerScope()
+    {
+        if (_staggerScope is not null)
+            _staggerScope = _staggerScope.Previous;
+    }
+
+    private static (int index, TimeSpan delay) ConsumeStaggerIndex()
+    {
+        if (_staggerScope is null) return (0, default);
+        var idx = _staggerScope.NextIndex++;
+        return (idx, _staggerScope.Delay);
+    }
+
 #if DEBUG
     /// <summary>
     /// Per-reconcile counters for diagnosing diff and mount/update volume.
@@ -507,6 +539,80 @@ public sealed partial class Reconciler : IDisposable
     /// Collects all controls first, then pools bottom-up so DetachFromParent
     /// removes children before parents clear their collections.
     /// </summary>
+    /// <summary>
+    /// Removes a child from its collection with exit transition support.
+    /// If the child has an ElementTransition with an exit side, the removal is deferred
+    /// until the exit animation completes. Otherwise, immediate removal.
+    /// </summary>
+    internal void RemoveChildWithExitTransition(IChildCollection children, int index)
+    {
+        var control = children.Get(index);
+        var transition = (control is FrameworkElement fe && fe.Tag is Element el)
+            ? el.ElementTransition : null;
+
+        if (transition?.GetExitTransition() is not null)
+        {
+            // Defer removal: play exit animation, then remove + pool on completion.
+            ApplyExitTransition(control, transition, () =>
+            {
+                // Find current index — it may have shifted if earlier items were removed.
+                for (int i = 0; i < children.Count; i++)
+                {
+                    if (ReferenceEquals(children.Get(i), control))
+                    {
+                        children.RemoveAt(i);
+                        break;
+                    }
+                }
+                UnmountAndPool(control);
+            });
+        }
+        else
+        {
+            children.RemoveAt(index);
+            UnmountAndPool(control);
+        }
+    }
+
+    /// <summary>
+    /// Replaces a child at an index with exit transition support on the old child.
+    /// If the old child has an exit transition, the new child is inserted immediately
+    /// and the old child animates out then gets removed. Otherwise, immediate replace.
+    /// </summary>
+    internal void ReplaceChildWithExitTransition(IChildCollection children, int index, UIElement newControl)
+    {
+        var oldControl = children.Get(index);
+        var transition = (oldControl is FrameworkElement fe && fe.Tag is Element el)
+            ? el.ElementTransition : null;
+
+        if (transition?.GetExitTransition() is not null)
+        {
+            // Replace immediately with the new control so the UI updates.
+            children.Replace(index, newControl);
+            // Re-insert the old control after the new one for exit animation.
+            // It will be positioned by layout but the animation (fade/slide) makes
+            // it visually leave. We insert it right after the replacement.
+            children.Insert(index + 1, oldControl);
+            ApplyExitTransition(oldControl, transition, () =>
+            {
+                for (int i = 0; i < children.Count; i++)
+                {
+                    if (ReferenceEquals(children.Get(i), oldControl))
+                    {
+                        children.RemoveAt(i);
+                        break;
+                    }
+                }
+                UnmountAndPool(oldControl);
+            });
+        }
+        else
+        {
+            Unmount(oldControl);
+            children.Replace(index, newControl);
+        }
+    }
+
     internal void UnmountAndPool(UIElement control)
     {
         var toPool = new List<FrameworkElement>();
@@ -628,14 +734,25 @@ public sealed partial class Reconciler : IDisposable
     {
         if (implicitT is not null)
         {
-            if (implicitT.Opacity is not null)
-                uie.OpacityTransition = implicitT.Opacity;
-            if (implicitT.Rotation is not null)
-                uie.RotationTransition = implicitT.Rotation;
-            if (implicitT.Scale is not null)
-                uie.ScaleTransition = implicitT.Scale;
-            if (implicitT.Translation is not null)
-                uie.TranslationTransition = implicitT.Translation;
+            try
+            {
+                if (implicitT.Opacity is not null)
+                    uie.OpacityTransition = implicitT.Opacity;
+                if (implicitT.Rotation is not null)
+                    uie.RotationTransition = implicitT.Rotation;
+                if (implicitT.Scale is not null)
+                    uie.ScaleTransition = implicitT.Scale;
+                if (implicitT.Translation is not null)
+                    uie.TranslationTransition = implicitT.Translation;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // WinUI blocks XAML implicit transition APIs once GetElementVisual()
+                // has been called on the element (e.g., from .Animate(), enter transitions,
+                // or a previous owner via the pool). Fall back to compositor implicit
+                // animations which always work.
+                ApplyTransitionsViaCompositor(uie, implicitT);
+            }
             if (implicitT.Background is not null)
             {
                 switch (uie)
@@ -672,12 +789,52 @@ public sealed partial class Reconciler : IDisposable
     }
 
     /// <summary>
+    /// Fallback: applies XAML-style implicit transitions via compositor ImplicitAnimationCollection
+    /// when the XAML API is blocked by a prior GetElementVisual() call.
+    /// </summary>
+    private static void ApplyTransitionsViaCompositor(UIElement uie, ImplicitTransitions implicitT)
+    {
+        ElementPool.MarkCompositorTainted(uie);
+        var visual = ElementCompositionPreview.GetElementVisual(uie);
+        var compositor = visual.Compositor;
+        var implicitAnimations = visual.ImplicitAnimations ?? compositor.CreateImplicitAnimationCollection();
+
+        if (implicitT.Opacity is not null)
+        {
+            var dur = implicitT.Opacity.Duration;
+            implicitAnimations["Opacity"] = AnimationHelper.CreateScalarImplicitAnimation(
+                compositor, "Opacity", new Animation.LinearCurve(dur));
+        }
+        if (implicitT.Rotation is not null)
+        {
+            var dur = implicitT.Rotation.Duration;
+            implicitAnimations["RotationAngle"] = AnimationHelper.CreateScalarImplicitAnimation(
+                compositor, "RotationAngle", new Animation.LinearCurve(dur));
+        }
+        if (implicitT.Scale is not null)
+        {
+            var dur = implicitT.Scale.Duration;
+            implicitAnimations["Scale"] = AnimationHelper.CreateVector3ImplicitAnimation(
+                compositor, "Scale", new Animation.LinearCurve(dur));
+        }
+        if (implicitT.Translation is not null)
+        {
+            var dur = implicitT.Translation.Duration;
+            implicitAnimations["Offset"] = AnimationHelper.CreateVector3ImplicitAnimation(
+                compositor, "Offset", new Animation.LinearCurve(dur));
+        }
+
+        visual.ImplicitAnimations = implicitAnimations;
+    }
+
+    /// <summary>
     /// Sets up Composition-layer implicit animations on the element's Visual so that
     /// layout-driven Offset (and optionally Size) changes animate smoothly.
     /// Runs entirely on the Composition thread — zero managed-code callbacks during animation.
     /// </summary>
     internal static void ApplyLayoutAnimation(UIElement uie, LayoutAnimationConfig config)
     {
+        ElementPool.MarkCompositorTainted(uie);
         var visual = ElementCompositionPreview.GetElementVisual(uie);
         var compositor = visual.Compositor;
 
@@ -748,6 +905,7 @@ public sealed partial class Reconciler : IDisposable
     /// </summary>
     internal static void ApplyPropertyAnimation(UIElement uie, AnimationConfig config, LayoutAnimationConfig? layoutConfig)
     {
+        ElementPool.MarkCompositorTainted(uie);
         var visual = ElementCompositionPreview.GetElementVisual(uie);
         var compositor = visual.Compositor;
 
@@ -807,6 +965,7 @@ public sealed partial class Reconciler : IDisposable
     {
         var enter = transition.GetEnterTransition();
         if (enter is null) return;
+        ElementPool.MarkCompositorTainted(uie);
 
         var visual = ElementCompositionPreview.GetElementVisual(uie);
         var compositor = visual.Compositor;
@@ -831,6 +990,7 @@ public sealed partial class Reconciler : IDisposable
     {
         var exit = transition.GetExitTransition();
         if (exit is null) { onComplete(); return; }
+        ElementPool.MarkCompositorTainted(uie);
 
         var visual = ElementCompositionPreview.GetElementVisual(uie);
         var compositor = visual.Compositor;
@@ -977,6 +1137,7 @@ public sealed partial class Reconciler : IDisposable
     /// </summary>
     internal static void ApplyInteractionStates(UIElement uie, InteractionStatesConfig config)
     {
+        ElementPool.MarkCompositorTainted(uie);
         if (!_interactionTrackers.TryGetValue(uie, out var tracker))
         {
             tracker = new InteractionStateTracker();
@@ -1012,6 +1173,8 @@ public sealed partial class Reconciler : IDisposable
             uie.PointerPressed += OnInteractionPointerPressed;
             uie.PointerReleased += OnInteractionPointerReleased;
             uie.PointerCaptureLost += OnInteractionPointerCaptureLost;
+            uie.GotFocus += OnInteractionGotFocus;
+            uie.LostFocus += OnInteractionLostFocus;
         }
 
         tracker.Config = config;
@@ -1029,6 +1192,8 @@ public sealed partial class Reconciler : IDisposable
         uie.PointerPressed -= OnInteractionPointerPressed;
         uie.PointerReleased -= OnInteractionPointerReleased;
         uie.PointerCaptureLost -= OnInteractionPointerCaptureLost;
+        uie.GotFocus -= OnInteractionGotFocus;
+        uie.LostFocus -= OnInteractionLostFocus;
     }
 
     private static void OnInteractionPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
@@ -1059,6 +1224,19 @@ public sealed partial class Reconciler : IDisposable
     }
 
     private static void OnInteractionPointerCaptureLost(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement uie && _interactionTrackers.TryGetValue(uie, out var tracker))
+            TransitionToState(uie, tracker, InteractionState.Normal);
+    }
+
+    private static void OnInteractionGotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is UIElement uie && _interactionTrackers.TryGetValue(uie, out var tracker)
+            && tracker.Config.Focused is not null)
+            TransitionToState(uie, tracker, InteractionState.Focused);
+    }
+
+    private static void OnInteractionLostFocus(object sender, RoutedEventArgs e)
     {
         if (sender is UIElement uie && _interactionTrackers.TryGetValue(uie, out var tracker))
             TransitionToState(uie, tracker, InteractionState.Normal);
@@ -1201,6 +1379,7 @@ public sealed partial class Reconciler : IDisposable
     /// </summary>
     internal static void ApplyKeyframeAnimations(UIElement uie, KeyframeEntry[] entries)
     {
+        ElementPool.MarkCompositorTainted(uie);
         var visual = ElementCompositionPreview.GetElementVisual(uie);
         var compositor = visual.Compositor;
 
@@ -1337,7 +1516,7 @@ public sealed partial class Reconciler : IDisposable
     internal static void ApplyScrollAnimation(UIElement uie, ScrollAnimationConfig config)
     {
         if (config.ScrollViewer is null) return;
-
+        ElementPool.MarkCompositorTainted(uie);
         var visual = ElementCompositionPreview.GetElementVisual(uie);
         var compositor = visual.Compositor;
         var scrollPropertySet = ElementCompositionPreview.GetScrollViewerManipulationPropertySet(config.ScrollViewer);
@@ -1441,6 +1620,14 @@ public sealed partial class Reconciler : IDisposable
         if (m.VerticalAlignment.HasValue && m.VerticalAlignment != oldM?.VerticalAlignment) fe.VerticalAlignment = m.VerticalAlignment.Value;
         if (m.Opacity.HasValue && m.Opacity != oldM?.Opacity)
             AnimationHelper.SetOrAnimate(fe, "Opacity", (float)m.Opacity.Value);
+        if (m.Scale.HasValue && m.Scale != oldM?.Scale)
+            AnimationHelper.SetOrAnimateVector3(fe, "Scale", m.Scale.Value);
+        if (m.Rotation.HasValue && m.Rotation != oldM?.Rotation)
+            AnimationHelper.SetOrAnimate(fe, "Rotation", m.Rotation.Value);
+        if (m.Translation.HasValue && m.Translation != oldM?.Translation)
+            AnimationHelper.SetOrAnimateVector3(fe, "Translation", m.Translation.Value);
+        if (m.CenterPoint.HasValue && m.CenterPoint != oldM?.CenterPoint)
+            AnimationHelper.SetOrAnimateVector3(fe, "CenterPoint", m.CenterPoint.Value);
         if (m.IsVisible.HasValue && m.IsVisible != oldM?.IsVisible)
             fe.Visibility = m.IsVisible.Value ? Visibility.Visible : Visibility.Collapsed;
         if (m.RichToolTip is not null)

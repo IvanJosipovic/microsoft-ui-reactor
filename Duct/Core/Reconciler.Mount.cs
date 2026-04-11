@@ -42,6 +42,11 @@ public sealed partial class Reconciler
         }
 
         UIElement? control;
+        // Push stagger scope if this element has StaggerConfig — children mounted
+        // inside MountXxx will consume stagger indices for their enter transitions.
+        bool pushedStagger = element.StaggerConfig is not null;
+        if (pushedStagger)
+            PushStaggerScope(element.StaggerConfig!.Delay);
         try
         {
 
@@ -172,7 +177,10 @@ public sealed partial class Reconciler
 
         // Apply enter transition (.Transition() modifier)
         if (control is not null && element.ElementTransition is not null)
-            ApplyEnterTransition(control, element.ElementTransition);
+        {
+            var (staggerIdx, staggerDly) = ConsumeStaggerIndex();
+            ApplyEnterTransition(control, element.ElementTransition, staggerIdx, staggerDly);
+        }
 
         // Apply interaction states (.InteractionStates() modifier)
         if (control is not null && element.InteractionStates is not null)
@@ -197,6 +205,8 @@ public sealed partial class Reconciler
         }
         finally
         {
+            if (pushedStagger)
+                PopStaggerScope();
             if (ctxCount > 0)
                 _contextScope.Pop(ctxCount);
         }
