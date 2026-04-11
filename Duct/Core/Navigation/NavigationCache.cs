@@ -56,14 +56,17 @@ internal sealed class NavigationCache
         _cache[route] = page;
 
         while (_cache.Count > MaxSize)
-            Evict();
+        {
+            if (!Evict())
+                break; // All remaining entries are Required — stop evicting
+        }
     }
 
     /// <summary>
     /// Removes the least recently accessed entry that is not <see cref="NavigationCacheMode.Required"/>.
-    /// If all entries are Required, no eviction occurs.
+    /// Returns false if all entries are Required and nothing was evicted.
     /// </summary>
-    public void Evict()
+    public bool Evict()
     {
         object? lruKey = null;
         var lruTime = DateTime.MaxValue;
@@ -84,7 +87,10 @@ internal sealed class NavigationCache
             var evicted = _cache[lruKey];
             _cache.Remove(lruKey);
             _onEvict?.Invoke(evicted.MountedControl);
+            return true;
         }
+
+        return false;
     }
 
     /// <summary>

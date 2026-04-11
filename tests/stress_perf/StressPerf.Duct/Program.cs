@@ -61,12 +61,12 @@ class StockGridApp : Component
             perfRef.Current = new PerfTracker();
             var perf = perfRef.Current;
             var pending = benchmarkUpdatePending;
-            DuctApp.ActiveHost!.OnRenderComplete = ms =>
+            DuctApp.ActiveHost!.OnRenderComplete = (treeMs, reconcileMs, effectsMs) =>
             {
                 if (pending.Current)
                 {
                     pending.Current = false;
-                    perf.RecordReconcile(ms);
+                    perf.RecordPhases(treeMs, reconcileMs, effectsMs);
                 }
             };
         }

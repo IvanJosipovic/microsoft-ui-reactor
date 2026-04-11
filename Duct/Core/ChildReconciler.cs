@@ -53,20 +53,36 @@ internal static class ChildReconciler
         Reconciler reconciler,
         Action requestRerender)
     {
+        int childCount = children.Count; // cache to avoid repeated COM calls
         int common = Math.Min(oldChildren.Length, newChildren.Length);
 
         // Update common children in place
         for (int i = 0; i < common; i++)
         {
-            if (i >= children.Count) break;
+            if (i >= childCount) break;
 
-            if (reconciler.CanUpdate(oldChildren[i], newChildren[i]))
+            // Early skip: if the element is structurally identical (and has no
+            // theme bindings that need re-evaluation), we can avoid the expensive
+            // children.Get(i) COM call entirely. This saves ~2 COM roundtrips per
+            // unchanged child (IVector.GetAt + all the property diffing inside Update).
+            var oldEl = oldChildren[i];
+            var newEl = newChildren[i];
+            if (Element.CanSkipUpdate(oldEl, newEl))
             {
-                var replacement = reconciler.UpdateChild(oldChildren[i], newChildren[i], children.Get(i), requestRerender);
+#if DEBUG
+                reconciler.DebugElementsSkipped++;
+#endif
+                continue;
+            }
+
+            if (reconciler.CanUpdate(oldEl, newEl))
+            {
+                var existingControl = children.Get(i);
+                var replacement = reconciler.UpdateChild(oldEl, newEl, existingControl, requestRerender);
                 if (replacement is not null)
                 {
                     // Child type changed at runtime — replace in place
-                    reconciler.UnmountChild(children.Get(i));
+                    reconciler.UnmountChild(existingControl);
                     children.Replace(i, replacement);
                 }
             }
@@ -74,14 +90,14 @@ internal static class ChildReconciler
             {
                 // Type mismatch — unmount old, mount new
                 reconciler.UnmountChild(children.Get(i));
-                var newControl = reconciler.Mount(newChildren[i], requestRerender);
+                var newControl = reconciler.Mount(newEl, requestRerender);
                 if (newControl is not null)
                     children.Replace(i, newControl);
             }
         }
 
         // Remove excess old children (from end to start to keep indices stable)
-        for (int i = children.Count - 1; i >= common; i--)
+        for (int i = childCount - 1; i >= common; i--)
         {
             var old = children.Get(i);
             children.RemoveAt(i);

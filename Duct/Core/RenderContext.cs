@@ -664,7 +664,7 @@ public sealed class RenderContext
         if (command.ExecuteAsync is null)
             return command;
 
-        var (isExecuting, setIsExecuting) = UseState(false);
+        var (isExecuting, setIsExecuting) = UseState(false, threadSafe: true);
         var asyncAction = command.ExecuteAsync;
 
         var wrappedExecute = UseMemo<Action>(() => () =>
@@ -698,7 +698,7 @@ public sealed class RenderContext
         if (command.ExecuteAsync is null)
             return command;
 
-        var (isExecuting, setIsExecuting) = UseState(false);
+        var (isExecuting, setIsExecuting) = UseState(false, threadSafe: true);
         var asyncAction = command.ExecuteAsync;
 
         var wrappedExecute = UseMemo<Action<T>>(() => (arg) =>

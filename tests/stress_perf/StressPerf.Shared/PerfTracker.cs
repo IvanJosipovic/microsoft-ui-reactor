@@ -16,6 +16,9 @@ public sealed class PerfTracker
     private readonly List<long> _memorySamples = new();
     private readonly List<double> _updateTimeSamples = new();
     private readonly List<double> _reconcileTimeSamples = new();
+    private readonly List<double> _treeBuildSamples = new();
+    private readonly List<double> _diffPatchSamples = new();
+    private readonly List<double> _effectsSamples = new();
 
     public double CurrentFps => _currentFps;
     public double LastUpdateMs => _lastUpdateMs;
@@ -55,10 +58,15 @@ public sealed class PerfTracker
     }
 
     /// <summary>
-    /// Record a reconcile pass duration (ms). Called from framework render loops
-    /// (e.g. DuctHost) where the reconcile happens asynchronously after the update.
+    /// Record per-phase breakdown for a render pass.
     /// </summary>
-    public void RecordReconcile(double ms) => _reconcileTimeSamples.Add(ms);
+    public void RecordPhases(double treeBuildMs, double diffPatchMs, double effectsMs)
+    {
+        _treeBuildSamples.Add(treeBuildMs);
+        _diffPatchSamples.Add(diffPatchMs);
+        _effectsSamples.Add(effectsMs);
+        _reconcileTimeSamples.Add(treeBuildMs + diffPatchMs + effectsMs);
+    }
 
     public double ElapsedSeconds => _wallClock.Elapsed.TotalSeconds;
 
@@ -82,6 +90,12 @@ public sealed class PerfTracker
         {
             sb.AppendLine($"Avg Reconcile: {_reconcileTimeSamples.Average():F1} ms");
             sb.AppendLine($"Max Reconcile: {_reconcileTimeSamples.Max():F1} ms");
+        }
+        if (_treeBuildSamples.Count > 0)
+        {
+            sb.AppendLine($"  Avg Tree:    {_treeBuildSamples.Average():F1} ms");
+            sb.AppendLine($"  Avg Diff:    {_diffPatchSamples.Average():F1} ms");
+            sb.AppendLine($"  Avg Effects: {_effectsSamples.Average():F1} ms");
         }
         if (_updateTimeSamples.Count > 0 && _reconcileTimeSamples.Count > 0)
         {

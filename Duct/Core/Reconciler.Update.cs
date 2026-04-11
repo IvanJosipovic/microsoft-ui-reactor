@@ -1652,12 +1652,19 @@ public sealed partial class Reconciler
 
         for (int i = 0; i < count; i++)
         {
+            var oldChild = o.Children[i];
+            var newChild = n.Children[i];
+
+            // Early skip: element + modifiers + attached all identical — avoid COM
+            // g.Children[i] read entirely. ShallowEquals already checks modifiers
+            // and attached (GridAttached), so grid placement is also covered.
+            if (Element.CanSkipUpdate(oldChild, newChild))
+                continue;
+
             // Guard: recursive Reconcile may have modified g.Children (e.g., via
             // component re-renders that remove children from this grid).
             if (i >= g.Children.Count) break;
 
-            var oldChild = o.Children[i];
-            var newChild = n.Children[i];
             var existingCtrl = g.Children[i];
             var replacement = Reconcile(oldChild, newChild, existingCtrl, requestRerender);
             if (replacement is not null && replacement != existingCtrl && i < g.Children.Count)

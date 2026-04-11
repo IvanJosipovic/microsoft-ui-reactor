@@ -116,6 +116,16 @@ public abstract record Element
     // ════════════════════════════════════════════════════════════════════════
 
     /// <summary>
+    /// Returns true if two elements are structurally identical AND the child can be
+    /// completely skipped during reconciliation (no need to call Update at all).
+    /// This is stricter than ShallowEquals: elements with ThemeBindings must still
+    /// go through Update so bindings can be re-evaluated against the current theme.
+    /// IMPORTANT: keep in sync with the ShallowEquals fast-path in Reconciler.Update().
+    /// </summary>
+    internal static bool CanSkipUpdate(Element oldEl, Element newEl)
+        => ShallowEquals(oldEl, newEl) && newEl.ThemeBindings is null;
+
+    /// <summary>
     /// Fast structural comparison that avoids the pitfalls of record Equals
     /// (Dictionary reference equality, Action[] reference equality, delegate equality).
     /// Returns true only when the two elements are provably identical for rendering purposes.

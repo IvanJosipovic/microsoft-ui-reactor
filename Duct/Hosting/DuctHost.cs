@@ -13,6 +13,8 @@ namespace Duct;
 /// </summary>
 public sealed class DuctHost
 {
+    private static readonly int MaxRenderIterations = 50;
+
     private readonly Window _window;
     private readonly Reconciler _reconciler;
     private readonly DispatcherQueue _dispatcherQueue;
@@ -54,11 +56,11 @@ public sealed class DuctHost
     public Reconciler Reconciler => _reconciler;
 
     /// <summary>
-    /// Optional callback invoked after each render pass with the total render time (ms)
-    /// including tree build + reconcile + effects. Used by perf harnesses to capture
-    /// the full cost of a Duct render cycle.
+    /// Optional callback invoked after each render pass with phase timings (ms):
+    /// treeBuildMs, reconcileMs, effectsMs. Used by perf harnesses to capture
+    /// the breakdown of a Duct render cycle.
     /// </summary>
-    public Action<double>? OnRenderComplete { get; set; }
+    public Action<double, double, double>? OnRenderComplete { get; set; }
 
     /// <summary>
     /// The WinUI Window hosting this Duct tree.
@@ -215,7 +217,7 @@ public sealed class DuctHost
 
             double effectsMs = _phaseSw.Elapsed.TotalMilliseconds;
 
-            OnRenderComplete?.Invoke(treeBuildMs + reconcileMs + effectsMs);
+            OnRenderComplete?.Invoke(treeBuildMs, reconcileMs, effectsMs);
 
 #if DEBUG
             _logger.Log(DuctLogLevel.Debug,
