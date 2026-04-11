@@ -49,6 +49,8 @@ Internally, this would create a `DataTemplate` whose `LoadContent()` method call
 
 **Impact:** Eliminates runtime XAML parsing for every ListView/GridView mount. Makes Duct's list virtualization compatible with NativeAOT trimming. Removes a class of potential runtime errors from string-based XAML. Any declarative framework that manages its own item rendering (not just Duct) would benefit from this API.
 
+**Cross-reference:** The theming system (Proposal #22) has the same fundamental problem — `ApplyThemeBindings` in `Reconciler.cs` calls `XamlReader.Load()` to create `Style` objects with `{ThemeResource}` setters because there's no code API to create a theme-resource-referencing Setter. Both proposals stem from WinUI lacking code-based equivalents for XAML markup extensions. A unified approach that exposes `{ThemeResource}`, `{StaticResource}`, and DataTemplate factories from code would address both.
+
 **WinUI3 files:**
 - `src/dxaml/xcp/core/core/elements/DataTemplate.cpp` — `DataTemplate::LoadContent()` instantiation path
 - `src/dxaml/xcp/dxaml/lib/DataTemplate_Partial.cpp` — Managed peer, `LoadContentImpl()`
@@ -291,6 +293,8 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 
 **Impact:** Duct apps would automatically respect system themes, accessibility settings (high contrast), and app-level style overrides without any Duct-side changes.
 
+**Cross-reference — theming conflict:** The theming system (Proposal #22) creates dynamic `Style` objects via `ApplyThemeBindings` and assigns them via `fe.Style = style`, which actively overrides implicit styles. Even with `BasedOn` chaining, the dynamic style takes precedence and can block implicit style resolution. A solution for this proposal must account for theme binding styles coexisting with implicit styles — possibly by applying theme bindings as local value overrides (Proposal #22 Option C) rather than through the Style system, leaving the Style slot free for implicit resolution.
+
 **WinUI3 files:**
 - `src/dxaml/xcp/core/core/elements/Style.cpp` — Implicit style lookup, BasedOn chain (lines 28-100)
 - `src/dxaml/xcp/core/core/elements/Control.cpp` — `OnApplyTemplate()` and style application
@@ -298,6 +302,7 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 **Duct files:**
 - `Duct/Core/ElementPool.cs` — `CleanElement()` resets all properties
 - `Duct/Core/Reconciler.Mount.cs` — Property application during mount
+- `Duct/Core/Reconciler.cs` — `ApplyThemeBindings` (lines 1751-1809) — the Style-based theme binding that conflicts with implicit styles
 
 ---
 
@@ -511,6 +516,228 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 
 ---
 
+## 22. Programmatic ThemeResource Setter — Eliminate XamlReader.Load for Theme Bindings (Unblock)
+
+**Problem:** Duct's theming system uses a three-tier theme value model (local concrete > theme token > default) where tier-2 "theme tokens" reference WinUI's semantic theme resources (e.g., `AccentFillColorDefaultBrush`, `TextFillColorPrimaryBrush`). The `ApplyThemeBindings` method in `Reconciler.cs` (lines 1751-1809) applies these by constructing a WinUI `Style` with `{ThemeResource}` setters — but WinUI has **no code-based API** to create a Setter that references a ThemeResource. The only path is to build a XAML string and parse it via `XamlReader.Load()`:
+
+```csharp
+// Current implementation in Reconciler.cs:1751-1809
+private static void ApplyThemeBindings(FrameworkElement fe, IReadOnlyDictionary<string, ThemeRef> bindings)
+{
+    var setters = new StringBuilder();
+    var targetType = GetStyleTargetType(fe);
+    foreach (var (property, themeRef) in bindings)
+    {
+        var dp = GetDependencyPropertyName(fe, property);
+        var escapedResourceKey = SecurityElement.Escape(themeRef.ResourceKey);
+        setters.Append($"<Setter Property='{dp}' Value='{{ThemeResource {escapedResourceKey}}}'/>");
+    }
+    var xaml = $"<Style xmlns='...' TargetType='{targetType}'>" + setters + "</Style>";
+    var style = (Style)XamlReader.Load(xaml); // Full XML parse per element per render
+    if (fe.Style is Style existing && existing.TargetType == style.TargetType)
+        style.BasedOn = existing; // Fragile chaining
+    fe.Style = style;
+}
+```
+
+This fires on **every mount AND every update** for every theme-bound element. A screen with 50 themed elements produces 50 `XamlReader.Load` calls per render cycle — string building, XML parsing, namespace resolution, and Style object instantiation on the hot path. There is no caching: 20 buttons with `.Background(Theme.Accent)` create 20 separate Style objects from 20 separate XAML parses.
+
+Beyond performance, the Style-based approach creates correctness issues:
+1. **Style clobbering:** `fe.Style = style` overrides any existing style, including those set by `.ApplyStyle("AccentButtonStyle")` or WinUI's implicit style resolution (see Proposal #9 cross-reference). The `BasedOn` chaining is fragile — it only works when the existing style's TargetType matches.
+2. **Limited property coverage:** `GetDependencyPropertyName` (lines 1802-1809) hard-codes only 3 properties — Background, Foreground, and BorderBrush. Fill/Stroke on shapes, PlaceholderForeground on TextBox, SelectionHighlightColor, CaretBrush, and any other brush property cannot be theme-bound. Expanding coverage requires knowing each property's XAML string name and valid control types — a maintenance burden that grows linearly.
+3. **AOT/trimming incompatibility:** Same issue as Proposal #1.
+
+The architecture decision to use `{ThemeResource}` is correct — it delegates theme resolution to WinUI's native machinery, which correctly handles Light/Dark/HighContrast and per-element `RequestedTheme` overrides. The problem is that the only way to get a `{ThemeResource}` reference from code is to round-trip through XML parsing.
+
+**Proposal:** WinUI should expose a programmatic API to set theme-resource references on DependencyProperties:
+
+```csharp
+// Option A: Setter-level theme resource reference
+var setter = new Setter(Control.BackgroundProperty, new ThemeResourceReference("AccentFillColorDefaultBrush"));
+var style = new Style(typeof(Button)) { Setters = { setter } };
+
+// Option B: Direct per-element theme resource binding (preferred)
+fe.SetThemeResourceBinding(Control.BackgroundProperty, "AccentFillColorDefaultBrush");
+// Registers the property for re-evaluation on ActualThemeChanged, same as {ThemeResource} in XAML
+
+// Option C: Batch binding API for frameworks
+fe.SetThemeResourceBindings(new[] {
+    (Control.BackgroundProperty, "AccentFillColorDefaultBrush"),
+    (Control.ForegroundProperty, "TextFillColorPrimaryBrush"),
+    (Control.BorderBrushProperty, "CardStrokeColorDefaultBrush"),
+});
+```
+
+Option B is the most impactful — it bypasses the Style system entirely, setting a theme-reactive binding directly on the element's DependencyProperty. Internally, this would register the property for re-evaluation when `ActualTheme` changes, identical to how `{ThemeResource}` markup works in the XAML parser but triggered from code. This also resolves the style clobbering problem (Proposal #9 cross-reference) because theme bindings wouldn't occupy the Style slot.
+
+**Impact:** Eliminates all `XamlReader.Load` calls from the theming hot path. A 50-element themed screen goes from 50 XML parses to 50 property sets (~1000x cheaper per operation). Removes string allocation, XML parsing, namespace resolution, and Style object creation from every render cycle. Unblocks expanding ThemeRef beyond 3 properties — with a programmatic API, any brush DependencyProperty could be theme-bound (Fill, Stroke, PlaceholderForeground, SelectionHighlightColor, etc.) without maintaining a hard-coded property-name map. Option B also eliminates the style clobbering issue entirely, making Proposals #9 and #22 complementary instead of conflicting.
+
+**WinUI3 files:**
+- `src/dxaml/xcp/core/core/elements/Style.cpp` — Style/Setter creation, SetValue path for themed setters
+- `src/dxaml/xcp/core/core/elements/framework.cpp` — `{ThemeResource}` resolution during property evaluation — the behavior to expose programmatically
+- `src/dxaml/xcp/core/Parser/XamlReader.cpp` — `XamlReader.Load()`, the path being eliminated
+- `src/dxaml/xcp/core/core/elements/depends.cpp` — `CDependencyObject::SetValue`, theme-aware property evaluation
+- `src/dxaml/xcp/core/theming/ThemeResource.cpp` — Theme resource tracking and re-evaluation on theme change
+
+**Duct files:**
+- `Duct/Core/Reconciler.cs` — `ApplyThemeBindings` (lines 1751-1809), `GetStyleTargetType` (lines 1786-1800), `GetDependencyPropertyName` (lines 1802-1809) — all three methods would be replaced by direct `SetThemeResourceBinding` calls
+- `Duct/Core/Theme.cs` — `ThemeRef` struct (lines 10-127), `Theme` static class (lines 55-127) — `ThemeRef.Resolve()` would become fallback-only; the struct itself remains as declarative intent
+- `Duct/Elements/ElementExtensions.cs` — `ModifyTheme` (lines 1254-1261), `Background(ThemeRef)` (line 262), `Foreground(ThemeRef)` (line 278), `WithBorder(ThemeRef)` (line 302) — API stays the same, implementation simplifies dramatically
+- `Duct/Core/Element.cs` — `ThemeBindings` property (lines 57-63) — still stores declarative intent, reconciler applies differently
+- `Duct/Hosting/DuctHostControl.cs` — `ActualThemeChanged` listener — with Option B, WinUI handles re-evaluation natively; the full re-render on theme change could become optional
+
+---
+
+## 23. Lightweight Styling API from Code (Tactical)
+
+**Problem:** WinUI's lightweight styling system allows per-control customization of visual states by overriding resource keys in a control's `Resources` dictionary. This is how every WinUI control implements its hover, pressed, disabled, and focused visual states — the control template references resource keys like `ButtonBackgroundPointerOver`, `ButtonForegroundPressed`, `TextBoxBorderBrushFocused`, and the app can override them per-instance:
+
+```xml
+<!-- Only works in XAML -->
+<Button Content="Custom hover">
+  <Button.Resources>
+    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Red"/>
+    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="DarkRed"/>
+  </Button.Resources>
+</Button>
+```
+
+Duct's theming covers Background, Foreground, and BorderBrush in their **resting state only**. A button with `.Background(Theme.Accent)` gets the correct accent color in both Light and Dark themes, but its hover/pressed/disabled colors remain WinUI defaults. When the resting state is customized but visual states aren't, the result is visually jarring — the button snaps from a custom accent color to the default hover color on mouse-over.
+
+There are three sub-problems:
+
+1. **No discovery API:** There is no way to programmatically enumerate which lightweight styling keys a control supports. The keys are string constants scattered across XAML theme resource files (`Button_themeresources.xaml`, `TextBox_themeresources.xaml`, etc.). A developer must read WinUI source to find valid key names.
+
+2. **No type safety:** Keys are plain strings — `"ButtonBackgoundPointerOver"` (typo) silently does nothing. No compile-time or runtime validation.
+
+3. **No theme-variant overrides from code:** Setting `button.Resources["ButtonBackgroundPointerOver"] = redBrush` works from code but applies a single value regardless of theme. To make lightweight styling theme-aware, you'd need to construct a `ResourceDictionary` with `ThemeDictionaries` containing Light/Dark/HighContrast variants — the same verbose setup as custom theme resources (Proposal #24), but repeated per-control.
+
+**Proposal:** WinUI should expose lightweight styling as a typed, discoverable API:
+
+```csharp
+// Option A: Typed resource key constants per control
+button.Resources[Button.ResourceKeys.BackgroundPointerOver] = hoverBrush;
+button.Resources[Button.ResourceKeys.BackgroundPressed] = pressedBrush;
+// ResourceKeys would be generated from the control's theme resource XAML
+
+// Option B: Visual state resource override with theme awareness
+button.SetStateThemeResource("PointerOver", Control.BackgroundProperty, "AccentFillColorSecondaryBrush");
+button.SetStateThemeResource("Pressed", Control.BackgroundProperty, "AccentFillColorTertiaryBrush");
+
+// Option C: Batch visual state customization
+button.SetLightweightStyle(new LightweightStyle {
+    { ButtonStates.PointerOver, Control.BackgroundProperty, Theme.AccentSecondary },
+    { ButtonStates.Pressed, Control.BackgroundProperty, Theme.AccentTertiary },
+    { ButtonStates.Disabled, Control.BackgroundProperty, Theme.AccentDisabled },
+});
+```
+
+Duct would then expose this as fluent modifiers:
+```csharp
+Button("Click me")
+    .Background(Theme.Accent)
+    .StateBackground("PointerOver", Theme.AccentSecondary)
+    .StateBackground("Pressed", Theme.AccentTertiary)
+    .StateBackground("Disabled", Theme.AccentDisabled)
+```
+
+**Impact:** Enables full visual state theming from code. Duct could offer per-state theme token bindings that adapt to Light/Dark/HighContrast. Eliminates the visual discontinuity where resting-state colors are themed but hover/pressed/disabled states snap back to defaults. Makes lightweight styling discoverable and type-safe. Combined with Proposal #22 (programmatic ThemeResource), this would give Duct feature parity with CSS pseudo-class styling (`:hover`, `:active`, `:disabled`) and SwiftUI's `buttonStyle` system.
+
+**WinUI3 files:**
+- `src/controls/dev/CommonStyles/Button_themeresources.xaml` — Button lightweight styling keys (pattern repeated for every control)
+- `src/controls/dev/CommonStyles/TextBox_themeresources.xaml` — TextBox lightweight styling keys
+- `src/dxaml/xcp/core/core/elements/Control.cpp` — Control template resource resolution, visual state application
+- `src/dxaml/xcp/core/core/elements/ResourceDictionary.cpp` — Per-element Resources dictionary lookup chain
+- `src/dxaml/xcp/core/core/elements/VisualStateManager.cpp` — Visual state transitions and resource application
+
+**Duct files:**
+- `Duct/Elements/ElementExtensions.cs` — Would add state-aware theme modifiers (`.StateBackground()`, `.StateForeground()`, etc.)
+- `Duct/Core/Reconciler.cs` — `ApplyThemeBindings` would expand to handle per-state overrides, or a parallel `ApplyLightweightStyle` method
+- `Duct/Core/Reconciler.Mount.cs` — Would set control `Resources` entries during mount for lightweight styling
+- `Duct/Core/Element.cs` — `ElementModifiers` would gain a `StateOverrides` dictionary: `IReadOnlyDictionary<(string state, string property), ThemeRef>`
+
+---
+
+## 24. Programmatic Custom Theme Resource Definitions (Tactical)
+
+**Problem:** Duct's `Theme` static class (in `Theme.cs`, lines 55-127) provides 60+ semantic tokens mapped to WinUI's built-in theme resources, and `Theme.Ref("key")` can reference any existing resource by name. But there is no Duct-level API — and no streamlined WinUI API — to **define new** theme-aware resources that provide different values for Light, Dark, and HighContrast themes.
+
+An app that wants branded colors ("BrandPrimary" = corporate blue in Light, lighter blue in Dark) must manually construct a `ResourceDictionary` with `ThemeDictionaries` in code-behind:
+
+```csharp
+// Current workaround — 15+ lines of imperative setup, typically in App.xaml.cs
+var lightDict = new ResourceDictionary();
+lightDict["BrandPrimary"] = new SolidColorBrush(Color.FromArgb(255, 0, 90, 158));
+lightDict["BrandSecondary"] = new SolidColorBrush(Color.FromArgb(255, 96, 94, 92));
+var darkDict = new ResourceDictionary();
+darkDict["BrandPrimary"] = new SolidColorBrush(Color.FromArgb(255, 100, 180, 255));
+darkDict["BrandSecondary"] = new SolidColorBrush(Color.FromArgb(255, 161, 159, 157));
+var themeDict = new ResourceDictionary();
+themeDict.ThemeDictionaries["Light"] = lightDict;
+themeDict.ThemeDictionaries["Dark"] = darkDict;
+Application.Current.Resources.MergedDictionaries.Add(themeDict);
+// Theme.Ref("BrandPrimary") now works — but this setup has no Duct integration,
+// no validation, and must run before any UI renders
+```
+
+This defeats Duct's declarative model entirely. The theming design spec (`docs/spec/duct-theming-design.md`) proposed a `DuctThemeResources` class for declarative custom theme definition, but it was never implemented. Without it:
+- No branded colors that adapt to Light/Dark (must hard-code or use the verbose workaround above)
+- No app-specific semantic tokens (e.g., "PricingPositive" = green in light, lighter green in dark)
+- No component-level theme scoping (a component can't define theme tokens for its subtree)
+- Every competitor has this: React/Material UI has `createTheme()`, SwiftUI has Color asset catalogs with Light/Dark/HighContrast variants, Compose has `lightColorScheme()`/`darkColorScheme()`
+
+**Proposal:** Two levels — a WinUI API improvement and a Duct-level DSL:
+
+**(a) WinUI: Streamlined theme resource registration API:**
+
+```csharp
+// Current: 15+ lines of nested ResourceDictionary construction
+// Proposed: single-call registration
+ThemeResources.Define("BrandPrimary")
+    .Light(new SolidColorBrush(Color.FromArgb(255, 0, 90, 158)))
+    .Dark(new SolidColorBrush(Color.FromArgb(255, 100, 180, 255)))
+    .HighContrast(new SolidColorBrush(Colors.Yellow))
+    .Register();  // Adds to Application.Current.Resources.ThemeDictionaries
+
+// Batch registration
+ThemeResources.RegisterBatch(new[] {
+    ("BrandPrimary",   lightBlue, darkLightBlue, hcYellow),
+    ("BrandSecondary", lightGray, darkLightGray, hcWhite),
+});
+```
+
+**(b) Duct: Declarative theme definition in component model:**
+
+```csharp
+// In DuctApp configuration — runs before first render
+DuctApp.DefineTheme(theme =>
+{
+    theme.Color("BrandPrimary",     light: "#005A9E", dark: "#64B4FF");
+    theme.Color("BrandSecondary",   light: "#605E5C", dark: "#A19F9D");
+    theme.Color("PricingPositive",  light: "#107C10", dark: "#6CCB5F");
+    theme.Color("PricingNegative",  light: "#D13438", dark: "#FF6B6E");
+});
+
+// In components — uses existing ThemeRef system seamlessly
+Text("+$12.50").Foreground(Theme.Ref("PricingPositive"))
+Border(content).Background(Theme.Ref("BrandPrimary"))
+```
+
+**Impact:** Enables branded and domain-specific theme tokens that work with Duct's existing `ThemeRef` system and `ApplyThemeBindings` pipeline. Developers define colors once and they adapt to Light/Dark/HighContrast automatically. Combined with Proposals #22 and #23, this completes the theming story: #22 makes theme binding fast, #23 extends it to visual states, and #24 lets apps define their own tokens. Puts Duct's theming on par with React's `createTheme()`, SwiftUI's asset catalogs, and Compose's `MaterialTheme` color schemes.
+
+**WinUI3 files:**
+- `src/dxaml/xcp/core/core/elements/ResourceDictionary.cpp` — `ThemeDictionaries` property, merged dictionary resolution, resource lookup chain
+- `src/dxaml/xcp/core/theming/ThemeResource.cpp` — Theme resource tracking — custom resources must participate in the same re-evaluation pipeline as built-in ones
+- `src/dxaml/xcp/core/core/elements/framework.cpp` — Resource lookup chain (element → parent → app → system) — custom resources must be discoverable at the right level
+
+**Duct files:**
+- `Duct/Core/Theme.cs` — `Theme` static class (lines 55-127) — would gain `DefineTheme()` / `RegisterCustom()` APIs, potentially a `ThemeBuilder` class
+- `Duct/Elements/ThemeResource.cs` — `Brush()`, `Double()`, `Get<T>()` lookup helpers — would include custom resource resolution
+- `Duct/Hosting/DuctHost.cs` — Initialization path — custom theme registration must happen before first render
+- `Duct/Hosting/DuctHostControl.cs` — `ActualThemeChanged` listener — already triggers re-render, which re-resolves custom theme resources automatically
+
+---
+
 ## Summary Table
 
 | # | Proposal | Ambition | Effort | Impact |
@@ -536,3 +763,6 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 | 19 | Shared memory ring buffer | Wild | XL | Medium |
 | 20 | Duct as WinUI's declarative layer | Wild | XXL | Transformative |
 | 21 | Parallel subtree reconciliation | Wild | XL | High |
+| 22 | Programmatic ThemeResource setter (no XamlReader for themes) | Unblock | M | Very High |
+| 23 | Lightweight styling API from code | Tactical | M | Medium |
+| 24 | Programmatic custom theme resource definitions | Tactical | S | High |
