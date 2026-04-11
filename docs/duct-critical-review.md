@@ -38,9 +38,12 @@ the new features have implementation concerns that temper the enthusiasm:
 6. **Accessibility has improved significantly but still has structural limits** —
    16 properties exposed with real UIA tests, but hooks, diagnostics, and custom
    automation peers remain unbuilt
-7. **Animation has broadened but remains limited in scope** — layout animations,
-   springs, and connected animations now exist, but still no value-driven
-   animation, no keyframe DSL, and implicit transitions are capped at 5 properties
+7. **Animation has good API design but significant integration gaps** — 8 new
+   features (curves, transitions, interaction states, keyframes, stagger,
+   scroll-linked, WithAnimation scope) with solid abstractions; but exit
+   transitions are dead code, Focused state is unwired, WithAnimation only
+   routes Opacity, and stagger doesn't integrate with enter transitions.
+   Still compositor-property-bound, no arbitrary DP animation
 8. **The `.Set()` escape hatch is still load-bearing** — navigation and commanding
    reduce its surface area, but the majority of input handling, gestures, advanced
    styling, and composition-layer access still require it
@@ -1484,17 +1487,16 @@ could provide a convenience API like `ListView(items, template, emptyState)`.
 
 ## 10. Animation
 
-### The animation story: from 5 transitions to a real (if narrow) system
+### The animation story: from 5 transitions to a compositor animation system
 
-The previous version of this review said Duct had "5 implicit transitions and
-nothing else" — everything beyond opacity/scale/rotation/translation/background
-required `.Set()`. That's no longer the full picture. A significant animation
-diff has landed that adds composition-layer layout animations with spring
-physics, connected animations for cross-container transitions, and proper
-reconciler lifecycle integration. The honest assessment now: **animation has
-genuine new capabilities that go beyond what most new frameworks ship with, but
-the scope is still narrow compared to the competition, and the fundamental
-"animate any value" problem remains unsolved.**
+The last version of this review said Duct had "5 implicit transitions and
+nothing else" and graded animation at C. Since then a single large diff (commit
+41179d0) has landed 8 new animation features, all compositor-layer, with full
+reconciler lifecycle integration. This is no longer a thin wrapper around
+WinUI's built-in transition properties — it's a real animation system. The
+honest assessment: **Duct now has a genuinely capable compositor animation
+system with good design quality, but it operates within a ceiling that SwiftUI
+and Compose don't face, and "animate any value" is still out of reach.**
 
 ### What Duct has now
 
@@ -1507,242 +1509,461 @@ the scope is still narrow compared to the competition, and the fundamental
 - `.BackgroundTransition(duration?)` — BrushTransition on Grid/StackPanel only
 
 These are thin wrappers over WinUI's built-in implicit transition properties.
-When you change a value (e.g., `.Opacity(isVisible ? 1.0 : 0.0)`), the
-transition animates the change smoothly. They run on the composition thread —
-zero managed-code involvement.
+Unchanged from before. They run on the composition thread with zero managed-code
+involvement.
 
 **Tier 2: Theme transitions (structural enter/exit).**
 
-- `.WithTransitions(params Transition[])` — sets ChildrenTransitions on
-  panels/borders/content controls
-- `.ItemContainerTransitions(params Transition[])` — sets ItemContainerTransitions
+- `.WithTransitions(params Transition[])` — ChildrenTransitions on panels
+- `.ItemContainerTransitions(params Transition[])` — ItemContainerTransitions
   on ListView/GridView
 
-These use WinUI's `EntranceThemeTransition`, `AddDeleteThemeTransition`,
-`RepositionThemeTransition`, etc. directly — no shadow types. When items are
-added to or removed from a container, WinUI animates them automatically.
+Also unchanged. Uses WinUI's theme transitions directly.
 
-**Tier 3: Layout animations (NEW — composition-layer position/size).**
+**Tier 3: Curve system (NEW — easing/spring DSL).**
 
 ```csharp
-// Linear offset animation (300ms default)
+Curve.Spring(dampingRatio: 0.8f, period: 0.05f)
+Curve.Ease(300, Easing.EaseInOut)
+Curve.Ease(200, Easing.CubicBezier(0.2f, 0.9f, 0.3f, 1.0f))
+Curve.Linear(150)
+```
+
+`Curve` is an abstract record with three sealed subtypes: `SpringCurve`,
+`EaseCurve`, `LinearCurve`. `Easing` is a readonly record struct with 7 presets
+(Linear, EaseIn, EaseOut, EaseInOut, Accelerate, Decelerate, Standard) plus
+`CubicBezier()` for custom curves. Immutable, zero-allocation, shareable.
+`AnimationHelper` maps these to WinUI compositor animations:
+`CreateSpringScalarAnimation()` / `CreateSpringVector3Animation()` for springs,
+`CreateScalarKeyFrameAnimation()` with `CreateCubicBezierEasingFunction()` for
+eased, plain keyframe animation for linear.
+
+This directly addresses the "no easing function DSL" critique from the previous
+review. The design is clean — the curve types carry enough data for the
+compositor bridge to create the right animation, and the bridge (`AnimationHelper`)
+handles scalar vs. Vector3 variants uniformly across all curve types.
+
+**Tier 4: `.Animate()` modifier (NEW — declaration-site implicit animations).**
+
+```csharp
+Border(child).Animate(Curve.Spring(), AnimateProperty.Opacity | AnimateProperty.Scale)
+Border(child).Animate(Curve.Ease(200, Easing.Decelerate))  // default: All 5 properties
+```
+
+`AnimateProperty` is a flags enum covering Opacity, Offset, Scale, Rotation,
+CenterPoint. The reconciler sets up `ImplicitAnimationCollection` entries on the
+element's composition Visual for the specified properties. Any subsequent
+compositor-level change to those properties animates automatically. This extends
+beyond the 5 UIElement-level implicit transitions by targeting the composition
+Visual directly, though it still only reaches compositor properties.
+
+**Tier 5: Layout animations (previously documented — composition-layer
+position/size).**
+
+```csharp
 Border(child).LayoutAnimation()
-
-// Custom duration
-Border(child).LayoutAnimation(TimeSpan.FromMilliseconds(500))
-
-// Spring physics
 Border(child).SpringLayoutAnimation(dampingRatio: 0.8f, period: 0.1f)
-
-// Full config: spring + size animation
-Border(child).LayoutAnimation(new LayoutAnimationConfig
-{
-    UseSpring = true,
-    DampingRatio = 0.6f,
-    Period = 0.08f,
-    AnimateOffset = true,
-    AnimateSize = true
-})
 ```
 
-This is the most substantial new capability. `LayoutAnimationConfig` is a
-declarative record that the reconciler applies via
-`ElementCompositionPreview.GetElementVisual()` — it sets up
-`ImplicitAnimationCollection` entries for "Offset" and optionally "Size" on the
-element's composition Visual. When WinUI's layout engine repositions or resizes
-the element (list reorder, grid reflow, responsive layout change), the visual
-animates smoothly from old to new position. It runs entirely on the composition
-thread with zero managed callbacks during animation.
+Unchanged from last review. Sets up implicit animation on the composition
+Visual's Offset and optionally Size. Well-engineered, spring physics, correct
+reconciler integration.
 
-The spring option uses `CreateSpringVector3Animation()` with configurable
-damping ratio and period. The linear option uses `CreateVector3KeyFrameAnimation()`
-with `InsertExpressionKeyFrame(1.0f, "this.FinalValue")`. Both are correct
-composition patterns.
-
-**Tier 4: Connected animations (NEW — cross-container transitions).**
+**Tier 6: Enter/exit transitions (NEW — individual element mount/unmount
+animations).**
 
 ```csharp
-// Source (before navigation/switch)
-Border(avatar).ConnectedAnimation("hero-image")
+// Fade in on mount, fade out on unmount
+Text("Hello").Transition(Transition.Fade)
 
-// Destination (after navigation/switch — same key)
-Border(largeAvatar).ConnectedAnimation("hero-image")
+// Slide in from bottom on mount, scale out on unmount
+Panel.Transition(Transition.Slide(Edge.Bottom) | Transition.Scale(0.85f))
+
+// Parallel: fade + slide together
+Panel.Transition(Transition.Fade + Transition.Slide(Edge.Left))
+
+// Asymmetric: different enter and exit
+Panel.Transition(Transition.Fade | Transition.Slide(Edge.Bottom))
 ```
 
-The reconciler coordinates with `ConnectedAnimationService`:
-- **On unmount:** captures a visual snapshot via
-  `service.PrepareToAnimate(key, control)` while the element is still in the
-  visual tree
-- **On mount:** queues the animation start via `service.GetAnimation(key)`
-- **After tree attach:** `DuctHost` calls `FlushConnectedAnimations()` to
-  start all queued animations once the new tree is in the visual tree
+`Transition` is an abstract record with sealed subtypes: `FadeTransition`,
+`SlideTransition(Edge)`, `ScaleTransition(float From)`, `CombinedTransition`,
+`AsymmetricTransition`, `DirectionalTransition`. Two operators: `+` for
+parallel composition, `|` for asymmetric enter/exit. `ElementTransition`
+wraps the transition with an optional `Curve` override.
 
-This two-phase approach handles the timing problem correctly — you can't start
-a connected animation until the destination element is laid out, and the
-reconciler can't know that during mount. The deferred flush solves it.
+The reconciler integration is partially complete. On mount:
+`ApplyEnterTransition()` runs compositor animations (opacity/offset/scale) on
+the element's Visual, respecting `AnimationScope.Current` if present (priority:
+explicit curve > ambient scope > 300ms Decelerate default). On unmount:
+`ApplyExitTransition()` exists at Reconciler.cs:830 with full
+`CompositionScopedBatch` deferral logic — but **it is never called**. The
+`ChildReconciler` does immediate `RemoveAt()` + `Unmount()` without invoking
+the exit path. Exit transitions are dead code.
+
+This partially addresses the "no enter/exit for individual elements" critique.
+Enter transitions work. Exit transitions are defined but unreachable — the
+previous review said "True enter/exit animation needs the reconciler to delay
+unmounting until an exit animation completes." The method exists, but the
+reconciler still removes elements immediately. The composition-operator DSL
+(`+` and `|`) is well-designed, but half of it has no runtime effect.
+
+**Tier 7: Interaction states (NEW — zero-reconcile visual state machine).**
+
+```csharp
+Border(child).InteractionStates(s => s
+    .PointerOver(scale: 1.05f, opacity: 0.9f)
+    .Pressed(scale: 0.95f, background: hoverBrush)
+    .Focused(borderBrush: focusBrush))
+```
+
+`InteractionStatesConfig` defines visual values for PointerOver, Pressed, and
+Focused states. `InteractionStateValues` carries: 5 compositor properties
+(Opacity, Scale, ScaleV, Translation, Rotation) + 3 brush properties
+(Background, Foreground, BorderBrush). The reconciler registers pointer event
+handlers that apply compositor animations for transform properties (zero-cost
+during interaction) and direct brush swaps (~1μs) for brush properties. No
+reconciler re-render. No state change. No virtual tree diff.
+
+However, only PointerOver and Pressed are actually wired. The reconciler's
+`ApplyInteractionStates()` registers PointerEntered/PointerExited and
+PointerPressed/PointerReleased handlers — but **no GotFocus/LostFocus
+handlers**. The `.Focused()` builder method exists, accepts values, and
+compiles without error, but the values are silently ignored at runtime.
+
+This partially addresses the "VSM replacement is expensive" critique. Hover
+and press effects using InteractionStates run entirely on the composition
+thread (for transforms) or via pre-cached brush swap (for brushes), with zero
+managed-code re-rendering. But focus styling — arguably the most accessibility-
+critical interaction state — doesn't work.
+
+The scope is intentionally narrow — `InteractionStateValues` is a closed record,
+not an extensible property bag. No Width, Margin, FontSize, CornerRadius. The
+record IS the boundary, and the boundary is the compositor + 3 brush properties.
+This is honest design: it covers what can be done cheaply and stops there.
+
+**Tier 8: Staggered children (NEW).**
+
+```csharp
+StackPanel(children).Stagger(TimeSpan.FromMilliseconds(50))
+StackPanel(children).Stagger(TimeSpan.FromMilliseconds(50), Curve.Spring())
+```
+
+`StaggerConfig` applies progressive delay to child implicit animations — layout
+animations and property animations — via `CompositionAnimation.DelayTime`. The
+reconciler's `ApplyStaggerDelays()` iterates children and sets increasing delay
+on their `ImplicitAnimationCollection`. Simple, useful for list-reveal effects.
+
+However, stagger does not integrate with enter transitions. `ApplyEnterTransition`
+at Mount.cs:175 is called without stagger parameters, despite the method
+signature supporting them. Stagger only affects implicit animations already
+present on child Visuals, not the enter transition animations. A staggered
+list reveal with fade-in transitions won't actually stagger the fades.
+
+**Tier 9: Keyframe animations (NEW — trigger-based multi-property keyframes).**
+
+```csharp
+Border(child).Keyframes("pulse", triggerValue, k => k
+    .Duration(600).Loop()
+    .At(0f, scale: Vector3.One)
+    .At(0.5f, scale: new Vector3(1.1f, 1.1f, 1f), easing: Easing.EaseOut)
+    .At(1f, scale: Vector3.One, easing: Easing.EaseIn))
+```
+
+`KeyframeBuilder` constructs a `KeyframeAnimationDef` with typed `KeyframeDef`
+entries. Each keyframe can set Opacity, Scale, Translation, Rotation with
+per-keyframe easing. Animations are trigger-based: when the `Trigger` value
+changes (by reference), the reconciler starts new compositor animations. Looping
+is supported. `ApplyKeyframeAnimations()` in the reconciler creates
+`ScalarKeyFrameAnimation` / `Vector3KeyFrameAnimation` instances, inserts
+keyframes with their easing functions, and calls `visual.StartAnimation()`.
+
+This directly addresses the "no keyframe or sequenced animation DSL" critique.
+The design is adequate — the builder pattern is familiar and the trigger
+mechanism is sensible. The limitation: keyframes can only target the same
+compositor properties everything else targets. No color keyframes, no layout
+property keyframes.
+
+**Tier 10: Scroll-linked animations (NEW).**
+
+```csharp
+ScrollViewer(content).ScrollAnimation(sv, b => b
+    .Parallax(0.5f)
+    .FadeOut(100, 400)
+    .ScaleRange(0, 300, 1f, 0.8f)
+    .Expression("Rotation", "scroll.Translation.Y * 0.001"))
+```
+
+`ScrollAnimationBuilder` produces `ScrollExpression[]` entries (property name +
+expression string). The reconciler creates `ExpressionAnimation` instances on
+the composition Visual, referencing the ScrollViewer's manipulation property
+set. Preset helpers cover parallax, fade ranges, and scale ranges. Custom
+expressions via `.Expression()` for anything else.
+
+**Tier 11: AnimationScope.WithAnimation (NEW — ambient animation context).**
+
+```csharp
+// All property changes in this block animate with the given curve
+AnimationScope.WithAnimation(Curve.Ease(300, Easing.Decelerate), () =>
+{
+    SetExpanded(!expanded);
+});
+
+// Async: returns Task that completes when all animations finish
+await AnimationScope.WithAnimationAsync(Curve.Spring(), () =>
+{
+    SetStep(nextStep);
+});
+```
+
+`AnimationScope` uses `[ThreadStatic]` fields to hold a `Curve?` and a
+`bool HasScope`. `WithAnimation()` sets the ambient curve, runs the action,
+and restores the previous curve in a `finally` block (nestable). The reconciler
+checks `AnimationScope.Current` in property assignment via
+`AnimationHelper.SetOrAnimate()`. However, **`SetOrAnimate` is only called for
+Opacity** (Reconciler.cs:1443). Scale, Rotation, Translation, and CenterPoint
+are set directly without checking `AnimationScope.Current`. The ambient curve
+also propagates to enter transitions (overrides the default 300ms Decelerate).
+
+The async variant creates a `CompositionScopedBatch`, runs the action inside
+the batch, calls `batch.End()`, and returns a `Task` that completes on
+`batch.Completed`. This lets callers await animation completion.
+
+This directly addresses the "no declarative value-driven animation API"
+critique. It's close to SwiftUI's `withAnimation { }` pattern — wrap a state
+change, and the resulting property updates animate. The key difference: it only
+animates properties that the reconciler routes through `AnimationHelper`, which
+means compositor properties. Width changes, color changes, margin changes still
+don't animate. But for the properties it covers, the pattern is correct.
+
+**Tier 12: Connected animations (previously documented).**
+
+```csharp
+Border(avatar).ConnectedAnimation("hero-image")
+```
+
+Unchanged from last review. Two-phase prepare-on-unmount / start-after-mount
+pattern with deferred flush. Still string-keyed.
 
 ### What's actually good about this (credit where due)
 
-The layout animation system is well-engineered. Using composition-layer implicit
-animations is the right technical approach for WinUI — it's the same mechanism
-WinUI's own XAML controls use internally for layout transitions. The spring
-physics option provides natural motion that feels native. And the
-`LayoutAnimationConfig` record is cleanly declarative — you set it once on the
-element, the reconciler wires up the composition plumbing, and layout changes
-animate automatically with no imperative code.
+The design quality across these 8 new features is consistently high. A few
+things stand out:
 
-The connected animation integration is thoughtful. The two-phase
-prepare-on-unmount / start-after-mount pattern correctly handles the lifecycle
-timing that makes connected animations tricky. Other frameworks either don't
-support this (React has no built-in equivalent) or require significant
-boilerplate (Compose's `SharedTransitionLayout`). Duct's
-`.ConnectedAnimation("key")` modifier is genuinely simple.
+**The Curve type system is well-modeled.** Three sealed record subtypes, each
+carrying exactly the data the compositor bridge needs. Immutable, shareable,
+zero-allocation. The presets cover standard motion needs. Custom bezier is
+available. This is a clean API that will age well.
 
-The reconciler lifecycle ordering is correct and important: transitions are
-applied AFTER modifiers and theme bindings but the code is structured so they're
-in place before property values change. On update, layout animations are
-properly cleared when the config is removed (`ClearLayoutAnimation()`). This
-attention to lifecycle detail prevents subtle animation bugs.
+**The Transition composition operators are genuinely expressive.** `Fade +
+Slide(Bottom)` for parallel, `Fade | Scale(0.85f)` for asymmetric enter/exit.
+The record hierarchy (FadeTransition, SlideTransition, CombinedTransition,
+AsymmetricTransition, DirectionalTransition) handles these combinations
+correctly without combinatorial explosion. The reconciler decomposes them via
+pattern matching in `GetEnterTransition()` / `GetExitTransition()`.
 
-The `LayoutAnimationConfig` documentation is honest about limitations: "Hit-
-testing uses the final layout position, not the animated visual position" and
-"Size animation is cosmetic: content does not re-layout during the Size
-animation." Documenting known limitations is better than hiding them.
+**InteractionStates solves a real performance problem correctly.** The previous
+review flagged VSM replacement as expensive — hover effects triggering full
+reconciliation. InteractionStates eliminates this for the common case. The
+closed record design is honest: it covers what can be done at compositor speed
+and doesn't pretend to be a general-purpose state machine for arbitrary
+properties. The builder API is ergonomic.
+
+**The reconciler lifecycle integration is thorough but has gaps.** Every feature
+has mount/update/unmount wiring:
+- Enter transitions applied at mount (exit defined but never called — see below)
+- InteractionStates handlers registered at mount, cleared at unmount (PointerOver/Pressed only; Focused unwired)
+- Scroll animations created at mount, cleared at unmount
+- Keyframe animations triggered on mount and on trigger-value change
+- Stagger delays applied to children's implicit animations (not enter transitions)
+- Layout animations and `.Animate()` configs applied via implicit animation
+  collections
+
+On update, the reconciler correctly diffs: if a config changed, reapply; if
+removed, clear. The structural wiring is right. But four integration gaps
+(detailed below) mean the system promises more than it delivers at runtime.
+
+**AnimationScope.WithAnimation is the right abstraction, incompletely wired.**
+Ambient curve propagation via ThreadStatic fields, nestable with proper restore
+in `finally`, async variant with CompositionScopedBatch completion tracking.
+The reconciler checks for it during property application — but only for
+Opacity. Scale, Rotation, Translation, and CenterPoint are set directly.
+The pattern is architecturally sound (same model as SwiftUI's `withAnimation`),
+but the implementation only covers one of the five compositor properties.
+
+### Integration bugs found during review
+
+Before the broader design critiques, four concrete integration gaps deserve
+attention. These aren't design limitations or platform constraints — they're
+bugs where the API promises behavior that the reconciler doesn't deliver.
+
+**Bug 1: Exit transitions are dead code.** `ApplyExitTransition()` at
+Reconciler.cs:830 has a complete implementation — it creates a
+`CompositionScopedBatch`, runs exit animations, and defers removal until
+`batch.Completed`. But it is never called. The `ChildReconciler` removes
+elements immediately via `RemoveAt()` + `Unmount()`. The `.Transition()` API
+syntax `Transition.Fade | Transition.Scale(0.85f)` accepts asymmetric
+enter/exit specifications, but the exit half silently does nothing.
+
+**Bug 2: Focused interaction state is silently ignored.** The
+`InteractionStatesConfig` builder exposes `.Focused(borderBrush: focusBrush)`,
+which compiles and builds the config record correctly. But
+`ApplyInteractionStates()` only registers PointerEntered/PointerExited and
+PointerPressed/PointerReleased handlers. No GotFocus/LostFocus handlers are
+registered. Focus styling values are accepted by the API, stored in the config,
+and discarded by the reconciler.
+
+**Bug 3: WithAnimation only animates Opacity.** `AnimationHelper.SetOrAnimate()`
+is only called at Reconciler.cs:1443 for Opacity. When a developer wraps a
+state change in `AnimationScope.WithAnimation(curve, () => { ... })`, they
+expect property updates within the scope to animate. Only Opacity does. Scale,
+Rotation, Translation, and CenterPoint are set directly without checking
+`AnimationScope.Current`.
+
+**Bug 4: Stagger doesn't integrate with enter transitions.**
+`ApplyEnterTransition` at Mount.cs:175 is called without stagger parameters
+despite the method signature supporting `TimeSpan delay` and `int index`.
+`ApplyStaggerDelays` only mutates the `ImplicitAnimationCollection` on child
+Visuals. A staggered list with enter transitions gets stagger on implicit
+property animations but not on the enter transition animations.
 
 ### What's still concerning (skeptic's view)
 
-**1. Implicit transitions are still limited to 5 properties.** This is
-unchanged and it's the single biggest animation gap. You can't implicitly
-animate width, height, corner radius, margin, padding, font size, color (on
-non-background elements), or any other property. SwiftUI animates *any* state
-change that produces a different view body with `.animation(.spring, value: x)`.
-Compose's `animateXAsState` works for any type with a `TwoWayConverter`. Duct
-can only implicitly animate the 5 properties that WinUI exposes transition
-properties for on UIElement.
+**1. Still compositor-property-bound.** This is the fundamental ceiling that
+no amount of good API design can remove. Duct's animation system — all of it,
+every tier — can only animate what the WinUI compositor exposes on the Visual:
+Opacity, Offset (Translation), Scale, Rotation, CenterPoint, and Size
+(cosmetic only). You cannot animate:
 
-This isn't a Duct design limitation — it's a WinUI platform constraint. WinUI
-only provides `OpacityTransition`, `RotationTransition`, `ScaleTransition`, and
-`TranslationTransition` on UIElement, and `BackgroundTransition` on a few
-panel types. There's no general-purpose "animate this dependency property"
-mechanism. But the result is the same: developers who want to animate anything
-outside these 5 properties must drop to the composition layer via `.Set()`.
+- Width, Height, MinWidth, MaxWidth (layout properties)
+- CornerRadius, Margin, Padding (layout/shape properties)
+- FontSize, FontWeight (text properties)
+- Arbitrary brush colors or gradients (beyond the 3 InteractionStates swaps)
+- Clip geometry, border thickness, any custom dependency property
 
-**2. No declarative value-driven animation API.** The layout animation and
-implicit transitions handle *reactive* animation (the value changes, the
-animation follows). But there's no way to declaratively say "animate this value
-from A to B with this curve over this duration":
+SwiftUI animates *any* state change that produces a different view body.
+Compose's `animateAsState` works for any type with a `TwoWayConverter`.
+Flutter's `AnimatedBuilder` + `Tween` works for any property with `lerp`.
+Duct can only animate the ~5 compositor properties plus 3 brush swaps. This
+isn't a Duct design failure — it's a WinUI platform constraint. But the result
+is real: a developer who wants a button's corner radius to animate on hover,
+or a sidebar's width to animate on expand, has no declarative path. They need
+`.Set()` and WinUI's `DoubleAnimation` / `Storyboard` API.
 
-```csharp
-// None of these exist in Duct:
-var opacity = UseAnimatedValue(1.0, target: isVisible ? 1.0 : 0.0);
-var offset = UseSpring(targetX, stiffness: 200, damping: 20);
-withAnimation(.easeInOut(0.3)) { setExpanded(true); }
-```
+The `.Animate()` modifier, InteractionStates, keyframes, and
+AnimationScope.WithAnimation all work within the same compositor property set.
+They provide different *control models* (implicit, event-driven, trigger-based,
+ambient) for the same narrow set of properties. This is good engineering — but
+it's an increasingly sophisticated system for animating the same 5 things.
 
-React has Framer Motion's `motion.div` with `animate` prop. SwiftUI has
-`withAnimation { }` that wraps any state change in an animation context.
-Compose has `animateAsState`, `AnimatedContent`, and `Transition`. Duct has no
-equivalent — animation is tied to specific properties with specific transition
-objects, not to arbitrary state changes.
-
-**3. No enter/exit animations for individual elements.** Theme transitions
-provide container-level enter/exit (items appearing in a list animate in). But
-conditional rendering of a single element — `isVisible ? Text("Hello") : null`
-— still pops in and out with no animation. SwiftUI's `.transition(.slide)` +
-`withAnimation` and Compose's `AnimatedVisibility` both solve this elegantly
-at the individual element level. Duct's theme transitions only work at the
-*container* level — when items are added to or removed from a panel.
-
-You can fake it with `.Opacity(isVisible ? 1 : 0).OpacityTransition()` +
-keeping the element mounted, but this means the element is always in the tree
-consuming layout space and resources. True enter/exit animation needs the
-reconciler to delay unmounting until an exit animation completes — a feature
-that doesn't exist.
-
-**4. No keyframe or sequenced animation DSL.** Complex animations often need
-keyframes (value at 0%, 30%, 100%) or sequences (fade in, then slide, then
-scale). Duct has no declarative syntax for this. React's Framer Motion supports
-keyframe arrays. SwiftUI has `KeyframeAnimator` (iOS 17+). Compose has
-`keyframes {}` blocks. Duct requires dropping to WinUI's `Storyboard` /
-`DoubleAnimation` / `DoubleAnimationUsingKeyFrames` via `.Set()`.
-
-**5. No easing function DSL.** Implicit transitions accept `Duration` but not
-custom easing curves. The WinUI `ScalarTransition` and `Vector3Transition`
-types support basic duration configuration but not cubic bezier or spring curves
-(except through layout animations, which only affect Offset/Size). SwiftUI's
-`.easeInOut`, `.easeIn`, `.spring(duration:bounce:)` and Compose's
-`FastOutSlowInEasing`, `tween(easing = CubicBezierEasing(...))` provide rich
-easing control on any animation. Duct's implicit transitions are linear-ish by
-default with no way to customize the curve.
-
-**6. Layout animation has honest but real limitations.** The documentation
-correctly notes:
-- Hit-testing uses the final layout position, not the animated visual — clicking
-  "where the element visually is" during animation may miss
-- Size animation is cosmetic — content doesn't re-layout during the Size
-  animation, so text may clip or overflow during the transition
-- Elements need stable keys (`.WithKey()`) for the reconciler to match them
-  across reorders — forgetting keys silently breaks layout animations
-
-These are inherent to composition-layer visual animations (the layout is
-committed immediately, only the visual representation animates). But they mean
-layout animations work well for "list items reorder" and less well for
-"sidebar expands from collapsed to full width."
-
-**7. Connected animations require string-key coordination.** Source and
-destination must use the same string key. A typo in the key silently produces
-no animation (the `try/catch` in `QueueConnectedAnimationStart` swallows the
-failure). There's no compile-time validation that source and destination keys
-match. SwiftUI's `matchedGeometryEffect(id:in:)` uses typed Namespace objects;
-Compose's `SharedTransitionScope` uses typed keys. Duct uses bare strings.
-
-**8. The VSM replacement is still expensive.** This is unchanged. Duct replaces
-WinUI's Visual State Manager with state + conditional rendering. A hover effect
-that changes background color triggers a full reconciliation cycle. In WinUI
-XAML, VSM transitions run entirely on the composition thread. The new layout
-animations help with position changes but don't address the VSM gap for visual
-state changes (hover, pressed, disabled, focused states).
-
-**9. No UseAnimation hook.** There's no hook that drives an animation from
-component state:
+**2. No per-frame UseAnimation hook.** `AnimationScope.WithAnimation` wraps
+state changes so the reconciler routes property updates through compositor
+animations. This is the right model for reactive animation. But there's no hook
+that yields interpolated values each frame for custom rendering:
 
 ```csharp
-// Doesn't exist:
+// Still doesn't exist:
 var progress = UseAnimation(0.0, 1.0, duration: 300ms, easing: EaseOut);
 // progress smoothly animates from 0 to 1, re-rendering at each frame
+
+var spring = UseSpring(targetX, stiffness: 200, damping: 20);
+// spring.Value drives layout or drawing on each frame
 ```
 
 React Spring's `useSpring`, Framer Motion's `useAnimation`, and Compose's
-`Animatable` all provide imperative animation control from component code. Duct
-has no bridge between the hooks system and the animation system — they're
-completely separate mechanisms.
+`Animatable` all provide this. A game progress bar, a custom drawing that
+interpolates between states, a physics simulation — these need per-frame values
+driven from component code. Duct has no bridge between the hooks system and the
+animation system. The compositor runs the animation; component code can't
+observe the intermediate values.
+
+In fairness, per-frame hooks would fight the compositor-thread model (they'd
+require managed-code callbacks at display refresh rate), and WithAnimation
+covers the common case of "animate this state transition." But the gap exists.
+
+**3. Connected animations still use string-key coordination.** Source and
+destination must use the same string key. A typo silently produces no animation
+(the `try/catch` swallows the failure). SwiftUI's `matchedGeometryEffect`
+uses typed Namespace objects; Compose's `SharedTransitionScope` uses typed keys.
+Duct uses bare strings. This was called out in the previous review and is
+unchanged.
+
+**4. Scroll-linked expressions are stringly-typed.** The
+`ScrollAnimationBuilder` presets (Parallax, FadeOut, FadeIn, ScaleRange) are
+type-safe and cover common cases. But the escape hatch —
+`.Expression("Rotation", "scroll.Translation.Y * 0.001")` — is two bare
+strings with no validation. A typo in the property name or expression syntax
+fails at runtime. This is inherent to WinUI's `ExpressionAnimation` API, but
+the framework could validate property names against a known set.
+
+**5. Keyframes can only target compositor properties.** The `KeyframeBuilder`
+accepts Opacity, Scale, Translation, Rotation — the same compositor properties
+as everything else. You can't keyframe a color transition, a width animation,
+or a corner radius change. SwiftUI's `KeyframeAnimator` (iOS 17+) works with
+any `Animatable` value. The keyframe system is useful within its bounds but
+those bounds are the same narrow set.
+
+**6. Layout animation limitations are inherent and unchanged.**
+- Hit-testing uses the final layout position, not the animated visual
+- Size animation is cosmetic — content doesn't re-layout during animation
+- Elements need stable keys for reconciler matching across reorders
+
+These are inherent to composition-layer visual animations. Layout animations
+work well for list reorders and grid reflows, less well for "sidebar expands
+from collapsed width."
+
+**7. InteractionStates is closed to 8 properties.** The 5 compositor
+transform properties + 3 brush swaps cover hover/press/focus for common UI
+patterns. But a button that changes CornerRadius on hover, or a card that
+changes BorderThickness on focus, needs `.Set()`. The closed record design is
+honest, but the boundary is tight. WinUI's VSM can animate any dependency
+property via Storyboard; InteractionStates can animate 8.
+
+**8. No sequencing or orchestration.** Keyframes provide multi-step animation
+on a single element. But there's no built-in way to orchestrate animations
+across multiple elements in sequence — "first fade in the header, then slide
+in the list items, then scale up the FAB." Stagger handles the simple case
+(uniform delay per child), but general sequencing requires manual coordination
+via `WithAnimationAsync` + `await` chains. Framer Motion's `staggerChildren`
+and `delayChildren` variants, and Compose's `AnimatedContent` with
+`SizeTransform`, provide richer orchestration primitives.
 
 ### Revised animation verdict
 
-**Previously: D (5 implicit transitions, nothing else). Now: C.**
+**Previously: D → C (layout animations + connected). Now: C+.**
 
-The improvement is meaningful. Layout animations with spring physics are a
-genuinely useful capability — list reordering, grid reflows, and responsive
-layout changes now animate smoothly with a single modifier. Connected animations
-provide cross-container transitions that most declarative frameworks don't have
-built-in. The reconciler lifecycle integration is correct and well-considered.
+The API design quality is genuinely good and the grade reflects the effort. But
+the grade is C+, not B-, because several advertised features don't work at
+runtime:
 
-But the grade is C, not B, because the animation system only covers *layout*
-motion and 5 specific property transitions. The broader problem — "animate any
-state change" — is unsolved. No value-driven animation, no enter/exit at the
-element level, no keyframes, no easing control, no animation hooks. A developer
-who wants to animate a sidebar opening, a color shifting, a badge counting up,
-or a card flipping still needs `.Set()` and WinUI's imperative composition API.
-The animation system handles what the composition layer gives you for free and
-nothing more.
+- Exit transitions are defined but the reconciler never calls them
+- The Focused interaction state is accepted by the builder and silently ignored
+- WithAnimation only animates Opacity, not Scale/Rotation/Translation
+- Stagger doesn't propagate to enter transitions
 
-SwiftUI's `withAnimation { state = newValue }` makes *any* state change
-animatable with one line. Compose's `animateAsState` does the same. Duct can't
-match this because WinUI doesn't provide a general-purpose "animate this
-dependency property" mechanism — but that's a reason, not an excuse. The
-framework could provide a `UseAnimation` hook that drives re-renders with
-interpolated values, bridging the gap between WinUI's limited implicit
-transitions and the rich animation expectations of modern UI development.
+The animation system went from "5 implicit transitions and connected
+animations" to a multi-tier compositor animation system with:
+
+- A clean curve/easing DSL with springs, bezier, and presets
+- Enter transitions with composition operators (exit is dead code)
+- Zero-reconcile interaction states for hover/press (focus is unwired)
+- Keyframe animations with per-frame easing and looping
+- Staggered child implicit animations (not enter transitions)
+- Scroll-linked expression animations
+- Ambient animation context (WithAnimation) for Opacity only
+
+The design quality is real. Immutable record types, composition operators,
+proper lifecycle wiring in mount/update/unmount, ThreadStatic ambient
+propagation with correct nesting. These are well-engineered abstractions. But
+abstractions that accept configuration and silently discard it are worse than
+abstractions that don't offer the configuration at all — a developer who
+writes `.Focused(borderBrush: focusBrush)` has a right to expect it works.
+
+The C+ acknowledges that Duct now has a real animation system with thoughtful
+API design, while recognizing that the implementation has gaps that make the
+system promise more than it delivers. Fix the four integration bugs and the
+compositor-property ceiling is the only remaining structural concern — that
+would be a clear B-. As shipped, too many features are partially wired.
 
 ---
 
@@ -2175,7 +2396,7 @@ SwiftUI, Compose).
 | **Navigation** | B+ | A | A | A | Type-safe routes, dev-owned stack, GPU transitions, lifecycle guards, caching, serialization, deep linking; ConnectedTransition is stub, no adaptive multi-pane, E2E tests unexecuted |
 | **Commanding** | B+ | N/A | C+ | N/A | Define-once commands, 16 standard, async lifecycle, focus-scoped accelerators; no competitor has this. Accelerator rebuild per render, labels not localized, no command routing, no palette UI |
 | **Lists/Collections** | B | B+ | A | A | Virtualization exists, no sections |
-| **Animation** | C | B | A | A | Layout animations + springs + connected; still no value-driven, no enter/exit, 5-property limit |
+| **Animation** | C+ | B | A | A | Curve DSL, enter (no exit), interaction states (no focus), keyframes, stagger (implicit only), scroll-linked, WithAnimation (Opacity only); compositor-property-bound, 4 integration bugs |
 | **Accessibility** | C+ | B | A | A | 16 modifiers, UIA E2E tests; no custom peers, no hooks, no diagnostics |
 | **Input/Events** | C | B | A | A | Semantic events good; commanding helps but no gesture system, no pointer enter/exit, rest is .Set() |
 | **Styling** | C- | B+ | A | A | No style composition; no lightweight styling; ApplyStyle is stringly-typed |
@@ -2291,11 +2512,15 @@ This is a red flag for a framework that wants to be production-ready.
    describe their own semantics), accessibility hooks are unbuilt, and there's no
    diagnostics or linting. The annotation layer is the easy part.
 
-4. **Animation is still narrow.** Layout animations + springs + connected
-   animations cover motion. But value-driven animation, enter/exit for individual
-   elements, keyframes, and easing control are all missing. The 5-property
-   implicit transition limit is a WinUI constraint the framework hasn't worked
-   around.
+4. **Animation has good API design but incomplete wiring.** The 8-feature
+   compositor animation system (curves, transitions, interaction states,
+   keyframes, stagger, scroll-linked, WithAnimation scope) shows solid
+   abstraction work. But exit transitions are dead code, Focused state is
+   silently ignored, WithAnimation only routes Opacity, and stagger doesn't
+   integrate with enter transitions. The API promises more than the reconciler
+   delivers. Fix the four integration bugs and this is a clear B-; as shipped,
+   the gap between API surface and runtime behavior is the bigger concern than
+   the compositor-property ceiling.
 
 5. **.Set() still carries too much weight.** Navigation and commanding reclaimed
    meaningful surface area. But gestures, pointer enter/exit, right-tap,
@@ -2345,8 +2570,9 @@ navigation for WinUI" was a novelty has closed; now it needs to be competitive
 in quality, not just existence.
 
 Duct's strongest position is commanding — it's genuinely ahead of the entire
-industry. Its navigation is competitive. Its component model is solid. The
-mid-tier features (theming, accessibility, animation) are functional with scope
+industry. Its navigation is competitive. Its component model is solid. Animation
+has crossed from mid-tier to a capable system within compositor bounds. The
+remaining mid-tier features (theming, accessibility) are functional with scope
 limitations. The `.Set()` surface area is smaller but still too large.
 
 ### To become production-ready, Duct needs to:
