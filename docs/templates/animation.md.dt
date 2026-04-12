@@ -5,7 +5,10 @@ order: 16
 audience: advanced
 goal: |
   Cover implicit transitions (opacity, scale, translate, background),
-  LayoutAnimation, ConnectedAnimation, theme transitions; combining transitions.
+  LayoutAnimation, ConnectedAnimation, compositor-level .Animate() modifier,
+  enter/exit .Transition() with combinators, .InteractionStates() for zero-reconcile
+  hover/press/focus, .Stagger() delays, .Keyframes() trigger animations,
+  .WithAnimation()/.WithAnimationAsync() ambient scopes, and choreography.
 ---
 
 # Animation
@@ -119,14 +122,133 @@ animation runs automatically when the reconciler detects the transition.
 Use connected animations for list-to-detail [navigation](navigation.md)
 where an element "flies" from the list into the detail view.
 
+## WithAnimation Scope
+
+`AnimationScope.WithAnimation()` wraps a state change so that every
+compositor property modified during the scope animates with the given curve.
+Call it inside a button handler or effect:
+
+```csharp snippet="animation/with-animation"
+```
+
+![WithAnimation scope](screenshot://animation/with-animation)
+
+`WithAnimation` captures the curve, triggers the state change, and any
+`.Opacity()`, `.Scale()`, `.Translation()`, or `.Rotation()` values that
+change during the render animate on the compositor thread. The managed
+render completes instantly — animation runs on the GPU.
+
+## .Animate() Modifier
+
+`.Animate(curve)` attaches a persistent implicit animation to an element.
+Every time a compositor property changes (opacity, offset, scale, rotation),
+it animates with the given curve — no scope needed:
+
+```csharp snippet="animation/animate-modifier"
+```
+
+![Animate modifier](screenshot://animation/animate-modifier)
+
+Pass a `Curve.Spring()` for a bouncy feel or `Curve.Ease(ms)` for a timed
+ease. You can restrict which properties animate with the `AnimateProperty`
+flags: `.Animate(Curve.Spring(), AnimateProperty.Opacity | AnimateProperty.Scale)`.
+
+## Interaction States
+
+`.InteractionStates()` applies hover, press, and focus effects at the
+compositor layer with zero reconciles. The visual feedback runs entirely on
+the GPU — Duct's render loop is never involved:
+
+```csharp snippet="animation/interaction-states"
+```
+
+![Interaction states](screenshot://animation/interaction-states)
+
+The builder supports `.PointerOver(...)`, `.Pressed(...)`, and
+`.Focused(...)`. Each accepts optional `opacity`, `scale`, `translation`,
+`rotation`, `background`, `foreground`, and `borderBrush` parameters. Pass
+a `curve:` parameter for spring or ease transitions between states.
+
+## Enter/Exit Transitions
+
+`.Transition()` animates an element when it enters or leaves the tree.
+Combine transitions with `+` (parallel) and `|` (asymmetric enter/exit):
+
+```csharp snippet="animation/enter-exit-transition"
+```
+
+![Enter/exit transition](screenshot://animation/enter-exit-transition)
+
+Built-in transitions:
+
+| Transition | Effect |
+|-----------|--------|
+| `Transition.Fade` | Fade in/out |
+| `Transition.Slide(edge)` | Slide from an edge (Left, Top, Right, Bottom) |
+| `Transition.Scale(from)` | Scale from a starting factor |
+| `a + b` | Run both in parallel |
+| `enter \| exit` | Different transitions for enter and exit |
+
+The default curve is 300ms with Decelerate easing. Pass a custom `Curve`
+as the second parameter to override.
+
+## Stagger
+
+`.Stagger(delay)` on a container adds an incremental delay to each child's
+enter transition and layout animation, creating a cascade effect:
+
+```csharp snippet="animation/stagger"
+```
+
+![Staggered animation](screenshot://animation/stagger)
+
+Each child's animation starts `delay` milliseconds after the previous one.
+Combine with `.LayoutAnimation()` on each child and `.WithKey()` for smooth
+reorder cascades.
+
+## Keyframes
+
+`.Keyframes(name, trigger, configure)` runs a multi-property keyframe
+animation whenever `trigger` changes. Define keyframes at progress points
+from 0.0 to 1.0:
+
+```csharp snippet="animation/keyframes"
+```
+
+![Keyframe animation](screenshot://animation/keyframes)
+
+The builder supports `.Duration(ms)`, `.Loop()` for infinite repeat, and
+`.At(progress, opacity?, scale?, translation?, rotation?, easing?)` for
+each keyframe. Keyframes run on the compositor — no managed-code
+involvement during playback.
+
+## Choreography
+
+`AnimationScope.WithAnimationAsync()` returns a `Task` that completes when
+the compositor animation finishes. Chain multiple calls with `await` to
+build sequenced animations:
+
+```csharp snippet="animation/choreography"
+```
+
+![Choreography](screenshot://animation/choreography)
+
+Each `await` waits for the `CompositionScopedBatch` to complete before
+starting the next step. Use this for onboarding flows, multi-step reveals,
+or any animation that must happen in order.
+
 ## Tips
 
 **Keep durations short.** 200--400ms feels responsive. Anything over 500ms
 feels sluggish. Use the default duration unless you have a specific reason.
 
-**Use `.OpacityTransition()` for show/hide.** It is the lightest transition
-and works on every element type. Prefer it over scale or translation for
-simple visibility toggles.
+**Use `.InteractionStates()` for hover/press effects.** It runs entirely on
+the compositor with zero reconciles — far cheaper than tracking pointer
+state in `UseState` and re-rendering.
+
+**Use `.Transition()` for conditional rendering.** When an element enters or
+leaves the tree via `When()` or ternary, `.Transition()` adds polish
+without manual mount/unmount tracking.
 
 **Combine transitions sparingly.** One or two transitions per element is
 natural. Three or more competing animations can feel chaotic.
@@ -135,13 +257,14 @@ natural. Three or more competing animations can feel chaotic.
 reconciler cannot track which element moved where, and the animation falls
 back to a simple fade.
 
-**Test connected animations with real navigation.** They depend on the
-reconciler detecting mount/unmount pairs. If both elements are visible
-simultaneously, no animation plays.
+**Use `Curve.Spring()` for interactive feedback.** Spring curves feel
+natural for user-triggered animations. Use `Curve.Ease()` for timed,
+non-interactive transitions.
 
 ## Next Steps
 
 - **[Localization](localization.md)** — previous topic: translate strings, format numbers/dates, and support RTL layouts
-- **[Advanced Patterns](advanced.md)** — next topic: error boundaries, memoization, escape hatches, and observable binding
+- **[Charting](charting.md)** — next topic: data visualization with line, bar, area, and pie charts
 - **[Navigation](navigation.md)** — pair connected animations with page transitions
 - **[Collections](collections.md)** — animate list items as they enter, reorder, and leave
+- **[Styling and Theming](styling.md)** — combine animations with theme-aware colors

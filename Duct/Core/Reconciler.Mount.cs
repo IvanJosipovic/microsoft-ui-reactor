@@ -147,6 +147,8 @@ public sealed partial class Reconciler
             Validation.FormFieldElement ff => MountFormField(ff, requestRerender),
             Validation.ValidationVisualizerElement vv => MountValidationVisualizer(vv, requestRerender),
             Validation.ValidationRuleElement rule => MountValidationRule(rule),
+            XamlHostElement host => MountXamlHost(host),
+            XamlPageElement page => MountXamlPage(page),
             ComponentElement comp => MountComponent(comp, requestRerender),
             FuncElement func => MountFuncComponent(func, requestRerender),
             MemoElement memo => MountMemoComponent(memo, requestRerender),
@@ -2580,5 +2582,25 @@ public sealed partial class Reconciler
             f.Navigate(frame.SourcePageType, frame.NavigationParameter);
         ApplySetters(frame.Setters, f);
         return f;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  XamlHostElement / XamlPageElement — built-in XAML interop
+    // ════════════════════════════════════════════════════════════════════
+
+    private static UIElement MountXamlHost(XamlHostElement host)
+    {
+        var control = host.Factory();
+        host.Updater?.Invoke(control);
+        SetElementTag(control, host);
+        return control;
+    }
+
+    private static UIElement MountXamlPage(XamlPageElement page)
+    {
+        var frame = new WinUI.Frame();
+        frame.Navigate(page.PageType, page.Parameter);
+        SetElementTag(frame, page);
+        return frame;
     }
 }

@@ -4,9 +4,9 @@ app: forms
 order: 7
 audience: intermediate
 goal: |
-  Cover all input controls: TextField, CheckBox, ComboBox, Slider, NumberBox,
-  PasswordBox, RadioButtons, ToggleSwitch. Teach the controlled-input pattern,
-  validation with derived state, and practical form composition with submit.
+  Cover all input controls, the controlled-input pattern, the validation system
+  (ValidationContext, .Validate(), FormField, built-in validators), masked input,
+  input formatters, and focus management.
 ---
 
 # Forms and Input
@@ -54,38 +54,108 @@ pattern: current value in, change handler out.
 All controls accept optional parameters for labels, headers, and placeholder
 text. Check the API reference for each control's full signature.
 
-## Validation
+## Simple Validation
 
-Since your component owns all form state, validation is plain C# logic. Derive
-booleans from the current values and use them to show error messages and
-disable the submit button:
+For quick forms, derive validation from state. Compute booleans on every
+render and use them to show error messages and disable submit:
 
 ```csharp snippet="forms/validation"
 ```
 
 ![Validation demo](screenshot://forms/validation)
 
-Key patterns:
+This works well for small forms. For larger forms with cross-field rules,
+touched/dirty tracking, and error display policies, use the validation
+framework described next.
 
-- **Derive validity from state.** `emailValid` and `ageValid` are computed on
-  every render. No validation framework needed.
-- **`When()` for conditional messages.** Show error text only when the field
-  has been touched and is invalid.
-- **`.Disabled(!formValid)`** prevents submission until all fields pass.
+## Validation Context
 
-## Putting It Together: Registration Form
+`UseValidationContext()` creates a `ValidationContext` that tracks messages,
+touched/dirty state, and field registration. Attach validators to controls
+with `.Validate()`:
 
-Here is a complete registration form that combines multiple input types,
-validation, and a submit action:
-
-```csharp snippet="forms/registration-form"
+```csharp snippet="forms/validation-context"
 ```
 
-![Registration form](screenshot://forms/registration-form)
+![Validation context](screenshot://forms/validation-context)
 
-After submission, the component switches to a confirmation view. The
-`setSubmitted(true)` call triggers a re-render, and the early return at the
-top of `Render()` shows the success message instead of the form.
+Key pieces:
+
+- **`UseValidationContext()`** creates or retrieves the nearest validation context.
+- **`.Validate(fieldName, value, validators...)`** attaches validators to a control.
+- **`Validate.Required()`, `Validate.Email()`, etc.** are the 11 built-in validators.
+- **`ctx.IsValid()`** returns `true` when no error-severity messages exist.
+- **`ctx.MarkAllTouched()`** reveals all errors on submit attempt.
+
+## FormField Helper
+
+`FormField()` wraps a control with a label, required indicator, description
+text, and inline error display:
+
+```csharp snippet="forms/form-field"
+```
+
+![FormField helper](screenshot://forms/form-field)
+
+`FormField` auto-detects the field name from the `.Validate()` attachment on
+its content. Errors appear below the field after the field is touched (focus
+then blur). The `ShowWhen` parameter controls when errors become visible:
+`WhenTouched` (default), `WhenDirty`, `AfterFirstSubmit`, `Always`, or `Never`.
+
+## Built-in Validators
+
+| Validator | Purpose |
+|----------|---------|
+| `Validate.Required()` | Non-null, non-empty, non-default |
+| `Validate.MinLength(n)` | String length >= n |
+| `Validate.MaxLength(n)` | String length <= n |
+| `Validate.Range(min, max)` | Numeric value in range |
+| `Validate.Match(regex)` | Regex pattern match |
+| `Validate.Email()` | Valid email address |
+| `Validate.Url()` | Valid URL (http/https) |
+| `Validate.Must<T>(predicate, message)` | Custom predicate |
+| `Validate.MustAsync<T>(predicate, message)` | Async predicate |
+| `Validate.MustBeTrue()` | Boolean is true (checkboxes) |
+| `Validate.EqualTo<T>(value)` | Equality check (password confirm) |
+
+Every validator accepts an optional custom error message as its last parameter.
+
+## Masked Input
+
+`MaskEngine` applies input masks with auto-inserted literals. Use the built-in
+presets or define your own pattern:
+
+```csharp snippet="forms/masked-input"
+```
+
+![Masked input](screenshot://forms/masked-input)
+
+Mask tokens: `0` = required digit, `9` = optional digit, `A` = required
+letter, `a` = optional letter, `*` = required alphanumeric. All other
+characters are literals inserted automatically.
+
+| Preset | Pattern |
+|--------|---------|
+| `MaskPreset.PhoneUS` | `(000) 000-0000` |
+| `MaskPreset.SSN` | `000-00-0000` |
+| `MaskPreset.CreditCard` | `0000 0000 0000 0000` |
+| `MaskPreset.Date` | `00/00/0000` |
+| `MaskPreset.ZipCode` | `00000` |
+| `MaskPreset.IPv4` | `099.099.099.099` |
+
+## Input Formatters
+
+`InputFormatter` transforms text as the user types. Chain formatters into a
+pipeline for complex formatting:
+
+```csharp snippet="forms/input-formatters"
+```
+
+![Input formatters](screenshot://forms/input-formatters)
+
+Built-in formatters: `PhoneUS`, `Currency()`, `UpperCase`, `LowerCase`,
+`TitleCase`, `TrimWhitespace`, `MaxLength(n)`, `AllowOnly(regex)`,
+`DenyOnly(regex)`, and `Custom(format, parse)`.
 
 ## Tips
 
@@ -93,23 +163,23 @@ top of `Render()` shows the success message instead of the form.
 Your `Render()` method is the single source of truth — if you need to
 pre-fill, validate, or reset a field, you just set the state value.
 
-**Derive validation, don't store it.** Instead of keeping `isEmailValid` in
-state, compute it from `email` on every render. This eliminates sync bugs
-where validation state gets out of date with the actual value.
+**Use `FormField` for production forms.** It handles labels, required
+indicators, and error display with consistent styling. Avoid building your
+own field wrapper.
 
-**Use `When()` for inline error messages.** It reads cleanly and avoids
-extra nesting compared to if/else blocks in the middle of your element tree.
+**Use `Validate.Must<T>()` for custom rules.** When built-in validators
+don't cover your case, `Must` takes any `Func<T, bool>` predicate.
 
-**Reset forms by resetting state.** Call every setter with its initial value.
-Since your component owns all state, there is no hidden form state to clear.
+**Call `ctx.MarkAllTouched()` on submit.** This reveals all validation errors
+at once, so the user sees everything that needs fixing.
 
-**Group related fields visually.** Use [`VStack`](layout.md) with spacing to group
-related inputs, and `SubHeading` or `Text().Bold()` to label each section of a
-longer form.
+**Reset forms with `ctx.ResetAll()`.** It returns all fields to their initial
+values, clears touched/dirty state, and removes all messages.
 
 ## Next Steps
 
-- **[Flex Layout](flex-layout.md)** — advanced alignment and wrapping for complex form layouts
-- **[Collections](collections.md)** — render lists, grids, and virtualized data sets
+- **[Flex Layout](flex-layout.md)** — Previous: flexible box layout for adaptive UIs
+- **[Collections](collections.md)** — Next: render lists, grids, and virtualized data sets
 - **[Hooks](hooks.md)** — UseState, UseMemo, and other hooks that power form logic
 - **[Commanding](commanding.md)** — wire submit buttons to async commands with busy/error handling
+- **[Styling and Theming](styling.md)** — theme your forms with tokens and lightweight styling

@@ -1,0 +1,172 @@
+---
+title: "Charting"
+app: charting
+order: 17
+audience: advanced
+goal: |
+  Cover the DuctD3 charting library: LineChart, BarChart, AreaChart, PieChart
+  high-level DSL; chart configuration (axes, grids, colors); data binding with
+  state; dynamic data updates; and the low-level D3 drawing primitives.
+---
+
+# Charting
+
+DuctD3 brings data visualization to Duct. The chart DSL provides high-level
+`LineChart`, `BarChart`, `AreaChart`, and `PieChart` factories that produce
+standard Duct elements. You bind data, configure appearance with a fluent
+API, and the chart renders as native WinUI shapes on a Canvas.
+
+Add a reference to `DuctD3.csproj` and import the DSL:
+
+```csharp
+using Duct.D3.Charts;
+using static Duct.D3.Charts.ChartDsl;
+```
+
+## Line Chart
+
+`LineChart` draws a continuous line through your data points. Pass a
+collection and accessor functions for X and Y:
+
+```csharp snippet="charting/line-chart"
+```
+
+![Line chart](screenshot://charting/line-chart)
+
+The chart auto-scales axes to fit your data with `.Nice()` rounding. Toggle
+grid lines with `.ShowGrid()` and axis labels with `.ShowAxes()`.
+
+## Bar Chart
+
+`BarChart` renders vertical bars. Each data point becomes a bar whose height
+maps to the Y value:
+
+```csharp snippet="charting/bar-chart"
+```
+
+![Bar chart](screenshot://charting/bar-chart)
+
+Bar width is calculated automatically based on the number of data points.
+Use `.Fill()` to set the bar color and `.FillOpacity()` to control
+transparency.
+
+## Area Chart
+
+`AreaChart` fills the region between the data line and the baseline. It
+combines a filled area with a line overlay:
+
+```csharp snippet="charting/area-chart"
+```
+
+![Area chart](screenshot://charting/area-chart)
+
+Use `.FillOpacity()` to control area transparency. A low value (0.15--0.3)
+lets grid lines show through while still filling the shape.
+
+## Pie Chart
+
+`PieChart` divides data into proportional arcs. Set `.InnerRadius()` > 0
+for a donut chart:
+
+```csharp snippet="charting/pie-chart"
+```
+
+![Pie chart](screenshot://charting/pie-chart)
+
+Pass a label accessor to display text at each arc's centroid. Colors cycle
+through the Category10 palette by default — override with `.SetColors()`.
+
+## Chart Configuration
+
+All chart types share a common set of builder methods:
+
+| Method | Default | Purpose |
+|--------|---------|---------|
+| `.Width(n)` | 400 | Canvas width in pixels |
+| `.Height(n)` | 300 | Canvas height in pixels |
+| `.Margin(t, r, b, l)` | 20, 20, 30, 40 | Axis/label margins |
+| `.Stroke(color)` | `#4285f4` | Line/border color |
+| `.Fill(color)` | `#4285f4` | Fill color |
+| `.StrokeWidth(n)` | 2 | Line thickness |
+| `.FillOpacity(n)` | 0.3 | Fill transparency (0--1) |
+| `.ShowAxes(bool)` | true | Show axis lines and labels |
+| `.ShowGrid(bool)` | true | Show horizontal grid lines |
+
+Colors accept any CSS-style string: `#RGB`, `#RRGGBB`, `rgb(r,g,b)`, or
+named colors like `steelblue`.
+
+## Binding Data to State
+
+Charts are standard Duct elements. When state changes, the chart re-renders
+with the new data:
+
+```csharp snippet="charting/combined-chart"
+```
+
+![Interactive chart](screenshot://charting/combined-chart)
+
+Use [hooks](hooks.md) like `UseState` to drive data selection. The chart
+rebuilds on every render — keep datasets small (under ~1000 points) for
+smooth interaction.
+
+## Dynamic Data Updates
+
+For frequent updates (live dashboards, real-time feeds), use `OnReady` to
+get a `ChartHandle` that redraws the canvas without a Duct re-render:
+
+```csharp snippet="charting/dynamic-data"
+```
+
+![Dynamic data](screenshot://charting/dynamic-data)
+
+You can also call `handle.Redraw(newData)` from a timer or event callback
+to push new data directly to the canvas. This bypasses the reconciler for
+maximum throughput.
+
+## Low-Level Drawing
+
+For custom visualizations, DuctD3 provides shape generators and a Canvas
+DSL. Import `using static Duct.D3.Charts.D3` for:
+
+- **`D3Canvas(w, h, children)`** — create a drawing surface
+- **`D3Rect`, `D3Circle`, `D3Line`, `D3Path`** — primitive shapes
+- **`D3Text`, `D3TextRight`, `D3TextCenter`** — positioned text
+- **`D3LinePath<T>`, `D3AreaPath<T>`, `D3ArcPath`** — generator helpers
+- **`D3Axes`, `D3Grid`, `D3Legend`** — axis/legend composites
+- **`LinearScale`, `BandScale`, `LogScale`** — map data to pixels
+
+## Scale Types
+
+| Scale | Purpose |
+|-------|---------|
+| `LinearScale` | Continuous numeric mapping with `.Nice()` and `.Ticks()` |
+| `BandScale<T>` | Categorical mapping with bandwidth (bar charts) |
+| `LogScale` | Logarithmic mapping for exponential data |
+| `PowScale` | Power/sqrt mapping |
+| `OrdinalScale<T>` | Discrete-to-discrete mapping |
+
+## Tips
+
+**Start with the high-level DSL.** `LineChart`, `BarChart`, `AreaChart`, and
+`PieChart` cover most dashboard needs without touching scales or generators.
+
+**Use `.ShowGrid(true)` for readability.** Grid lines make it much easier
+to read values from a chart, especially line and area charts.
+
+**Keep datasets under 1000 points.** Each data point creates WinUI shapes on
+a Canvas. For larger datasets, aggregate or sample before charting.
+
+**Use `OnReady` for live data.** The chart handle bypasses reconciliation,
+so you can push data at 60fps from a `DispatcherTimer` without triggering
+full component re-renders.
+
+**Use donut charts (`InnerRadius > 0`) for proportional data.** The center
+space works well for displaying a total or label.
+
+## Next Steps
+
+- **[Animation](animation.md)** — Previous: transitions, keyframes, interaction states
+- **[Advanced Patterns](advanced.md)** — Next: error boundaries, memoization, and performance tuning
+- **[Collections](collections.md)** — Bind chart data from virtualized lists and observable collections
+- **[Effects and Lifecycle](effects.md)** — Load chart data asynchronously with UseEffect
+- **[Styling and Theming](styling.md)** — Use theme tokens for chart colors that adapt to dark mode

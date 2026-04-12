@@ -6,7 +6,8 @@ audience: intermediate
 goal: |
   Cover UseNavigation<TRoute> hook, NavigationHandle, type-safe stack-based
   routing, NavigationView/TabView/BreadcrumbBar, page lifecycle with
-  UseNavigationLifecycle, and UseSystemBackButton.
+  UseNavigationLifecycle, UseSystemBackButton, page transitions
+  (NavigationTransition), deep linking (DeepLinkMap), and page caching.
 ---
 
 # Navigation
@@ -101,6 +102,62 @@ Use `onNavigatedTo` to fetch data or start timers. Use `onNavigatingFrom` to
 save drafts or confirm unsaved changes. See [Effects and Lifecycle](effects.md)
 for more on lifecycle patterns.
 
+## Page Transitions
+
+`NavigationHost` supports animated page transitions. Set the `Transition`
+property to control how pages animate in and out:
+
+```csharp snippet="navigation/page-transitions"
+```
+
+![Page transitions](screenshot://navigation/page-transitions)
+
+| Transition | Effect |
+|-----------|--------|
+| `NavigationTransition.Slide()` | Slide + fade (default) |
+| `NavigationTransition.Fade()` | Crossfade |
+| `NavigationTransition.DrillIn()` | Scale + fade from center |
+| `NavigationTransition.Spring()` | Spring-physics slide |
+| `NavigationTransition.None` | Instant swap |
+
+Transitions run on the compositor thread — no managed-code involvement during
+playback. GoBack automatically reverses the direction. See
+[Animation](animation.md) for more on compositor transitions.
+
+## Deep Linking
+
+`DeepLinkMap` maps URI patterns to route constructors. Use it to restore
+navigation state from activation URIs or protocol handlers:
+
+```csharp snippet="navigation/deep-linking"
+```
+
+![Deep linking](screenshot://navigation/deep-linking)
+
+Pattern segments: `/literal` matches exactly, `/{param}` captures a string,
+`/{param:int}` captures a typed parameter. The `backStackFactory` parameter
+builds a synthetic back stack so GoBack works even after deep-linked entry.
+
+## Page Caching
+
+Set `CacheMode` on `NavigationHost` to preserve page state across
+navigations. Cached pages keep their visual tree alive instead of remounting:
+
+```csharp snippet="navigation/page-caching"
+```
+
+![Page caching](screenshot://navigation/page-caching)
+
+| Cache mode | Behavior |
+|-----------|----------|
+| `Disabled` | Always unmount/remount (default) |
+| `Enabled` | LRU cache up to `CacheSize` entries |
+| `Required` | Always cached, never evicted |
+
+Caching preserves scroll position, text input, and component state. Use it
+for pages that are expensive to render or where losing state would frustrate
+the user.
+
 ## TabView
 
 For tab-based navigation, use `TabView` with `Tab` items. Each tab holds its
@@ -124,9 +181,8 @@ detail page ID), use a discriminated union pattern with records.
 the same handle with `UseNavigation<Route>()` (no initial value). This
 retrieves the nearest ancestor's handle via [context](context.md).
 
-**Prefer `Navigate` over `Replace` for user-initiated actions.** `Navigate`
-preserves history so the user can go back. Use `Replace` for programmatic
-redirects where back-navigation would not make sense (like after login).
+**Use `NavigationTransition.DrillIn()` for list-to-detail flows.** It
+signals hierarchy and pairs naturally with Connected Animation keys.
 
 **Use `Reset` for sign-out flows.** It clears the entire stack and starts
 fresh, preventing the user from navigating back to authenticated pages.
@@ -137,7 +193,8 @@ or hardware) to your navigation stack automatically.
 
 ## Next Steps
 
-- **[Collections](collections.md)** — render data-driven lists and grids within pages
+- **[Collections](collections.md)** — Next: render data-driven lists and grids within pages
 - **[Styling and Theming](styling.md)** — apply visual styles and themes across pages
 - **[Context](context.md)** — share navigation handles and other state across the component tree
 - **[Effects and Lifecycle](effects.md)** — run side effects when pages appear or disappear
+- **[Animation](animation.md)** — combine page transitions with enter/exit animations

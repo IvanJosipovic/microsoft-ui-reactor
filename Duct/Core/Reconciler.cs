@@ -544,6 +544,23 @@ public sealed partial class Reconciler : IDisposable
             return;
         }
 
+        // XamlHostElement children were created outside Duct's tree —
+        // do NOT recurse into them (they may have stale parent references
+        // or be types Duct doesn't know how to clean).
+        if (control is FrameworkElement hostFe && hostFe.Tag is XamlHostElement)
+        {
+            hostFe.Tag = null;
+            return;
+        }
+
+        // XamlPageElement — clear content to trigger Page.OnNavigatedFrom cleanup
+        if (control is WinUI.Frame pageFrame && pageFrame.Tag is XamlPageElement)
+        {
+            pageFrame.Content = null;
+            pageFrame.Tag = null;
+            return;
+        }
+
         if (control is WinUI.Panel panel)
         {
             foreach (var child in panel.Children)

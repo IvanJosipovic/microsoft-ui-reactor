@@ -1,7 +1,7 @@
 app:
   title: "Forms"
   width: 600
-  height: 700
+  height: 900
   startup-delay: 1500
 
 screenshots:
@@ -16,12 +16,27 @@ screenshots:
     region: client
     format: png
   - id: validation
-    description: "Form validation with error messages"
+    description: "Simple validation with derived state"
     component: ValidationDemo
     region: client
     format: png
-  - id: registration-form
-    description: "Complete registration form with submit"
-    component: RegistrationForm
+  - id: validation-context
+    description: "Validation context with email and password fields"
+    component: ValidationContextDemo
+    region: client
+    format: png
+  - id: form-field
+    description: "FormField helper with label, required indicator, and error display"
+    component: FormFieldDemo
+    region: client
+    format: png
+  - id: masked-input
+    description: "Masked phone and date input with raw value display"
+    component: MaskedInputDemo
+    region: client
+    format: png
+  - id: input-formatters
+    description: "Currency and uppercase input formatters"
+    component: InputFormattersDemo
     region: client
     format: png

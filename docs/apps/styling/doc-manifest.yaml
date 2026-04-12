@@ -1,7 +1,7 @@
 app:
   title: "Styling and Theming"
   width: 650
-  height: 700
+  height: 800
   startup-delay: 1500
 
 screenshots:
@@ -15,13 +15,28 @@ screenshots:
     component: CardLayoutExample
     region: client
     format: png
+  - id: color-modifiers
+    description: "Three text elements with theme token, hex, and mixed colors"
+    component: ColorModifiersExample
+    region: client
+    format: png
   - id: signal-colors
     description: "Signal color badges for info, success, warning, error"
     component: SignalColorsExample
     region: client
     format: png
   - id: dark-light-toggle
-    description: "Toggle switch controlling dark/light mode on a card panel"
+    description: "Toggle switch controlling dark/light mode with RequestedTheme"
     component: DarkLightToggleExample
+    region: client
+    format: png
+  - id: color-scheme-hook
+    description: "Color scheme display with UseColorScheme and UseIsDarkTheme"
+    component: ColorSchemeHookExample
+    region: client
+    format: png
+  - id: lightweight-styling
+    description: "Buttons with lightweight styling resource overrides"
+    component: LightweightStylingExample
     region: client
     format: png

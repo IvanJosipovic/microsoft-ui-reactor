@@ -91,7 +91,8 @@ to wire up, no dispatcher threading to worry about.
 - **[Context](context.md)** — Share state across the component tree without prop drilling
 - **[Accessibility](accessibility.md)** — Screen readers, keyboard navigation, ARIA patterns
 - **[Localization](localization.md)** — Multi-language support, resource strings, RTL layouts
-- **[Animation](animation.md)** — Transitions, keyframes, animated state changes
+- **[Animation](animation.md)** — Transitions, keyframes, interaction states, choreography
+- **[Charting](charting.md)** — Line, bar, area, and pie charts with the DuctD3 library
 - **[Advanced Patterns](advanced.md)** — Performance tuning, custom hooks, large-scale architecture
 
 ## Minimal Project Setup

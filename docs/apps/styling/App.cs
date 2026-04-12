@@ -3,7 +3,7 @@ using Duct.Core;
 using static Duct.UI;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<StylingApp>("Styling and Theming", width: 650, height: 700
+DuctApp.Run<StylingApp>("Styling and Theming", width: 650, height: 800
 #if DEBUG
     , preview: true
 #endif
@@ -100,6 +100,7 @@ class DarkLightToggleExample : Component
     public override Element Render()
     {
         var (isDark, setIsDark) = UseState(false);
+        var theme = isDark ? ElementTheme.Dark : ElementTheme.Light;
 
         return VStack(16,
             ToggleSwitch(isDark, setIsDark, onContent: "Dark", offContent: "Light"),
@@ -110,11 +111,60 @@ class DarkLightToggleExample : Component
                 ).Padding(16)
             ).Background(Theme.CardBackground)
              .CornerRadius(8)
-             .Set(b => b.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light)
+             .RequestedTheme(theme)
         ).Padding(24);
     }
 }
 // </snippet:dark-light-toggle>
+
+// <snippet:color-scheme-hook>
+class ColorSchemeHookExample : Component
+{
+    public override Element Render()
+    {
+        var isDark = UseIsDarkTheme();
+        var scheme = UseColorScheme();
+
+        return VStack(12,
+            Text($"Color scheme: {scheme}").FontSize(16).SemiBold(),
+            Text(isDark ? "Dark mode is active" : "Light mode is active")
+                .Foreground(Theme.SecondaryText),
+            Border(
+                Text(isDark ? "Dark content" : "Light content")
+                    .Padding(12)
+            ).Background(Theme.CardBackground)
+             .CornerRadius(8)
+             .WithBorder(Theme.CardStroke, 1)
+        ).Padding(24);
+    }
+}
+// </snippet:color-scheme-hook>
+
+// <snippet:lightweight-styling>
+class LightweightStylingExample : Component
+{
+    public override Element Render()
+    {
+        return VStack(12,
+            Button("Default Button", () => { }),
+            Button("Accent Button", () => { })
+                .Resources(r => r
+                    .Set("ButtonBackground", Theme.Accent)
+                    .Set("ButtonBackgroundPointerOver", Theme.AccentSecondary)
+                    .Set("ButtonBackgroundPressed", Theme.AccentTertiary)
+                    .Set("ButtonForeground", "#FFFFFF")
+                    .Set("ButtonForegroundPointerOver", "#FFFFFF")
+                    .Set("ButtonForegroundPressed", "#FFFFFF")),
+            Button("Danger Button", () => { })
+                .Resources(r => r
+                    .Set("ButtonBackground", Theme.SystemCritical)
+                    .Set("ButtonBackgroundPointerOver", "#C42B1C")
+                    .Set("ButtonForeground", "#FFFFFF")
+                    .Set("ButtonForegroundPointerOver", "#FFFFFF"))
+        ).Padding(24);
+    }
+}
+// </snippet:lightweight-styling>
 
 // <snippet:custom-resource>
 class CustomResourceExample : Component
@@ -139,16 +189,13 @@ class StylingApp : Component
         return ScrollView(
             VStack(24,
                 Heading("Styling and Theming"),
-                ThemeTokensExample(),
-                CardLayoutExample(),
-                SignalColorsExample(),
-                DarkLightToggleExample()
+                Component<ThemeTokensExample>(),
+                Component<CardLayoutExample>(),
+                Component<SignalColorsExample>(),
+                Component<DarkLightToggleExample>(),
+                Component<ColorSchemeHookExample>(),
+                Component<LightweightStylingExample>()
             ).Padding(24)
         );
     }
-
-    static Element ThemeTokensExample() => Component<ThemeTokensExample>();
-    static Element CardLayoutExample() => Component<CardLayoutExample>();
-    static Element SignalColorsExample() => Component<SignalColorsExample>();
-    static Element DarkLightToggleExample() => Component<DarkLightToggleExample>();
 }

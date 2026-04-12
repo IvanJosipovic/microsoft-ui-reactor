@@ -261,6 +261,10 @@ public sealed partial class Reconciler
                 => UpdateValidationVisualizer(oldVv, newVv, sp, requestRerender),
             (ValidationRuleElement, ValidationRuleElement n, WinUI.StackPanel)
                 => UpdateValidationRule(n),
+            (XamlHostElement, XamlHostElement n, FrameworkElement hostCtrl)
+                => UpdateXamlHost(n, hostCtrl),
+            (XamlPageElement o, XamlPageElement n, WinUI.Frame f)
+                => UpdateXamlPage(o, n, f),
             (ComponentElement, ComponentElement, _)
                 => UpdateComponent(oldEl, newEl, control, requestRerender),
             (FuncElement, FuncElement, _)
@@ -2183,4 +2187,23 @@ public sealed partial class Reconciler
 
     private static string Truncate(string s, int maxLen) =>
         s.Length <= maxLen ? s : s[..maxLen] + "…";
+
+    // ════════════════════════════════════════════════════════════════════
+    //  XamlHostElement / XamlPageElement — built-in XAML interop
+    // ════════════════════════════════════════════════════════════════════
+
+    private static UIElement? UpdateXamlHost(XamlHostElement newEl, FrameworkElement control)
+    {
+        newEl.Updater?.Invoke(control);
+        SetElementTag(control, newEl);
+        return null; // updated in place
+    }
+
+    private static UIElement? UpdateXamlPage(XamlPageElement oldEl, XamlPageElement newEl, WinUI.Frame frame)
+    {
+        if (oldEl.PageType != newEl.PageType || !Equals(oldEl.Parameter, newEl.Parameter))
+            frame.Navigate(newEl.PageType, newEl.Parameter);
+        SetElementTag(frame, newEl);
+        return null; // updated in place
+    }
 }

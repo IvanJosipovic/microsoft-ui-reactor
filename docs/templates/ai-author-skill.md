@@ -255,7 +255,8 @@ these rules:
 | 14 | Accessibility | `accessibility.md` |
 | 15 | Localization | `localization.md` |
 | 16 | Animation | `animation.md` |
-| 17 | Advanced Patterns | `advanced.md` |
+| 17 | Charting | `charting.md` |
+| 18 | Advanced Patterns | `advanced.md` |
 
 ---
 
@@ -324,6 +325,20 @@ class MyComponent : Component<MyProps>
 | `UseNavigationLifecycle` | `void UseNavigationLifecycle(onNavigatedTo?, onNavigatingFrom?, onNavigatedFrom?)` | Page lifecycle callbacks |
 | `UseSystemBackButton` | `void UseSystemBackButton<TRoute>(NavigationHandle<TRoute> nav, Window win)` | Wire system back button |
 
+**Validation & forms:**
+
+| Hook | Signature | Purpose |
+|------|-----------|---------|
+| `UseValidationContext` | `ValidationContext UseValidationContext()` | Create/access nearest validation context |
+| `UseFocus` | `FocusManager UseFocus()` | Programmatic focus, enter-to-advance |
+
+**Styling & theming:**
+
+| Hook | Signature | Purpose |
+|------|-----------|---------|
+| `UseColorScheme` | `ColorScheme UseColorScheme()` | Effective color scheme (Light/Dark/HighContrast) |
+| `UseIsDarkTheme` | `bool UseIsDarkTheme()` | True when effective scheme is Dark |
+
 **Framework integration:**
 
 | Hook | Signature | Purpose |
@@ -353,20 +368,63 @@ class MyComponent : Component<MyProps>
 `GridView<T>(items, keySelector, viewBuilder)`
 
 **Navigation:** `NavigationView(menuItems, content)`, `TabView(tabs)`,
-`BreadcrumbBar(items)`
+`BreadcrumbBar(items)`, `NavigationHost(nav, routeMap)` with
+`Transition`, `CacheMode`, `CacheSize` properties
+
+**Validation:** `FormField(content, label?, required?, description?)`,
+`ValidationRule(predicate, message, field)`,
+`ValidationVisualizer(style, content)` with styles: Inline, Summary,
+InfoBar, Custom. `.Validate(fieldName, value, validators...)` extension.
+
+**Charting** (via DuctD3): `LineChart<T>(data, x, y)`,
+`BarChart<T>(data, x, y)`, `AreaChart<T>(data, x, y)`,
+`PieChart<T>(data, value, label?)`, `TreeChart<T>(root, children, label?)`,
+`ForceGraph(nodes, links)`. Import: `using static Duct.D3.Charts.ChartDsl;`
 
 **Helpers:** `When(bool, () => element)`, `If(bool, then, else?)`,
 `ForEach(items, render)`, `Empty()`, `Group(children)`
 
 ### Common Modifiers (chainable on any Element)
 
-`.Width(n)`, `.Height(n)`, `.Margin(n)`, `.Padding(n)`,
+**Layout & appearance:**
+`.Width(n)`, `.Height(n)`, `.Size(w, h)`, `.Margin(n)`, `.Padding(n)`,
 `.FontSize(n)`, `.Bold()`, `.SemiBold()`, `.Opacity(n)`,
-`.Background(color)`, `.Foreground(color)`, `.CornerRadius(n)`,
-`.WithBorder(color)`, `.HAlign(alignment)`, `.VAlign(alignment)`,
+`.Background(color|ThemeRef)`, `.Foreground(color|ThemeRef)`,
+`.CornerRadius(n)`, `.WithBorder(color|ThemeRef, thickness?)`,
+`.HAlign(alignment)`, `.VAlign(alignment)`,
 `.Disabled(bool)`, `.Visible(bool)`, `.WithKey(string)`,
 `.Flex(grow?, shrink?, basis?)`, `.ToolTip(string)`,
 `.Set(control => { /* raw WinUI access */ })`
+
+**Styling:**
+`.RequestedTheme(ElementTheme)`,
+`.Resources(r => r.Set(key, value))` — lightweight styling overrides
+
+**Animation — implicit transitions:**
+`.OpacityTransition(duration?)`, `.ScaleTransition(transition?)`,
+`.TranslationTransition(transition?)`, `.RotationTransition(duration?)`,
+`.BackgroundTransition(duration?)` (Grid/Stack only)
+
+**Animation — compositor:**
+`.Animate(Curve, AnimateProperty?)` — persistent implicit animation,
+`.Transition(Transition, Curve?)` — enter/exit (Fade, Slide, Scale; `+` parallel, `|` asymmetric),
+`.InteractionStates(builder, curve?)` — zero-reconcile hover/press/focus,
+`.Stagger(delay, curve?)` — cascade child animations,
+`.Keyframes(name, trigger, builder)` — trigger-based multi-property keyframes,
+`.ScrollLinked(scrollViewer, builder)` — scroll-driven expression animations
+
+**Animation — layout:**
+`.LayoutAnimation()`, `.LayoutAnimation(duration)`,
+`.SpringLayoutAnimation(damping?, period?)`,
+`.ConnectedAnimation(key)`
+
+**Animation — scopes (call in event handlers):**
+`AnimationScope.WithAnimation(Curve, Action)` — ambient animation scope,
+`AnimationScope.WithAnimationAsync(Curve, Action)` — async choreography
+
+**Compositor properties (animated via .Animate() or WithAnimation):**
+`.Scale(Vector3)`, `.Rotation(float)`, `.Translation(x, y, z)`,
+`.CenterPoint(Vector3)`
 
 ---
 
@@ -386,10 +444,10 @@ Generate these as `<topic>.md.dt` + `docs/apps/<topic>/` pairs:
 ### Intermediate
 
 6. **flex-layout** — FlexPanel powered by Yoga (CSS Flexbox): direction, justify, align, wrap, grow/shrink/basis, gap, absolute positioning; when to use Flex vs. VStack/Grid
-7. **forms** — TextField, CheckBox, ComboBox, Slider, NumberBox, PasswordBox, RadioButtons, ToggleSwitch; validation patterns and controlled-input idioms
+7. **forms** — TextField, CheckBox, ComboBox, Slider, NumberBox, PasswordBox, RadioButtons, ToggleSwitch; controlled-input idioms, ValidationContext + .Validate() with 11 built-in validators, FormField helper, MaskEngine (8 presets), InputFormatter (11 built-ins), AutoSuggest\<T\>, UseFocus for focus management
 8. **collections** — ListView\<T\>, LazyVStack\<T\>, GridView\<T\>; virtualization, key selection, ForEach, stable identity with WithKey
 9. **navigation** — UseNavigation\<TRoute\> hook, NavigationHandle, type-safe stack-based routing, NavigationView/TabView/BreadcrumbBar elements, DeepLinkMap for URL routing, NavigationCache, page lifecycle (UseNavigationLifecycle), UseSystemBackButton, animated transitions via TransitionEngine
-10. **styling** — Theming, brushes, dark/light mode, Theme.Accent, WinUI resource access, ApplyStyle, fonts, CornerRadius
+10. **styling** — Theme tokens (37+ semantic ThemeRef values), UseColorScheme/UseIsDarkTheme hooks, .RequestedTheme() modifier, lightweight styling via .Resources() + ResourceBuilder, Style caching, Roslyn analyzers (DUCT001-003), fonts, CornerRadius
 11. **effects** — UseEffect lifecycle: mount, update, cleanup; timers, async data loading, file I/O, dependency arrays, infinite-loop pitfalls
 12. **commanding** — DuctCommand, DuctCommand\<T\>, StandardCommand, UseCommand hook, keyboard accelerators, async commands with IsExecuting tracking
 13. **context** — DuctContext\<T\>, ContextProvider, UseContext, nested/overridden contexts; theme context as a worked example
@@ -398,8 +456,9 @@ Generate these as `<topic>.md.dt` + `docs/apps/<topic>/` pairs:
 
 14. **accessibility** — AutomationName, HeadingLevel, landmarks, live regions, IsTabStop/TabIndex, AccessKey, FullDescription; tiered modifier pattern (common vs. advanced); WCAG compliance patterns
 15. **localization** — LocaleProvider, UseIntl, RtlHelper, logical layout properties (MarginInlineStart/End), string resource providers, date/number formatting, pseudo-localization for testing
-16. **animation** — Implicit transitions (opacity, scale, translate, background), LayoutAnimation, ConnectedAnimation, theme transitions; combining transitions for polish
-17. **advanced** — ErrorBoundary + fallback UI, Memo for subtree skip, performance tuning (ElementPool, batched renders, bitmask diffs), WinUI escape hatch (`.Set()`), XAML interop (XamlHostElement), observable data binding (UseObservableTree, UseCollection)
+16. **animation** — Implicit transitions (opacity, scale, translate, rotation, background), .Animate() compositor modifier, enter/exit .Transition() with combinators (+, |), .InteractionStates() zero-reconcile hover/press/focus, .Stagger() cascade, .Keyframes() trigger animations, .ScrollLinked() expression animations, WithAnimation/WithAnimationAsync ambient scopes, spring/ease curves, LayoutAnimation, ConnectedAnimation
+17. **charting** — DuctD3 chart DSL: LineChart, BarChart, AreaChart, PieChart, TreeChart, ForceGraph; scales (Linear, Band, Log, Pow, Ordinal); shape generators; D3 Canvas drawing primitives; ChartHandle for live updates
+18. **advanced** — ErrorBoundary + fallback UI, Memo for subtree skip, performance tuning (ElementPool, batched renders, bitmask diffs), WinUI escape hatch (`.Set()`), XAML interop (XamlHostElement), observable data binding (UseObservableTree, UseCollection)
 
 ---
 

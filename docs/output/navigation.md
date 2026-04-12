@@ -201,6 +201,149 @@ Use `onNavigatedTo` to fetch data or start timers. Use `onNavigatingFrom` to
 save drafts or confirm unsaved changes. See [Effects and Lifecycle](effects.md)
 for more on lifecycle patterns.
 
+## Page Transitions
+
+`NavigationHost` supports animated page transitions. Set the `Transition`
+property to control how pages animate in and out:
+
+```csharp
+class PageTransitionsDemo : Component
+{
+    public override Element Render()
+    {
+        var nav = UseNavigation(Route.Home);
+
+        return VStack(12,
+            SubHeading("Page Transitions"),
+            HStack(8,
+                Button("Home", () => nav.Navigate(Route.Home)),
+                Button("Settings", () => nav.Navigate(Route.Settings)),
+                Button("Profile", () => nav.Navigate(Route.Profile)),
+                Button("Back", () => nav.GoBack())
+                    .Disabled(!nav.CanGoBack)
+            ),
+            NavigationHost(nav, route => route switch
+            {
+                Route.Home => VStack(8,
+                    Text("Home").FontSize(24).Bold(),
+                    Text("Slide transition on navigate")).Padding(16),
+                Route.Settings => VStack(8,
+                    Text("Settings").FontSize(24).Bold(),
+                    Text("DrillIn transition to detail")).Padding(16),
+                _ => Text($"{route}").FontSize(18).Padding(16)
+            }) with { Transition = NavigationTransition.DrillIn() }
+        ).Padding(24);
+    }
+}
+```
+
+![Page transitions](images/navigation/page-transitions.png)
+
+| Transition | Effect |
+|-----------|--------|
+| `NavigationTransition.Slide()` | Slide + fade (default) |
+| `NavigationTransition.Fade()` | Crossfade |
+| `NavigationTransition.DrillIn()` | Scale + fade from center |
+| `NavigationTransition.Spring()` | Spring-physics slide |
+| `NavigationTransition.None` | Instant swap |
+
+Transitions run on the compositor thread — no managed-code involvement during
+playback. GoBack automatically reverses the direction. See
+[Animation](animation.md) for more on compositor transitions.
+
+## Deep Linking
+
+`DeepLinkMap` maps URI patterns to route constructors. Use it to restore
+navigation state from activation URIs or protocol handlers:
+
+```csharp
+class DeepLinkingDemo : Component
+{
+    public override Element Render()
+    {
+        var map = UseMemo(() => new DeepLinkMap<Route>()
+            .Map("/", _ => Route.Home)
+            .Map("/settings", _ => Route.Settings)
+            .Map("/profile", _ => Route.Profile));
+
+        var (result, setResult) = UseState("(none)");
+
+        return VStack(12,
+            SubHeading("Deep Linking"),
+            HStack(8,
+                Button("Resolve /", () =>
+                    setResult($"/ -> {map.Resolve("/").Matched}")),
+                Button("Resolve /settings", () =>
+                    setResult($"/settings -> {map.Resolve("/settings").Matched}")),
+                Button("Resolve /unknown", () =>
+                    setResult($"/unknown -> {map.Resolve("/unknown").Matched}"))
+            ),
+            Text($"Result: {result}").FontSize(14).Opacity(0.7)
+        ).Padding(24);
+    }
+}
+```
+
+![Deep linking](images/navigation/deep-linking.png)
+
+Pattern segments: `/literal` matches exactly, `/{param}` captures a string,
+`/{param:int}` captures a typed parameter. The `backStackFactory` parameter
+builds a synthetic back stack so GoBack works even after deep-linked entry.
+
+## Page Caching
+
+Set `CacheMode` on `NavigationHost` to preserve page state across
+navigations. Cached pages keep their visual tree alive instead of remounting:
+
+```csharp
+class PageCachingDemo : Component
+{
+    public override Element Render()
+    {
+        var nav = UseNavigation(Route.Home);
+
+        return VStack(12,
+            SubHeading("Page Caching"),
+            Text("Text input is preserved across navigations."),
+            HStack(8,
+                Button("Home", () => nav.Navigate(Route.Home)),
+                Button("Settings", () => nav.Navigate(Route.Settings)),
+                Button("Back", () => nav.GoBack())
+                    .Disabled(!nav.CanGoBack)
+            ),
+            NavigationHost(nav, route => route switch
+            {
+                Route.Home => CachedPage("Home"),
+                Route.Settings => CachedPage("Settings"),
+                _ => Text($"{route}").Padding(16)
+            }) with
+            {
+                CacheMode = NavigationCacheMode.Enabled,
+                CacheSize = 5
+            }
+        ).Padding(24);
+    }
+
+    static Element CachedPage(string name) =>
+        VStack(8,
+            Text(name).FontSize(20).Bold(),
+            TextField("", _ => { }, placeholder: "Type here — state persists")
+        ).Padding(16);
+}
+```
+
+![Page caching](images/navigation/page-caching.png)
+
+| Cache mode | Behavior |
+|-----------|----------|
+| `Disabled` | Always unmount/remount (default) |
+| `Enabled` | LRU cache up to `CacheSize` entries |
+| `Required` | Always cached, never evicted |
+
+Caching preserves scroll position, text input, and component state. Use it
+for pages that are expensive to render or where losing state would frustrate
+the user.
+
 ## TabView
 
 For tab-based navigation, use `TabView` with `Tab` items. Each tab holds its
@@ -250,9 +393,8 @@ detail page ID), use a discriminated union pattern with records.
 the same handle with `UseNavigation<Route>()` (no initial value). This
 retrieves the nearest ancestor's handle via [context](context.md).
 
-**Prefer `Navigate` over `Replace` for user-initiated actions.** `Navigate`
-preserves history so the user can go back. Use `Replace` for programmatic
-redirects where back-navigation would not make sense (like after login).
+**Use `NavigationTransition.DrillIn()` for list-to-detail flows.** It
+signals hierarchy and pairs naturally with Connected Animation keys.
 
 **Use `Reset` for sign-out flows.** It clears the entire stack and starts
 fresh, preventing the user from navigating back to authenticated pages.
@@ -263,7 +405,8 @@ or hardware) to your navigation stack automatically.
 
 ## Next Steps
 
-- **[Collections](collections.md)** — render data-driven lists and grids within pages
+- **[Collections](collections.md)** — Next: render data-driven lists and grids within pages
 - **[Styling and Theming](styling.md)** — apply visual styles and themes across pages
 - **[Context](context.md)** — share navigation handles and other state across the component tree
 - **[Effects and Lifecycle](effects.md)** — run side effects when pages appear or disappear
+- **[Animation](animation.md)** — combine page transitions with enter/exit animations

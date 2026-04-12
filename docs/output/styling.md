@@ -139,8 +139,9 @@ Use these instead of hardcoded red/green/yellow — they meet
 
 ## Dark and Light Mode
 
-Toggle the theme on a subtree by setting `RequestedTheme` through the `.Set()`
-escape hatch:
+Use `.RequestedTheme()` to force a subtree to a specific theme. The
+`UseColorScheme()` and `UseIsDarkTheme()` hooks let you read the effective
+theme reactively:
 
 ```csharp
 class DarkLightToggleExample : Component
@@ -148,6 +149,7 @@ class DarkLightToggleExample : Component
     public override Element Render()
     {
         var (isDark, setIsDark) = UseState(false);
+        var theme = isDark ? ElementTheme.Dark : ElementTheme.Light;
 
         return VStack(16,
             ToggleSwitch(isDark, setIsDark, onContent: "Dark", offContent: "Light"),
@@ -158,7 +160,7 @@ class DarkLightToggleExample : Component
                 ).Padding(16)
             ).Background(Theme.CardBackground)
              .CornerRadius(8)
-             .Set(b => b.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light)
+             .RequestedTheme(theme)
         ).Padding(24);
     }
 }
@@ -166,8 +168,83 @@ class DarkLightToggleExample : Component
 
 ![Dark/light mode toggle](images/styling/dark-light-toggle.png)
 
-`.Set()` gives you direct access to the underlying WinUI control. Use it
-sparingly for properties Duct doesn't expose as fluent modifiers.
+`.RequestedTheme(ElementTheme.Dark)` sets the theme on the underlying
+`FrameworkElement`. All `ThemeRef` bindings in descendants automatically
+resolve against the new theme. `UseIsDarkTheme()` returns `true` when the
+effective scheme is dark — use it to drive conditional logic.
+
+## Reactive Theme Hooks
+
+`UseColorScheme()` returns the effective color scheme at the component's
+position in the tree. `UseIsDarkTheme()` is a convenience wrapper:
+
+```csharp
+class ColorSchemeHookExample : Component
+{
+    public override Element Render()
+    {
+        var isDark = UseIsDarkTheme();
+        var scheme = UseColorScheme();
+
+        return VStack(12,
+            Text($"Color scheme: {scheme}").FontSize(16).SemiBold(),
+            Text(isDark ? "Dark mode is active" : "Light mode is active")
+                .Foreground(Theme.SecondaryText),
+            Border(
+                Text(isDark ? "Dark content" : "Light content")
+                    .Padding(12)
+            ).Background(Theme.CardBackground)
+             .CornerRadius(8)
+             .WithBorder(Theme.CardStroke, 1)
+        ).Padding(24);
+    }
+}
+```
+
+![Color scheme hook](images/styling/color-scheme-hook.png)
+
+`ColorScheme` has three values: `Light`, `Dark`, and `HighContrast`. Use
+these hooks when you need to branch logic — not just colors — based on the
+theme (e.g., choosing different icon sets or layouts).
+
+## Lightweight Styling
+
+`.Resources()` overrides WinUI control resource keys without replacing the
+control template. VisualStateManager states (hover, pressed, disabled)
+automatically respect your overrides:
+
+```csharp
+class LightweightStylingExample : Component
+{
+    public override Element Render()
+    {
+        return VStack(12,
+            Button("Default Button", () => { }),
+            Button("Accent Button", () => { })
+                .Resources(r => r
+                    .Set("ButtonBackground", Theme.Accent)
+                    .Set("ButtonBackgroundPointerOver", Theme.AccentSecondary)
+                    .Set("ButtonBackgroundPressed", Theme.AccentTertiary)
+                    .Set("ButtonForeground", "#FFFFFF")
+                    .Set("ButtonForegroundPointerOver", "#FFFFFF")
+                    .Set("ButtonForegroundPressed", "#FFFFFF")),
+            Button("Danger Button", () => { })
+                .Resources(r => r
+                    .Set("ButtonBackground", Theme.SystemCritical)
+                    .Set("ButtonBackgroundPointerOver", "#C42B1C")
+                    .Set("ButtonForeground", "#FFFFFF")
+                    .Set("ButtonForegroundPointerOver", "#FFFFFF"))
+        ).Padding(24);
+    }
+}
+```
+
+![Lightweight styling](images/styling/lightweight-styling.png)
+
+`ResourceBuilder` supports `.Set(key, ThemeRef)` for theme-reactive
+overrides, `.Set(key, string)` for hex colors, `.Set(key, double)` for
+numeric values, and `.Set(key, CornerRadius)` for corner radius. Overrides
+cascade to child elements through WinUI's resource dictionary hierarchy.
 
 ## Custom Resource Access
 
@@ -191,20 +268,34 @@ class CustomResourceExample : Component
 This is useful when you need a resource that `Theme` doesn't expose as a
 named property. The key must exist in WinUI's resource dictionaries.
 
+## Roslyn Analyzers
+
+Duct ships three Roslyn analyzers that flag common styling mistakes:
+
+| Analyzer | Severity | What it flags |
+|----------|----------|--------------|
+| DUCT001 | Warning | Hard-coded color string where a `Theme.*` token exists |
+| DUCT002 | Info | `.Set()` brush assignment that has a lightweight styling key |
+| DUCT003 | Info | `.Set(fe => fe.RequestedTheme = ...)` — use `.RequestedTheme()` |
+
+Each analyzer includes a code fix that auto-converts to the preferred
+pattern. Enable them by referencing the `Duct.Analyzers` project.
+
 ## Tips
 
 **Prefer theme tokens over hex colors.** Tokens adapt to light/dark mode and
 high contrast automatically. Reserve hex for brand colors.
 
+**Use `.Resources()` for button/control color overrides.** Lightweight styling
+preserves hover/pressed/disabled states, unlike `.Set()` which forces a
+single value.
+
+**Use `UseIsDarkTheme()` for conditional logic.** When you need different
+behavior (not just colors) based on the theme, read the hook instead of
+checking resources manually.
+
 **Use `Theme.CardBackground` + `Theme.CardStroke` for card containers.** This
 matches the WinUI design language exactly.
-
-**Keep `.Set()` calls minimal.** If you find yourself using `.Set()` often for
-the same property, that's a sign the framework should add a modifier — file a
-feature request.
-
-**Combine `CornerRadius`, `Padding`, and `Background` for visual grouping.**
-Rounded containers with subtle backgrounds help users scan complex layouts.
 
 **Test in both themes.** Run your app, switch Windows to dark mode, and verify
 nothing becomes unreadable. Theme tokens handle this if you avoid hardcoded
@@ -216,4 +307,4 @@ colors.
 - **[Effects and Lifecycle](effects.md)** — Next: run side effects on mount, update, and cleanup
 - **[Context](context.md)** — Provide theme values to an entire subtree without prop drilling
 - **[Accessibility](accessibility.md)** — Ensure themed colors meet contrast requirements
-- **[Components](components.md)** — Build the visual elements that consume your theme tokens
+- **[Animation](animation.md)** — Combine theme-aware colors with animation transitions

@@ -1,9 +1,14 @@
 using Duct;
 using Duct.Core;
+using Duct.Validation;
+using Duct.Validation.Validators;
+using static Duct.Validation.FormFieldDsl;
+using Duct.Controls.MaskedTextBox;
+using Duct.Controls.Formatting;
 using static Duct.UI;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<FormsApp>("Forms", width: 600, height: 700
+DuctApp.Run<FormsApp>("Forms", width: 600, height: 900
 #if DEBUG
     , preview: true
 #endif
@@ -72,16 +77,16 @@ class ValidationDemo : Component
             && !string.IsNullOrWhiteSpace(email);
 
         return VStack(12,
-            SubHeading("Validation"),
+            SubHeading("Simple Validation"),
             TextField(email, setEmail, placeholder: "user@example.com",
                 header: "Email"),
             When(!string.IsNullOrEmpty(email) && !emailValid, () =>
                 Text("Enter a valid email address")
-                    .Foreground("#d13438").FontSize(12)),
+                    .Foreground(Theme.SystemCritical).FontSize(12)),
             NumberBox(age, setAge, header: "Age"),
             When(age > 0 && !ageValid, () =>
                 Text("Age must be between 18 and 120")
-                    .Foreground("#d13438").FontSize(12)),
+                    .Foreground(Theme.SystemCritical).FontSize(12)),
             Button("Submit", () => { })
                 .Disabled(!formValid)
                 .Margin(0, 8, 0, 0)
@@ -90,36 +95,121 @@ class ValidationDemo : Component
 }
 // </snippet:validation>
 
-// <snippet:registration-form>
-class RegistrationForm : Component
+// <snippet:validation-context>
+class ValidationContextDemo : Component
 {
     public override Element Render()
     {
-        var (username, setUsername) = UseState("");
+        var ctx = this.UseValidationContext();
         var (email, setEmail) = UseState("");
         var (password, setPassword) = UseState("");
-        var (role, setRole) = UseState(0);
-        var (acceptTerms, setAcceptTerms) = UseState(false);
-        var isValid = !string.IsNullOrWhiteSpace(username)
-            && email.Contains('@') && password.Length >= 8 && acceptTerms;
+        var (submitted, setSubmitted) = UseState(false);
 
         return VStack(12,
-            Heading("Create Account"),
-            TextField(username, setUsername, placeholder: "Choose a username",
-                header: "Username"),
-            TextField(email, setEmail, placeholder: "you@example.com",
-                header: "Email"),
-            PasswordBox(password, setPassword, placeholderText: "Min 8 chars"),
-            When(password.Length > 0 && password.Length < 8, () =>
-                Text("Password too short").Foreground("#d13438").FontSize(12)),
-            ComboBox(["Developer", "Designer", "Manager"], role, setRole),
-            CheckBox(acceptTerms, setAcceptTerms,
-                label: "I accept the terms of service"),
-            Button("Register", () => { }).Disabled(!isValid)
+            SubHeading("Validation Context"),
+            TextField(email, v => { setEmail(v); ctx.NotifyValueChanged("email", v); },
+                placeholder: "user@example.com", header: "Email")
+                .Validate("email", email,
+                    Validate.Required(),
+                    Validate.Email()),
+            When(ctx.IsTouched("email") && ctx.HasError("email"), () =>
+                Text(ctx.GetMessages("email").First().Text)
+                    .Foreground(Theme.SystemCritical).FontSize(12)),
+            PasswordBox(password, v => { setPassword(v); ctx.NotifyValueChanged("password", v); },
+                placeholderText: "Min 8 characters")
+                .Validate("password", password,
+                    Validate.Required(),
+                    Validate.MinLength(8)),
+            When(ctx.IsTouched("password") && ctx.HasError("password"), () =>
+                Text(ctx.GetMessages("password").First().Text)
+                    .Foreground(Theme.SystemCritical).FontSize(12)),
+            Button("Register", () =>
+            {
+                ctx.MarkAllTouched();
+                if (ctx.IsValid()) setSubmitted(true);
+            }).Disabled(submitted),
+            When(submitted, () =>
+                Text("Registration successful!")
+                    .Foreground(Theme.SystemSuccess).SemiBold())
         ).Padding(24);
     }
 }
-// </snippet:registration-form>
+// </snippet:validation-context>
+
+// <snippet:form-field>
+class FormFieldDemo : Component
+{
+    public override Element Render()
+    {
+        var ctx = this.UseValidationContext();
+        var (name, setName) = UseState("");
+        var (email, setEmail) = UseState("");
+
+        return VStack(12,
+            SubHeading("FormField Helper"),
+            FormField(
+                TextField(name, v => { setName(v); ctx.NotifyValueChanged("name", v); })
+                    .Validate("name", name, Validate.Required()),
+                label: "Full Name",
+                required: true,
+                description: "As it appears on your ID"),
+            FormField(
+                TextField(email, v => { setEmail(v); ctx.NotifyValueChanged("email", v); })
+                    .Validate("email", email,
+                        Validate.Required(), Validate.Email()),
+                label: "Email Address",
+                required: true)
+        ).Padding(24);
+    }
+}
+// </snippet:form-field>
+
+// <snippet:masked-input>
+class MaskedInputDemo : Component
+{
+    public override Element Render()
+    {
+        var phoneMask = UseMemo(() => new MaskEngine(MaskPreset.PhoneUS));
+        var dateMask = UseMemo(() => new MaskEngine(MaskPreset.Date));
+        var (phone, setPhone) = UseState("");
+        var (date, setDate) = UseState("");
+
+        return VStack(12,
+            SubHeading("Masked Input"),
+            TextField(phoneMask.Apply(phone), v => setPhone(phoneMask.GetRawValue(v)),
+                placeholder: "(___) ___-____", header: "Phone"),
+            Text($"Raw: {phone}").FontSize(12).Opacity(0.6),
+            TextField(dateMask.Apply(date), v => setDate(dateMask.GetRawValue(v)),
+                placeholder: "__/__/____", header: "Date"),
+            Text($"Raw: {date}").FontSize(12).Opacity(0.6)
+        ).Padding(24);
+    }
+}
+// </snippet:masked-input>
+
+// <snippet:input-formatters>
+class InputFormattersDemo : Component
+{
+    public override Element Render()
+    {
+        var (currency, setCurrency) = UseState("");
+        var (upper, setUpper) = UseState("");
+
+        var currencyFmt = UseMemo(() => InputFormatter.Currency());
+        var upperFmt = UseMemo(() => InputFormatter.UpperCase);
+
+        return VStack(12,
+            SubHeading("Input Formatters"),
+            TextField(currencyFmt.Format(currency, 0).Output,
+                v => setCurrency(currencyFmt.Parse(v)),
+                placeholder: "$0.00", header: "Amount"),
+            TextField(upperFmt.Format(upper, 0).Output,
+                v => setUpper(upperFmt.Parse(v)),
+                placeholder: "UPPERCASE", header: "Code")
+        ).Padding(24);
+    }
+}
+// </snippet:input-formatters>
 
 class FormsApp : Component
 {
@@ -131,7 +221,10 @@ class FormsApp : Component
                 Component<ControlledInputDemo>(),
                 Component<InputTypesDemo>(),
                 Component<ValidationDemo>(),
-                Component<RegistrationForm>()
+                Component<ValidationContextDemo>(),
+                Component<FormFieldDemo>(),
+                Component<MaskedInputDemo>(),
+                Component<InputFormattersDemo>()
             ).Padding(24)
         );
     }

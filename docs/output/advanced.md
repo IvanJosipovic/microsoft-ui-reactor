@@ -275,7 +275,7 @@ INPC objects, `UseObservable` is cheaper.
 
 ## Next Steps
 
-- **[Animation](animation.md)** — previous topic: declarative transitions, layout animations, and connected animations
+- **[Charting](charting.md)** — previous topic: data visualization with line, bar, area, and pie charts
 - **[Duct](readme.md)** — back to the index: overview of the framework and full topic list
 - **[Hooks](hooks.md)** — review the hook system that `UseObservableTree` and `UseCollection` build on
 - **[Effects and Lifecycle](effects.md)** — manage side effects alongside observable data binding
