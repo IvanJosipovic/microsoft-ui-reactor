@@ -474,7 +474,7 @@ A developer building a styled app today faces an impossible choice:
 - **Don't use Duct modifiers** → theming works but the app can't have custom styling
 - **Use Duct modifiers** → custom styling works but dark mode and high contrast break silently
 
-The theming design spec (see `duct-theming-design.md`) outlines the solution: a three-tier
+The theming design spec (see `001-duct-theming-design.md`) outlines the solution: a three-tier
 value model with `ThemeRef` tokens that resolve from WinUI resources and re-resolve on theme
 change. Until this is implemented, theming is effectively broken for any control that uses
 Duct's color/brush modifiers.
@@ -868,7 +868,7 @@ is blocked due to no XAML.
 
 | Priority | Gap | Impact | Effort |
 |---|---|---|---|
-| **P0** | Theming: ThemeRef token system + theme-reactive modifiers | Any Duct-styled control breaks dark mode and high contrast silently; blocks all real-world apps | High — requires ThemeRef type, modifier overloads, reconciler changes, theme change detection (see `duct-theming-design.md`) |
+| **P0** | Theming: ThemeRef token system + theme-reactive modifiers | Any Duct-styled control breaks dark mode and high contrast silently; blocks all real-world apps | High — requires ThemeRef type, modifier overloads, reconciler changes, theme change detection (see `001-duct-theming-design.md`) |
 | **P0** | Accessibility modifiers (HelpText, LiveSetting, HeadingLevel, AutomationId, LandmarkType) | Blocks production apps; compliance requirement | Low — add modifiers to ElementExtensions |
 | **P0** | Navigation: Duct-native router with back stack, transitions, parameter passing | Core navigation scenario is broken; Frame/Page requires XAML | High — design and implement navigation system |
 | **P0** | Command model (ICommand equivalent with name, query-status, action) | No reusable command abstraction; blocks toolbar/menu-driven apps | Medium — design command data model + control integration |

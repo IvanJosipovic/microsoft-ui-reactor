@@ -853,7 +853,7 @@ future spec pending demand and the theme system revamp.
 
 ### Motivation
 
-The [theming design spec](duct-theming-design.md) §Phase 4 already proposes a
+The [theming design spec](001-duct-theming-design.md) §Phase 4 already proposes a
 `.RequestedTheme()` modifier but it hasn't been implemented. Meanwhile, developers
 use a `.Set()` workaround:
 
@@ -1159,7 +1159,7 @@ VStack(children).RequestedTheme(ElementTheme.Dark)
 ## References
 
 - [Duct Critical Review](../duct-critical-review.md) §6 Styling and Theming
-- [Duct Theming Design Spec](duct-theming-design.md) — existing ThemeRef and phase plan
+- [Duct Theming Design Spec](001-duct-theming-design.md) — existing ThemeRef and phase plan
 - [WinUI Lightweight Styling](https://learn.microsoft.com/en-us/windows/apps/design/style/xaml-styles#lightweight-styling)
 - [SwiftUI ViewModifier](https://developer.apple.com/documentation/swiftui/viewmodifier)
 - [Jetpack Compose Theming](https://developer.android.com/develop/ui/compose/designsystems/custom)

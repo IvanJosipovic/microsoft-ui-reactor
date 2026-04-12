@@ -8,7 +8,7 @@
 
 ## Problem Statement
 
-The [gap analysis](duct-winui3-gap-analysis.md) §16 identifies accessibility as **"the largest
+The [gap analysis](002-duct-winui3-gap-analysis.md) §16 identifies accessibility as **"the largest
 gap for production apps."** Today, only `AutomationProperties.Name` and
 `AutomationProperties.AutomationId` have first-class Duct modifiers. Nine WinUI accessibility
 features are **Missing**, one is **Blocked** (custom `AutomationPeer`), and everything else
@@ -596,7 +596,7 @@ Duct controls styled with concrete brush values (`.Background("#FF5733")`) will 
 custom color in high contrast mode — Windows overrides brushes in HC. This is documented
 behavior, but developers may not expect it.
 
-**Guidance:** Use `ThemeRef` values from the [theming system](duct-theming-design.md) instead
+**Guidance:** Use `ThemeRef` values from the [theming system](001-duct-theming-design.md) instead
 of concrete brushes on interactive controls. `Theme.Accent`, `Theme.PrimaryText`, etc.
 automatically re-resolve in HC mode.
 
@@ -970,7 +970,7 @@ transitions for layout correctness (bad practice) may need adjustment.
 - Accessibility guide in `Duct/Docs/`
 - Sample app demonstrating all patterns
 - Update `SKILL.md` with new accessibility modifiers
-- Update `duct-winui3-gap-analysis.md` §16 to reflect changes
+- Update `002-duct-winui3-gap-analysis.md` §16 to reflect changes
 
 ---
 
@@ -987,7 +987,7 @@ transitions for layout correctness (bad practice) may need adjustment.
 | `Duct/Hosting/DuctHost.cs` | `Announce()` method, hidden announcement TextBlock, `EnableAccessibilityDiagnostics()` |
 | `Duct/Core/AccessibilityDiagnostics.cs` | **New** — runtime a11y tree validation + JSON export |
 | `SKILL.md` | Document all new accessibility modifiers and hooks |
-| `docs/spec/duct-winui3-gap-analysis.md` | Update §16 status from Missing → Exposed |
+| `docs/spec/002-duct-winui3-gap-analysis.md` | Update §16 status from Missing → Exposed |
 
 ---
 

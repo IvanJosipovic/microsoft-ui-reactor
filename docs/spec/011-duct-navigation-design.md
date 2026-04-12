@@ -17,7 +17,7 @@ Remaining: Phase 10 documentation and E2E Appium test execution.
 ## Problem Statement
 
 The [critical review](../duct-critical-review.md) §7 and the
-[gap analysis](duct-winui3-gap-analysis.md) identify navigation as the single
+[gap analysis](002-duct-winui3-gap-analysis.md) identify navigation as the single
 largest fundamental gap blocking production readiness:
 
 > "Navigation is the second most critical gap... Frame/Page navigation is
