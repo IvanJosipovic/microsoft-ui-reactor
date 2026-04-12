@@ -105,10 +105,10 @@ to understand the gap, not to declare winners.
 | **State & Reactivity** | D | B | B | B+ |
 | **Rendering & Performance** | C+ | B | B+ | B- |
 | **Layout** | D+ | A- | A- | B+ |
-| **Styling & Theming** | D | A- | A | C+ |
+| **Styling & Theming** | D | A- | A | B- |
 | **Navigation** | F | C | C+ | B+ |
-| **Animation** | F | B+ | A | C |
-| **Accessibility** | D+ | A- | A | C+ |
+| **Animation** | F | B+ | A | C+ |
+| **Accessibility** | D+ | A- | A | B- |
 | **Input & Gestures** | C | B+ | B+ | C |
 | **Developer Experience** | B | B- | B- | C+ |
 | **Platform Reach** | D | D | D | D |
@@ -118,7 +118,7 @@ to understand the gap, not to declare winners.
 | **Lists & Virtualization** | C+ | A- | A- | B |
 | **Internationalization** | C+ | B | B+ | B+ |
 | **Interop & Adoption** | B+ | A- | B+ | A- |
-| **Forms & Data Entry** | B | A | B | C+ |
+| **Forms & Data Entry** | B | A | B | B |
 
 ---
 
@@ -286,14 +286,24 @@ built-in system (ecosystem-dependent). Flutter is Material-centric.
 - **WinUI 3 (A):** Fluent Design with Mica/Acrylic materials. Lightweight
   styling (override resources without re-templating). ThemeResource for
   automatic light/dark/high-contrast. This is a genuine strength
-- **Duct (C+):** ThemeRef system works for WinUI built-in tokens. Only 3 brush
-  properties. No custom theme resources. XamlReader.Load has perf cost. Style
-  composition is thin
+- **Duct (B-):** 37 semantic theme tokens (accent, text, surface, control,
+  stroke, signal colors) with `Theme.Ref(key)` for custom resources.
+  ResourceBuilder supports 5 resource types (color string, Brush, ThemeRef,
+  double, CornerRadius) with full WinUI visual state support (hover, pressed,
+  disabled via lightweight styling). Style caching with deterministic sorted
+  keys in a ConcurrentDictionary avoids repeated XamlReader.Load() calls.
+  Three Roslyn analyzers (DUCT001-003) guide developers toward theme tokens
+  and lightweight styling with code fix providers. Sophisticated theme
+  resolution respects per-element RequestedTheme overrides. Still limited to
+  what WinUI lightweight styling exposes — no control template redefinition,
+  no global stylesheets, no style inheritance or composition
 
 **Gap:** WPF's styling power exceeds every competitor. WinUI 3's Fluent Design
 with lightweight styling is competitive with SwiftUI/Compose. Duct's theming
-is a significant weakness — it's behind all competitors and its own platform
-(WinUI 3).
+has improved substantially (from C+ to B-) with 37 theme tokens, resource
+overrides, caching, and analyzers, but remains behind its own platform —
+resource key overrides cannot match WinUI 3's ControlTemplate power for
+deep visual customization.
 
 ---
 
@@ -342,14 +352,24 @@ has no built-in animation.
   implicit animations, connected animations, expression animations, spring
   animations. **Best animation system of any Microsoft framework and
   competitive with the best competitors.** This is WinUI 3's crown jewel
-- **Duct (C):** Layout animations + springs + connected animations. No
-  value-driven animation, no enter/exit, 5-property implicit transition limit.
-  Narrow scope
+- **Duct (C+):** Spring, ease, and linear curves on compositor properties
+  (Opacity, Offset, Scale, Rotation, CenterPoint). Enter **and exit**
+  transitions now work — the ChildReconciler defers removal until exit
+  animations complete, with proper index tracking. KeyframeBuilder provides
+  multi-keyframe animations with per-keyframe easing and looping.
+  ScrollAnimation enables scroll-linked expression animations (parallax,
+  fade, scale). InteractionStates handle hover/pressed/focused with
+  compositor animations. WithAnimation scope provides ambient animation
+  context. Still limited to 5 compositor visual properties — no layout/size
+  animations. Pressed state merges with PointerOver rather than being fully
+  independent. Connected animation support remains stub-level
 
 **Gap:** WinUI 3's Composition API is genuinely world-class — competitive with
 SwiftUI's animation ergonomics while offering more low-level control. WPF is
-solid. Duct's animation is its weakest category relative to its own platform
-(WinUI 3 is far ahead).
+solid. Duct's animation has improved (exit transitions fixed, keyframes and
+scroll animations added) but remains its weakest category relative to its
+own platform — most real UI animations (height changes, layout transitions)
+can't be expressed in 5 compositor properties.
 
 ---
 
@@ -369,13 +389,24 @@ strong. React relies on web standards (ARIA). Flutter has gaps on web.
 - **WinUI 3 (A):** Full UIA support, same as UWP. All standard controls
   accessible. High contrast mode via theme resources. Narrator integration
   is strong. Competitive with SwiftUI
-- **Duct (C+):** 16 accessibility modifiers, UIA E2E tests. But no custom
-  automation peers (components can't describe their own semantics), no
-  accessibility hooks, no diagnostics. The modifier layer is the easy part
+- **Duct (B-):** 16+ accessibility modifiers covering automation name, help
+  text, landmarks, heading levels, live regions (Polite/Assertive), required
+  fields, position-in-set, hierarchy level, tab navigation, and accessibility
+  view. Smart lazy allocation (tier 1 inline, tier 2/3 on-demand). 12 E2E
+  Appium tests with explicit WCAG 2.1 criterion mapping (1.1.1, 1.3.1,
+  2.1.1, 3.3.2, 4.1.2, 4.1.3) testing the real UIA pipeline. Full RTL/BiDi
+  support with CLDR-based locale detection and logical layout modifiers
+  (MarginInlineStart/End, PaddingInlineStart/End). Still no custom automation
+  peers (architectural — Duct components aren't Control subclasses), no
+  accessibility hooks (UseReducedMotion, UseFocusVisible), and `LabeledBy()`
+  is a silent no-op (API accepted but reconciler never applies it)
 
 **Gap:** WPF and WinUI 3 have **no gap** in accessibility — UIA is the most
-comprehensive accessibility API on any platform. Duct is significantly
-behind both its own platform and the competitors.
+comprehensive accessibility API on any platform. Duct has improved (from C+
+to B-) with WCAG-mapped E2E testing and comprehensive modifiers, but the
+lack of custom automation peers means composite components can't describe
+their own semantics to screen readers. The `LabeledBy()` no-op is a
+correctness bug that could ship accessibility violations.
 
 ---
 
@@ -668,18 +699,35 @@ built-in validation.
   min/max/increment validation. No built-in validation framework (unlike WPF).
   CommunityToolkit.Mvvm's `ObservableValidator` fills the gap. `XYFocus` for
   directional navigation (gamepad/Xbox)
-- **Duct (C+):** Two-way state via `UseState` + callbacks on input controls.
-  No built-in form or validation framework. No equivalent to WPF's binding
-  engine, ErrorTemplate, or BindingGroup. `.Set()` required for advanced
-  input scenarios. UseObservable can bridge to MVVM ViewModels that have
-  INotifyDataErrorInfo validation
+- **Duct (B):** Full validation system with `ValidationContext` (thread-safe,
+  multi-error, multi-severity, touched/dirty state tracking, internal vs.
+  external messages). 10+ built-in validators (Required, MinLength, MaxLength,
+  Range, Match, Email, Url, Must, MustAsync, MustBeTrue, EqualTo) plus async
+  validators with cancellation. `FormField` component renders label with
+  required indicator, wrapped content, and description/error area with
+  automatic validation — the reconciler calls `ValidateAttached()` on mount
+  and update, so `.Validate("email", email, Validate.Required())` on an
+  element is all that's needed. Cross-field `ValidationRule` auto-evaluates
+  when placed in the tree. `ValidationVisualizer` supports Inline, Summary,
+  InfoBar, and Custom display modes with severity filtering and ShowWhen
+  gating. ErrorBubbling is fully wired. Error styling via
+  `.WithErrorStyling()` applies border changes from theme resources.
+  `UseValidationContext` hook propagates context via DuctContext. 330+ tests
+  cover the full pipeline. Still behind WPF: no transactional editing
+  (BindingGroup), no custom error templates (one fixed FormField layout),
+  no schema-driven or model-level validation, no conditional validation
+  without manual predicates. Submit flow is partly manual (`MarkAllTouched()`
+  is app responsibility)
 
 **Gap:** WPF's form/validation system is **ahead of every competitor** — no
 declarative framework has equivalent depth (transactional edits, multiple
 errors per field, binding-level validation rules, custom error templates).
-This is WPF's most underappreciated strength. Duct has significant work to
-close the gap here, especially given that LOB forms are the primary use case
-for Windows desktop applications.
+This is WPF's most underappreciated strength. Duct has closed significant
+ground here (from C+ to B) with automatic validation, FormField rendering,
+and a comprehensive validator library. It's now comparable to Compose's
+approach (good primitives, explicit wiring) and approaching Flutter's
+`Form.validate()` integration. The remaining gap to WPF is in template
+customization and binding-level validation integration.
 
 ---
 
@@ -808,17 +856,25 @@ commanding. 94% of WinUI controls wrapped. Navigation is architecturally
 competitive. Commanding is a genuine industry-first. ErrorBoundary exists
 (rare). Interop with existing WinUI/MVVM code is excellent
 (`DuctHostControl`, `UseObservable`, `XamlHostElement`). ICU localization
-closes WinUI 3's plural/gender gap. But: pre-release, theming is thin,
-accessibility lacks the hard layers, animation is narrow, no form validation
-framework, `.Set()` escape hatch is still load-bearing
-for many scenarios, no tooling.
+closes WinUI 3's plural/gender gap. Form validation system with automatic
+validation pipeline, 10+ built-in validators, FormField component, and
+ValidationVisualizer. 37 theme tokens with ResourceBuilder lightweight
+styling, style caching, and Roslyn analyzers. 16+ accessibility modifiers
+with WCAG-mapped E2E tests and full RTL/BiDi support. Enter/exit transitions,
+keyframe animations, and scroll-linked animations. But: pre-release,
+animation limited to 5 compositor properties, accessibility lacks custom
+automation peers and hooks, `LabeledBy()` is a no-op, `.Set()` escape hatch
+is still load-bearing for many scenarios, no DevTools or component inspector.
 
 **Competitive position:** Duct is the most interesting Microsoft option from
 a declarative-framework perspective. It's the only one that competes on
 the same playing field as SwiftUI, Compose, and React. Its component model,
-navigation, and commanding are competitive. Its theming, accessibility,
-animation, and tooling are not. The trajectory is right but significant
-work remains before production-readiness.
+navigation, commanding, and interop are competitive. Theming, forms, and
+accessibility have improved substantially but remain behind the platform
+(WinUI 3) in depth. Animation and developer tooling are the largest
+remaining gaps. The trajectory is right — four categories improved in the
+latest development cycle — but significant work remains before
+production-readiness.
 
 ---
 
@@ -846,9 +902,13 @@ the underlying platform.
 Duct's declarative model, navigation, and commanding are not random feature
 additions — they directly address the areas where WPF/WinUI 3 are weakest
 relative to competitors (declarative syntax, component model, navigation
-type safety). The commanding system is genuinely novel. The key question is
-whether Duct can deepen its coverage in theming, accessibility, and animation
-before the window of relevance closes.
+type safety). The commanding system is genuinely novel. Recent work has
+deepened coverage in theming (37 tokens, ResourceBuilder, analyzers),
+forms (automatic validation pipeline, FormField, ValidationVisualizer),
+accessibility (WCAG-mapped E2E tests, RTL/BiDi), and animation (exit
+transitions, keyframes, scroll-linked). The key remaining gaps are
+animation depth (5 compositor properties), developer tooling (no inspector
+or profiler), and accessibility completeness (no custom automation peers).
 
 ### 4. Error handling is an industry-wide gap
 
@@ -872,11 +932,14 @@ dependency arrays. This is the most impactful architectural gap to close.
 WPF's two-way binding engine with `INotifyDataErrorInfo`, `ValidationRule`,
 `ErrorTemplate`, `BindingGroup`, and `IValueConverter`/`IMultiValueConverter`
 is the most comprehensive form validation system of any framework in this
-analysis. No declarative framework comes close. Flutter's `Form.validate()`
-is the nearest competitor among modern frameworks but lacks transactional
-editing, custom error templates, and binding-level validation rules. For
-LOB applications — which are the core use case for Windows desktop — this
-is a critical competitive advantage that should inform Duct's roadmap.
+analysis. No declarative framework comes close. Duct has closed significant
+ground with automatic validation, FormField rendering, 10+ validators, and
+ValidationVisualizer — now comparable to Compose/Flutter's approach. But
+WPF's transactional editing (BindingGroup), custom error templates
+(ErrorTemplate), and binding-level validation rules remain unmatched. For
+LOB applications — which are the core use case for Windows desktop — WPF's
+depth here is a critical competitive advantage that Duct should continue
+to learn from.
 
 ### 7. Interop is Duct's strongest selling point for adoption
 
@@ -901,8 +964,9 @@ Every framework has embarrassing gaps:
   no lifecycle-scoped async
 - **WinUI 3:** Packaging complexity, small community, Windows-only, no
   plural/gender i18n
-- **Duct:** Theming, accessibility, animation, tooling, form validation,
-  `.Set()` coverage
+- **Duct:** Animation limited to 5 compositor properties, no DevTools or
+  component inspector, no custom automation peers, `LabeledBy()` no-op,
+  `.Set()` escape hatch still load-bearing for many scenarios
 
 The "perfect framework" doesn't exist. The question is which gaps matter
 most for your specific application.

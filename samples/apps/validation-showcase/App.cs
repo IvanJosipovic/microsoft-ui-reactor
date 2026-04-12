@@ -13,7 +13,9 @@ using Duct.Controls.MaskedTextBox;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using static Duct.UI;
+using static Duct.Validation.FormFieldDsl;
 using static Duct.Validation.ValidationRuleDsl;
+using static Duct.Validation.ValidationVisualizerDsl;
 using Duct.Animation;
 
 DuctApp.Run<ShowcaseApp>("Validation Showcase", width: 720, height: 900
@@ -21,42 +23,6 @@ DuctApp.Run<ShowcaseApp>("Validation Showcase", width: 720, height: 900
     , preview: true
 #endif
 );
-
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-static class FieldUI
-{
-    public static Element Field(
-        string label,
-        Element control,
-        ValidationContext ctx,
-        string fieldName,
-        bool required = false,
-        string? description = null,
-        ShowWhen showWhen = ShowWhen.WhenTouched,
-        bool submitted = false)
-    {
-        var showErrors = ErrorStyling.ShouldShowErrors(ctx, fieldName, showWhen,
-            submitAttempted: submitted);
-        var msgs = showErrors ? ctx.GetMessages(fieldName) : [];
-
-        var labelText = required ? $"{label} *" : label;
-        var descOrError = msgs.Count > 0
-            ? string.Join(" · ", msgs.Select(m => m.Text))
-            : description;
-        var isError = msgs.Count > 0;
-
-        return VStack(4,
-            Text(labelText).FontSize(13)
-                .Set(t => t.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold),
-            control,
-            When(descOrError is not null, () =>
-                Text(descOrError!)
-                    .FontSize(12)
-                    .Foreground(isError ? "#d13438" : "#888888"))
-        );
-    }
-}
 
 // ═══════════════════════════════════════════════════════════════════════
 //  1. Basic inline validation with window-level InfoBar
@@ -75,13 +41,7 @@ class BasicValidationDemo : Component
         var (age, setAge) = UseState(0.0);
         var (website, setWebsite) = UseState("");
 
-        ValidationReconciler.ValidateField(ctx, "email", email,
-            Validate.Required("Email is required"),
-            Validate.Email("Enter a valid email"));
-        ValidationReconciler.ValidateField(ctx, "age", age,
-            Validate.Range(18, 120, "Age must be between 18 and 120"));
-        ValidationReconciler.ValidateField(ctx, "website", website,
-            Validate.Url("Enter a valid URL (https://...)"));
+        // No manual ValidateField calls — FormField auto-validates via .Validate() with value
 
         var sw = submitted ? ShowWhen.Always : ShowWhen.WhenTouched;
         var errorCount = ctx.InvalidFields.Count;
@@ -92,53 +52,60 @@ class BasicValidationDemo : Component
             infoDismissed = false;
 
         return VStack(0,
-            // Window-level InfoBar — slides in from top
-            When(showInfoBar, () =>
-                (InfoBar($"Please fix {errorCount} error{(errorCount == 1 ? "" : "s")} before submitting",
-                         string.Join(", ", ctx.InvalidFields.Select(f => f)))
-                    with
-                    {
-                        IsOpen = true,
-                        IsClosable = true,
-                        OnClosed = () => setInfoDismissed(true),
-                    })
-                    .Severity(InfoBarSeverity.Error)
-                    .Transition(Transition.Fade + Transition.Slide(Edge.Top))
-                    .Margin(0, 0, 0, 8)),
+            // Window-level InfoBars — always in tree, controlled via IsOpen.
+            // Using IsOpen instead of When() keeps child positions stable so
+            // the form VStack below is updated in-place (preserving caret/focus).
+            (InfoBar($"Please fix {errorCount} error{(errorCount == 1 ? "" : "s")} before submitting",
+                     string.Join(", ", ctx.InvalidFields.Select(f => f)))
+                with
+                {
+                    IsOpen = showInfoBar,
+                    IsClosable = true,
+                    OnClosed = () => setInfoDismissed(true),
+                })
+                .Severity(InfoBarSeverity.Error)
+                .Margin(0, 0, 0, showInfoBar ? 8 : 0),
 
-            When(submitted && ctx.IsValid(), () =>
-                (InfoBar("Success", "Form submitted successfully!") with
-                    {
-                        IsOpen = true,
-                        IsClosable = true,
-                    })
-                    .Severity(InfoBarSeverity.Success)
-                    .Transition(Transition.Fade + Transition.Slide(Edge.Top))
-                    .Margin(0, 0, 0, 8)),
+            (InfoBar("Success", "Form submitted successfully!") with
+                {
+                    IsOpen = submitted && ctx.IsValid(),
+                    IsClosable = true,
+                })
+                .Severity(InfoBarSeverity.Success)
+                .Margin(0, 0, 0, submitted && ctx.IsValid() ? 8 : 0),
 
             VStack(12,
-                FieldUI.Field("Email",
+                // FormField auto-renders label, content, and description/error area.
+                // .Validate() with value triggers automatic validation — no manual calls.
+                FormField(
                     TextField(email, v => { setEmail(v); ctx.MarkTouched("email"); setInfoDismissed(false); },
                             placeholder: "user@example.com")
+                        .Validate("email", email,
+                            Validate.Required("Email is required"),
+                            Validate.Email("Enter a valid email"))
                         .Focus(fm, "email", autoFocus: true),
-                    ctx, "email", required: true,
+                    label: "Email", required: true,
                     description: "We'll never share your email",
-                    showWhen: sw, submitted: submitted),
+                    showWhen: sw),
 
-                FieldUI.Field("Age",
+                FormField(
                     NumberBox(age, v => { setAge(v); ctx.MarkTouched("age"); setInfoDismissed(false); })
+                        .Validate("age", age,
+                            Validate.Range(18, 120, "Age must be between 18 and 120"))
                         .Focus(fm, "age"),
-                    ctx, "age", required: true,
+                    label: "Age", required: true,
                     description: "Must be 18 or older",
-                    showWhen: sw, submitted: submitted),
+                    showWhen: sw),
 
-                FieldUI.Field("Website",
+                FormField(
                     TextField(website, v => { setWebsite(v); ctx.MarkTouched("website"); setInfoDismissed(false); },
                             placeholder: "https://example.com")
+                        .Validate("website", website,
+                            Validate.Url("Enter a valid URL (https://...)"))
                         .Focus(fm, "website"),
-                    ctx, "website",
+                    label: "Website",
                     description: "Optional — your personal site",
-                    showWhen: sw, submitted: submitted),
+                    showWhen: sw),
 
                 HStack(12,
                     Button("Submit", () =>
@@ -160,7 +127,8 @@ class BasicValidationDemo : Component
                     })
                 ).Margin(0, 8, 0, 0)
             )
-        ).Padding(24);
+        ).Padding(24)
+         .Provide(ValidationContexts.Current, ctx);
     }
 }
 
@@ -179,24 +147,7 @@ class PasswordFormDemo : Component
         var (confirm, setConfirm) = UseState("");
         var (agree, setAgree) = UseState(false);
 
-        ValidationReconciler.ValidateField(ctx, "password", password,
-            Validate.Required("Password is required"),
-            Validate.MinLength(8, "At least 8 characters"),
-            Validate.Must<string>(
-                s => s.Any(char.IsUpper) && s.Any(char.IsDigit),
-                "Must contain uppercase letter and digit"));
-
-        ValidationReconciler.ValidateField(ctx, "confirm", confirm,
-            Validate.Required("Please confirm your password"));
-
-        ValidationReconciler.ValidateField(ctx, "agree", agree,
-            Validate.MustBeTrue("You must accept the terms"));
-
-        var matchRule = ValidationRule(
-            () => string.IsNullOrEmpty(confirm) || password == confirm,
-            "Passwords do not match",
-            "confirm");
-        matchRule.Evaluate(ctx);
+        // No manual ValidateField or .Evaluate() calls needed
 
         var sw = submitted ? ShowWhen.Always : ShowWhen.WhenTouched;
 
@@ -204,22 +155,38 @@ class PasswordFormDemo : Component
             SubHeading("Cross-Field Validation"),
             Caption("Password confirmation uses a cross-field ValidationRule."),
 
-            FieldUI.Field("Password",
-                PasswordBox(password, v => { setPassword(v); ctx.MarkTouched("password"); }),
-                ctx, "password", required: true,
+            FormField(
+                PasswordBox(password, v => { setPassword(v); ctx.MarkTouched("password"); })
+                    .Validate("password", password,
+                        Validate.Required("Password is required"),
+                        Validate.MinLength(8, "At least 8 characters"),
+                        Validate.Must<string>(
+                            s => s.Any(char.IsUpper) && s.Any(char.IsDigit),
+                            "Must contain uppercase letter and digit")),
+                label: "Password", required: true,
                 description: "8+ chars, uppercase + digit",
-                showWhen: sw, submitted: submitted),
+                showWhen: sw),
 
-            FieldUI.Field("Confirm Password",
-                PasswordBox(confirm, v => { setConfirm(v); ctx.MarkTouched("confirm"); }),
-                ctx, "confirm", required: true,
-                showWhen: sw, submitted: submitted),
+            FormField(
+                PasswordBox(confirm, v => { setConfirm(v); ctx.MarkTouched("confirm"); })
+                    .Validate("confirm", confirm,
+                        Validate.Required("Please confirm your password")),
+                label: "Confirm Password", required: true,
+                showWhen: sw),
 
-            FieldUI.Field("Terms",
+            // Cross-field rule: placed in tree, evaluated automatically by reconciler
+            ValidationRule(
+                () => string.IsNullOrEmpty(confirm) || password == confirm,
+                "Passwords do not match",
+                "confirm"),
+
+            FormField(
                 CheckBox(agree, v => { setAgree(v); ctx.MarkTouched("agree"); },
-                    label: "I accept the terms of service"),
-                ctx, "agree",
-                showWhen: sw, submitted: submitted),
+                    label: "I accept the terms of service")
+                    .Validate("agree", agree,
+                        Validate.MustBeTrue("You must accept the terms")),
+                fieldName: "agree",
+                showWhen: sw),
 
             HStack(12,
                 Button("Set Password", () =>

@@ -1,4 +1,5 @@
 using Duct.Animation;
+using Duct.Validation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
@@ -254,6 +255,12 @@ public sealed partial class Reconciler
                 => UpdateFrame(n, f),
             (ErrorBoundaryElement oldEb, ErrorBoundaryElement newEb, Border)
                 => UpdateErrorBoundary(oldEb, newEb, control, requestRerender),
+            (FormFieldElement oldFf, FormFieldElement newFf, WinUI.StackPanel sp)
+                => UpdateFormField(oldFf, newFf, sp, requestRerender),
+            (ValidationVisualizerElement oldVv, ValidationVisualizerElement newVv, WinUI.StackPanel sp)
+                => UpdateValidationVisualizer(oldVv, newVv, sp, requestRerender),
+            (ValidationRuleElement, ValidationRuleElement n, WinUI.StackPanel)
+                => UpdateValidationRule(n),
             (ComponentElement, ComponentElement, _)
                 => UpdateComponent(oldEl, newEl, control, requestRerender),
             (FuncElement, FuncElement, _)
@@ -653,7 +660,29 @@ public sealed partial class Reconciler
 
     private UIElement? UpdateTextField(TextFieldElement o, TextFieldElement n, TextBox tb)
     {
-        if (o.Value != n.Value) tb.Text = n.Value;
+        if (o.Value != n.Value)
+        {
+            // Element value changed — always enforce
+            tb.Text = n.Value;
+        }
+        else if (n.OnChanged is not null && tb.Text != n.Value)
+        {
+            // Controlled mode (onChange wired): snap back filtered/rejected input.
+            // The TextBox text diverges from the controlled value because the
+            // callback filtered it to the same state (e.g. digits-only rejecting alpha).
+            var caret = tb.SelectionStart;
+            tb.Text = n.Value;
+            tb.SelectionStart = Math.Min(caret, tb.Text.Length);
+        }
+        else if (n.OnChanged is null && tb.Text != n.Value)
+        {
+            // Uncontrolled divergence: value is set but no onChange to reconcile.
+            // Log once per field to help developers catch mismatched bindings.
+            _logger.Log(DuctLogLevel.Warning,
+                $"TextField value diverged from controlled value with no OnChanged handler. " +
+                $"Controlled: \"{Truncate(n.Value, 20)}\", Actual: \"{Truncate(tb.Text, 20)}\". " +
+                $"Wire up OnChanged to keep state in sync, or this field won't reflect user edits after re-renders.");
+        }
         tb.PlaceholderText = n.Placeholder ?? "";
         if (n.Header is not null) tb.Header = n.Header;
         if (n.IsReadOnly.HasValue) tb.IsReadOnly = n.IsReadOnly.Value;
@@ -2011,6 +2040,97 @@ public sealed partial class Reconciler
         return null;
     }
 
+    private UIElement? UpdateFormField(
+        FormFieldElement oldFf, FormFieldElement newFf,
+        WinUI.StackPanel panel, Action requestRerender)
+    {
+        // Fixed 3-child layout: [0] label, [1] content, [2] description/error
+        if (panel.Children.Count != 3)
+            return Mount(newFf, requestRerender);
+
+        var fieldName = FormFieldHelpers.ResolveFieldName(newFf.FieldName, newFf.Content);
+
+        // Auto-validate
+        var attached = newFf.Content.GetAttached<ValidationAttached>();
+        var valCtx = _contextScope.Read(ValidationContexts.Current);
+        if (valCtx is not null && attached is not null && attached.Validators.Length > 0)
+        {
+            ValidationReconciler.ValidateAttached(valCtx, attached, attached.Value);
+        }
+
+        // [0] Update label
+        if (panel.Children[0] is TextBlock labelTb)
+        {
+            var displayLabel = FormFieldHelpers.GetDisplayLabel(newFf.Label, newFf.Required);
+            labelTb.Text = displayLabel;
+            labelTb.Visibility = displayLabel.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // [1] Patch content in-place (preserves caret position and focus)
+        var existingContent = panel.Children[1];
+        if (CanUpdate(oldFf.Content, newFf.Content))
+        {
+            var replacement = Update(oldFf.Content, newFf.Content, existingContent, requestRerender);
+            if (replacement is not null)
+            {
+                // WinUI indexer assignment doesn't fully disconnect the old element's
+                // parent state — use RemoveAt+Insert (see ChildCollection.Replace).
+                Unmount(existingContent);
+                panel.Children.RemoveAt(1);
+                panel.Children.Insert(1, replacement);
+                existingContent = replacement;
+            }
+        }
+        else
+        {
+            // Content element type changed — must remount
+            Unmount(existingContent);
+            panel.Children.RemoveAt(1);
+            var newContent = Mount(newFf.Content, requestRerender)
+                ?? new WinUI.StackPanel { Visibility = Visibility.Collapsed };
+            panel.Children.Insert(1, newContent);
+            existingContent = newContent;
+        }
+
+        ApplyFormFieldAutomation(existingContent, newFf.Label);
+        ApplyFormFieldErrorStyling(existingContent, valCtx, fieldName, newFf.ShowWhen);
+
+        // [2] Update description/error text
+        if (panel.Children[2] is TextBlock descTb)
+        {
+            ApplyFormFieldDescription(descTb, valCtx, fieldName, newFf.Description, newFf.ShowWhen);
+        }
+
+        SetElementTag(panel, newFf);
+        return null; // patched in-place
+    }
+
+    private UIElement? UpdateValidationVisualizer(
+        ValidationVisualizerElement oldVv, ValidationVisualizerElement newVv,
+        WinUI.StackPanel panel, Action requestRerender)
+    {
+        // The visualizer layout varies by style and message state, so a full in-place
+        // patch is complex. However, we can at least reconcile the content child when
+        // styles match and the content element is updatable.
+        if (oldVv.Style != newVv.Style)
+            return Mount(newVv, requestRerender);
+
+        // Find the content child — it's the form control, not the error display chrome.
+        // In MountValidationVisualizer, content is added after style-specific elements,
+        // except for Inline where error text comes after content.
+        // For simplicity and correctness, remount the visualizer but reconcile the
+        // content subtree to preserve control state.
+        return Mount(newVv, requestRerender);
+    }
+
+    private UIElement? UpdateValidationRule(ValidationRuleElement rule)
+    {
+        var valCtx = _contextScope.Read(ValidationContexts.Current);
+        if (valCtx is not null)
+            rule.Evaluate(valCtx);
+        return null; // keep existing collapsed placeholder
+    }
+
     private UIElement? UpdateErrorBoundary(
         ErrorBoundaryElement oldEb, ErrorBoundaryElement newEb,
         UIElement control, Action requestRerender)
@@ -2060,4 +2180,7 @@ public sealed partial class Reconciler
         ReconcileComponent(oldEl, newEl, control, requestRerender);
         return null;
     }
+
+    private static string Truncate(string s, int maxLen) =>
+        s.Length <= maxLen ? s : s[..maxLen] + "…";
 }

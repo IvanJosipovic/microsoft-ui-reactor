@@ -11,6 +11,12 @@ public sealed record ValidationAttached(
     IValidator[] Validators,
     IAsyncValidator[] AsyncValidators)
 {
+    /// <summary>
+    /// The current field value, used for automatic validation when the element is
+    /// mounted inside a FormFieldElement or ValidationVisualizerElement.
+    /// </summary>
+    public object? Value { get; init; }
+
     public static readonly ValidationAttached Empty = new("", [], []);
 }
 
@@ -40,6 +46,25 @@ public static class ValidateExtensions
     }
 
     /// <summary>
+    /// Attaches validators to this element along with the current field value.
+    /// When placed inside a FormFieldElement, validators run automatically — no manual
+    /// ValidationReconciler.ValidateField() call needed.
+    /// </summary>
+    public static T Validate<T>(this T el, string fieldName, object? value, params IValidator[] validators) where T : Element
+    {
+        var existing = el.GetAttached<ValidationAttached>();
+        var merged = existing is not null
+            ? existing with
+            {
+                FieldName = fieldName,
+                Value = value,
+                Validators = [.. existing.Validators, .. validators]
+            }
+            : new ValidationAttached(fieldName, validators, []) { Value = value };
+        return (T)el.SetAttached(merged);
+    }
+
+    /// <summary>
     /// Attaches async validators to this element (in addition to any sync validators).
     /// </summary>
     public static T ValidateAsync<T>(this T el, string fieldName, params IAsyncValidator[] asyncValidators) where T : Element
@@ -52,6 +77,23 @@ public static class ValidateExtensions
                 AsyncValidators = [.. existing.AsyncValidators, .. asyncValidators]
             }
             : new ValidationAttached(fieldName, [], asyncValidators);
+        return (T)el.SetAttached(merged);
+    }
+
+    /// <summary>
+    /// Attaches async validators with the current field value for automatic validation.
+    /// </summary>
+    public static T ValidateAsync<T>(this T el, string fieldName, object? value, params IAsyncValidator[] asyncValidators) where T : Element
+    {
+        var existing = el.GetAttached<ValidationAttached>();
+        var merged = existing is not null
+            ? existing with
+            {
+                FieldName = fieldName,
+                Value = value,
+                AsyncValidators = [.. existing.AsyncValidators, .. asyncValidators]
+            }
+            : new ValidationAttached(fieldName, [], asyncValidators) { Value = value };
         return (T)el.SetAttached(merged);
     }
 

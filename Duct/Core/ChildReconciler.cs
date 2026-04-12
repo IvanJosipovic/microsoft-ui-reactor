@@ -99,8 +99,11 @@ internal static class ChildReconciler
             }
         }
 
-        // Remove excess old children (from end to start to keep indices stable)
-        for (int i = childCount - 1; i >= common; i--)
+        // Remove excess old children (from end to start to keep indices stable).
+        // Use live children.Count — NOT the cached childCount — because
+        // ReplaceChildWithExitTransition in the common loop may have re-inserted
+        // elements for exit animation, increasing the actual count.
+        for (int i = children.Count - 1; i >= common; i--)
         {
             reconciler.RemoveChildWithExitTransition(children, i);
         }

@@ -1,4 +1,5 @@
 using Duct.Animation;
+using Duct.Validation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -69,7 +70,7 @@ public sealed partial class Reconciler
             SplitButtonElement spBtn => MountSplitButton(spBtn, requestRerender),
             ToggleSplitButtonElement tspBtn => MountToggleSplitButton(tspBtn, requestRerender),
             RichEditBoxElement reb => MountRichEditBox(reb),
-            TextFieldElement tf => MountTextField(tf),
+            TextFieldElement tf => MountTextField(tf, requestRerender),
             PasswordBoxElement pw => MountPasswordBox(pw),
             NumberBoxElement nb => MountNumberBox(nb),
             AutoSuggestBoxElement asb => MountAutoSuggestBox(asb),
@@ -143,6 +144,9 @@ public sealed partial class Reconciler
             FrameElement frame => MountFrame(frame),
             CommandHostElement ch => MountCommandHost(ch, requestRerender),
             ErrorBoundaryElement eb => MountErrorBoundary(eb, requestRerender),
+            Validation.FormFieldElement ff => MountFormField(ff, requestRerender),
+            Validation.ValidationVisualizerElement vv => MountValidationVisualizer(vv, requestRerender),
+            Validation.ValidationRuleElement rule => MountValidationRule(rule),
             ComponentElement comp => MountComponent(comp, requestRerender),
             FuncElement func => MountFuncComponent(func, requestRerender),
             MemoElement memo => MountMemoComponent(memo, requestRerender),
@@ -365,7 +369,7 @@ public sealed partial class Reconciler
         return tsb;
     }
 
-    private TextBox MountTextField(TextFieldElement tf)
+    private TextBox MountTextField(TextFieldElement tf, Action requestRerender)
     {
         var rented = _pool.TryRent(typeof(TextBox));
         var textBox = rented as TextBox ?? new TextBox();
@@ -380,7 +384,17 @@ public sealed partial class Reconciler
         SetElementTag(textBox, tf);
         if (rented is null) // Only wire events on fresh controls — pooled controls retain their handler
         {
-            textBox.TextChanged += (_, _) => (GetElementTag(textBox) as TextFieldElement)?.OnChanged?.Invoke(textBox.Text);
+            textBox.TextChanged += (_, _) =>
+            {
+                var tag = GetElementTag(textBox) as TextFieldElement;
+                tag?.OnChanged?.Invoke(textBox.Text);
+                // Controlled input: when onChange is wired, always request a
+                // re-render so UpdateTextField can enforce the controlled value.
+                // Coalesces with any setState re-render (CAS gate).
+                // Without onChange the field is uncontrolled — no snap-back.
+                if (tag?.OnChanged is not null)
+                    requestRerender();
+            };
             textBox.SelectionChanged += (_, _) => (GetElementTag(textBox) as TextFieldElement)?.OnSelectionChanged?.Invoke(textBox.SelectedText, textBox.SelectionStart, textBox.SelectionLength);
         }
         ApplySetters(tf.Setters, textBox);
@@ -1793,6 +1807,234 @@ public sealed partial class Reconciler
             icon.Data = geo;
         }
         return icon;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Validation elements
+    // ════════════════════════════════════════════════════════════════
+
+    private WinUI.StackPanel MountFormField(FormFieldElement ff, Action requestRerender)
+    {
+        var panel = new WinUI.StackPanel { Orientation = Orientation.Vertical, Spacing = 4 };
+
+        // Resolve field name from explicit or auto-detected from Content's ValidationAttached
+        var fieldName = FormFieldHelpers.ResolveFieldName(ff.FieldName, ff.Content);
+
+        // Auto-validate: if Content has attached validators with a Value, run them now
+        var attached = ff.Content.GetAttached<ValidationAttached>();
+        var valCtx = _contextScope.Read(ValidationContexts.Current);
+        if (valCtx is not null && attached is not null && attached.Validators.Length > 0)
+        {
+            ValidationReconciler.ValidateAttached(valCtx, attached, attached.Value);
+        }
+
+        // [0] Label — always present, collapsed when empty
+        var displayLabel = FormFieldHelpers.GetDisplayLabel(ff.Label, ff.Required);
+        var labelTb = new TextBlock
+        {
+            Text = displayLabel,
+            FontSize = 13,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Visibility = displayLabel.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
+        };
+        panel.Children.Add(labelTb);
+
+        // [1] Content (the actual form control) — always present
+        var contentControl = Mount(ff.Content, requestRerender);
+        if (contentControl is not null)
+        {
+            ApplyFormFieldAutomation(contentControl, ff.Label);
+            ApplyFormFieldErrorStyling(contentControl, valCtx, fieldName, ff.ShowWhen);
+            panel.Children.Add(contentControl);
+        }
+        else
+        {
+            // Placeholder so indices stay fixed
+            panel.Children.Add(new WinUI.StackPanel { Visibility = Visibility.Collapsed });
+        }
+
+        // [2] Description/error text — always present, collapsed when empty
+        var descTb = new TextBlock { FontSize = 12 };
+        ApplyFormFieldDescription(descTb, valCtx, fieldName, ff.Description, ff.ShowWhen);
+        panel.Children.Add(descTb);
+
+        SetElementTag(panel, ff);
+        return panel;
+    }
+
+    private static void ApplyFormFieldAutomation(UIElement contentControl, string? label)
+    {
+        var automationName = FormFieldHelpers.GetAutomationName(label);
+        if (automationName is not null && contentControl is FrameworkElement cfe)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(cfe, automationName);
+    }
+
+    private static void ApplyFormFieldErrorStyling(
+        UIElement contentControl, ValidationContext? valCtx, string? fieldName, ShowWhen showWhen)
+    {
+        if (contentControl is not WinUI.Control ctrl)
+            return;
+
+        if (valCtx is not null && fieldName is not null)
+        {
+            var severity = valCtx.HighestSeverity(fieldName);
+            if (severity is not null && ErrorStyling.ShouldShowErrors(valCtx, fieldName, showWhen))
+            {
+                var brushKey = ErrorStyling.GetBrushKey(severity.Value);
+                var brush = ThemeRef.Resolve(brushKey, ctrl);
+                if (brush is not null)
+                {
+                    ctrl.BorderBrush = brush;
+                    ctrl.BorderThickness = ErrorStyling.ErrorBorderThickness;
+                }
+                return;
+            }
+        }
+
+        // Clear error styling — reset to default
+        ctrl.ClearValue(WinUI.Control.BorderBrushProperty);
+        ctrl.ClearValue(WinUI.Control.BorderThicknessProperty);
+    }
+
+    private static void ApplyFormFieldDescription(
+        TextBlock descTb, ValidationContext? valCtx, string? fieldName,
+        string? description, ShowWhen showWhen)
+    {
+        var (descText, isError) = FormFieldHelpers.GetDescriptionOrError(
+            valCtx, fieldName, description, showWhen);
+
+        if (descText is null)
+        {
+            descTb.Text = "";
+            descTb.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        descTb.Text = descText;
+        descTb.Visibility = Visibility.Visible;
+        descTb.Opacity = 1.0;
+
+        if (isError)
+        {
+            var errorBrush = ThemeRef.Resolve(ErrorStyling.ErrorBrushKey, descTb);
+            descTb.Foreground = errorBrush
+                ?? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Red);
+        }
+        else
+        {
+            descTb.ClearValue(TextBlock.ForegroundProperty);
+            descTb.Opacity = 0.6;
+        }
+    }
+
+    private WinUI.StackPanel MountValidationVisualizer(
+        ValidationVisualizerElement vv, Action requestRerender)
+    {
+        var panel = new WinUI.StackPanel { Orientation = Orientation.Vertical, Spacing = 4 };
+        var valCtx = _contextScope.Read(ValidationContexts.Current);
+
+        // Mount the content subtree first
+        var contentControl = Mount(vv.Content, requestRerender);
+
+        // Collect messages from the validation context
+        var allMessages = valCtx?.GetAllMessages() ?? (IReadOnlyList<ValidationMessage>)[];
+        var (caught, _) = ErrorBubbling.FilterMessages(allMessages, vv.SeverityFilter);
+        var shouldDisplay = ErrorBubbling.ShouldDisplay(caught, vv.ShowWhen, valCtx);
+
+        switch (vv.Style)
+        {
+            case VisualizerStyle.InfoBar when shouldDisplay && caught.Count > 0:
+            {
+                var severity = ErrorBubbling.HighestSeverity(caught);
+                var infoBarSeverity = severity switch
+                {
+                    Severity.Error => InfoBarSeverity.Error,
+                    Severity.Warning => InfoBarSeverity.Warning,
+                    _ => InfoBarSeverity.Informational,
+                };
+                var infoBar = new WinUI.InfoBar
+                {
+                    Title = vv.Title ?? (severity == Severity.Error ? "Errors" : "Warnings"),
+                    Message = string.Join("\n", caught.Select(m => m.Text)),
+                    Severity = infoBarSeverity,
+                    IsOpen = true,
+                    IsClosable = false,
+                };
+                panel.Children.Add(infoBar);
+                break;
+            }
+            case VisualizerStyle.Summary when shouldDisplay && caught.Count > 0:
+            {
+                if (vv.Title is not null)
+                {
+                    panel.Children.Add(new TextBlock
+                    {
+                        Text = vv.Title,
+                        FontSize = 13,
+                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    });
+                }
+                foreach (var msg in caught)
+                {
+                    var bullet = new TextBlock
+                    {
+                        Text = $"• {msg.Text}",
+                        FontSize = 12,
+                    };
+                    var brush = ThemeRef.Resolve(ErrorStyling.GetBrushKey(msg.Severity), bullet);
+                    if (brush is not null) bullet.Foreground = brush;
+                    panel.Children.Add(bullet);
+                }
+                break;
+            }
+            case VisualizerStyle.Custom when shouldDisplay && vv.CustomRender is not null:
+            {
+                var customElement = vv.CustomRender(caught);
+                var customControl = Mount(customElement, requestRerender);
+                if (customControl is not null)
+                    panel.Children.Add(customControl);
+                break;
+            }
+            case VisualizerStyle.Inline when shouldDisplay && caught.Count > 0:
+            {
+                // Inline errors rendered after the content below
+                break;
+            }
+        }
+
+        // Add the content control
+        if (contentControl is not null)
+            panel.Children.Add(contentControl);
+
+        // Inline error text below the content
+        if (vv.Style == VisualizerStyle.Inline && shouldDisplay && caught.Count > 0)
+        {
+            var errorText = string.Join(" • ", caught.Select(m => m.Text));
+            var errorTb = new TextBlock { Text = errorText, FontSize = 12 };
+            var brush = ThemeRef.Resolve(ErrorStyling.ErrorBrushKey, errorTb);
+            if (brush is not null)
+                errorTb.Foreground = brush;
+            else
+                errorTb.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Microsoft.UI.Colors.Red);
+            panel.Children.Add(errorTb);
+        }
+
+        SetElementTag(panel, vv);
+        return panel;
+    }
+
+    private UIElement MountValidationRule(ValidationRuleElement rule)
+    {
+        // Evaluate the rule against the nearest ValidationContext
+        var valCtx = _contextScope.Read(ValidationContexts.Current);
+        if (valCtx is not null)
+            rule.Evaluate(valCtx);
+
+        // Return a collapsed placeholder — validation rules produce no UI
+        var placeholder = new WinUI.StackPanel { Visibility = Visibility.Collapsed };
+        SetElementTag(placeholder, rule);
+        return placeholder;
     }
 
     private UIElement MountErrorBoundary(ErrorBoundaryElement eb, Action requestRerender)

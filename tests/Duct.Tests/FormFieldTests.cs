@@ -246,4 +246,57 @@ public class FormFieldTests
 
         Assert.Equal("auto", FormFieldHelpers.ResolveFieldName(null, el));
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Auto-validation with Value on ValidationAttached
+    // ════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Validate_With_Value_Stores_Value_On_Attached()
+    {
+        var el = TextField("hello")
+            .Validate("email", "hello", Validate.Required());
+
+        var attached = el.GetValidation();
+        Assert.NotNull(attached);
+        Assert.Equal("hello", attached!.Value);
+        Assert.Equal("email", attached.FieldName);
+        Assert.Single(attached.Validators);
+    }
+
+    [Fact]
+    public void Validate_With_Value_Merges_Validators()
+    {
+        var el = TextField("test")
+            .Validate("email", "test", Validate.Required())
+            .Validate("email", "test", Validate.Email());
+
+        var attached = el.GetValidation();
+        Assert.NotNull(attached);
+        Assert.Equal(2, attached!.Validators.Length);
+    }
+
+    [Fact]
+    public void Validate_Without_Value_Has_Null_Value()
+    {
+        var el = TextField("test")
+            .Validate("email", Validate.Required());
+
+        var attached = el.GetValidation();
+        Assert.NotNull(attached);
+        Assert.Null(attached!.Value);
+    }
+
+    [Fact]
+    public void FormField_With_Validated_Content_Auto_Detects_FieldName()
+    {
+        var content = TextField("test")
+            .Validate("email", "test", Validate.Required());
+
+        var ff = FormField(content, label: "Email");
+
+        // FieldName should be auto-detectable
+        var resolved = FormFieldHelpers.ResolveFieldName(ff.FieldName, ff.Content);
+        Assert.Equal("email", resolved);
+    }
 }
