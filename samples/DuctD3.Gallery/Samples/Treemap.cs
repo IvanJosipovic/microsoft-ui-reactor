@@ -97,7 +97,7 @@ public sealed class TreemapSample : GallerySample
                     double w = leaf.Width;
                     double h = leaf.Height;
                     int colorIdx = root.Children.IndexOf(leaf.TopAncestor);
-                    var fill = Brush(Palette[colorIdx % Palette.Length], opacity: 0.75);
+                    var fill = Brush(Palette[colorIdx % Palette.Count], opacity: 0.75);
 
                     string label = leaf.Data.Name;
                     if (label.Length > (int)(w / 6)) label = label[..(int)(w / 6)] + "..";

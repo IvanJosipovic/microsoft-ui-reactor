@@ -468,9 +468,10 @@ internal sealed partial class Md4cParser
             build.SubstrOffsets![build.SubstrCount] = off;
         }
 
-        attr.Text = build.Text != null ? new string(build.Text, 0, off) : "";
-        attr.SubstrTypes = build.SubstrTypes!;
-        attr.SubstrOffsets = build.SubstrOffsets!;
+        attr = new MdAttribute(
+            build.Text != null ? new string(build.Text, 0, off) : "",
+            build.SubstrTypes!,
+            build.SubstrOffsets!);
         return 0;
     }
 

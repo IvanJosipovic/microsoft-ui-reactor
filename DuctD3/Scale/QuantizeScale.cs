@@ -87,6 +87,7 @@ public sealed class QuantileScale
     /// <summary>Returns the extent of domain values that map to the given range value.</summary>
     public (double x0, double x1) InvertExtent(double y)
     {
+        if (_domain.Length == 0) return (double.NaN, double.NaN);
         int i = Array.IndexOf(_range, y);
         if (i < 0) return (double.NaN, double.NaN);
         double x0 = i > 0 ? _thresholds[i - 1] : _domain[0];

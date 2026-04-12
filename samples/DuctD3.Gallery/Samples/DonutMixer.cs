@@ -60,7 +60,7 @@ public sealed class DonutMixerSample : GallerySample
                 (Element)HStack(8,
                     D3Rect(0, 0, 12, 12) with
                     {
-                        Fill = Brush(Palette[i % Palette.Length]),
+                        Fill = Brush(Palette[i % Palette.Count]),
                         RadiusX = 2, RadiusY = 2,
                     },
                     (Text(label) with { FontSize = 11 }).Width(70),
@@ -84,9 +84,9 @@ public sealed class DonutMixerSample : GallerySample
                     {
                         D3ArcPath(a.StartAngle, a.EndAngle, cx, cy,
                             outerRadius: outerR, innerRadius: innerR, padAngle: 0.03,
-                            fill: Brush(Palette[i % Palette.Length])),
+                            fill: Brush(Palette[i % Palette.Count])),
                         D3TextCenter(cx + lx - 20, cy + ly - 7, Labels[i], 40, 10,
-                            Brush(Palette[i % Palette.Length])),
+                            Brush(Palette[i % Palette.Count])),
                     };
                 }),
                 D3TextCenter(cx - 30, cy - 10, $"{total:F0}", 60, 16, Gray(40)),

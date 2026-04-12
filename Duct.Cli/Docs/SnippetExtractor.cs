@@ -15,7 +15,7 @@ internal static class SnippetExtractor
         {
             // Skip obj/bin directories
             var relativePath = Path.GetRelativePath(appDir, file);
-            if (relativePath.StartsWith("obj") || relativePath.StartsWith("bin")) continue;
+            if (relativePath.StartsWith("obj" + Path.DirectorySeparatorChar) || relativePath.StartsWith("bin" + Path.DirectorySeparatorChar)) continue;
 
             ExtractFromFile(file, topicId, snippets);
         }

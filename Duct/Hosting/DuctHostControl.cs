@@ -51,8 +51,8 @@ public sealed partial class DuctHostControl : ContentControl, IDisposable
     private Element? _currentTree;
     private UIElement? _currentControl;
     private int _renderPending;      // 0 or 1 — Interlocked for thread-safe access
-    private bool _isRendering;       // only touched on UI thread
-    private bool _needsRerender;     // only touched on UI thread
+    private volatile bool _isRendering;       // only touched on UI thread
+    private volatile bool _needsRerender;     // only touched on UI thread
     private bool _themeListenerAttached;
     private volatile bool _disposed;
     private Curve? _pendingAnimationCurve;
@@ -168,12 +168,14 @@ public sealed partial class DuctHostControl : ContentControl, IDisposable
         if (AnimationScope.HasScope)
             _pendingAnimationCurve = AnimationScope.Current;
 
-        // During render: just flag — the render loop will re-enqueue after Render().
-        if (_isRendering)
-        {
-            _needsRerender = true;
-            return;
-        }
+        // Flag re-render before the _isRendering / CAS checks so the request
+        // survives the TOCTOU window between Render()'s finally
+        // (_isRendering = false) and RenderLoop's gate-reset
+        // (Interlocked.Exchange(_renderPending, 0)).
+        _needsRerender = true;
+
+        // During render: the flag is sufficient — RenderLoop re-checks after Render().
+        if (_isRendering) return;
 
         // Between renders: CAS 0→1 gates a single TryEnqueue.
         if (Interlocked.CompareExchange(ref _renderPending, 1, 0) != 0) return;

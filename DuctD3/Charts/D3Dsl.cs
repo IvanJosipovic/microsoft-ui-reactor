@@ -20,7 +20,7 @@ public static class D3
 {
     // ── Color helpers ───────────────────────────────────────────────────
 
-    public static readonly D3Color[] Palette = D3Color.Category10;
+    public static readonly IReadOnlyList<D3Color> Palette = D3Color.Category10;
 
     public static SolidColorBrush Brush(string color)
     {
@@ -167,7 +167,7 @@ public static class D3
         var arc = new ArcGenerator().SetOuterRadius(outerRadius).SetInnerRadius(innerRadius);
         return arcs.Select((a, i) =>
             (Element)D3PathTranslated(arc.Generate(a), cx, cy,
-                fill: Brush(Palette[i % Palette.Length]),
+                fill: Brush(Palette[i % Palette.Count]),
                 stroke: stroke,
                 strokeWidth: strokeWidth)
         ).ToArray();

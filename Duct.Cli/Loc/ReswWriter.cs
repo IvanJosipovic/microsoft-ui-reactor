@@ -1,3 +1,4 @@
+using System.Xml;
 using System.Xml.Linq;
 
 namespace Duct.Cli.Loc;
@@ -38,7 +39,7 @@ internal static class ReswWriter
                     }
                 }
             }
-            catch
+            catch (XmlException)
             {
                 // Skip malformed .resw files
             }
@@ -51,8 +52,7 @@ internal static class ReswWriter
     /// Writes new entries to .resw files, preserving existing content.
     /// Groups entries by ReswFileName and writes one .resw per group.
     /// </summary>
-    public static void Write(string outputDir, List<KeyedLocString> newEntries,
-        Dictionary<(string reswFileName, string key), string> existingEntries)
+    public static void Write(string outputDir, List<KeyedLocString> newEntries)
     {
         if (newEntries.Count == 0) return;
 

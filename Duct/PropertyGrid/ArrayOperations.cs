@@ -36,14 +36,21 @@ internal static class ArrayOperations
     /// </summary>
     public static object RemoveAt(object collection, int index, Type elementType)
     {
+        if (index < 0)
+            throw new ArgumentOutOfRangeException(nameof(index), index, "Index must be non-negative.");
+
         if (collection is IList list && !collection.GetType().IsArray)
         {
+            if (index >= list.Count)
+                throw new ArgumentOutOfRangeException(nameof(index), index, $"Index must be less than the collection size ({list.Count}).");
             list.RemoveAt(index);
             return collection;
         }
 
         if (collection is Array array)
         {
+            if (index >= array.Length)
+                throw new ArgumentOutOfRangeException(nameof(index), index, $"Index must be less than the array length ({array.Length}).");
             var newArray = Array.CreateInstance(elementType, array.Length - 1);
             if (index > 0)
                 Array.Copy(array, 0, newArray, 0, index);

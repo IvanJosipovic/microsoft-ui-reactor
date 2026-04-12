@@ -192,7 +192,6 @@ async function launchPreviewProcess(
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  isLaunching = false;
   statusBarItem.text = `$(loading~spin) Duct: Starting...`;
   statusBarItem.show();
 
@@ -203,6 +202,7 @@ async function launchPreviewProcess(
     const match = text.match(/CAPTURE_PORT=(\d+)/);
     if (match) {
       capturePort = parseInt(match[1], 10);
+      isLaunching = false;
       outputChannel.appendLine(
         `[duct] Capture server on port ${capturePort}`
       );
@@ -217,6 +217,7 @@ async function launchPreviewProcess(
   });
 
   previewProcess.on("exit", (code) => {
+    isLaunching = false;
     outputChannel.appendLine(
       `[duct] Preview process exited with code ${code}`
     );
@@ -306,7 +307,7 @@ async function killPreviewProcess() {
 
     if (pid) {
       try {
-        cp.execSync(`taskkill /T /F /PID ${pid}`, { stdio: "ignore" });
+        cp.execFileSync("taskkill", ["/T", "/F", "/PID", pid.toString()], { stdio: "ignore" });
       } catch {
         proc.kill();
       }
@@ -418,14 +419,14 @@ function getWebviewHtml(
   const optionsHtml = components
     .map(
       (c) =>
-        `<option value="${c}"${c === selectedComponent ? " selected" : ""}>${c}</option>`
+        `<option value="${escapeHtml(c)}"${c === selectedComponent ? " selected" : ""}>${escapeHtml(c)}</option>`
     )
     .join("\n");
 
   const selectorHtml =
     components.length > 1
       ? `<select id="componentSelect" title="Select component to preview">${optionsHtml}</select>`
-      : `<span class="component-name">${selectedComponent}</span>`;
+      : `<span class="component-name">${escapeHtml(selectedComponent)}</span>`;
 
   return /*html*/ `<!DOCTYPE html>
 <html lang="en">
@@ -667,11 +668,26 @@ async function focusPreviewWindow() {
   }
 }
 
+// -- HTML Helpers ------------------------------------------------------------
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 // -- HTTP Helpers ------------------------------------------------------------
 
 function httpGetJson<T>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const req = http.get(url, (res) => {
+      if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+        res.resume();
+        reject(new Error(`HTTP ${res.statusCode}`));
+        return;
+      }
       let body = "";
       res.on("data", (chunk) => (body += chunk));
       res.on("end", () => {

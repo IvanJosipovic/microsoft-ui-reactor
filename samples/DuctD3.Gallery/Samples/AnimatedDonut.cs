@@ -133,10 +133,10 @@ public sealed class AnimatedDonutSample : GallerySample
                         {
                             D3ArcPath(a.Start, a.End, cx, cy,
                                 outerRadius: OuterR, innerRadius: InnerR, padAngle: PadAngle,
-                                fill: Brush(Palette[i % Palette.Length]),
+                                fill: Brush(Palette[i % Palette.Count]),
                                 stroke: Brush("#ffffff"), strokeWidth: 2),
                             D3TextCenter(cx + lx - 12, cy + ly - 8, Labels[i], 24, 12,
-                                Brush(Palette[i % Palette.Length])),
+                                Brush(Palette[i % Palette.Count])),
                         };
                     }),
                     D3TextCenter(cx - 50, cy - 10, DatasetNames[datasetIdx], 100, 14, Gray(60)),

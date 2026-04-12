@@ -7,25 +7,27 @@ namespace Duct.Markdown;
 /// String attribute used for propagating strings within detail structures
 /// (e.g. link titles, code info strings). May contain mixed substring types.
 /// </summary>
-public struct MdAttribute
+public readonly struct MdAttribute
 {
-    public string Text;
-    public MdTextType[] SubstrTypes;
-    public int[] SubstrOffsets;
+    public readonly string? Text;
+    public readonly MdTextType[] SubstrTypes;
+    public readonly int[] SubstrOffsets;
+
+    public MdAttribute(string? text, MdTextType[] substrTypes, int[] substrOffsets)
+    {
+        Text = text;
+        SubstrTypes = substrTypes;
+        SubstrOffsets = substrOffsets;
+    }
 
     /// <summary>
     /// Creates a simple attribute with a single normal-text substring.
     /// </summary>
-    public static MdAttribute Simple(string text)
+    public static MdAttribute Simple(string? text)
     {
         if (text == null)
             return default;
-        return new MdAttribute
-        {
-            Text = text,
-            SubstrTypes = new[] { MdTextType.Normal },
-            SubstrOffsets = new[] { 0, text.Length },
-        };
+        return new MdAttribute(text, new[] { MdTextType.Normal }, new[] { 0, text.Length });
     }
 }
 

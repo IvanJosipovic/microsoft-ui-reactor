@@ -47,7 +47,7 @@ public sealed class ChartElement<T>
     private string _stroke = "#4285f4", _fill = "#4285f4";
     private double _strokeWidth = 2, _fillOpacity = 0.3;
     private bool _showAxes = true, _showGrid = true;
-    private Action<ChartHandle>? _onReady;
+    private Action<ChartHandle<T>>? _onReady;
 
     public ChartElement<T> Width(double w) { _width = w; return this; }
     public ChartElement<T> Height(double h) { _height = h; return this; }
@@ -63,7 +63,7 @@ public sealed class ChartElement<T>
     /// Called after the chart is rendered. The handle exposes a Redraw method
     /// that re-renders the chart with new data without recreating the Canvas.
     /// </summary>
-    public ChartElement<T> OnReady(Action<ChartHandle> callback) { _onReady = callback; return this; }
+    public ChartElement<T> OnReady(Action<ChartHandle<T>> callback) { _onReady = callback; return this; }
 
     public Element ToElement() => new XamlHostElement(BuildCanvas, UpdateCanvas) { TypeKey = $"DuctD3Chart_{ChartType}" };
     public static implicit operator Element(ChartElement<T> chart) => chart.ToElement();
@@ -72,7 +72,7 @@ public sealed class ChartElement<T>
     {
         var canvas = new Canvas { Width = _width, Height = _height, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
         FullRender(canvas, Data);
-        _onReady?.Invoke(new ChartHandle(canvas, data => FullRender(canvas, (IReadOnlyList<T>)data)));
+        _onReady?.Invoke(new ChartHandle<T>(canvas, data => FullRender(canvas, data)));
         return canvas;
     }
 
@@ -81,7 +81,7 @@ public sealed class ChartElement<T>
         if (fe is Canvas canvas)
         {
             FullRender(canvas, Data);
-            _onReady?.Invoke(new ChartHandle(canvas, data => FullRender(canvas, (IReadOnlyList<T>)data)));
+            _onReady?.Invoke(new ChartHandle<T>(canvas, data => FullRender(canvas, data)));
         }
     }
 
@@ -166,17 +166,17 @@ public sealed class ChartElement<T>
 /// Handle returned by OnReady — lets callers push new data into the chart without
 /// recreating the Canvas or triggering a Duct re-render.
 /// </summary>
-public sealed class ChartHandle
+public sealed class ChartHandle<T>
 {
     private readonly Canvas _canvas;
-    private readonly Action<object> _redraw;
+    private readonly Action<IReadOnlyList<T>> _redraw;
 
-    internal ChartHandle(Canvas canvas, Action<object> redraw) { _canvas = canvas; _redraw = redraw; }
+    internal ChartHandle(Canvas canvas, Action<IReadOnlyList<T>> redraw) { _canvas = canvas; _redraw = redraw; }
 
     public Canvas Canvas => _canvas;
 
     /// <summary>Re-renders the chart with new data. Call from DispatcherQueue.</summary>
-    public void Redraw<T>(IReadOnlyList<T> data) => _redraw(data);
+    public void Redraw(IReadOnlyList<T> data) => _redraw(data);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -191,15 +191,15 @@ public sealed class PieChartElement<T>
 
     private double _width = 300, _height = 300;
     private double _innerRadius = 0, _padAngle = 0.02;
-    private D3Color[]? _colorPalette;
-    private Action<PieChartHandle>? _onReady;
+    private IReadOnlyList<D3Color>? _colorPalette;
+    private Action<PieChartHandle<T>>? _onReady;
 
     public PieChartElement<T> Width(double w) { _width = w; return this; }
     public PieChartElement<T> Height(double h) { _height = h; return this; }
     public PieChartElement<T> InnerRadius(double r) { _innerRadius = r; return this; }
     public PieChartElement<T> PadAngle(double a) { _padAngle = a; return this; }
-    public PieChartElement<T> SetColors(params D3Color[] colors) { _colorPalette = colors; return this; }
-    public PieChartElement<T> OnReady(Action<PieChartHandle> callback) { _onReady = callback; return this; }
+    public PieChartElement<T> SetColors(params D3Color[] colors) { _colorPalette = Array.AsReadOnly(colors); return this; }
+    public PieChartElement<T> OnReady(Action<PieChartHandle<T>> callback) { _onReady = callback; return this; }
 
     public Element ToElement() => new XamlHostElement(BuildCanvas, UpdateCanvas) { TypeKey = "DuctD3Pie" };
     public static implicit operator Element(PieChartElement<T> chart) => chart.ToElement();
@@ -208,7 +208,7 @@ public sealed class PieChartElement<T>
     {
         var canvas = new Canvas { Width = _width, Height = _height };
         FullRender(canvas, Data);
-        _onReady?.Invoke(new PieChartHandle(canvas, data => FullRender(canvas, (IReadOnlyList<T>)data)));
+        _onReady?.Invoke(new PieChartHandle<T>(canvas, data => FullRender(canvas, data)));
         return canvas;
     }
 
@@ -217,7 +217,7 @@ public sealed class PieChartElement<T>
         if (fe is Canvas canvas)
         {
             FullRender(canvas, Data);
-            _onReady?.Invoke(new PieChartHandle(canvas, data => FullRender(canvas, (IReadOnlyList<T>)data)));
+            _onReady?.Invoke(new PieChartHandle<T>(canvas, data => FullRender(canvas, data)));
         }
     }
 
@@ -238,7 +238,7 @@ public sealed class PieChartElement<T>
         {
             string? pd = arcGen.Generate(arc);
             if (pd == null) continue;
-            var color = palette[arc.Index % palette.Length];
+            var color = palette[arc.Index % palette.Count];
             var brush = new SolidColorBrush(Windows.UI.Color.FromArgb((byte)(color.Opacity * 255), color.R, color.G, color.B));
             var path = new WinShapes.Path { Fill = brush, Stroke = new SolidColorBrush(Microsoft.UI.Colors.White), StrokeThickness = 1, RenderTransform = new TranslateTransform { X = cx, Y = cy } };
             path.Data = ChartElement<T>.ParsePathData(pd);
@@ -255,11 +255,11 @@ public sealed class PieChartElement<T>
     }
 }
 
-public sealed class PieChartHandle
+public sealed class PieChartHandle<T>
 {
     private readonly Canvas _canvas;
-    private readonly Action<object> _redraw;
-    internal PieChartHandle(Canvas canvas, Action<object> redraw) { _canvas = canvas; _redraw = redraw; }
+    private readonly Action<IReadOnlyList<T>> _redraw;
+    internal PieChartHandle(Canvas canvas, Action<IReadOnlyList<T>> redraw) { _canvas = canvas; _redraw = redraw; }
     public Canvas Canvas => _canvas;
-    public void Redraw<T>(IReadOnlyList<T> data) => _redraw(data);
+    public void Redraw(IReadOnlyList<T> data) => _redraw(data);
 }

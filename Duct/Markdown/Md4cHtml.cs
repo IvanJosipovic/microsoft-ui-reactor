@@ -132,7 +132,11 @@ public static class Md4cHtml
 
                     int bytesWritten = Encoding.UTF8.GetBytes(data.Slice(i, charCount), utf8Buf);
                     for (int b = 0; b < bytesWritten; b++)
-                        output.Append($"%{utf8Buf[b]:X2}");
+                    {
+                        output.Append('%');
+                        output.Append(HexDigit(utf8Buf[b] >> 4));
+                        output.Append(HexDigit(utf8Buf[b] & 0xF));
+                    }
 
                     i += charCount - 1;
                     beg = i + 1;
@@ -144,13 +148,20 @@ public static class Md4cHtml
                     if (ch == '&')
                         Verbatim("&amp;");
                     else
-                        output.Append($"%{(int)ch:X2}");
+                    {
+                        output.Append('%');
+                        output.Append(HexDigit(ch >> 4));
+                        output.Append(HexDigit(ch & 0xF));
+                    }
                     beg = i + 1;
                 }
             }
             if (beg < data.Length)
                 output.Append(data[beg..]);
         }
+
+        private static char HexDigit(int value) =>
+            (char)(value < 10 ? '0' + value : 'A' + value - 10);
 
         private static uint HexVal(char ch)
         {
@@ -164,24 +175,28 @@ public static class Md4cHtml
             if (codepoint == 0 || codepoint > 0x10ffff)
                 codepoint = 0xFFFD;
 
-            char[] chars;
+            Span<char> chars = stackalloc char[2];
+            int charCount;
             if (codepoint <= 0xFFFF)
-                chars = new[] { (char)codepoint };
+            {
+                chars[0] = (char)codepoint;
+                charCount = 1;
+            }
             else
             {
                 codepoint -= 0x10000;
-                chars = new[] {
-                    (char)(0xD800 + (codepoint >> 10)),
-                    (char)(0xDC00 + (codepoint & 0x3FF))
-                };
+                chars[0] = (char)(0xD800 + (codepoint >> 10));
+                chars[1] = (char)(0xDC00 + (codepoint & 0x3FF));
+                charCount = 2;
             }
 
+            ReadOnlySpan<char> span = chars[..charCount];
             if (urlEsc)
-                UrlEscaped(chars);
+                UrlEscaped(span);
             else if (htmlEsc)
-                HtmlEscaped(chars);
+                HtmlEscaped(span);
             else
-                output.Append(chars);
+                output.Append(span);
         }
 
         private void RenderEntity(ReadOnlySpan<char> text, bool htmlEsc, bool urlEsc = false)
@@ -216,12 +231,12 @@ public static class Md4cHtml
             }
 
             // Named entity lookup
-            var entity = Md4cEntity.EntityLookup(text.ToString());
+            var entity = Md4cEntity.EntityLookup(text);
             if (entity != null)
             {
-                AppendUtf8Codepoint(entity.Value.Codepoints[0], htmlEsc, urlEsc);
-                if (entity.Value.Codepoints[1] != 0)
-                    AppendUtf8Codepoint(entity.Value.Codepoints[1], htmlEsc, urlEsc);
+                AppendUtf8Codepoint(entity.Value.Codepoint0, htmlEsc, urlEsc);
+                if (entity.Value.Codepoint1 != 0)
+                    AppendUtf8Codepoint(entity.Value.Codepoint1, htmlEsc, urlEsc);
                 return;
             }
 

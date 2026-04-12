@@ -73,7 +73,7 @@ internal sealed class NavigationStack<TRoute> where TRoute : notnull
     /// Guard called before any mutation that changes the current route.
     /// Return false from the guard (via <see cref="NavigatingFromContext.Cancel"/>) to prevent the navigation.
     /// </summary>
-    public Func<NavigatingFromContext, bool>? Guard { get; set; }
+    public Action<NavigatingFromContext>? Guard { get; set; }
 
     /// <summary>
     /// Callback invoked after every successful mutation. Used to trigger re-renders.
@@ -86,6 +86,17 @@ internal sealed class NavigationStack<TRoute> where TRoute : notnull
     /// <see cref="NavigatingFromContext.Cancel"/>.
     /// </summary>
     internal Action<NavigatingFromContext>? LifecycleGuard { get; set; }
+
+    /// <summary>
+    /// Detaches all delegates from this stack, breaking strong references
+    /// to component render infrastructure. Called during unmount.
+    /// </summary>
+    internal void Detach()
+    {
+        OnChanged = null;
+        Guard = null;
+        LifecycleGuard = null;
+    }
 
     /// <summary>
     /// Push a new route onto the stack. Current becomes back stack entry; forward stack is cleared.

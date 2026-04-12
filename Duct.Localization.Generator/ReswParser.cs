@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.IO;
 using System.Xml;
 
 namespace Duct.Localization.Generator;
@@ -18,23 +17,6 @@ internal sealed class ReswEntry
         Key = key;
         Value = value;
         Comment = comment;
-    }
-}
-
-/// <summary>
-/// Represents all entries from a single .resw file, with its namespace derived from the file name.
-/// </summary>
-internal sealed class ReswFile
-{
-    public string Namespace { get; }
-    public string FilePath { get; }
-    public List<ReswEntry> Entries { get; }
-
-    public ReswFile(string ns, string filePath, List<ReswEntry> entries)
-    {
-        Namespace = ns;
-        FilePath = filePath;
-        Entries = entries;
     }
 }
 
@@ -70,16 +52,6 @@ internal static class ReswParser
         }
 
         return entries;
-    }
-
-    /// <summary>
-    /// Derives the namespace from a .resw file path.
-    /// "Resources.resw" -> "Resources" (flat layout)
-    /// "Common.resw" -> "Common" (namespaced layout)
-    /// </summary>
-    public static string DeriveNamespace(string filePath)
-    {
-        return Path.GetFileNameWithoutExtension(filePath);
     }
 
     /// <summary>

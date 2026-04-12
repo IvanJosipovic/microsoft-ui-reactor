@@ -336,8 +336,8 @@ internal sealed class CurveCardinal : ICurve
             case 2: _point = 3; goto default;
             default:
                 _path.BezierCurveTo(
-                    _x1 + _k * (x - _x0), _y1 + _k * (y - _y0),
-                    _x2 - _k * (x - _x0), _y2 - _k * (y - _y0),
+                    _x1 + _k * (_x2 - _x0), _y1 + _k * (_y2 - _y0),
+                    _x2 - _k * (x - _x1), _y2 - _k * (y - _y1),
                     _x2, _y2);
                 break;
         }

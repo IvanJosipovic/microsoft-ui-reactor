@@ -17,8 +17,9 @@ namespace Duct.Monaco;
 /// A standalone WinUI 3 control that hosts the Monaco code editor inside a WebView2.
 /// Can be used directly in XAML without any Duct dependency.
 /// </summary>
-public sealed partial class MonacoEditor : UserControl
+public sealed partial class MonacoEditor : UserControl, IDisposable
 {
+    private bool _disposed;
     private WebView2? _webView;
     private bool _isEditorReady;
     private readonly Queue<Func<Task>> _pendingCommands = new();
@@ -122,6 +123,7 @@ public sealed partial class MonacoEditor : UserControl
         if (_webView?.CoreWebView2 is not null)
         {
             System.Diagnostics.Debug.WriteLine($"[MonacoEditor] RECYCLED {GetHashCode()} — reattaching handler and pushing state");
+            _webView.CoreWebView2.WebMessageReceived -= OnWebMessageReceived;
             _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
             if (_isEditorReady)
             {
@@ -164,6 +166,7 @@ public sealed partial class MonacoEditor : UserControl
         coreWv.SetVirtualHostNameToFolderMapping(
             "monaco.local", monacoPath, CoreWebView2HostResourceAccessKind.Allow);
 
+        coreWv.WebMessageReceived -= OnWebMessageReceived;
         coreWv.WebMessageReceived += OnWebMessageReceived;
 
 #if DEBUG
@@ -196,6 +199,18 @@ public sealed partial class MonacoEditor : UserControl
         {
             _webView.CoreWebView2.WebMessageReceived -= OnWebMessageReceived;
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        if (_webView?.CoreWebView2 is not null)
+        {
+            _webView.CoreWebView2.WebMessageReceived -= OnWebMessageReceived;
+        }
+        _webView?.Close();
+        _webView = null;
     }
 
     // ── WebView2 message handling ─────────────────────────────────────
@@ -252,7 +267,7 @@ public sealed partial class MonacoEditor : UserControl
         await ExecuteScriptAsync($"monacoSetLanguage({JsonSerializer.Serialize(EditorLanguage ?? "plaintext", MonacoJsonContext.Default.String)})");
         await ExecuteScriptAsync($"monacoSetTheme({JsonSerializer.Serialize(Theme ?? "vs", MonacoJsonContext.Default.String)})");
         await ExecuteScriptAsync($"monacoSetReadOnly({IsReadOnly.ToString().ToLowerInvariant()})");
-        await ExecuteScriptAsync($"monacoSetFontSize({EditorFontSize})");
+        await ExecuteScriptAsync($"monacoSetFontSize({EditorFontSize.ToString(System.Globalization.CultureInfo.InvariantCulture)})");
         await ExecuteScriptAsync($"monacoSetWordWrap({WordWrap.ToString().ToLowerInvariant()})");
         await ExecuteScriptAsync($"monacoSetMinimap({MinimapEnabled.ToString().ToLowerInvariant()})");
     }
@@ -334,9 +349,13 @@ public sealed partial class MonacoEditor : UserControl
         {
             await command();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"MonacoEditor: async command failed: {ex}");
+            System.Diagnostics.Trace.TraceWarning($"MonacoEditor: async command failed: {ex}");
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            System.Diagnostics.Trace.TraceWarning($"MonacoEditor: async command failed: {ex}");
         }
     }
 
@@ -366,7 +385,7 @@ public sealed partial class MonacoEditor : UserControl
     /// Sends arbitrary Monaco editor options as a JSON string.
     /// </summary>
     public void UpdateOptions(string optionsJson) =>
-        EnqueueCommand(() => ExecuteScriptAsync($"monacoUpdateOptions({optionsJson})"));
+        EnqueueCommand(() => ExecuteScriptAsync($"monacoUpdateOptions(JSON.parse({JsonSerializer.Serialize(optionsJson, MonacoJsonContext.Default.String)}))"));
 
     /// <summary>
     /// Opens the find widget with the given search string.

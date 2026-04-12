@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
@@ -17,6 +18,8 @@ public sealed class IntlAccessor
     private readonly string _defaultLocale;
     private readonly CultureInfo _culture;
     private readonly bool _pseudoLocalize;
+    private readonly Dictionary<string, string> _assetCache = new();
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _propertyCache = new();
 
     public IntlAccessor(
         string locale,
@@ -115,6 +118,9 @@ public sealed class IntlAccessor
     /// otherwise the original unqualified path.</returns>
     public string Asset(string path)
     {
+        if (_assetCache.TryGetValue(path, out var cached))
+            return cached;
+
         // Build locale-qualified path: insert locale before filename
         // e.g., "Assets/hero-banner.png" -> "Assets/en-US/hero-banner.png"
         var dir = System.IO.Path.GetDirectoryName(path) ?? "";
@@ -125,7 +131,10 @@ public sealed class IntlAccessor
 
         // Check if locale-specific asset exists
         if (System.IO.File.Exists(localePath))
+        {
+            _assetCache[path] = localePath;
             return localePath;
+        }
 
         // Try base language (e.g., "en" from "en-US")
         var baseLang = Locale.Split('-')[0];
@@ -135,10 +144,14 @@ public sealed class IntlAccessor
                 ? System.IO.Path.Combine(baseLang, fileName)
                 : System.IO.Path.Combine(dir, baseLang, fileName);
             if (System.IO.File.Exists(basePath))
+            {
+                _assetCache[path] = basePath;
                 return basePath;
+            }
         }
 
         // Fall back to unqualified path
+        _assetCache[path] = path;
         return path;
     }
 
@@ -150,10 +163,16 @@ public sealed class IntlAccessor
         var style = options?.Style ?? NumberStyle.Default;
         var nfi = (NumberFormatInfo)_culture.NumberFormat.Clone();
 
-        if (options?.MinimumFractionDigits is int min)
-            nfi.NumberDecimalDigits = Math.Max(nfi.NumberDecimalDigits, min);
-        if (options?.MaximumFractionDigits is int max)
-            nfi.NumberDecimalDigits = Math.Min(nfi.NumberDecimalDigits, max);
+        if (options?.MinimumFractionDigits is int min && options?.MaximumFractionDigits is int max)
+        {
+            var effectiveMin = Math.Min(min, max);
+            var effectiveMax = Math.Max(min, max);
+            nfi.NumberDecimalDigits = Math.Clamp(nfi.NumberDecimalDigits, effectiveMin, effectiveMax);
+        }
+        else if (options?.MinimumFractionDigits is int minOnly)
+            nfi.NumberDecimalDigits = Math.Max(nfi.NumberDecimalDigits, minOnly);
+        else if (options?.MaximumFractionDigits is int maxOnly)
+            nfi.NumberDecimalDigits = Math.Min(nfi.NumberDecimalDigits, maxOnly);
 
         return style switch
         {
@@ -270,7 +289,9 @@ public sealed class IntlAccessor
 
         // Convert anonymous object to dictionary via reflection
         var result = new Dictionary<string, object>();
-        foreach (var prop in args.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        var props = _propertyCache.GetOrAdd(args.GetType(),
+            t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance));
+        foreach (var prop in props)
         {
             var value = prop.GetValue(args);
             if (value is not null)

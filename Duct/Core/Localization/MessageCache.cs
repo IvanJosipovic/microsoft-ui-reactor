@@ -10,6 +10,7 @@ namespace Duct.Core.Localization;
 /// </summary>
 public sealed class MessageCache
 {
+    private static readonly IReadOnlyDictionary<string, object?> EmptyArgs = new Dictionary<string, object?>();
     private readonly ConcurrentDictionary<string, MessageFormatter> _formatters = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -27,9 +28,9 @@ public sealed class MessageCache
     public string Format(string locale, string pattern, IDictionary<string, object>? args = null)
     {
         var formatter = GetFormatter(locale);
-        var dict = (IReadOnlyDictionary<string, object?>)(args is null || args.Count == 0
-            ? new Dictionary<string, object?>()
-            : args.ToDictionary(kv => kv.Key, kv => (object?)kv.Value));
+        var dict = args is null || args.Count == 0
+            ? EmptyArgs
+            : (IReadOnlyDictionary<string, object?>)args.ToDictionary(kv => kv.Key, kv => (object?)kv.Value);
         return formatter.FormatMessage(pattern, dict);
     }
 

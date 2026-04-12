@@ -103,7 +103,7 @@ public sealed class ClusterDendrogramSample : GallerySample
 
                 int branchColor = root.Children.IndexOf(node.TopAncestor);
                 var fill = isLeaf
-                    ? Brush(Palette[branchColor % Palette.Length])
+                    ? Brush(Palette[branchColor % Palette.Count])
                     : Brush("#666666");
 
                 Element label = isLeaf

@@ -52,8 +52,8 @@ public sealed class DotPlotSample : GallerySample
              .. categories.SelectMany((cat, ci) =>
              {
                  double rowY = top + ci * rowHeight + rowHeight / 2;
-                 var fill = Brush(Palette[ci % Palette.Length], opacity: 0.6);
-                 var stroke = Brush(Palette[ci % Palette.Length]);
+                 var fill = Brush(Palette[ci % Palette.Count], opacity: 0.6);
+                 var stroke = Brush(Palette[ci % Palette.Count]);
                  return ((Element[])
                  [
                      D3Text(4, rowY - 7, cat, 11, Gray(60)),

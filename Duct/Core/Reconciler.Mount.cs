@@ -1849,7 +1849,7 @@ public sealed partial class Reconciler
 
         // Pass the component's own wrapped rerender to children so that child state
         // changes propagate SelfTriggered up through all component ancestors.
-        var componentRerender = CreateComponentRerender(wrapper, requestRerender);
+        var componentRerender = CreateComponentRerender(node, requestRerender);
 
         Element childElement;
         try
@@ -1858,7 +1858,7 @@ public sealed partial class Reconciler
             childElement = component.Render();
             component.Context.FlushEffects();
         }
-        catch (Exception ex) when (_errorBoundaryDepth == 0)
+        catch (Exception ex) when (_errorBoundaryDepth == 0 && ex is not OutOfMemoryException and not StackOverflowException)
         {
             _logger.Log(DuctLogLevel.Error, $"Component Render() threw during mount: {compElement.GetType().Name}", ex);
             childElement = new TextElement($"⚠ Render error: {ex.Message}");
@@ -1882,7 +1882,7 @@ public sealed partial class Reconciler
 
         // Pass the component's own wrapped rerender to children so that child state
         // changes propagate SelfTriggered up through all component ancestors.
-        var componentRerender = CreateComponentRerender(wrapper, requestRerender);
+        var componentRerender = CreateComponentRerender(node, requestRerender);
 
         Element childElement;
         try
@@ -1891,7 +1891,7 @@ public sealed partial class Reconciler
             childElement = funcElement.RenderFunc(ctx);
             ctx.FlushEffects();
         }
-        catch (Exception ex) when (_errorBoundaryDepth == 0)
+        catch (Exception ex) when (_errorBoundaryDepth == 0 && ex is not OutOfMemoryException and not StackOverflowException)
         {
             _logger.Log(DuctLogLevel.Error, "FuncComponent Render() threw during mount", ex);
             childElement = new TextElement($"⚠ Render error: {ex.Message}");
@@ -1916,7 +1916,7 @@ public sealed partial class Reconciler
 
         // Pass the component's own wrapped rerender to children so that child state
         // changes propagate SelfTriggered up through all component ancestors.
-        var componentRerender = CreateComponentRerender(wrapper, requestRerender);
+        var componentRerender = CreateComponentRerender(node, requestRerender);
 
         Element childElement;
         try
@@ -1925,7 +1925,7 @@ public sealed partial class Reconciler
             childElement = memoElement.RenderFunc(ctx);
             ctx.FlushEffects();
         }
-        catch (Exception ex) when (_errorBoundaryDepth == 0)
+        catch (Exception ex) when (_errorBoundaryDepth == 0 && ex is not OutOfMemoryException and not StackOverflowException)
         {
             _logger.Log(DuctLogLevel.Error, "MemoComponent Render() threw during mount", ex);
             childElement = new TextElement($"⚠ Render error: {ex.Message}");

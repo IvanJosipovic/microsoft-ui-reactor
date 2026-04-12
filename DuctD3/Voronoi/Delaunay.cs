@@ -89,36 +89,106 @@ public sealed class Delaunay
             return new Delaunay(pts, [], [], Enumerable.Range(0, n).ToArray());
         }
 
-        // Ensure counter-clockwise orientation
-        if (Orient(pts[i0], pts[i1], pts[i2]) < 0) (i1, i2) = (i2, i1);
-
-        // Simple triangulation: fan from first non-collinear triangle
-        // This is a simplified version — for production use, Bowyer-Watson would be better
-        var triangles = new List<int>();
-        var halfedges = new List<int>();
-
-        // Start with seed triangle
-        triangles.AddRange([i0, i1, i2]);
-
-        // Add remaining points using ear-clipping style
-        var hull = ComputeConvexHull(pts);
-
-        // Simple fan triangulation of remaining points from seed
-        var added = new HashSet<int> { i0, i1, i2 };
+        // Bowyer-Watson incremental insertion with super-triangle
+        double pxmin = double.MaxValue, pymin = double.MaxValue;
+        double pxmax = double.MinValue, pymax = double.MinValue;
         for (int i = 0; i < n; i++)
         {
-            if (added.Contains(i)) continue;
-            added.Add(i);
-            // Connect to closest edge of existing triangulation (simplified)
-            triangles.AddRange([i0, i1, i]);
-            triangles.AddRange([i1, i2, i]);
-            triangles.AddRange([i2, i0, i]);
+            if (pts[i].x < pxmin) pxmin = pts[i].x;
+            if (pts[i].y < pymin) pymin = pts[i].y;
+            if (pts[i].x > pxmax) pxmax = pts[i].x;
+            if (pts[i].y > pymax) pymax = pts[i].y;
+        }
+        double dw = pxmax - pxmin, dh = pymax - pymin;
+        double dm = Math.Max(dw, dh);
+        double pmx = (pxmin + pxmax) / 2, pmy = (pymin + pymax) / 2;
+
+        // Super-triangle vertices at indices n, n+1, n+2 (CCW)
+        var allPts = new (double x, double y)[n + 3];
+        Array.Copy(pts, allPts, n);
+        allPts[n]     = (pmx - 20 * dm, pmy - dm);
+        allPts[n + 1] = (pmx + 20 * dm, pmy - dm);
+        allPts[n + 2] = (pmx, pmy + 20 * dm);
+
+        var tris = new List<(int a, int b, int c)> { (n, n + 1, n + 2) };
+
+        for (int i = 0; i < n; i++)
+        {
+            // Find all triangles whose circumcircle contains point i
+            var bad = new List<int>();
+            for (int t = 0; t < tris.Count; t++)
+            {
+                var tri = tris[t];
+                if (InCircumcircle(allPts[tri.a], allPts[tri.b], allPts[tri.c], allPts[i]))
+                    bad.Add(t);
+            }
+
+            // Find boundary edges of the polygonal hole
+            var boundary = new List<(int ea, int eb)>();
+            foreach (int t in bad)
+            {
+                var tri = tris[t];
+                (int, int)[] edges = [(tri.a, tri.b), (tri.b, tri.c), (tri.c, tri.a)];
+                foreach (var (ea, eb) in edges)
+                {
+                    bool shared = false;
+                    foreach (int t2 in bad)
+                    {
+                        if (t2 == t) continue;
+                        var tri2 = tris[t2];
+                        if ((tri2.a == eb && tri2.b == ea) ||
+                            (tri2.b == eb && tri2.c == ea) ||
+                            (tri2.c == eb && tri2.a == ea))
+                        { shared = true; break; }
+                    }
+                    if (!shared) boundary.Add((ea, eb));
+                }
+            }
+
+            // Remove bad triangles (reverse order to preserve indices)
+            bad.Sort();
+            for (int j = bad.Count - 1; j >= 0; j--)
+                tris.RemoveAt(bad[j]);
+
+            // Create new triangles connecting point to each boundary edge
+            foreach (var (ea, eb) in boundary)
+                tris.Add((i, ea, eb));
         }
 
-        // Build halfedges (simplified — mark all as boundary)
-        halfedges.AddRange(Enumerable.Repeat(-1, triangles.Count));
+        // Remove triangles that reference super-triangle vertices
+        tris.RemoveAll(t => t.a >= n || t.b >= n || t.c >= n);
 
-        return new Delaunay(pts, triangles.ToArray(), halfedges.ToArray(), hull);
+        // Build flat triangle array
+        var triangles = new int[tris.Count * 3];
+        for (int t = 0; t < tris.Count; t++)
+        {
+            triangles[t * 3] = tris[t].a;
+            triangles[t * 3 + 1] = tris[t].b;
+            triangles[t * 3 + 2] = tris[t].c;
+        }
+
+        // Build halfedges by matching opposite half-edges
+        var halfedges = new int[triangles.Length];
+        Array.Fill(halfedges, -1);
+        var edgeMap = new Dictionary<(int, int), int>();
+        for (int e = 0; e < triangles.Length; e++)
+        {
+            int next = (e % 3 == 2) ? e - 2 : e + 1;
+            int a = triangles[e], b = triangles[next];
+            if (edgeMap.TryGetValue((b, a), out int opp))
+            {
+                halfedges[e] = opp;
+                halfedges[opp] = e;
+                edgeMap.Remove((b, a));
+            }
+            else
+            {
+                edgeMap[(a, b)] = e;
+            }
+        }
+
+        var hull = ComputeConvexHull(pts);
+        return new Delaunay(pts, triangles, halfedges, hull);
     }
 
     /// <summary>
@@ -182,6 +252,24 @@ public sealed class Delaunay
         double ux = (ey * bl - dy * cl) / d;
         double uy = (dx * cl - ex * bl) / d;
         return ux * ux + uy * uy;
+    }
+
+    /// <summary>
+    /// Returns true if point p lies inside the circumcircle of CCW triangle (a, b, c).
+    /// </summary>
+    private static bool InCircumcircle(
+        (double x, double y) a, (double x, double y) b,
+        (double x, double y) c, (double x, double y) p)
+    {
+        double ax = a.x - p.x, ay = a.y - p.y;
+        double bx = b.x - p.x, by = b.y - p.y;
+        double cx = c.x - p.x, cy = c.y - p.y;
+        double al = ax * ax + ay * ay;
+        double bl = bx * bx + by * by;
+        double cl = cx * cx + cy * cy;
+        return ax * (by * cl - cy * bl)
+             - ay * (bx * cl - cx * bl)
+             + al * (bx * cy - cx * by) > 0;
     }
 
     private static int[] ComputeConvexHull((double x, double y)[] points)
@@ -319,14 +407,55 @@ public sealed class Voronoi
 
     private List<(double x, double y)> ClipToBounds(List<(double x, double y)> polygon)
     {
+        // Sutherland-Hodgman polygon clipping against bounding box
+        var result = new List<(double x, double y)>(polygon);
+        result = ClipToEdge(result, 0); // left:   x >= xmin
+        result = ClipToEdge(result, 1); // right:  x <= xmax
+        result = ClipToEdge(result, 2); // bottom: y >= ymin
+        result = ClipToEdge(result, 3); // top:    y <= ymax
+        return result;
+    }
+
+    private List<(double x, double y)> ClipToEdge(List<(double x, double y)> polygon, int edge)
+    {
+        if (polygon.Count == 0) return polygon;
         var result = new List<(double x, double y)>();
-        foreach (var p in polygon)
+        var s = polygon[^1];
+        foreach (var e in polygon)
         {
-            double x = Math.Max(_xmin, Math.Min(_xmax, p.x));
-            double y = Math.Max(_ymin, Math.Min(_ymax, p.y));
-            result.Add((x, y));
+            if (EdgeInside(e, edge))
+            {
+                if (!EdgeInside(s, edge))
+                    result.Add(EdgeIntersect(s, e, edge));
+                result.Add(e);
+            }
+            else if (EdgeInside(s, edge))
+            {
+                result.Add(EdgeIntersect(s, e, edge));
+            }
+            s = e;
         }
         return result;
+    }
+
+    private bool EdgeInside((double x, double y) p, int edge) => edge switch
+    {
+        0 => p.x >= _xmin,
+        1 => p.x <= _xmax,
+        2 => p.y >= _ymin,
+        _ => p.y <= _ymax,
+    };
+
+    private (double x, double y) EdgeIntersect((double x, double y) a, (double x, double y) b, int edge)
+    {
+        double t = edge switch
+        {
+            0 => (_xmin - a.x) / (b.x - a.x),
+            1 => (_xmax - a.x) / (b.x - a.x),
+            2 => (_ymin - a.y) / (b.y - a.y),
+            _ => (_ymax - a.y) / (b.y - a.y),
+        };
+        return (a.x + t * (b.x - a.x), a.y + t * (b.y - a.y));
     }
 
     private static (double x, double y) ComputeCircumcenter(

@@ -59,15 +59,7 @@ public sealed class PieGenerator<T>
             int j = index[i];
             double v = values[j];
             double a1 = a0 + (v > 0 ? v * k : 0) + pa;
-            arcs[j] = new PieArc<T>
-            {
-                Data = data[j],
-                Value = v,
-                Index = i,
-                StartAngle = a0,
-                EndAngle = a1,
-                PadAngle = p,
-            };
+            arcs[j] = new PieArc<T>(data[j], v, i, a0, a1, p);
             a0 = a1;
         }
 
@@ -83,15 +75,7 @@ public sealed class PieGenerator<T>
 }
 
 /// <summary>Describes a single arc slice computed by PieGenerator.</summary>
-public record struct PieArc<T>
-{
-    public T Data;
-    public double Value;
-    public int Index;
-    public double StartAngle;
-    public double EndAngle;
-    public double PadAngle;
-}
+public readonly record struct PieArc<T>(T Data, double Value, int Index, double StartAngle, double EndAngle, double PadAngle);
 
 public static class PieGenerator
 {

@@ -60,8 +60,7 @@ public class ExtractIntegrationTests : IDisposable
         Assert.All(keyed, k => Assert.Equal("Inbox", k.ReswFileName));
 
         // Step 3: Write .resw
-        var existing = ReswWriter.LoadExisting(_outputDir);
-        ReswWriter.Write(_outputDir, keyed, existing);
+        ReswWriter.Write(_outputDir, keyed);
 
         var reswFile = Path.Combine(_outputDir, "Inbox.resw");
         Assert.True(File.Exists(reswFile));
@@ -104,7 +103,7 @@ public class ExtractIntegrationTests : IDisposable
         // First extract + rewrite
         var extractions1 = LocalizableStringScanner.Scan(source, sourceFile);
         var keyed1 = KeyNamer.AssignKeys(extractions1);
-        ReswWriter.Write(_outputDir, keyed1, new());
+        ReswWriter.Write(_outputDir, keyed1);
         SourceRewriter.Rewrite(keyed1);
 
         // Second extract on the rewritten source

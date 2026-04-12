@@ -18,8 +18,8 @@ public sealed class BubbleChartSample : GallerySample
         var rs = new LinearScale([5, 45], [3, 20]);
         var bubbles = points.Select((p, i) =>
             D3Circle(xs.Map(p.x), ys.Map(p.y), rs.Map(p.size)) with {
-                Fill = Brush(Palette[i % Palette.Length], opacity: 0.45),
-                Stroke = Brush(Palette[i % Palette.Length])
+                Fill = Brush(Palette[i % Palette.Count], opacity: 0.45),
+                Stroke = Brush(Palette[i % Palette.Count])
             });
         D3Canvas(width, height,
             ..D3Grid(ys, left, pw), ..D3Axes(xs, ys, left, top, pw, ph),
@@ -46,8 +46,8 @@ public sealed class BubbleChartSample : GallerySample
         var bubbles = points.Select((p, i) =>
             D3Circle(xs.Map(p.x), ys.Map(p.y), rs.Map(p.size)) with
             {
-                Fill = Brush(Palette[i % Palette.Length], opacity: 0.45),
-                Stroke = Brush(Palette[i % Palette.Length]),
+                Fill = Brush(Palette[i % Palette.Count], opacity: 0.45),
+                Stroke = Brush(Palette[i % Palette.Count]),
             });
 
         return D3Canvas(width, height,

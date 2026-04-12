@@ -24,9 +24,10 @@ public record XamlHostElement(
 ) : Element
 {
     /// <summary>
-    /// A discriminator so the reconciler can tell two XamlHostElements apart
-    /// even though the factory delegates may differ. Set this to a stable string
-    /// when you want CanUpdate to return true across re-renders.
+    /// Optional discriminator for the reconciler's CanUpdate check.
+    /// When set, two XamlHostElements can only update in place if their
+    /// TypeKeys match. Use this to prevent unrelated host elements from
+    /// being reconciled against each other.
     /// </summary>
     public string? TypeKey { get; init; }
 }

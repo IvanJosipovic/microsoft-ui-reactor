@@ -69,6 +69,10 @@ public sealed partial class DuctElementFactory<T> : ElementFactory
             for (int i = panel.Children.Count - 1; i >= 0; i--)
                 PoolInteractiveLeaves(panel.Children[i]);
         }
+        else if (root is Microsoft.UI.Xaml.Controls.Border border && border.Child is not null)
+        {
+            PoolInteractiveLeaves(border.Child);
+        }
         else if (root is FrameworkElement fe && IsPoolableInteractive(fe))
         {
             _pool.Return(fe);

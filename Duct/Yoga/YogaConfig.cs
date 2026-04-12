@@ -1,6 +1,7 @@
 // C# port of Meta's Yoga layout engine Config.
 // Ported from yoga/config/Config.h, yoga/config/Config.cpp
 
+using System.Diagnostics;
 using Duct.Flex;
 
 namespace Duct.Layout;
@@ -16,15 +17,25 @@ public sealed class YogaConfig
     private float _pointScaleFactor = 1.0f;
     private uint _version;
     private readonly bool[] _experimentalFeatures = new bool[2]; // ExperimentalFeature count
+    private bool _frozen;
 
-    private static readonly YogaConfig s_default = new();
+    private static readonly YogaConfig s_default = new() { _frozen = true };
 
     public static YogaConfig Default => s_default;
+
+    /// <summary>
+    /// Marks this config as frozen. Mutating a frozen config triggers a Debug.Assert failure.
+    /// </summary>
+    public void Freeze() => _frozen = true;
 
     public bool UseWebDefaults
     {
         get => _useWebDefaults;
-        set => _useWebDefaults = value;
+        set
+        {
+            Debug.Assert(!_frozen, "Cannot mutate a frozen YogaConfig (e.g. YogaConfig.Default).");
+            _useWebDefaults = value;
+        }
     }
 
     public float PointScaleFactor
@@ -32,6 +43,7 @@ public sealed class YogaConfig
         get => _pointScaleFactor;
         set
         {
+            Debug.Assert(!_frozen, "Cannot mutate a frozen YogaConfig (e.g. YogaConfig.Default).");
             if (_pointScaleFactor != value)
             {
                 _pointScaleFactor = value;
@@ -44,6 +56,7 @@ public sealed class YogaConfig
 
     public void SetExperimentalFeatureEnabled(YogaExperimentalFeature feature, bool enabled)
     {
+        Debug.Assert(!_frozen, "Cannot mutate a frozen YogaConfig (e.g. YogaConfig.Default).");
         int idx = (int)feature;
         if (_experimentalFeatures[idx] != enabled)
         {
@@ -59,6 +72,7 @@ public sealed class YogaConfig
 
     public void SetErrata(YogaErrata errata)
     {
+        Debug.Assert(!_frozen, "Cannot mutate a frozen YogaConfig (e.g. YogaConfig.Default).");
         if (_errata != errata)
         {
             _errata = errata;
@@ -68,6 +82,7 @@ public sealed class YogaConfig
 
     public void AddErrata(YogaErrata errata)
     {
+        Debug.Assert(!_frozen, "Cannot mutate a frozen YogaConfig (e.g. YogaConfig.Default).");
         if (!HasErrata(errata))
         {
             _errata |= errata;
@@ -77,6 +92,7 @@ public sealed class YogaConfig
 
     public void RemoveErrata(YogaErrata errata)
     {
+        Debug.Assert(!_frozen, "Cannot mutate a frozen YogaConfig (e.g. YogaConfig.Default).");
         if (HasErrata(errata))
         {
             _errata &= ~errata;

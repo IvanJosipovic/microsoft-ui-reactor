@@ -58,8 +58,8 @@ static class Brushes
 
     private static SolidColorBrush GetPaletteBrush(ref SolidColorBrush?[]? cache, int index, double opacity)
     {
-        cache ??= new SolidColorBrush[Palette.Length];
-        int i = index % Palette.Length;
+        cache ??= new SolidColorBrush[Palette.Count];
+        int i = index % Palette.Count;
         return cache[i] ??= Brush(Palette[i], opacity);
     }
 

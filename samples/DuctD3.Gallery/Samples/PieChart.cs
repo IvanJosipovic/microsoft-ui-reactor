@@ -18,7 +18,7 @@ public sealed class PieChartSample : GallerySample
         D3Canvas(width, height,
             ..arcs.SelectMany((a, i) => new[] {
                 D3ArcPath(a.StartAngle, a.EndAngle, cx, cy, outerRadius: 150,
-                    fill: Brush(Palette[i % Palette.Length])),
+                    fill: Brush(Palette[i % Palette.Count])),
                 D3Text(cx + lx, cy + ly, label, 11, brush),
             })
         )
@@ -44,10 +44,10 @@ public sealed class PieChartSample : GallerySample
                     return new Element[]
                     {
                         D3ArcPath(a.StartAngle, a.EndAngle, cx, cy, outerRadius: 150,
-                            fill: Brush(Palette[i % Palette.Length]),
+                            fill: Brush(Palette[i % Palette.Count]),
                             stroke: Brush("#ffffff"), strokeWidth: 1),
                         D3Text(cx + ox - 20, cy + oy - 7,
-                            $"{a.Data.Name} ({a.Data.Value}%)", 11, Brush(Palette[i % Palette.Length])),
+                            $"{a.Data.Name} ({a.Data.Value}%)", 11, Brush(Palette[i % Palette.Count])),
                     };
                 }),
              D3Text(cx - 60, 10, "Market Share", 16, Gray(40)),

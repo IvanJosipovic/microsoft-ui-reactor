@@ -36,7 +36,14 @@ public sealed class LogScale
     /// <summary>Maps a range value back to a domain value (inverse).</summary>
     public double Invert(double y)
     {
-        _input ??= BuildPiecewise(_range, _domain, false);
+        if (_input == null)
+        {
+            double r0 = _range[0], r1 = _range[^1];
+            double ld0 = Log(_domain[0]), ld1 = Log(_domain[^1]);
+            double rDelta = r1 - r0;
+            Func<double, double> normalize = rDelta == 0 ? _ => 0.5 : v => (v - r0) / rDelta;
+            _input = v => Pow(ld0 + normalize(v) * (ld1 - ld0));
+        }
         double raw = _input(y);
         return _clamp ? Clamp(raw, _domain[0], _domain[^1]) : raw;
     }

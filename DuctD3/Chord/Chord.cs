@@ -136,28 +136,28 @@ public sealed class RibbonGenerator
 
 public record struct ChordData
 {
-    public ChordGroup[] Groups;
-    public ChordArc[] Chords;
+    public ChordGroup[] Groups { get; init; }
+    public ChordArc[] Chords { get; init; }
 }
 
 public record struct ChordGroup
 {
-    public int Index;
-    public double StartAngle;
-    public double EndAngle;
-    public double Value;
+    public int Index { get; init; }
+    public double StartAngle { get; init; }
+    public double EndAngle { get; init; }
+    public double Value { get; init; }
 }
 
 public record struct ChordArc
 {
-    public ChordEnd Source;
-    public ChordEnd Target;
+    public ChordEnd Source { get; init; }
+    public ChordEnd Target { get; init; }
 }
 
 public record struct ChordEnd
 {
-    public int Index;
-    public double StartAngle;
-    public double EndAngle;
-    public double Value;
+    public int Index { get; init; }
+    public double StartAngle { get; init; }
+    public double EndAngle { get; init; }
+    public double Value { get; init; }
 }

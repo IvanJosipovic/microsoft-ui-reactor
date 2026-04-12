@@ -90,9 +90,9 @@ public sealed class ArcGenerator
             }
             else if (rc > Epsilon)
             {
-                // Corner radius path (simplified — omitting the full corner tangent computation for now)
-                path.MoveTo(x01, y01);
-                path.Arc(0, 0, r1, a01, a11, !cw);
+                // Corner radius path — full d3 corner tangent computation not yet ported
+                throw new NotImplementedException(
+                    "Corner radius on arcs is not yet implemented. Set corner radius to 0 or omit it.");
             }
             else
             {
@@ -103,8 +103,6 @@ public sealed class ArcGenerator
             // Inner arc (bottom)
             if (r0 > Epsilon)
             {
-                double x00 = r0 * Math.Cos(a01);
-                double y00 = r0 * Math.Sin(a01);
                 path.Arc(0, 0, r0, a11, a01, cw);
             }
             else

@@ -166,6 +166,26 @@ public sealed class YogaNode
         }
     }
 
+    /// <summary>
+    /// Populates <paramref name="result"/> with layoutable children, avoiding
+    /// the enumerator state-machine allocation of <see cref="GetLayoutChildren"/>.
+    /// Use when the caller needs a materialized list.
+    /// </summary>
+    internal void CollectLayoutChildren(List<YogaNode> result)
+    {
+        foreach (var child in _children)
+        {
+            if (child._style.Display == YogaDisplay.Contents)
+            {
+                child.CollectLayoutChildren(result);
+            }
+            else
+            {
+                result.Add(child);
+            }
+        }
+    }
+
     internal int GetLayoutChildCount()
     {
         int count = 0;
@@ -404,8 +424,9 @@ public sealed class YogaNode
 
     internal void ProcessDimensions()
     {
-        foreach (var dim in new[] { YogaDimension.Width, YogaDimension.Height })
+        for (int d = 0; d < 2; d++)
         {
+            var dim = (YogaDimension)d;
             var maxDim = _style.MaxDimensions[(int)dim];
             var minDim = _style.MinDimensions[(int)dim];
             if (maxDim.IsDefined && YogaFloat.InexactEquals(maxDim.Value, minDim.Value) && maxDim.Unit == minDim.Unit)

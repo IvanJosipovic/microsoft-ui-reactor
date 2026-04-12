@@ -25,7 +25,7 @@ public class HorizontalBarChartSample : GallerySample
 
         for (int i = 0; i < countries.Length; i++)
         {
-            var fill = Brush(Palette[i % Palette.Length], opacity: 0.85);
+            var fill = Brush(Palette[i % Palette.Count], opacity: 0.85);
             double y = top + band.Map(countries[i]);
             double barW = xs.Map(populations[i]);
             D3Rect(left, y, barW, band.Bandwidth)
@@ -64,7 +64,7 @@ public class HorizontalBarChartSample : GallerySample
 
              // Bars + value labels
              .. (from t in countries.Select((country, i) => (country, i))
-                 let fill = Brush(Palette[t.i % Palette.Length], opacity: 0.85)
+                 let fill = Brush(Palette[t.i % Palette.Count], opacity: 0.85)
                  let y = top + band.Map(t.country)
                  let barW = xs.Map(populations[t.i])
                  from el in new Element[]

@@ -92,14 +92,14 @@ public sealed class SankeyDiagramSample : GallerySample
                 .Select(link =>
                 {
                     int ci = nodeColors.GetValueOrDefault(link.SourceId, 0);
-                    var color = Palette[ci % Palette.Length];
+                    var color = Palette[ci % Palette.Count];
                     return (Element)D3PathTranslated(SankeyLayout.LinkPath(link), pad, pad,
                         fill: Brush(color, opacity: 0.35));
                 }),
              .. graph.Nodes.SelectMany(node =>
              {
                  int ci = nodeColors[node.Id];
-                 var fill = Brush(Palette[ci % Palette.Length]);
+                 var fill = Brush(Palette[ci % Palette.Count]);
                  double nh = node.Y1 - node.Y0;
                  bool isOutput = node.SourceLinks.Count == 0;
                  double labelY = pad + node.Y0 + nh / 2 - 7;

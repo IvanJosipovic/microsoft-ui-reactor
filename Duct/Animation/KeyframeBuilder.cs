@@ -50,6 +50,9 @@ public class KeyframeBuilder
         Vector3? translation = null, float? rotation = null,
         Easing? easing = null)
     {
+        if (progress < 0f || progress > 1f)
+            throw new ArgumentOutOfRangeException(nameof(progress), progress, "Progress must be between 0.0 and 1.0.");
+
         _keyframes.Add(new KeyframeDef(progress)
         {
             Opacity = opacity,

@@ -60,9 +60,7 @@ internal static class SourceRewriter
 
     private static string BuildReplacement(KeyedLocString entry)
     {
-        var locPath = entry.Namespace != null
-            ? $"Loc.{entry.ReswFileName}.{entry.Key}"
-            : $"Loc.{entry.ReswFileName}.{entry.Key}";
+        var locPath = $"Loc.{entry.ReswFileName}.{entry.Key}";
 
         if (entry.Source.IsInterpolation)
         {

@@ -35,7 +35,7 @@ public static class PropertyGridDefaults
         FlexRow(
             Text($"{propertyName} ({count})").SemiBold(),
             onAdd is not null
-                ? Button("+", () => _ = onAdd())
+                ? Button("+", async () => { try { await onAdd(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"PropertyGrid Add failed: {ex}"); } })
                     .Width(28).Height(28)
                     .AutomationName($"Add {propertyName} item")
                 : null

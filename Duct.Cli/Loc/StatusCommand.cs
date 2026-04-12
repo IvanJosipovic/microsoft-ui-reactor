@@ -15,10 +15,12 @@ internal static class StatusCommand
             switch (args[i])
             {
                 case "--resources":
-                    if (i + 1 < args.Length) resourcesPath = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --resources requires a value."); return 1; }
+                    resourcesPath = args[++i];
                     break;
                 case "--default-locale":
-                    if (i + 1 < args.Length) defaultLocale = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --default-locale requires a value."); return 1; }
+                    defaultLocale = args[++i];
                     break;
                 case "--help" or "-h":
                     ShowHelp();
@@ -46,6 +48,10 @@ internal static class StatusCommand
 
         // Build source key set
         var sourceFiles = allFiles.Where(f => f.Locale == defaultLocale).ToList();
+        if (sourceFiles.Count == 0)
+        {
+            Console.Error.WriteLine($"WARN: No .resw files for default locale '{defaultLocale}'.");
+        }
         var sourceKeySet = new HashSet<(string ns, string key)>();
         foreach (var file in sourceFiles)
         {

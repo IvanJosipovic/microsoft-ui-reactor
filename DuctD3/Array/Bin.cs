@@ -89,10 +89,10 @@ public sealed class BinGenerator<T>
             stop = Math.Floor(max * step) / step;
         }
 
-        int n = Math.Max(0, (int)(Math.Round((stop - start) / Math.Abs(D3Ticks.TickStep(min, max, count)))) + 1);
+        int n = Math.Max(0, (int)(Math.Round((stop - start) / step)) + 1);
         var thresholds = new double[n];
         for (int i = 0; i < n; i++)
-            thresholds[i] = start + i * Math.Abs(D3Ticks.TickStep(min, max, count));
+            thresholds[i] = start + i * step;
         return thresholds;
     }
 }

@@ -370,6 +370,22 @@ internal sealed class FlexLine
 
 internal static class FlexLineHelper
 {
+    [ThreadStatic]
+    private static Stack<List<YogaNode>>? s_listPool;
+
+    internal static List<YogaNode> RentList()
+    {
+        s_listPool ??= new Stack<List<YogaNode>>();
+        return s_listPool.Count > 0 ? s_listPool.Pop() : new List<YogaNode>();
+    }
+
+    internal static void ReturnList(List<YogaNode> list)
+    {
+        list.Clear();
+        s_listPool ??= new Stack<List<YogaNode>>();
+        s_listPool.Push(list);
+    }
+
     /// <summary>
     /// Calculates where a line starting at a given child index should break.
     /// Assumes all children have their computedFlexBasis computed.
@@ -377,9 +393,10 @@ internal static class FlexLineHelper
     public static FlexLine CalculateFlexLine(
         YogaNode node, FlexLayoutDirection ownerDirection, float ownerWidth,
         float mainAxisOwnerSize, float availableInnerWidth, float availableInnerMainDim,
-        ref int childIndex, int lineCount)
+        ref int childIndex, int lineCount,
+        List<YogaNode> layoutChildren)
     {
-        var itemsInFlow = new List<YogaNode>();
+        var itemsInFlow = RentList();
         float sizeConsumed = 0;
         float totalFlexGrowFactors = 0;
         float totalFlexShrinkScaledFactors = 0;
@@ -391,8 +408,6 @@ internal static class FlexLineHelper
         var mainAxis = FlexDirectionHelper.ResolveDirection(node.Style.FlexDirection, direction);
         bool isNodeFlexWrap = node.Style.FlexWrap != FlexWrap.NoWrap;
         float gap = node.Style.ComputeGapForAxis(mainAxis, availableInnerMainDim);
-
-        var layoutChildren = new List<YogaNode>(node.GetLayoutChildren());
 
         for (; childIndex < layoutChildren.Count; childIndex++)
         {

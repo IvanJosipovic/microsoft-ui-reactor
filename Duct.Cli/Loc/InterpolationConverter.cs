@@ -222,8 +222,7 @@ internal static class InterpolationConverter
     {
         // ICU uses single quotes for escaping and { } as syntax
         // We need to escape literal { } that aren't our placeholders
-        // In practice, text segments from interpolated strings won't contain { }
-        // but they might contain single quotes
-        return text.Replace("'", "''");
+        // and single quotes
+        return text.Replace("'", "''").Replace("{", "'{'").Replace("}", "'}'");
     }
 }

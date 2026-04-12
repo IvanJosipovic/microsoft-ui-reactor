@@ -24,7 +24,7 @@ public sealed class CirclePackingSample : GallerySample
             bool isLeaf = node.Children.Count == 0;
             if (isLeaf)
             {
-                var fill = Brush(Palette[colorIdx % Palette.Length], opacity: 0.6);
+                var fill = Brush(Palette[colorIdx % Palette.Count], opacity: 0.6);
                 return new[] { D3Circle(nx, ny, r) with { Fill = fill, Stroke = stroke } };
             }
             else
@@ -88,8 +88,8 @@ public sealed class CirclePackingSample : GallerySample
                 if (isLeaf)
                 {
                     int colorIdx = root.Children.IndexOf(node.TopAncestor);
-                    var fill = Brush(Palette[colorIdx % Palette.Length], opacity: 0.6);
-                    var stroke = Brush(Palette[colorIdx % Palette.Length], opacity: 0.9);
+                    var fill = Brush(Palette[colorIdx % Palette.Count], opacity: 0.6);
+                    var stroke = Brush(Palette[colorIdx % Palette.Count], opacity: 0.9);
                     var circle = D3Circle(nx, ny, r) with { Fill = fill, Stroke = stroke, StrokeThickness = 1 };
 
                     if (r > 18)

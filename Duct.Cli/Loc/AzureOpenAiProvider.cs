@@ -64,11 +64,15 @@ internal sealed class CopilotTranslationProvider : ITranslationProvider
         });
 
         string content;
+        var timeoutTask = Task.Delay(TimeSpan.FromMinutes(2));
         if (ct.CanBeCanceled)
         {
             var registration = ct.Register(() => tcs.TrySetCanceled(ct));
             try
             {
+                var completed = await Task.WhenAny(tcs.Task, timeoutTask);
+                if (completed != tcs.Task)
+                    throw new TimeoutException("Translation request timed out after 2 minutes.");
                 content = await tcs.Task;
             }
             finally
@@ -78,6 +82,9 @@ internal sealed class CopilotTranslationProvider : ITranslationProvider
         }
         else
         {
+            var completed = await Task.WhenAny(tcs.Task, timeoutTask);
+            if (completed != tcs.Task)
+                throw new TimeoutException("Translation request timed out after 2 minutes.");
             content = await tcs.Task;
         }
 

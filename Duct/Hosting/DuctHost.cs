@@ -12,7 +12,7 @@ namespace Duct;
 /// Manages the render loop: when state changes, re-renders the component
 /// and reconciles the virtual tree against the real WinUI control tree.
 /// </summary>
-public sealed class DuctHost
+public sealed class DuctHost : IDisposable
 {
     private static readonly int MaxRenderIterations = 50;
 
@@ -28,10 +28,11 @@ public sealed class DuctHost
     private Element? _currentTree;
     private UIElement? _currentControl;
     private int _renderPending;    // 0 or 1 — Interlocked for thread-safe access
-    private bool _isRendering;     // only touched on UI thread
-    private bool _needsRerender;   // only touched on UI thread
-    private bool _themeListenerAttached;
+    private volatile bool _isRendering;     // only touched on UI thread
+    private volatile bool _needsRerender;   // only touched on UI thread
+    private FrameworkElement? _themeListenerElement;
     private volatile bool _disposed;
+    private readonly Windows.Foundation.TypedEventHandler<object, WindowEventArgs> _closedHandler;
 
     // Captured AnimationScope curve — when a state setter is called inside
     // WithAnimation, the scope is synchronous but the render is async.
@@ -91,7 +92,8 @@ public sealed class DuctHost
 
         // Stop the render loop when the window closes — background threads
         // may still call setState after this, but RequestRender will bail out.
-        _window.Closed += (_, _) => _disposed = true;
+        _closedHandler = (_, _) => Dispose();
+        _window.Closed += _closedHandler;
     }
 
     public void Mount(Component component)
@@ -132,7 +134,11 @@ public sealed class DuctHost
         }
 
         // Between renders: CAS 0→1 gates a single TryEnqueue.
-        if (Interlocked.CompareExchange(ref _renderPending, 1, 0) != 0) return;
+        if (Interlocked.CompareExchange(ref _renderPending, 1, 0) != 0)
+        {
+            _needsRerender = true;
+            return;
+        }
 
         _dispatcherQueue.TryEnqueue(RenderLoop);
     }
@@ -303,7 +309,7 @@ public sealed class DuctHost
         catch (Exception ex)
         {
             _logger.Log(DuctLogLevel.Error, "Render FAILED", ex);
-            throw;
+            ShowErrorFallback(ex);
         }
         finally
         {
@@ -320,15 +326,50 @@ public sealed class DuctHost
     /// </summary>
     private void AttachThemeListener(UIElement? control)
     {
-        if (_themeListenerAttached || control is not FrameworkElement fe) return;
-        _themeListenerAttached = true;
+        if (_themeListenerElement is not null)
+            _themeListenerElement.ActualThemeChanged -= OnActualThemeChanged;
 
-        fe.ActualThemeChanged += (_, _) =>
+        if (control is not FrameworkElement fe)
         {
-            _logger.Log(DuctLogLevel.Debug, $"Theme changed to {fe.ActualTheme} — re-rendering");
-            Duct.Core.Reconciler.ClearStyleCache();
-            RequestRender();
-        };
+            _themeListenerElement = null;
+            return;
+        }
+
+        _themeListenerElement = fe;
+        fe.ActualThemeChanged += OnActualThemeChanged;
+    }
+
+    private void OnActualThemeChanged(FrameworkElement sender, object args)
+    {
+        _logger.Log(DuctLogLevel.Debug, $"Theme changed to {sender.ActualTheme} — re-rendering");
+        Duct.Core.Reconciler.ClearStyleCache();
+        RequestRender();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _window.Closed -= _closedHandler;
+
+        // Theme listener touches UI-affine objects — marshal to UI thread if needed.
+        _dispatcherQueue.TryEnqueue(() =>
+        {
+            if (_themeListenerElement is not null)
+                _themeListenerElement.ActualThemeChanged -= OnActualThemeChanged;
+            _themeListenerElement = null;
+        });
+
+        _rootComponent?.Context.RunCleanups();
+        _funcContext?.RunCleanups();
+        _reconciler.Dispose();
+        _rootComponent = null;
+        _rootRenderFunc = null;
+        _funcContext = null;
+        _currentTree = null;
+        _currentControl = null;
+        DuctApp.ActiveHost = null;
     }
 
     private void ShowErrorFallback(Exception ex)

@@ -27,10 +27,10 @@ class ChartGallery : Component
         var (tick, setTick) = UseState(0);
 
         // Handles — stored in refs so they survive re-renders
-        var lineHandle = UseRef<ChartHandle?>(null);
-        var barHandle = UseRef<ChartHandle?>(null);
-        var areaHandle = UseRef<ChartHandle?>(null);
-        var pieHandle = UseRef<PieChartHandle?>(null);
+        var lineHandle = UseRef<ChartHandle<DataPoint>?>(null);
+        var barHandle = UseRef<ChartHandle<DataPoint>?>(null);
+        var areaHandle = UseRef<ChartHandle<DataPoint>?>(null);
+        var pieHandle = UseRef<PieChartHandle<DataPoint>?>(null);
         var treeHandle = UseRef<TreeChartHandle?>(null);
         var forceHandle = UseRef<ForceGraphHandle?>(null);
 
@@ -176,8 +176,8 @@ class ChartGallery : Component
     // ── Push new data into the handles (no Duct re-render needed) ───────
 
     static void PushAnimatedData(int tick, int tab,
-        ChartHandle? line, ChartHandle? bar, ChartHandle? area,
-        PieChartHandle? pie, TreeChartHandle? tree)
+        ChartHandle<DataPoint>? line, ChartHandle<DataPoint>? bar, ChartHandle<DataPoint>? area,
+        PieChartHandle<DataPoint>? pie, TreeChartHandle? tree)
     {
         switch (tab)
         {

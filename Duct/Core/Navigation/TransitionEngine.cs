@@ -29,6 +29,8 @@ internal static class TransitionEngine
             // Instant swap — no animation
             var inVis = ElementCompositionPreview.GetElementVisual(incoming);
             inVis.Opacity = 1;
+            inVis.Offset = Vector3.Zero;
+            inVis.Scale = Vector3.One;
             onComplete();
             return;
         }
@@ -36,6 +38,10 @@ internal static class TransitionEngine
         var outVisual = ElementCompositionPreview.GetElementVisual(outgoing);
         var inVisual = ElementCompositionPreview.GetElementVisual(incoming);
         var compositor = outVisual.Compositor;
+
+        // Reset stale compositor properties from previous animations
+        inVisual.Offset = Vector3.Zero;
+        inVisual.Scale = Vector3.One;
 
         var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
 
@@ -73,6 +79,7 @@ internal static class TransitionEngine
             inVisual.Offset = Vector3.Zero;
             inVisual.Scale = Vector3.One;
             onComplete();
+            batch.Dispose();
         };
     }
 

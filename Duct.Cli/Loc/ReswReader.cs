@@ -1,3 +1,4 @@
+using System.Xml;
 using System.Xml.Linq;
 
 namespace Duct.Cli.Loc;
@@ -113,9 +114,9 @@ internal static class ReswReader
                 });
             }
         }
-        catch
+        catch (XmlException)
         {
-            // Skip malformed files
+            Console.Error.WriteLine($"[WARN] Skipping malformed .resw: {filePath}");
         }
 
         return entries;

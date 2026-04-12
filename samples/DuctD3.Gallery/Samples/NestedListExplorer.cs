@@ -94,8 +94,8 @@ public sealed class NestedListExplorerSample : GallerySample
                 .Where(folder => folder.Width >= 10 && folder.Height >= 10)
                 .Select((folder, ci) =>
                 {
-                    var color = Brush(Palette[ci % Palette.Length]);
-                    var bgColor = Brush(Palette[ci % Palette.Length], opacity: 0.06);
+                    var color = Brush(Palette[ci % Palette.Count]);
+                    var bgColor = Brush(Palette[ci % Palette.Count], opacity: 0.06);
                     var dimBrush = Gray(100, alpha: 160);
 
                     var header = (Text(folder.Data.Name) with { FontSize = 12 })

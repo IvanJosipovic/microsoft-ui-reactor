@@ -30,7 +30,12 @@ public static class DuctApp
         get => Volatile.Read(ref _options);
         set => Volatile.Write(ref _options, value);
     }
-    public static DuctHost? ActiveHost { get; internal set; }
+    private static DuctHost? _activeHost;
+    public static DuctHost? ActiveHost
+    {
+        get => Volatile.Read(ref _activeHost);
+        internal set => Volatile.Write(ref _activeHost, value);
+    }
 
     // Unpackaged WinUI apps (WindowsPackageType=None) don't inherit DPI awareness from an
     // MSIX manifest, so the process defaults to DPI-unaware and Windows applies blurry bitmap
@@ -199,6 +204,7 @@ public static class DuctApp
                     };
 
                     server.Start();
+                    host.Window.Closed += (_, _) => server.Dispose();
                 }
             };
 

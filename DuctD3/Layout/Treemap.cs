@@ -144,33 +144,57 @@ public sealed class TreemapLayout<T>
         double total = nodes.Sum(n => n.Value);
         if (total == 0) { TileSlice(nodes, x0, y0, x1, y1); return; }
 
-        double remaining = total;
-        var row = new List<TreemapNode<T>>();
-        double rowValue = 0;
+        var sorted = nodes.OrderByDescending(n => n.Value).ToList();
+        double value = total;
+        double ratio = (1 + Math.Sqrt(5)) / 2; // golden ratio
+        int i0 = 0, n = sorted.Count;
 
-        double dx = x1 - x0, dy = y1 - y0;
-        double cx0 = x0, cy0 = y0;
-
-        foreach (var node in nodes.OrderByDescending(n => n.Value))
+        while (i0 < n)
         {
-            double area = (dx * dy) * (node.Value / remaining);
-            row.Add(node);
-            rowValue += node.Value;
+            double dx = x1 - x0, dy = y1 - y0;
 
-            if (row.Count > 1)
+            // Find next non-empty node
+            double sumValue = sorted[i0].Value;
+            while (sumValue == 0 && ++i0 < n) sumValue = sorted[i0].Value;
+            if (i0 >= n) break;
+
+            double minValue = sumValue, maxValue = sumValue;
+            double alpha = Math.Max(dy / dx, dx / dy) / (value * ratio);
+            double beta = sumValue * sumValue * alpha;
+            double minRatio = Math.Max(maxValue / beta, beta / minValue);
+
+            // Keep adding nodes while the aspect ratio maintains or improves
+            int i1;
+            for (i1 = i0 + 1; i1 < n; i1++)
             {
-                // Check aspect ratio — squarify heuristic
-                double shortSide = Math.Min(dx, dy);
-                double rowArea = (dx * dy) * rowValue / remaining;
-                if (shortSide == 0) break;
+                double nodeValue = sorted[i1].Value;
+                sumValue += nodeValue;
+                if (nodeValue < minValue) minValue = nodeValue;
+                if (nodeValue > maxValue) maxValue = nodeValue;
+                beta = sumValue * sumValue * alpha;
+                double newRatio = Math.Max(maxValue / beta, beta / minValue);
+                if (newRatio > minRatio) { sumValue -= nodeValue; break; }
+                minRatio = newRatio;
             }
-        }
 
-        // Fallback: simple slice layout for squarify (simplified)
-        if (dx > dy)
-            TileDice(nodes, x0, y0, x1, y1);
-        else
-            TileSlice(nodes, x0, y0, x1, y1);
+            // Flush the row: dice if taller than wide, slice otherwise
+            var row = sorted.GetRange(i0, i1 - i0);
+            if (dx < dy)
+            {
+                double rowY1 = value > 0 ? y0 + dy * sumValue / value : y1;
+                TileDice(row, x0, y0, x1, rowY1);
+                y0 = rowY1;
+            }
+            else
+            {
+                double rowX1 = value > 0 ? x0 + dx * sumValue / value : x1;
+                TileSlice(row, x0, y0, rowX1, y1);
+                x0 = rowX1;
+            }
+
+            value -= sumValue;
+            i0 = i1;
+        }
     }
 }
 

@@ -11,6 +11,7 @@
 // SizingMode maps to CSS sizing: StretchFit=definite, FitContent=max-content-clamped, MaxContent=intrinsic.
 // All float math uses YogaFloat helpers (NaN = undefined, InexactEquals for float tolerance).
 
+using System.Threading;
 using Duct.Flex;
 
 namespace Duct.Layout;
@@ -33,7 +34,7 @@ internal static class YogaAlgorithm
     public static void CalculateLayout(
         YogaNode node, float availableWidth, float availableHeight, FlexLayoutDirection ownerDirection)
     {
-        s_currentGenerationCount++;
+        Interlocked.Increment(ref s_currentGenerationCount);
         node.ProcessDimensions();
         var direction = node.ResolveDirection(ownerDirection);
 
@@ -416,7 +417,8 @@ internal static class YogaAlgorithm
         float maxLineMainDim = 0;
 
         // Build the list of layout children once for iteration
-        var layoutChildren = new List<YogaNode>(node.GetLayoutChildren());
+        var layoutChildren = new List<YogaNode>();
+        node.CollectLayoutChildren(layoutChildren);
 
         while (startOfLineIndex < layoutChildren.Count)
         {
@@ -424,7 +426,8 @@ internal static class YogaAlgorithm
             var flexLine = FlexLineHelper.CalculateFlexLine(
                 node, ownerDirection, ownerWidth,
                 mainAxisOwnerSize, availableInnerWidth, availableInnerMainDim,
-                ref currentIndex, lineCount);
+                ref currentIndex, lineCount,
+                layoutChildren);
             startOfLineIndex = currentIndex;
 
             bool canSkipFlex = !performLayout && sizingModeCrossDim == SizingMode.StretchFit;
@@ -614,6 +617,7 @@ internal static class YogaAlgorithm
             float appliedCrossGap = lineCount != 0 ? crossAxisGap : 0.0f;
             totalLineCrossDim += flexLine.Layout.CrossDim + appliedCrossGap;
             maxLineMainDim = YogaFloat.MaxOrDefined(maxLineMainDim, flexLine.Layout.MainDim);
+            FlexLineHelper.ReturnList(flexLine.ItemsInFlow);
             lineCount++;
         }
 
@@ -1316,7 +1320,8 @@ internal static class YogaAlgorithm
     {
         float totalOuterFlexBasis = 0.0f;
         YogaNode? singleFlexChild = null;
-        var children = new List<YogaNode>(node.GetLayoutChildren());
+        var children = new List<YogaNode>();
+        node.CollectLayoutChildren(children);
         var sizingModeMainDim = FlexDirectionHelper.IsRow(mainAxis) ? widthSizingMode : heightSizingMode;
 
         if (sizingModeMainDim == SizingMode.StretchFit)

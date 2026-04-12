@@ -203,7 +203,7 @@ public class NavigationStackTests
     public void Guard_That_Cancels_Prevents_Push_And_Returns_False()
     {
         var stack = new NavigationStack<Route>(new Home());
-        stack.Guard = ctx => { ctx.Cancel(); return false; };
+        stack.Guard = ctx => { ctx.Cancel(); };
 
         var result = stack.Push(new Detail(1));
 
@@ -217,7 +217,7 @@ public class NavigationStackTests
     {
         var stack = new NavigationStack<Route>(new Home());
         stack.Push(new Detail(1));
-        stack.Guard = ctx => { ctx.Cancel(); return false; };
+        stack.Guard = ctx => { ctx.Cancel(); };
 
         var result = stack.Pop();
 
@@ -234,7 +234,6 @@ public class NavigationStackTests
         stack.Guard = ctx =>
         {
             captured = ctx;
-            return true; // allow
         };
 
         stack.Push(new Detail(42));
@@ -272,7 +271,7 @@ public class NavigationStackTests
         var forwardCount = stack.ForwardStack.Count;
         var current = stack.Current;
 
-        stack.Guard = ctx => { ctx.Cancel(); return false; };
+        stack.Guard = ctx => { ctx.Cancel(); };
 
         // Try all mutations — all should be blocked
         Assert.False(stack.Push(new Settings()));

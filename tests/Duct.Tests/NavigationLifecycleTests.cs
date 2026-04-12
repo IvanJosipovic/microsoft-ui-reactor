@@ -168,7 +168,7 @@ public class NavigationLifecycleTests
         var order = new List<string>();
 
         stack.LifecycleGuard = ctx => order.Add("lifecycle");
-        stack.Guard = ctx => { order.Add("guard"); return true; };
+        stack.Guard = ctx => { order.Add("guard"); };
 
         stack.Push(new Detail(1));
 
@@ -182,7 +182,7 @@ public class NavigationLifecycleTests
         bool guardCalled = false;
 
         stack.LifecycleGuard = ctx => ctx.Cancel();
-        stack.Guard = ctx => { guardCalled = true; return true; };
+        stack.Guard = ctx => { guardCalled = true; };
 
         var result = stack.Push(new Detail(1));
 

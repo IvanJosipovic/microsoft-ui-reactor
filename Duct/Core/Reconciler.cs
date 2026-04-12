@@ -116,7 +116,12 @@ public sealed partial class Reconciler : IDisposable
     /// EXP-2: When true, UpdateText uses bitmask diff (old vs new Element comparison)
     /// instead of reading WinUI control properties via COM interop to guard writes.
     /// </summary>
-    public static bool EnableBitmaskDiff { get; set; }
+    private static volatile bool _enableBitmaskDiff;
+    public static bool EnableBitmaskDiff
+    {
+        get => _enableBitmaskDiff;
+        set => _enableBitmaskDiff = value;
+    }
 
     public Reconciler() : this(NullDuctLogger.Instance) { }
 
@@ -337,7 +342,7 @@ public sealed partial class Reconciler : IDisposable
         // ── Render the component ──
         // Pass the component's own wrapped rerender to children so that child state
         // changes propagate SelfTriggered up through all component ancestors.
-        var componentRerender = CreateComponentRerender(control, requestRerender);
+        var componentRerender = CreateComponentRerender(node, requestRerender);
 
         Element newChildElement;
         try
@@ -369,7 +374,7 @@ public sealed partial class Reconciler : IDisposable
             }
             else return;
         }
-        catch (Exception ex) when (_errorBoundaryDepth == 0)
+        catch (Exception ex) when (_errorBoundaryDepth == 0 && ex is not OutOfMemoryException and not StackOverflowException)
         {
             _logger.Log(DuctLogLevel.Error, $"Component Render() threw: {newEl.GetType().Name}", ex);
             newChildElement = new TextElement($"⚠ Render error: {ex.Message}");
@@ -398,13 +403,13 @@ public sealed partial class Reconciler : IDisposable
     /// <summary>
     /// Creates a rerender callback that marks the component node as self-triggered
     /// before invoking the parent requestRerender, so the memo check is bypassed.
+    /// Captures the node directly to avoid accessing _componentNodes from background threads.
     /// </summary>
-    private Action CreateComponentRerender(UIElement control, Action requestRerender)
+    private static Action CreateComponentRerender(ComponentNode node, Action requestRerender)
     {
         return () =>
         {
-            if (_componentNodes.TryGetValue(control, out var node))
-                node.SelfTriggered = true;
+            node.SelfTriggered = true;
             requestRerender();
         };
     }
@@ -427,25 +432,12 @@ public sealed partial class Reconciler : IDisposable
     }
 
     /// <summary>
-    /// Calls ShouldUpdate(oldProps, newProps) on a Component&lt;TProps&gt; via dynamic dispatch.
+    /// Calls ShouldUpdate(oldProps, newProps) on a Component&lt;TProps&gt; via interface dispatch.
     /// </summary>
     private static bool ShouldUpdateWithProps(Component component, object? oldProps, object? newProps)
     {
-        // Use the base ShouldUpdate() when both are null (propless path shouldn't reach here,
-        // but guard anyway)
-        var compType = component.GetType();
-        var baseType = compType.BaseType;
-        while (baseType is not null && !baseType.IsGenericType)
-            baseType = baseType.BaseType;
-
-        if (baseType is not null && baseType.GetGenericTypeDefinition() == typeof(Component<>))
-        {
-            var method = compType.GetMethod("ShouldUpdate",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public,
-                null, new[] { baseType.GetGenericArguments()[0], baseType.GetGenericArguments()[0] }, null);
-            if (method is not null)
-                return (bool)method.Invoke(component, new[] { oldProps, newProps })!;
-        }
+        if (component is IPropsComparable comparable)
+            return comparable.CompareProps(oldProps, newProps);
 
         // Fallback: always re-render
         return true;
@@ -508,7 +500,19 @@ public sealed partial class Reconciler : IDisposable
                 var service = ConnectedAnimationService.GetForCurrentView();
                 service.PrepareToAnimate(caEl.ConnectedAnimationKey, control);
             }
-            catch { /* ConnectedAnimationService may not be available in all contexts */ }
+            catch (System.Runtime.InteropServices.COMException) { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Duct] ConnectedAnimation PrepareToAnimate failed: {ex}"); }
+        }
+
+        // Clean up animation state (mirrors UnmountAndCollect)
+        if (control is FrameworkElement animFe && animFe.Tag is Element animEl)
+        {
+            if (animEl.InteractionStates is not null)
+                ClearInteractionStates(control);
+            if (animEl.KeyframeAnimations is not null)
+                ClearKeyframeAnimations(control, animEl.KeyframeAnimations);
+            if (animEl.ScrollAnimation is not null)
+                ClearScrollAnimation(control, animEl.ScrollAnimation);
         }
 
         if (_componentNodes.TryGetValue(control, out var node))
@@ -524,7 +528,7 @@ public sealed partial class Reconciler : IDisposable
         {
             if (navNode.RouteChangedHandler is not null)
                 navNode.Handle.RouteChanged -= navNode.RouteChangedHandler;
-            navNode.Handle.LifecycleGuard = null;
+            navNode.Handle.Detach();
             navNode.Cache?.Clear();
             if (navNode.CurrentChildControl is not null)
                 UnmountRecursive(navNode.CurrentChildControl);
@@ -665,7 +669,8 @@ public sealed partial class Reconciler : IDisposable
                 var service = ConnectedAnimationService.GetForCurrentView();
                 service.PrepareToAnimate(caEl.ConnectedAnimationKey, control);
             }
-            catch { /* ConnectedAnimationService may not be available in all contexts */ }
+            catch (System.Runtime.InteropServices.COMException) { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Duct] ConnectedAnimation PrepareToAnimate failed: {ex}"); }
         }
 
         // Clean up animation state
@@ -737,6 +742,8 @@ public sealed partial class Reconciler : IDisposable
         if (oldEl.Key != newEl.Key) return false;
         if (oldEl is ComponentElement oldComp && newEl is ComponentElement newComp)
             return oldComp.ComponentType == newComp.ComponentType;
+        if (oldEl is XamlHostElement oldHost && newEl is XamlHostElement newHost)
+            return oldHost.TypeKey == newHost.TypeKey;
         // MemoElement can always update to MemoElement (same type check above handles it)
         return true;
     }
@@ -1534,6 +1541,19 @@ public sealed partial class Reconciler : IDisposable
     {
         foreach (var entry in entries)
             _keyframeTriggerValues.Remove((uie, entry.Name));
+
+        // Stop composition animations so they don't keep running on pooled/unmounted controls.
+        // We stop all four possible targets since KeyframeAnimationDef doesn't track which
+        // targets were started — StopAnimation is a no-op if no animation is running on that property.
+        try
+        {
+            var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(uie);
+            visual.StopAnimation("Opacity");
+            visual.StopAnimation("Scale");
+            visual.StopAnimation("Offset");
+            visual.StopAnimation("RotationAngle");
+        }
+        catch { /* No compositor (e.g. unit tests) */ }
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -1584,7 +1604,8 @@ public sealed partial class Reconciler : IDisposable
             if (anim is not null)
                 _pendingConnectedAnimationStarts.Add((anim, target));
         }
-        catch { /* ConnectedAnimationService may not be available */ }
+        catch (System.Runtime.InteropServices.COMException) { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Duct] ConnectedAnimation GetAnimation failed: {ex}"); }
     }
 
     /// <summary>
@@ -1598,7 +1619,8 @@ public sealed partial class Reconciler : IDisposable
         foreach (var (anim, target) in _pendingConnectedAnimationStarts)
         {
             try { anim.TryStart(target); }
-            catch { /* target may not be in visual tree */ }
+            catch (System.Runtime.InteropServices.COMException) { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Duct] ConnectedAnimation TryStart failed: {ex}"); }
         }
         _pendingConnectedAnimationStarts.Clear();
     }
@@ -2254,8 +2276,8 @@ public sealed partial class Reconciler : IDisposable
     {
         "*" => new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
         "Auto" or "auto" => new ColumnDefinition { Width = GridLength.Auto },
-        _ when double.TryParse(def, out var px) => new ColumnDefinition { Width = new GridLength(px) },
-        _ when def.EndsWith('*') && double.TryParse(def[..^1], out var stars) =>
+        _ when double.TryParse(def, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var px) => new ColumnDefinition { Width = new GridLength(px) },
+        _ when def.EndsWith('*') && double.TryParse(def[..^1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var stars) =>
             new ColumnDefinition { Width = new GridLength(stars, GridUnitType.Star) },
         _ => new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
     };
@@ -2264,8 +2286,8 @@ public sealed partial class Reconciler : IDisposable
     {
         "*" => new RowDefinition { Height = new GridLength(1, GridUnitType.Star) },
         "Auto" or "auto" => new RowDefinition { Height = GridLength.Auto },
-        _ when double.TryParse(def, out var px) => new RowDefinition { Height = new GridLength(px) },
-        _ when def.EndsWith('*') && double.TryParse(def[..^1], out var stars) =>
+        _ when double.TryParse(def, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var px) => new RowDefinition { Height = new GridLength(px) },
+        _ when def.EndsWith('*') && double.TryParse(def[..^1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var stars) =>
             new RowDefinition { Height = new GridLength(stars, GridUnitType.Star) },
         _ => new RowDefinition { Height = new GridLength(1, GridUnitType.Star) },
     };
@@ -2287,8 +2309,10 @@ public sealed partial class Reconciler : IDisposable
         public object? PreviousProps { get; set; }
         /// <summary>Dependencies from the last MemoElement render (null = render once).</summary>
         public object?[]? MemoDependencies { get; set; }
-        /// <summary>Set to true when a self-triggered re-render is queued (UseState setter).</summary>
-        public bool SelfTriggered { get; set; }
+        /// <summary>Set to true when a self-triggered re-render is queued (UseState setter).
+        /// Accessed from background threads (UseState callbacks) — use volatile field.</summary>
+        private volatile bool _selfTriggered;
+        public bool SelfTriggered { get => _selfTriggered; set => _selfTriggered = value; }
     }
 
     /// <summary>
@@ -2464,9 +2488,12 @@ public sealed partial class Reconciler : IDisposable
         {
             if (node.RouteChangedHandler is not null)
                 node.Handle.RouteChanged -= node.RouteChangedHandler;
-            node.Handle.LifecycleGuard = null;
+            node.Handle.Detach();
+            if (node.CurrentChildControl is not null)
+                UnmountRecursive(node.CurrentChildControl);
             node.Cache?.Clear();
         }
         _navigationHostNodes.Clear();
+        _pool.Clear();
     }
 }

@@ -17,11 +17,13 @@ namespace Duct.Markdown
             public Entity(string name, uint cp0, uint cp1)
             {
                 Name = name;
-                Codepoints = new uint[] { cp0, cp1 };
+                Codepoint0 = cp0;
+                Codepoint1 = cp1;
             }
 
             public string Name { get; }
-            public uint[] Codepoints { get; }
+            public uint Codepoint0 { get; }
+            public uint Codepoint1 { get; }
         }
 
         private static readonly Entity[] EntityMap = new Entity[]
@@ -2153,26 +2155,25 @@ namespace Duct.Markdown
             new Entity("&zwnj;", 8204, 0),
         };
 
-        private sealed class EntityComparer : IComparer<Entity>
-        {
-            public static readonly EntityComparer Instance = new EntityComparer();
+        private static readonly Dictionary<string, Entity> EntityDict = BuildEntityDict();
 
-            public int Compare(Entity x, Entity y)
-            {
-                return string.Compare(x.Name, y.Name, StringComparison.Ordinal);
-            }
+        private static Dictionary<string, Entity> BuildEntityDict()
+        {
+            var dict = new Dictionary<string, Entity>(EntityMap.Length, StringComparer.Ordinal);
+            foreach (var e in EntityMap)
+                dict[e.Name] = e;
+            return dict;
         }
 
         /// <summary>
         /// Looks up an HTML entity by name (including the leading &amp; and trailing ;).
         /// Returns the Entity if found, or null if not found.
         /// </summary>
-        public static Entity? EntityLookup(string name)
+        public static Entity? EntityLookup(ReadOnlySpan<char> name)
         {
-            var key = new Entity(name, 0, 0);
-            int index = Array.BinarySearch(EntityMap, key, EntityComparer.Instance);
-            if (index >= 0)
-                return EntityMap[index];
+            var lookup = EntityDict.GetAlternateLookup<ReadOnlySpan<char>>();
+            if (lookup.TryGetValue(name, out var entity))
+                return entity;
             return null;
         }
     }

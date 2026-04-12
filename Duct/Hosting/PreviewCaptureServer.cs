@@ -25,6 +25,7 @@ internal sealed class PreviewCaptureServer : IDisposable
 
     private byte[] _latestFrame = [];
     private bool _disposed;
+    private int _captureErrorCount;
 
     public int Port { get; }
     public int Fps { get; }
@@ -59,7 +60,9 @@ internal sealed class PreviewCaptureServer : IDisposable
     {
         _listener.Start();
         _captureTimer.Start();
-        _ = ListenAsync();
+        _ = ListenAsync().ContinueWith(
+            t => Console.Error.WriteLine($"[preview:capture] Listener loop failed: {t.Exception!.GetBaseException()}"),
+            TaskContinuationOptions.OnlyOnFaulted);
 
         Console.WriteLine($"[preview:capture] Serving on http://localhost:{Port}");
         Console.WriteLine($"CAPTURE_PORT={Port}");
@@ -120,9 +123,11 @@ internal sealed class PreviewCaptureServer : IDisposable
             clientBmp.Save(ms, ImageFormat.Jpeg);
             Interlocked.Exchange(ref _latestFrame, ms.ToArray());
         }
-        catch
+        catch (Exception ex)
         {
-            // Swallow capture errors — the timer will try again next tick.
+            var count = Interlocked.Increment(ref _captureErrorCount);
+            if (count == 1 || (count % 100 == 0))
+                Console.Error.WriteLine($"[preview:capture] Frame capture error (count={count}): {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -149,9 +154,16 @@ internal sealed class PreviewCaptureServer : IDisposable
         var path = ctx.Request.Url?.AbsolutePath ?? "/";
         var response = ctx.Response;
 
-        response.Headers.Add("Access-Control-Allow-Origin", "*");
-        response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-        response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
+        // Restrict CORS to localhost and VS Code webview origins
+        var origin = ctx.Request.Headers["Origin"];
+        if (!string.IsNullOrEmpty(origin) &&
+            (origin.StartsWith("http://localhost:") || origin.StartsWith("https://localhost:") ||
+             origin.StartsWith("vscode-webview://")))
+        {
+            response.Headers.Add("Access-Control-Allow-Origin", origin);
+            response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
+        }
 
         if (ctx.Request.HttpMethod == "OPTIONS")
         {
@@ -286,8 +298,8 @@ internal sealed class PreviewCaptureServer : IDisposable
 
         var success = SwitchComponent(componentName);
         var result = success
-            ? $"{{\"ok\":true,\"component\":\"{componentName}\"}}"
-            : $"{{\"ok\":false,\"error\":\"Component '{componentName}' not found\"}}";
+            ? JsonSerializer.Serialize(new { ok = true, component = componentName })
+            : JsonSerializer.Serialize(new { ok = false, error = $"Component '{componentName}' not found" });
         var resultBytes = Encoding.UTF8.GetBytes(result);
 
         response.StatusCode = success ? 200 : 404;
@@ -318,23 +330,23 @@ internal sealed class PreviewCaptureServer : IDisposable
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT { public int X, Y; }
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetClientRect(IntPtr hwnd, out RECT lpRect);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetWindowRect(IntPtr hwnd, out RECT lpRect);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool ClientToScreen(IntPtr hwnd, ref POINT lpPoint);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SetForegroundWindow(IntPtr hWnd);
     }

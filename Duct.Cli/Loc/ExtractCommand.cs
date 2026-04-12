@@ -18,10 +18,12 @@ internal static class ExtractCommand
             switch (args[i])
             {
                 case "--source":
-                    if (i + 1 < args.Length) sourcePath = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --source requires a value."); return 1; }
+                    sourcePath = args[++i];
                     break;
                 case "--output":
-                    if (i + 1 < args.Length) outputPath = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --output requires a value."); return 1; }
+                    outputPath = args[++i];
                     break;
                 case "--dry-run":
                     dryRun = true;
@@ -126,7 +128,7 @@ internal static class ExtractCommand
         }
 
         // Write .resw files
-        ReswWriter.Write(outputPath, newEntries, existingEntries);
+        ReswWriter.Write(outputPath, newEntries);
         Console.WriteLine($"\nWrote {newEntries.Count} new keys to {outputPath}/");
 
         // Rewrite source files

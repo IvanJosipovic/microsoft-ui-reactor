@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace Duct.Core.Navigation;
@@ -24,15 +25,23 @@ public sealed class RouteArgs
             throw new KeyNotFoundException($"Parameter '{name}' not found in route args.");
 
         var type = typeof(T);
-        object result = type switch
+        object result;
+        try
         {
-            _ when type == typeof(string) => raw,
-            _ when type == typeof(int) => int.Parse(raw),
-            _ when type == typeof(long) => long.Parse(raw),
-            _ when type == typeof(bool) => bool.Parse(raw),
-            _ when type == typeof(Guid) => Guid.Parse(raw),
-            _ => throw new NotSupportedException($"RouteArgs.Get<{type.Name}> is not supported."),
-        };
+            result = type switch
+            {
+                _ when type == typeof(string) => raw,
+                _ when type == typeof(int) => int.Parse(raw, CultureInfo.InvariantCulture),
+                _ when type == typeof(long) => long.Parse(raw, CultureInfo.InvariantCulture),
+                _ when type == typeof(bool) => bool.Parse(raw),
+                _ when type == typeof(Guid) => Guid.Parse(raw),
+                _ => throw new NotSupportedException($"RouteArgs.Get<{type.Name}> is not supported."),
+            };
+        }
+        catch (FormatException ex)
+        {
+            throw new FormatException($"Route parameter '{name}' value '{raw}' is not a valid {type.Name}.", ex);
+        }
         return (T)result;
     }
 

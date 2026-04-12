@@ -46,6 +46,12 @@ internal interface INavigationHandle
     Action<NavigatingFromContext>? LifecycleGuard { get; set; }
 
     /// <summary>
+    /// Detaches all delegates from the underlying stack, breaking strong references
+    /// to component render infrastructure. Called during unmount.
+    /// </summary>
+    void Detach();
+
+    /// <summary>
     /// Per-navigation transition override set by <see cref="NavigationHandle{TRoute}.Navigate"/>
     /// when <see cref="NavigateOptions.Transition"/> is provided. Read and cleared by the reconciler
     /// during content swap to select the transition. Null means use host default.
@@ -85,6 +91,8 @@ public sealed class NavigationHandle<TRoute> : INavigationHandle where TRoute : 
         get => _stack.LifecycleGuard;
         set => _stack.LifecycleGuard = value;
     }
+
+    void INavigationHandle.Detach() => _stack.Detach();
 
     private NavigationTransition? _pendingTransitionOverride;
     NavigationTransition? INavigationHandle.PendingTransitionOverride
@@ -144,6 +152,9 @@ public sealed class NavigationHandle<TRoute> : INavigationHandle where TRoute : 
                 RouteChanged?.Invoke();
             }
         }
+
+        if (!success)
+            _pendingTransitionOverride = null;
 
         return success;
     }
@@ -248,6 +259,9 @@ public sealed class NavigationHandle<TRoute> : INavigationHandle where TRoute : 
     {
         var state = JsonSerializer.Deserialize<NavigationState<TRoute>>(json, options)
             ?? throw new JsonException("Failed to deserialize navigation state.");
+
+        if (state.Current is null)
+            throw new JsonException("Navigation state must include a non-null 'current' route.");
 
         var previous = _stack.Current;
         _stack.RestoreState(state.BackStack, state.Current, state.ForwardStack);

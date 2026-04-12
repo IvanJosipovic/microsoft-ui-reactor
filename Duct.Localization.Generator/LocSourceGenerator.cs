@@ -155,6 +155,8 @@ public sealed class LocSourceGenerator : IIncrementalGenerator
     {
         // XML doc with the default-locale value for IntelliSense
         var escapedValue = entry.Value
+            .Replace("\r\n", " ")
+            .Replace("\n", " ")
             .Replace("&", "&amp;")
             .Replace("<", "&lt;")
             .Replace(">", "&gt;");

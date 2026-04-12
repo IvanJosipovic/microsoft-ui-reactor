@@ -67,7 +67,8 @@ public record ElementTransition(Transition Transition, Curve? Curve = null)
     internal Transition? GetEnterTransition() => Transition switch
     {
         AsymmetricTransition a => a.EnterTransition,
-        DirectionalTransition d => d.EnterTransition ?? Transition,
+        DirectionalTransition { EnterTransition: not null } d => d.EnterTransition,
+        DirectionalTransition { EnterTransition: null } => null,
         _ => Transition,
     };
 

@@ -202,7 +202,7 @@ public class TransitionEngineTests
         var iHandle = (INavigationHandle)handle;
 
         // Set a guard that cancels
-        stack.Guard = ctx => { ctx.Cancel(); return false; };
+        stack.Guard = ctx => { ctx.Cancel(); };
 
         var fade = NavigationTransition.Fade();
         bool result = handle.Navigate(new Detail(1), new NavigateOptions { Transition = fade });

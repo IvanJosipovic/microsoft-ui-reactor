@@ -35,7 +35,10 @@ public static class CommandInterop
 
     /// <summary>
     /// Creates a parameterized DuctCommand from an ICommand. The ICommand receives the
-    /// DuctCommand's parameter when Execute and CanExecute are called.
+    /// DuctCommand's parameter when Execute is called. CanExecute defaults to true because
+    /// DuctCommand&lt;T&gt;.CanExecute is a static bool and the parameter is not known at
+    /// creation time. To evaluate CanExecute dynamically, call this within a component's
+    /// Render method with a known parameter and pass command.CanExecute(parameter) explicitly.
     /// </summary>
     public static DuctCommand<T> FromCommand<T>(
         ICommand command,
@@ -48,7 +51,7 @@ public static class CommandInterop
         {
             Label = label,
             Execute = arg => command.Execute(arg),
-            CanExecute = true, // evaluated per-call since parameter varies
+            CanExecute = true,
             Icon = icon,
             Description = description,
             Accelerator = accelerator,

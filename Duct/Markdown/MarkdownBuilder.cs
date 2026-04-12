@@ -123,7 +123,7 @@ internal sealed class MarkdownBuilder
     {
         options ??= new MarkdownOptions();
         var builder = new MarkdownBuilder(options);
-        Md4cParser.Parse(
+        int ret = Md4cParser.Parse(
             markdown,
             options.ParserFlags,
             builder.OnEnterBlock,
@@ -131,6 +131,8 @@ internal sealed class MarkdownBuilder
             builder.OnEnterSpan,
             builder.OnLeaveSpan,
             builder.OnText);
+        if (ret != 0)
+            System.Diagnostics.Debug.WriteLine($"MarkdownBuilder: md4c parse failed with code {ret}");
         return builder._result ?? VStack();
     }
 
@@ -781,9 +783,9 @@ internal sealed class MarkdownBuilder
         if (entity is not null)
         {
             var sb = new StringBuilder();
-            sb.Append(char.ConvertFromUtf32((int)entity.Value.Codepoints[0]));
-            if (entity.Value.Codepoints[1] != 0)
-                sb.Append(char.ConvertFromUtf32((int)entity.Value.Codepoints[1]));
+            sb.Append(char.ConvertFromUtf32((int)entity.Value.Codepoint0));
+            if (entity.Value.Codepoint1 != 0)
+                sb.Append(char.ConvertFromUtf32((int)entity.Value.Codepoint1));
             AddInlineRun(sb.ToString());
         }
         else

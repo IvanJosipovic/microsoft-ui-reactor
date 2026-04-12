@@ -18,7 +18,7 @@ public sealed class DonutChartSample : GallerySample
         var slices = arcs.SelectMany((a, i) => new[] {
             D3ArcPath(a.StartAngle, a.EndAngle, cx, cy,
                 outerRadius: 150, innerRadius: 80, padAngle: 0.02,
-                fill: Brush(Palette[i % Palette.Length])),
+                fill: Brush(Palette[i % Palette.Count])),
             D3Text(cx + lx, cy + ly, a.Data.Name, 10, brush),
         });
         D3Canvas(width, height, [..slices, ..centerText, title]);
@@ -47,9 +47,9 @@ public sealed class DonutChartSample : GallerySample
                     {
                         D3ArcPath(a.StartAngle, a.EndAngle, cx, cy,
                             outerRadius: 150, innerRadius: 80, padAngle: 0.02,
-                            fill: Brush(Palette[i % Palette.Length])),
+                            fill: Brush(Palette[i % Palette.Count])),
                         D3Text(cx + lx - 24, cy + ly - 7,
-                            $"{a.Data.Name}", 10, Brush(Palette[i % Palette.Length])),
+                            $"{a.Data.Name}", 10, Brush(Palette[i % Palette.Count])),
                     };
                 }),
             D3Text(cx - 24, cy - 12, $"${total:N0}", 14, Gray(40)),

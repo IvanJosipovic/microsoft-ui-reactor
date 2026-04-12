@@ -146,18 +146,18 @@ public readonly struct D3Color
     // ── Predefined palettes for charting ───────────────────────────────
 
     /// <summary>D3's category10 color scheme — 10 distinct colors for categorical data.</summary>
-    public static readonly D3Color[] Category10 =
-    [
+    public static readonly IReadOnlyList<D3Color> Category10 = Array.AsReadOnly(new[]
+    {
         Parse("#1f77b4"), Parse("#ff7f0e"), Parse("#2ca02c"), Parse("#d62728"), Parse("#9467bd"),
         Parse("#8c564b"), Parse("#e377c2"), Parse("#7f7f7f"), Parse("#bcbd22"), Parse("#17becf"),
-    ];
+    });
 
     /// <summary>Tableau10 color scheme — another popular 10-color categorical palette.</summary>
-    public static readonly D3Color[] Tableau10 =
-    [
+    public static readonly IReadOnlyList<D3Color> Tableau10 = Array.AsReadOnly(new[]
+    {
         Parse("#4e79a7"), Parse("#f28e2b"), Parse("#e15759"), Parse("#76b7b2"), Parse("#59a14f"),
         Parse("#edc948"), Parse("#b07aa1"), Parse("#ff9da7"), Parse("#9c755f"), Parse("#bab0ac"),
-    ];
+    });
 
     private static readonly Dictionary<string, D3Color> NamedColors = new()
     {

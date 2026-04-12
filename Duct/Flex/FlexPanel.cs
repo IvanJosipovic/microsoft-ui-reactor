@@ -25,6 +25,8 @@ public partial class FlexPanel : Panel
     // ── Yoga node cache: one YogaNode per UIElement child ──
     private readonly Dictionary<UIElement, YogaNode> _nodeCache = new();
     private readonly YogaNode _rootNode = new();
+    private readonly HashSet<UIElement> _syncCurrentChildren = new();
+    private readonly List<UIElement> _syncToRemove = new();
 
     public FlexPanel()
     {
@@ -425,17 +427,17 @@ public partial class FlexPanel : Panel
     private void SyncYogaTree()
     {
         // Remove nodes for children that are no longer present
-        var currentChildren = new HashSet<UIElement>();
+        _syncCurrentChildren.Clear();
         foreach (UIElement child in Children)
-            currentChildren.Add(child);
+            _syncCurrentChildren.Add(child);
 
-        var toRemove = new List<UIElement>();
+        _syncToRemove.Clear();
         foreach (var kvp in _nodeCache)
         {
-            if (!currentChildren.Contains(kvp.Key))
-                toRemove.Add(kvp.Key);
+            if (!_syncCurrentChildren.Contains(kvp.Key))
+                _syncToRemove.Add(kvp.Key);
         }
-        foreach (var el in toRemove)
+        foreach (var el in _syncToRemove)
         {
             if (_nodeCache.TryGetValue(el, out var node))
                 _rootNode.RemoveChild(node);

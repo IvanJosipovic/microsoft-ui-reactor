@@ -89,7 +89,7 @@ public sealed class ForceDirectedGraphSample : GallerySample
             {
                 D3Circle(n.X, n.Y, 10) with
                 {
-                    Fill = Brush(Palette[categories[i] % Palette.Length]),
+                    Fill = Brush(Palette[categories[i] % Palette.Count]),
                     Stroke = white,
                     StrokeThickness = 1.5,
                 },

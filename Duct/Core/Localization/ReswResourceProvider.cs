@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace Duct.Core.Localization;
@@ -122,7 +123,7 @@ public sealed class ReswResourceProvider : IStringResourceProvider
 
             return entries;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is XmlException or IOException or UnauthorizedAccessException)
         {
             Debug.WriteLine($"[Duct.Intl] Failed to parse .resw file '{path}': {ex.Message}");
             return null;

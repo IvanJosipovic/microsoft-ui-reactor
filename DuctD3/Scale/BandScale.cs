@@ -161,7 +161,7 @@ public sealed class PointScale<TDomain> where TDomain : notnull
 
     public TDomain[] Domain { get => _band.Domain; set => _band.Domain = value; }
     public double[] Range { get => _band.Range; set => _band.Range = value; }
-    public double Padding { set => _band.PaddingOuter = value; }
+    public double Padding { get => _band.PaddingOuter; set => _band.PaddingOuter = value; }
     public double Align { get => _band.Align; set => _band.Align = value; }
 
     public PointScale<TDomain> SetDomain(params TDomain[] domain) { Domain = domain; return this; }
@@ -174,6 +174,7 @@ public sealed class PointScale<TDomain> where TDomain : notnull
         var copy = new PointScale<TDomain>();
         copy.Domain = Domain;
         copy.Range = Range;
+        copy.Padding = Padding;
         copy.Align = Align;
         return copy;
     }

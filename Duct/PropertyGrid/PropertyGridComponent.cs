@@ -83,7 +83,7 @@ public class PropertyGridComponent : Component<PropertyGridElement>
         {
             var categoryName = group.Key;
             var catKey = $"cat:{categoryName}";
-            var isExpanded = !expandState.ContainsKey(catKey) || expandState[catKey];
+            var isExpanded = !expandState.TryGetValue(catKey, out var catExpanded) || catExpanded;
 
             // Category header — entire row is clickable
             var catName = categoryName;
@@ -160,7 +160,7 @@ public class PropertyGridComponent : Component<PropertyGridElement>
         if (hasDecompose)
         {
             var expandKey = $"prop:{editChain.BuildPath(descriptor.Name)}";
-            var isExpanded = expandState.ContainsKey(expandKey) && expandState[expandKey];
+            var isExpanded = expandState.TryGetValue(expandKey, out var propExpanded) && propExpanded;
             var propExp = isExpanded;
             var propKey = expandKey;
 

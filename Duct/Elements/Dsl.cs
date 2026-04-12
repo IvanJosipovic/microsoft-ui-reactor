@@ -234,6 +234,11 @@ public static class UI
         if (items.Length == 0) return Grid([], [], []);
         if (items.Length != proportions.Length)
             throw new ArgumentException("items and proportions must have the same length");
+        for (int i = 0; i < proportions.Length; i++)
+        {
+            if (proportions[i] < 0 || double.IsNaN(proportions[i]))
+                throw new ArgumentOutOfRangeException(nameof(proportions), $"proportions[{i}] must be a non-negative number, got {proportions[i]}");
+        }
 
         var sizes = new List<string>();
         var children = new List<Element>();
@@ -242,7 +247,7 @@ public static class UI
         for (int i = 0; i < items.Length; i++)
         {
             var starValue = proportions[i];
-            sizes.Add($"{starValue:F6}*");
+            sizes.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:F6}*", starValue));
 
             children.Add(isHorizontal
                 ? items[i].Grid(row: 0, column: i * 2)
@@ -722,6 +727,11 @@ public static class UI
 
     // ── Brushes ─────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Creates a new AcrylicBrush. This allocates a WinRT DependencyObject on every call.
+    /// On hot paths (e.g., inside Render methods), cache the result with <c>UseMemo</c>:
+    /// <code>var brush = ctx.UseMemo(() => UI.AcrylicBrush(color, 0.8), color);</code>
+    /// </summary>
     public static Microsoft.UI.Xaml.Media.AcrylicBrush AcrylicBrush(
         Windows.UI.Color tintColor,
         double tintOpacity = 0.8,
@@ -746,7 +756,7 @@ public static class UI
         bool needsExpansion = false;
         for (int i = 0; i < children.Length; i++)
         {
-            if (children[i] is null or GroupElement)
+            if (children[i] is null or GroupElement or EmptyElement)
             {
                 needsExpansion = true;
                 break;
@@ -766,7 +776,7 @@ public static class UI
                         result.Add(gc);
                 }
             }
-            else if (children[i] is not null)
+            else if (children[i] is not null and not EmptyElement)
             {
                 result.Add(children[i]!);
             }

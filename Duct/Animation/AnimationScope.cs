@@ -71,7 +71,8 @@ public static class AnimationScope
         var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
         var tcs = new TaskCompletionSource();
 
-        WithAnimation(curve, action);
+        try { WithAnimation(curve, action); }
+        catch { batch.End(); throw; }
 
         batch.End();
         batch.Completed += (_, _) => tcs.SetResult();

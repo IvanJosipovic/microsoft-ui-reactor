@@ -100,6 +100,7 @@ public sealed class SankeyLayout
 
     private static void ComputeNodeHeights(SankeyGraph graph)
     {
+        if (graph.Nodes.Count == 0) return;
         int maxDepth = graph.Nodes.Max(n => n.Depth);
         var remaining = new HashSet<SankeyNode>(graph.Nodes);
         int height = 0;
@@ -223,6 +224,13 @@ public sealed class SankeyLayout
             node.TargetLinks.Sort((a, b) => (a.Source?.Y0 ?? 0).CompareTo(b.Source?.Y0 ?? 0));
         }
 
+        // Cache link widths from finalized node positions
+        foreach (var link in graph.Links)
+        {
+            if (link.Source != null)
+                link.Width = Math.Max(1, link.Value * ((link.Source.Y1 - link.Source.Y0) / Math.Max(1, link.Source.Value)));
+        }
+
         foreach (var node in graph.Nodes)
         {
             double y0 = node.Y0;
@@ -307,9 +315,7 @@ public sealed class SankeyLink
     public SankeyNode? Target { get; internal set; }
     public double Y0 { get; internal set; }
     public double Y1 { get; internal set; }
-    public double Width => Source != null && Target != null
-        ? Math.Max(1, Value * ((Source.Y1 - Source.Y0) / Math.Max(1, Source.Value)))
-        : 1;
+    public double Width { get; internal set; } = 1;
 }
 
 public enum SankeyNodeAlign

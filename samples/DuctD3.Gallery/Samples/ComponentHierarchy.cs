@@ -109,7 +109,7 @@ public sealed class ComponentHierarchySample : GallerySample
                 .Foreground("#ffffff")
         ) with
         {
-            Background = Brush(Palette[3 % Palette.Length]),
+            Background = Brush(Palette[3 % Palette.Count]),
             CornerRadius = 4,
             Padding = new Thickness(10, 4, 10, 4),
         };

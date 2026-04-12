@@ -140,7 +140,7 @@ public sealed class BarChartRaceSample : GallerySample
                     {
                         D3Rect(Left, by, Math.Max(0, bw), BarH) with
                         {
-                            Fill = Brush(Palette[ci % Palette.Length]),
+                            Fill = Brush(Palette[ci % Palette.Count]),
                             RadiusX = 3, RadiusY = 3,
                         },
                         D3TextRight(0, by + BarH / 2 - 8, Countries[ci], Left - 10, fontSize: 11,

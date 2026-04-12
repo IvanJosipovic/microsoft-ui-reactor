@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
 
 namespace Duct.Core;
@@ -15,11 +16,17 @@ internal class ObservableTreeTracker : IDisposable
     private readonly Action _requestRerender;
     private readonly Dictionary<INotifyPropertyChanged, PropertyChangedEventHandler> _subscriptions = new();
     private readonly HashSet<INotifyPropertyChanged> _visiting = new();
+    private INotifyPropertyChanged? _root;
+    private readonly Microsoft.UI.Dispatching.DispatcherQueue? _dispatcherQueue;
 
     private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _inpcPropertyCache = new();
 
     public ObservableTreeTracker(Action requestRerender)
-        => _requestRerender = requestRerender;
+    {
+        _requestRerender = requestRerender;
+        try { _dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread(); }
+        catch { /* No WinUI runtime (e.g. unit tests) */ }
+    }
 
     /// <summary>
     /// Per-type cache of properties that could hold INPC values.
@@ -38,6 +45,7 @@ internal class ObservableTreeTracker : IDisposable
     /// </summary>
     public void SyncSubscriptions(INotifyPropertyChanged root)
     {
+        _root = root;
         var desiredSet = new HashSet<INotifyPropertyChanged>(ReferenceEqualityComparer.Instance);
         _visiting.Clear();
         Walk(root, desiredSet);
@@ -89,9 +97,9 @@ internal class ObservableTreeTracker : IDisposable
                 if (value is INotifyPropertyChanged inpc)
                     Walk(inpc, desiredSet);
             }
-            catch
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
-                // Skip properties that throw on access
+                Debug.WriteLine($"[Duct.ObservableTreeTracker] Walk: property {prop.Name} threw: {ex.Message}");
             }
         }
 
@@ -110,34 +118,36 @@ internal class ObservableTreeTracker : IDisposable
         if (prop is null || prop.PropertyType.IsValueType)
             return;
 
-        try
+        // SyncSubscriptions mutates non-thread-safe _subscriptions and _visiting.
+        // PropertyChanged can fire from any thread, so marshal to the UI thread.
+        Microsoft.UI.Dispatching.DispatcherQueue? currentDispatcher = null;
+        try { currentDispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread(); }
+        catch { /* No WinUI runtime (e.g. unit tests) */ }
+        if (currentDispatcher is not null || _dispatcherQueue is null)
         {
-            var newValue = prop.GetValue(sender);
-
-            // Unsubscribe from old subtree if it was INPC
-            // We can't easily track the old value, so re-sync is the safe approach.
-            // However, for efficiency we do a targeted re-sync: just rebuild the desired set
-            // and reconcile. This handles both old-unsubscribe and new-subscribe.
-            // Find any root we can walk from — we need to re-sync from the whole graph.
-            // The simplest correct approach: rebuild the entire subscription set.
-            // This is O(N) where N = INPC objects in graph, but only on property changes
-            // where the property type could be INPC.
-            var root = FindRoot();
-            if (root is not null)
-                SyncSubscriptions(root);
+            // Already on the UI thread, or no dispatcher available (test environment) — sync directly
+            SyncFromRoot();
         }
-        catch
+        else
         {
-            // Property access failed — skip subtree update
+            // Background thread — enqueue on the UI dispatcher
+            _dispatcherQueue.TryEnqueue(() => SyncFromRoot());
+        }
+
+        void SyncFromRoot()
+        {
+            try
+            {
+                var root = FindRoot();
+                if (root is not null)
+                    SyncSubscriptions(root);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+            {
+                Debug.WriteLine($"[Duct.ObservableTreeTracker] OnNestedPropertyChanged: property access failed: {ex.Message}");
+            }
         }
     }
 
-    private INotifyPropertyChanged? FindRoot()
-    {
-        // The first subscription added is always the root (from SyncSubscriptions).
-        // Since Dictionary preserves insertion order in .NET, the first key is the root.
-        foreach (var kvp in _subscriptions)
-            return kvp.Key;
-        return null;
-    }
+    private INotifyPropertyChanged? FindRoot() => _root;
 }

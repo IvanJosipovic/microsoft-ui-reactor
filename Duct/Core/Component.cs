@@ -119,10 +119,18 @@ internal interface IPropsReceiver
 }
 
 /// <summary>
+/// Interface for comparing props without reflection (avoids per-reconcile GetMethod/Invoke overhead).
+/// </summary>
+internal interface IPropsComparable
+{
+    bool CompareProps(object? oldProps, object? newProps);
+}
+
+/// <summary>
 /// Base class for components that receive typed props (e.g., navigation parameters).
 /// Props are set by the host before rendering.
 /// </summary>
-public abstract class Component<TProps> : Component, IPropsReceiver
+public abstract class Component<TProps> : Component, IPropsReceiver, IPropsComparable
 {
     /// <summary>
     /// The typed props passed to this component by its parent or host.
@@ -130,6 +138,9 @@ public abstract class Component<TProps> : Component, IPropsReceiver
     public TProps Props { get; internal set; } = default!;
 
     void IPropsReceiver.SetProps(object props) => Props = (TProps)props;
+
+    bool IPropsComparable.CompareProps(object? oldProps, object? newProps)
+        => ShouldUpdate((TProps?)oldProps, (TProps?)newProps);
 
     /// <summary>
     /// Controls whether this component should re-render when its parent re-renders with new props.

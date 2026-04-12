@@ -92,7 +92,7 @@ public sealed class SunburstSample : GallerySample
                     if (endAngle - startAngle < 0.005) return [];
 
                     int colorIdx = root.Children.IndexOf(node.TopAncestor);
-                    var fill = Brush(Palette[colorIdx % Palette.Length], opacity: Math.Max(0.3, 0.9 - node.Depth * 0.15));
+                    var fill = Brush(Palette[colorIdx % Palette.Count], opacity: Math.Max(0.3, 0.9 - node.Depth * 0.15));
 
                     bool showLabel = (endAngle - startAngle) > 0.15 && node.Children.Count == 0;
                     double midAngle = (startAngle + endAngle) / 2 - Math.PI / 2;

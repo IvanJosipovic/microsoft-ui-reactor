@@ -16,10 +16,12 @@ internal static class ValidateCommand
             switch (args[i])
             {
                 case "--resources":
-                    if (i + 1 < args.Length) resourcesPath = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --resources requires a value."); return 1; }
+                    resourcesPath = args[++i];
                     break;
                 case "--default-locale":
-                    if (i + 1 < args.Length) defaultLocale = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --default-locale requires a value."); return 1; }
+                    defaultLocale = args[++i];
                     break;
                 case "--help" or "-h":
                     ShowHelp();
@@ -53,13 +55,16 @@ internal static class ValidateCommand
 
         // Get source locale data for parameter comparison
         var sourceFiles = byLocale.GetValueOrDefault(defaultLocale) ?? [];
+        if (sourceFiles.Count == 0)
+        {
+            Console.Error.WriteLine($"WARN: No .resw files for '{defaultLocale}'.");
+            warnings++;
+        }
         var sourceKeys = new Dictionary<(string ns, string key), string>();
         var sourceParams = new Dictionary<(string ns, string key), HashSet<string>>();
-        var allSourceNamespaces = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var file in sourceFiles)
         {
-            allSourceNamespaces.Add(file.Namespace);
             foreach (var entry in file.Entries)
             {
                 sourceKeys[(file.Namespace, entry.Key)] = entry.Value;

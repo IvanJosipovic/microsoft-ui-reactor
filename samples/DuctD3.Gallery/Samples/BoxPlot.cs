@@ -72,7 +72,7 @@ public sealed class BoxPlotSample : GallerySample
                  let q3 = D3Statistics.QuantileSorted(entry.sorted, 0.75)
                  let cx = left + entry.g * groupWidth + groupWidth / 2
                  let bx = cx - boxWidth / 2
-                 let color = Palette[entry.g % Palette.Length]
+                 let color = Palette[entry.g % Palette.Count]
                  let fill = Brush(color, opacity: 0.35)
                  let stroke = Brush(color)
                  let boxY = ys.Map(q3)

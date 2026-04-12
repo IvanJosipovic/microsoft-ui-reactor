@@ -59,7 +59,7 @@ public sealed class ChordDiagramSample : GallerySample
         [
             .. data.Groups.SelectMany(g =>
             {
-                var color = Palette[g.Index % Palette.Length];
+                var color = Palette[g.Index % Palette.Count];
                 var fill = Brush(color);
 
                 var pb = new PathBuilder(3);
@@ -82,7 +82,7 @@ public sealed class ChordDiagramSample : GallerySample
             }),
             .. data.Chords
                 .Select(c => D3PathTranslated(ribbon.Generate(c), cx, cy,
-                    fill: Brush(Palette[c.Source.Index % Palette.Length], opacity: 0.55))),
+                    fill: Brush(Palette[c.Source.Index % Palette.Count], opacity: 0.55))),
             D3Text(12, 6, "Chord Diagram — Regional Trade Flow", 14, Brush("#333333")),
         ]);
     }

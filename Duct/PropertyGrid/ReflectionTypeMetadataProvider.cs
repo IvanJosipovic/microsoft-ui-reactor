@@ -86,6 +86,11 @@ public static class ReflectionTypeMetadataProvider
             })
             .ToArray();
 
+        // Pre-compute attribute metadata once per property (F074)
+        var attributeData = new PropertyAttributeData[properties.Length];
+        for (int i = 0; i < properties.Length; i++)
+            attributeData[i] = ComputeAttributeData(properties[i], i);
+
         bool hasImmutableProperties = properties.Any(p => !PropertyIsMutable(p));
 
         Func<object, IReadOnlyList<PropertyDescriptor>> decompose = owner =>
@@ -94,7 +99,7 @@ public static class ReflectionTypeMetadataProvider
             for (int i = 0; i < properties.Length; i++)
             {
                 var prop = properties[i];
-                var desc = CreateDescriptorBound(prop, i, owner);
+                var desc = CreateDescriptorBound(prop, attributeData[i], owner);
                 result.Add(desc);
             }
             return result;
@@ -114,42 +119,21 @@ public static class ReflectionTypeMetadataProvider
     /// <summary>
     /// Creates a PropertyDescriptor with GetValue/SetValue bound to a specific owner instance.
     /// </summary>
-    private static PropertyDescriptor CreateDescriptorBound(PropertyInfo property, int defaultOrder, object owner)
+    private static PropertyDescriptor CreateDescriptorBound(PropertyInfo property, PropertyAttributeData attrs, object owner)
     {
-        var ductCategory = property.GetCustomAttribute<PropertyCategoryAttribute>();
-        var ductDescription = property.GetCustomAttribute<PropertyDescriptionAttribute>();
-        var ductDisplayName = property.GetCustomAttribute<PropertyDisplayNameAttribute>();
-        var ductReadOnly = property.GetCustomAttribute<PropertyReadOnlyAttribute>();
-        var ductOrder = property.GetCustomAttribute<PropertyOrderAttribute>();
-
-        var scCategory = property.GetCustomAttribute<CategoryAttribute>();
-        var scDescription = property.GetCustomAttribute<DescriptionAttribute>();
-        var scDisplayName = property.GetCustomAttribute<DisplayNameAttribute>();
-        var scReadOnly = property.GetCustomAttribute<ReadOnlyAttribute>();
-
-        string? category = ductCategory?.Name ?? scCategory?.Category;
-        string? description = ductDescription?.Text ?? scDescription?.Description;
-        string? displayName = ductDisplayName?.Name ?? scDisplayName?.DisplayName;
-        int order = ductOrder?.Order ?? defaultOrder;
-
-        bool isMutable = PropertyIsMutable(property);
-        bool isReadOnly = ductReadOnly is not null
-            || scReadOnly?.IsReadOnly == true
-            || !isMutable;
-
         return new PropertyDescriptor
         {
             Name = property.Name,
-            DisplayName = displayName,
+            DisplayName = attrs.DisplayName,
             PropertyType = property.PropertyType,
-            GetValue = () => property.GetValue(owner)!,
-            SetValue = isMutable && !isReadOnly
+            GetValue = () => property.GetValue(owner),
+            SetValue = attrs.IsMutable && !attrs.IsReadOnly
                 ? val => property.SetValue(owner, val)
                 : null,
-            Category = category,
-            Description = description,
-            Order = order,
-            IsReadOnly = isReadOnly,
+            Category = attrs.Category,
+            Description = attrs.Description,
+            Order = attrs.Order,
+            IsReadOnly = attrs.IsReadOnly,
         };
     }
 
@@ -175,6 +159,40 @@ public static class ReflectionTypeMetadataProvider
             return false;
         return setter.IsPublic;
     }
+
+    private static PropertyAttributeData ComputeAttributeData(PropertyInfo property, int defaultOrder)
+    {
+        var ductCategory = property.GetCustomAttribute<PropertyCategoryAttribute>();
+        var ductDescription = property.GetCustomAttribute<PropertyDescriptionAttribute>();
+        var ductDisplayName = property.GetCustomAttribute<PropertyDisplayNameAttribute>();
+        var ductReadOnly = property.GetCustomAttribute<PropertyReadOnlyAttribute>();
+        var ductOrder = property.GetCustomAttribute<PropertyOrderAttribute>();
+
+        var scCategory = property.GetCustomAttribute<CategoryAttribute>();
+        var scDescription = property.GetCustomAttribute<DescriptionAttribute>();
+        var scDisplayName = property.GetCustomAttribute<DisplayNameAttribute>();
+        var scReadOnly = property.GetCustomAttribute<ReadOnlyAttribute>();
+
+        string? category = ductCategory?.Name ?? scCategory?.Category;
+        string? description = ductDescription?.Text ?? scDescription?.Description;
+        string? displayName = ductDisplayName?.Name ?? scDisplayName?.DisplayName;
+        int order = ductOrder?.Order ?? defaultOrder;
+
+        bool isMutable = PropertyIsMutable(property);
+        bool isReadOnly = ductReadOnly is not null
+            || scReadOnly?.IsReadOnly == true
+            || !isMutable;
+
+        return new PropertyAttributeData(category, description, displayName, order, isMutable, isReadOnly);
+    }
+
+    private record PropertyAttributeData(
+        string? Category,
+        string? Description,
+        string? DisplayName,
+        int Order,
+        bool IsMutable,
+        bool IsReadOnly);
 
     private static Func<object, IReadOnlyDictionary<string, object>, object>? BuildCompose(
         Type type, PropertyInfo[] properties)
@@ -208,13 +226,14 @@ public static class ReflectionTypeMetadataProvider
                 for (int i = 0; i < matchedParams.Length; i++)
                 {
                     var paramName = matchedParams[i].Name!;
-                    if (updates.TryGetValue(paramName, out var updatedValue))
+                    var propertyName = matchedMap[paramName].Name;
+                    if (updates.TryGetValue(propertyName, out var updatedValue))
                     {
                         args[i] = updatedValue;
                     }
-                    else if (matchedMap.TryGetValue(paramName, out var prop))
+                    else
                     {
-                        args[i] = prop.GetValue(currentValue);
+                        args[i] = matchedMap[paramName].GetValue(currentValue);
                     }
                 }
                 return matchedCtor.Invoke(args);

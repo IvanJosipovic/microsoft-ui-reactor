@@ -27,7 +27,8 @@ public static class D3Format
     /// <summary>Formats a value using the given specifier string.</summary>
     public static string FormatValue(double value, string specifier)
     {
-        return Format(specifier)(value);
+        var spec = ParseSpecifier(specifier);
+        return FormatValue(value, spec);
     }
 
     /// <summary>
@@ -145,6 +146,7 @@ public static class D3Format
 
     private static string FormatRounded(double value, int precision)
     {
+        if (value == 0) return "0";
         if (precision <= 0) precision = 1;
         double factor = Math.Pow(10, precision - 1 - (int)Math.Floor(Math.Log10(Math.Abs(value))));
         if (double.IsInfinity(factor)) return value.ToString(CultureInfo.InvariantCulture);
@@ -153,6 +155,7 @@ public static class D3Format
 
     private static string FormatSI(double value, int precision)
     {
+        if (value == 0) return "0";
         int i = Math.Max(-8, Math.Min(8, (int)Math.Floor(Math.Log10(Math.Abs(value)) / 3))) * 3;
         double k = Math.Pow(10, -i);
         string prefix = SIPrefixes[8 + i / 3];

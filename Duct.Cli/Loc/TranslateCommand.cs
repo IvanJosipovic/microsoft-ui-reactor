@@ -22,16 +22,19 @@ internal static class TranslateCommand
             switch (args[i])
             {
                 case "--source":
-                    if (i + 1 < args.Length) sourcePath = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --source requires a value."); return 1; }
+                    sourcePath = args[++i];
                     break;
                 case "--target":
-                    if (i + 1 < args.Length) targetLocales = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --target requires a value."); return 1; }
+                    targetLocales = args[++i];
                     break;
                 case "--missing-only":
                     missingOnly = true;
                     break;
                 case "--model":
-                    if (i + 1 < args.Length) model = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --model requires a value."); return 1; }
+                    model = args[++i];
                     break;
                 case "--help" or "-h":
                     ShowHelp();
@@ -117,13 +120,9 @@ internal static class TranslateCommand
                 {
                     if (missingOnly)
                     {
-                        // Skip keys that already have a non-draft translation
+                        // Skip keys that already have any translation
                         if (existingKeys.ContainsKey(entry.Key))
-                        {
-                            var existingEntry = existingEntries!.Entries.First(e => e.Key == entry.Key);
-                            if (!existingEntry.IsAiDraft)
-                                continue;
-                        }
+                            continue;
                     }
                     else
                     {

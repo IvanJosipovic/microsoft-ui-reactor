@@ -24,10 +24,12 @@ internal static class PruneCommand
             switch (args[i])
             {
                 case "--source":
-                    if (i + 1 < args.Length) sourcePath = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --source requires a value."); return 1; }
+                    sourcePath = args[++i];
                     break;
                 case "--resources":
-                    if (i + 1 < args.Length) resourcesPath = args[++i];
+                    if (i + 1 >= args.Length) { Console.Error.WriteLine("Error: --resources requires a value."); return 1; }
+                    resourcesPath = args[++i];
                     break;
                 case "--dry-run":
                     dryRun = true;
@@ -135,8 +137,9 @@ internal static class PruneCommand
             {
                 content = File.ReadAllText(file);
             }
-            catch
+            catch (IOException ex)
             {
+                Console.Error.WriteLine($"  Warning: Could not read '{file}': {ex.Message}");
                 continue;
             }
 
@@ -193,9 +196,9 @@ internal static class PruneCommand
                     doc.Save(reswFile);
                     filesModified++;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Skip malformed files
+                    Console.Error.WriteLine($"  Warning: Could not update '{reswFile}': {ex.Message}");
                 }
             }
         }

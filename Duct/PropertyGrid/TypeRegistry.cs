@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Duct.Core;
 using static Duct.UI;
 
@@ -62,9 +63,9 @@ public class TypeRegistry
         };
     }
 
-    private static bool TryResolvePrimitive(Type type, out TypeMetadata metadata)
+    private static bool TryResolvePrimitive(Type type, [NotNullWhen(true)] out TypeMetadata? metadata)
     {
-        metadata = null!;
+        metadata = null;
 
         if (type == typeof(string))
         {
@@ -81,7 +82,7 @@ public class TypeRegistry
             metadata = new TypeMetadata
             {
                 Editor = (value, onChange) =>
-                    ToggleSwitch((bool)value, v => onChange(v))
+                    ToggleSwitch((bool)(value ?? false), v => onChange(v))
             };
             return true;
         }
@@ -91,7 +92,7 @@ public class TypeRegistry
             metadata = new TypeMetadata
             {
                 Editor = (value, onChange) =>
-                    NumberBox((int)value, v => onChange((int)v))
+                    NumberBox((int)(value ?? 0), v => onChange((int)v))
             };
             return true;
         }
@@ -101,7 +102,7 @@ public class TypeRegistry
             metadata = new TypeMetadata
             {
                 Editor = (value, onChange) =>
-                    NumberBox((long)value, v => onChange((long)v))
+                    NumberBox((long)(value ?? 0L), v => onChange((long)v))
             };
             return true;
         }
@@ -111,7 +112,7 @@ public class TypeRegistry
             metadata = new TypeMetadata
             {
                 Editor = (value, onChange) =>
-                    NumberBox((short)value, v => onChange((short)v))
+                    NumberBox((short)(value ?? (short)0), v => onChange((short)v))
             };
             return true;
         }
@@ -121,7 +122,7 @@ public class TypeRegistry
             metadata = new TypeMetadata
             {
                 Editor = (value, onChange) =>
-                    NumberBox((byte)value, v => onChange((byte)v))
+                    NumberBox((byte)(value ?? (byte)0), v => onChange((byte)v))
             };
             return true;
         }
@@ -131,7 +132,7 @@ public class TypeRegistry
             metadata = new TypeMetadata
             {
                 Editor = (value, onChange) =>
-                    NumberBox((float)value, v => onChange((float)v))
+                    NumberBox((float)(value ?? 0f), v => onChange((float)v))
             };
             return true;
         }
@@ -141,7 +142,7 @@ public class TypeRegistry
             metadata = new TypeMetadata
             {
                 Editor = (value, onChange) =>
-                    NumberBox((double)value, v => onChange(v))
+                    NumberBox((double)(value ?? 0d), v => onChange(v))
             };
             return true;
         }
@@ -151,7 +152,7 @@ public class TypeRegistry
             metadata = new TypeMetadata
             {
                 Editor = (value, onChange) =>
-                    NumberBox((double)(decimal)value, v => onChange((decimal)v))
+                    NumberBox((double)(decimal)(value ?? 0m), v => onChange((decimal)v))
             };
             return true;
         }
@@ -159,9 +160,9 @@ public class TypeRegistry
         return false;
     }
 
-    private static bool TryResolveArray(Type type, out TypeMetadata metadata)
+    private static bool TryResolveArray(Type type, [NotNullWhen(true)] out TypeMetadata? metadata)
     {
-        metadata = null!;
+        metadata = null;
         Type? elementType = null;
 
         if (type.IsArray)

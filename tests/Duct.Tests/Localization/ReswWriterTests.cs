@@ -69,7 +69,7 @@ public class ReswWriterTests : IDisposable
             },
         };
 
-        ReswWriter.Write(_tempDir, newEntries, new());
+        ReswWriter.Write(_tempDir, newEntries);
 
         var filePath = Path.Combine(_tempDir, "App.resw");
         Assert.True(File.Exists(filePath));
@@ -112,7 +112,7 @@ public class ReswWriterTests : IDisposable
             },
         };
 
-        ReswWriter.Write(_tempDir, newEntries, existing);
+        ReswWriter.Write(_tempDir, newEntries);
 
         var doc = XDocument.Load(Path.Combine(_tempDir, "App.resw"));
         var dataElements = doc.Root!.Elements("data").ToList();
@@ -143,7 +143,7 @@ public class ReswWriterTests : IDisposable
             },
         };
 
-        ReswWriter.Write(_tempDir, newEntries, new());
+        ReswWriter.Write(_tempDir, newEntries);
 
         var doc = XDocument.Load(Path.Combine(_tempDir, "Cart.resw"));
         var data = doc.Root!.Elements("data").Single();

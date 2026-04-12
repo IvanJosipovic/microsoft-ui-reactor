@@ -76,12 +76,12 @@ public sealed class ArcDiagramSample : GallerySample
                  pb.Arc(midX, baseline, r, Math.PI, 0, ccw: !above);
 
                  int colorIdx = categories[edge.s];
-                 var stroke = Brush(Palette[colorIdx % Palette.Length], opacity: 0.6);
+                 var stroke = Brush(Palette[colorIdx % Palette.Count], opacity: 0.6);
                  return D3Path(pb.ToString(), stroke: stroke, strokeWidth: 1.8);
              }),
              .. Enumerable.Range(0, nodeCount).SelectMany(i =>
              {
-                 var fill = Brush(Palette[categories[i] % Palette.Length]);
+                 var fill = Brush(Palette[categories[i] % Palette.Count]);
                  return new Element[]
                  {
                      D3Circle(nodeX[i], baseline, 8) with { Fill = fill, Stroke = white, StrokeThickness = 1.5 },

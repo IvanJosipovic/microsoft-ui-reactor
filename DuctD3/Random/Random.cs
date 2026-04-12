@@ -60,6 +60,7 @@ public static class D3Random
     /// </summary>
     public static Func<double> Exponential(double lambda = 1)
     {
+        if (lambda <= 0) throw new ArgumentOutOfRangeException(nameof(lambda));
         return () => -Math.Log(1 - _rng.Value!.NextDouble()) / lambda;
     }
 
@@ -104,6 +105,7 @@ public static class D3Random
     /// </summary>
     public static Func<int> Poisson(double lambda = 1)
     {
+        if (lambda <= 0) throw new ArgumentOutOfRangeException(nameof(lambda));
         return () =>
         {
             double l = Math.Exp(-lambda);
@@ -144,6 +146,8 @@ public static class D3Random
     /// </summary>
     public static Func<double> Weibull(double k = 1, double lambda = 1)
     {
+        if (k <= 0) throw new ArgumentOutOfRangeException(nameof(k));
+        if (lambda <= 0) throw new ArgumentOutOfRangeException(nameof(lambda));
         return () => lambda * Math.Pow(-Math.Log(1 - _rng.Value!.NextDouble()), 1 / k);
     }
 

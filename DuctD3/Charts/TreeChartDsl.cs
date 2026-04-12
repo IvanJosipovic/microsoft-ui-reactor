@@ -272,7 +272,7 @@ public sealed class ForceGraphElement
         for (int i = 0; i < _sim.Nodes.Count; i++)
         {
             var node = _sim.Nodes[i];
-            var color = palette[i % palette.Length];
+            var color = palette[i % palette.Count];
             var brush = new SolidColorBrush(Windows.UI.Color.FromArgb(
                 (byte)(color.Opacity * 255), color.R, color.G, color.B));
 

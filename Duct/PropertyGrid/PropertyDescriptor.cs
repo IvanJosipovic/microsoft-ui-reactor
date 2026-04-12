@@ -15,7 +15,7 @@ public record PropertyDescriptor
     public required Type PropertyType { get; init; }
 
     /// <summary>Gets the current value from the parent object.</summary>
-    public required Func<object> GetValue { get; init; }
+    public required Func<object?> GetValue { get; init; }
 
     /// <summary>
     /// Sets the value on the parent object. Non-null for mutable properties.

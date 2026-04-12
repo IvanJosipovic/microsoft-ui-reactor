@@ -273,7 +273,7 @@ internal static class ChildReconciler
             var child = children.Get(i);
             if (child is FrameworkElement fe && fe.Tag is Element tagElement)
             {
-                var key = GetKey(tagElement, -1);
+                var key = GetKey(tagElement, i);
                 keyToIndex.TryAdd(key, i);
             }
         }

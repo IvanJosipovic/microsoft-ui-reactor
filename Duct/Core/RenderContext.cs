@@ -701,12 +701,14 @@ public sealed class RenderContext
             return command;
 
         var (isExecuting, setIsExecuting) = UseState(false, threadSafe: true);
+        var guardRef = UseRef(false);
         var asyncAction = command.ExecuteAsync;
 
         var wrappedExecute = UseMemo<Action>(() => () =>
         {
-            // Re-entrance guard: don't start if already executing
-            if (isExecuting) return;
+            // Re-entrance guard using ref for live value (not stale closure capture)
+            if (guardRef.Current) return;
+            guardRef.Current = true;
             setIsExecuting(true);
             _ = Task.Run(async () =>
             {
@@ -714,12 +716,17 @@ public sealed class RenderContext
                 {
                     await asyncAction();
                 }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Duct] UseCommand async action threw: {ex}");
+                }
                 finally
                 {
+                    guardRef.Current = false;
                     setIsExecuting(false);
                 }
             });
-        }, command.ExecuteAsync, isExecuting);
+        }, command.ExecuteAsync);
 
         return command with { Execute = wrappedExecute, ExecuteAsync = null, IsExecuting = isExecuting };
     }
@@ -735,11 +742,14 @@ public sealed class RenderContext
             return command;
 
         var (isExecuting, setIsExecuting) = UseState(false, threadSafe: true);
+        var guardRef = UseRef(false);
         var asyncAction = command.ExecuteAsync;
 
         var wrappedExecute = UseMemo<Action<T>>(() => (arg) =>
         {
-            if (isExecuting) return;
+            // Re-entrance guard using ref for live value (not stale closure capture)
+            if (guardRef.Current) return;
+            guardRef.Current = true;
             setIsExecuting(true);
             _ = Task.Run(async () =>
             {
@@ -747,12 +757,17 @@ public sealed class RenderContext
                 {
                     await asyncAction(arg);
                 }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Duct] UseCommand<{typeof(T).Name}> async action threw: {ex}");
+                }
                 finally
                 {
+                    guardRef.Current = false;
                     setIsExecuting(false);
                 }
             });
-        }, command.ExecuteAsync, isExecuting);
+        }, command.ExecuteAsync);
 
         return command with { Execute = wrappedExecute, ExecuteAsync = null, IsExecuting = isExecuting };
     }

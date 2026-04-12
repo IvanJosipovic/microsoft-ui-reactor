@@ -152,7 +152,7 @@ public static class ElementExtensions
     /// use the TextElement.FontFamily() overload instead.
     /// </summary>
     public static T FontFamily<T>(this T el, string family) where T : Element =>
-        Modify(el, new ElementModifiers { FontFamily = new Microsoft.UI.Xaml.Media.FontFamily(family) });
+        Modify(el, new ElementModifiers { FontFamily = WinRTCache.GetFontFamily(family) });
 
     public static T FontFamily<T>(this T el, Microsoft.UI.Xaml.Media.FontFamily family) where T : Element =>
         Modify(el, new ElementModifiers { FontFamily = family });
@@ -249,7 +249,7 @@ public static class ElementExtensions
         el with { IsTextSelectionEnabled = selectable };
 
     public static TextElement FontFamily(this TextElement el, string family) =>
-        el with { FontFamily = new Microsoft.UI.Xaml.Media.FontFamily(family) };
+        el with { FontFamily = WinRTCache.GetFontFamily(family) };
 
     public static TextElement FontFamily(this TextElement el, Microsoft.UI.Xaml.Media.FontFamily family) =>
         el with { FontFamily = family };
@@ -281,6 +281,10 @@ public static class ElementExtensions
 
     // ── Background (Panel, Control, Border) ────────────────────────
 
+    /// <summary>
+    /// Sets the background from a color string. Allocates a new SolidColorBrush per call.
+    /// On hot render paths, prefer the <see cref="Background{T}(T, Brush)"/> overload with a cached brush.
+    /// </summary>
     public static T Background<T>(this T el, string color) where T : Element =>
         Modify(el, new ElementModifiers { Background = BrushHelper.Parse(color) });
 
@@ -297,6 +301,10 @@ public static class ElementExtensions
 
     // ── Foreground (Control, TextBlock) ──────────────────────────
 
+    /// <summary>
+    /// Sets the foreground from a color string. Allocates a new SolidColorBrush per call.
+    /// On hot render paths, prefer the <see cref="Foreground{T}(T, Brush)"/> overload with a cached brush.
+    /// </summary>
     public static T Foreground<T>(this T el, string color) where T : Element =>
         Modify(el, new ElementModifiers { Foreground = BrushHelper.Parse(color) });
 
@@ -321,6 +329,10 @@ public static class ElementExtensions
 
     // ── Border brush/thickness (on Control and Border) ─────────────
 
+    /// <summary>
+    /// Sets the border from a color string. Allocates a new SolidColorBrush per call.
+    /// On hot render paths, prefer the <see cref="WithBorder{T}(T, Brush, double)"/> overload with a cached brush.
+    /// </summary>
     public static T WithBorder<T>(this T el, string color, double thickness = 1) where T : Element =>
         Modify(el, new ElementModifiers { BorderBrush = BrushHelper.Parse(color), BorderThickness = new Thickness(thickness) });
 

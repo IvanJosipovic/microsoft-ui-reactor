@@ -977,7 +977,7 @@ public sealed partial class Reconciler
         {
             if (node.RouteChangedHandler is not null)
                 node.Handle.RouteChanged -= node.RouteChangedHandler;
-            node.Handle.LifecycleGuard = null;
+            node.Handle.Detach();
 
             node.Handle = handle;
             void onRouteChanged() => requestRerender();

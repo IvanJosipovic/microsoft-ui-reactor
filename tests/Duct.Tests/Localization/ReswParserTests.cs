@@ -69,19 +69,6 @@ public class ReswParserTests
     }
 
     [Fact]
-    public void DeriveNamespace_ResourcesResw_ReturnsResources()
-    {
-        Assert.Equal("Resources", ReswParser.DeriveNamespace("Strings/en-US/Resources.resw"));
-    }
-
-    [Fact]
-    public void DeriveNamespace_NamedResw_ReturnsName()
-    {
-        Assert.Equal("Common", ReswParser.DeriveNamespace("Strings/en-US/Common.resw"));
-        Assert.Equal("Settings", ReswParser.DeriveNamespace("Strings/en-US/Settings.resw"));
-    }
-
-    [Fact]
     public void IsFlatLayout_SingleResources_ReturnsTrue()
     {
         Assert.True(ReswParser.IsFlatLayout(new[] { "Resources" }));

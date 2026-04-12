@@ -24,7 +24,7 @@ public class ScrollAnimationBuilder
     /// </summary>
     public ScrollAnimationBuilder Parallax(float factor)
     {
-        _expressions.Add(new ScrollExpression("Offset.Y", $"scroll.Translation.Y * {factor}f"));
+        _expressions.Add(new ScrollExpression("Offset.Y", FormattableString.Invariant($"scroll.Translation.Y * {factor}f")));
         return this;
     }
 
@@ -33,7 +33,7 @@ public class ScrollAnimationBuilder
     /// </summary>
     public ScrollAnimationBuilder FadeOut(float startOffset, float endOffset)
     {
-        var expr = $"Clamp(1.0 - (scroll.Translation.Y * -1 - {startOffset}f) / ({endOffset}f - {startOffset}f), 0, 1)";
+        var expr = FormattableString.Invariant($"Clamp(1.0 - (scroll.Translation.Y * -1 - {startOffset}f) / ({endOffset}f - {startOffset}f), 0, 1)");
         _expressions.Add(new ScrollExpression("Opacity", expr));
         return this;
     }
@@ -43,7 +43,7 @@ public class ScrollAnimationBuilder
     /// </summary>
     public ScrollAnimationBuilder FadeIn(float startOffset, float endOffset)
     {
-        var expr = $"Clamp((scroll.Translation.Y * -1 - {startOffset}f) / ({endOffset}f - {startOffset}f), 0, 1)";
+        var expr = FormattableString.Invariant($"Clamp((scroll.Translation.Y * -1 - {startOffset}f) / ({endOffset}f - {startOffset}f), 0, 1)");
         _expressions.Add(new ScrollExpression("Opacity", expr));
         return this;
     }
@@ -53,8 +53,8 @@ public class ScrollAnimationBuilder
     /// </summary>
     public ScrollAnimationBuilder ScaleRange(float scrollStart, float scrollEnd, float from, float to)
     {
-        var expr = $"Vector3(Lerp({from}f, {to}f, Clamp((scroll.Translation.Y * -1 - {scrollStart}f) / ({scrollEnd}f - {scrollStart}f), 0, 1)), " +
-                   $"Lerp({from}f, {to}f, Clamp((scroll.Translation.Y * -1 - {scrollStart}f) / ({scrollEnd}f - {scrollStart}f), 0, 1)), 1)";
+        var expr = FormattableString.Invariant($"Vector3(Lerp({from}f, {to}f, Clamp((scroll.Translation.Y * -1 - {scrollStart}f) / ({scrollEnd}f - {scrollStart}f), 0, 1)), ") +
+                   FormattableString.Invariant($"Lerp({from}f, {to}f, Clamp((scroll.Translation.Y * -1 - {scrollStart}f) / ({scrollEnd}f - {scrollStart}f), 0, 1)), 1)");
         _expressions.Add(new ScrollExpression("Scale", expr));
         return this;
     }

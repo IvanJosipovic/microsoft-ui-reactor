@@ -30,7 +30,7 @@ internal static class ScreenshotCapture
             FileName = "dotnet",
             Arguments = $"run --project \"{csproj}\" -- --preview --vscode --fps 5",
             RedirectStandardOutput = true,
-            RedirectStandardError = true,
+            RedirectStandardError = false,
             UseShellExecute = false,
             CreateNoWindow = false,
         };
@@ -84,15 +84,17 @@ internal static class ScreenshotCapture
                     }
 
                     var frameBytes = await http.GetByteArrayAsync($"http://localhost:{port}/frame");
-                    var outputPath = Path.Combine(topicDir, $"{screenshot.Id}.{screenshot.Format}");
+                    var outputPath = Path.GetFullPath(Path.Combine(topicDir, $"{screenshot.Id}.{screenshot.Format}"));
+                    if (!outputPath.StartsWith(Path.GetFullPath(topicDir) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException($"Screenshot id '{screenshot.Id}' would escape output directory");
                     // Auto-crop whitespace, add border + drop shadow, convert to PNG
                     var processed = ImageProcessor.Process(frameBytes);
                     File.WriteAllBytes(outputPath, processed);
                     Console.WriteLine(" ✓");
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException)
                 {
-                    Console.Error.WriteLine($" ✗ {ex.Message}");
+                    Console.Error.WriteLine($" ✗ {ex}");
                 }
             }
 

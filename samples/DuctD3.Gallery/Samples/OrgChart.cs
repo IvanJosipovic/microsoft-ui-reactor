@@ -97,7 +97,7 @@ public sealed class OrgChartSample : GallerySample
 
     static Element PersonCard(Person person, int depth)
     {
-        var color = Brush(Palette[depth % Palette.Length]);
+        var color = Brush(Palette[depth % Palette.Count]);
         var roleBrush = Gray(100, alpha: 180);
 
         return (Border(

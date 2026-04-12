@@ -9,7 +9,7 @@ namespace Duct.Core;
 /// Per-CLR-type pool (cap 32) that recycles unmounted WinUI FrameworkElement instances.
 /// V1: pools only non-interactive controls (no event handlers to worry about).
 /// </summary>
-public sealed class ElementPool
+public sealed class ElementPool : IDisposable
 {
     /// <summary>
     /// Tracks UIElements that have had GetElementVisual() called on them.
@@ -179,6 +179,18 @@ public sealed class ElementPool
     }
 
     /// <summary>
+    /// Empties all per-type stacks and releases the scratch panel.
+    /// Called from <see cref="Reconciler.Dispose"/> to release pooled elements.
+    /// </summary>
+    public void Clear()
+    {
+        foreach (var stack in _pools.Values)
+            stack.Clear();
+        _pools.Clear();
+        _scratchPanel = null;
+    }
+
+    /// <summary>
     /// Reset an element to a clean state suitable for reuse.
     /// </summary>
     internal static void CleanElement(FrameworkElement fe)
@@ -196,6 +208,8 @@ public sealed class ElementPool
         fe.VerticalAlignment = VerticalAlignment.Stretch;
         fe.Opacity = 1.0;
         fe.Visibility = Visibility.Visible;
+        fe.ClearValue(FrameworkElement.RenderTransformProperty);
+        fe.ClearValue(FrameworkElement.FlowDirectionProperty);
 
         // Type-specific cleanup
         switch (fe)
@@ -221,6 +235,12 @@ public sealed class ElementPool
                 tb.Text = "";
                 tb.FontSize = 14; // WinUI default
                 tb.ClearValue(TextBlock.FontWeightProperty);
+                tb.ClearValue(TextBlock.FontStyleProperty);
+                tb.ClearValue(TextBlock.TextWrappingProperty);
+                tb.ClearValue(TextBlock.TextAlignmentProperty);
+                tb.ClearValue(TextBlock.TextTrimmingProperty);
+                tb.ClearValue(TextBlock.IsTextSelectionEnabledProperty);
+                tb.ClearValue(TextBlock.FontFamilyProperty);
                 break;
             case WinUI.RichTextBlock rtb:
                 rtb.Blocks.Clear();
@@ -271,11 +291,28 @@ public sealed class ElementPool
                 break;
             case WinUI.ToggleSwitch toggle:
                 toggle.IsOn = false;
+                toggle.IsEnabled = true;
                 toggle.OnContent = null;
                 toggle.OffContent = null;
                 toggle.Header = null;
                 VisualStateManager.GoToState(toggle, "Normal", false);
                 break;
         }
+    }
+
+    public void Dispose()
+    {
+        foreach (var stack in _pools.Values)
+        {
+            while (stack.Count > 0)
+            {
+                var element = stack.Pop();
+                if (element is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+        }
+        _pools.Clear();
     }
 }
