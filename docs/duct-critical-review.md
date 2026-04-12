@@ -33,16 +33,22 @@ the new features have implementation concerns that temper the enthusiasm:
    routing to the focused view
 4. **The DSL is constrained by C# language limitations** — verbose, repetitive,
    and leaky compared to JSX, SwiftUI's result builders, or Compose's Kotlin DSL
-5. **Theming works for WinUI's built-in tokens but has real gaps** — custom
-   branded colors still require workarounds, and the implementation has perf cost
+5. **Theming and styling have made a major leap** — style caching eliminates the
+   XamlReader.Load-per-element perf concern, `.RequestedTheme()` modifier closes
+   a gap, `UseColorScheme` hook exists (but reads app-level theme, not per-element
+   effective theme), lightweight styling is Duct's first genuinely unique styling
+   feature, and three Roslyn analyzers provide static guidance. But custom branded
+   theme resources still don't exist, and the `UseColorScheme` bug undermines
+   the RequestedTheme story
 6. **Accessibility has improved significantly but still has structural limits** —
    16 properties exposed with real UIA tests, but hooks, diagnostics, and custom
    automation peers remain unbuilt
-7. **Animation has good API design but significant integration gaps** — 8 new
+7. **Animation is now a fully operational compositor animation system** — 8
    features (curves, transitions, interaction states, keyframes, stagger,
-   scroll-linked, WithAnimation scope) with solid abstractions; but exit
-   transitions are dead code, Focused state is unwired, WithAnimation only
-   routes Opacity, and stagger doesn't integrate with enter transitions.
+   scroll-linked, WithAnimation scope) with solid abstractions; 4 prior
+   integration bugs now fixed (exit transitions, Focused state, WithAnimation
+   routing, stagger integration), plus 3 runtime fixes (async scope
+   persistence, Opacity routing for .Animate(), pool crash prevention).
    Still compositor-property-bound, no arbitrary DP animation
 8. **The `.Set()` escape hatch is still load-bearing** — navigation and commanding
    reduce its surface area, but the majority of input handling, gestures, advanced
@@ -61,12 +67,15 @@ has filled — every serious app builds a custom command registry, and Duct
 provides one as a first-class feature.
 
 The distance from "impressive demo" to "ships to real users" has narrowed
-substantially. The critical path now runs through the mid-tier features:
-theming needs to be more than 3 properties, accessibility needs the semantic
-and imperative layers, animation needs general-purpose value-driven support.
-The `.Set()` escape hatch carries less weight than before — navigation and
-commanding reclaimed meaningful surface area — but it's still the answer for
-too many scenarios. The framework is no longer blocked on any single P0 gap,
+substantially. Styling was the weakest mid-tier area and has received a focused
+investment: style caching, per-element theme control, a color scheme hook,
+lightweight styling (WinUI resource overrides through a fluent API), and Roslyn
+analyzers. Lightweight styling in particular is a genuine differentiator — no
+other C# declarative framework surfaces WinUI's per-control resource key
+overrides with an ergonomic API. The critical path now runs through: custom
+branded theme definitions (still missing), accessibility semantic/imperative
+layers, animation general-purpose value support, and reducing the `.Set()`
+surface area further. The framework is no longer blocked on any single P0 gap,
 but the sum of its P1/P2 gaps still adds up to a significant distance from
 production-readiness for apps that need polish.
 
@@ -747,197 +756,386 @@ entire component tree that uses any responsive hook.
 
 ## 6. Styling and Theming
 
-### The theming story: from disaster to functional (with caveats)
+### The theming story: from functional-with-caveats to a real styling system
 
-The previous version of this review called theming "architecturally broken" — a
-P0 blocker. That is no longer accurate. The `ThemeRef` system has landed and
-works. The honest assessment now: **theming is functional for the common case
-but has real implementation concerns and remaining gaps.**
+The previous version of this review graded theming at C+ — the ThemeRef system
+closed the P0 blocker but had performance concerns (XamlReader.Load per element
+per render), a narrow API surface (3 properties, no custom resources, no hooks),
+no guardrails against hard-coded colors, and no lightweight styling. A focused
+styling diff has landed that addresses several of these criticisms directly:
+style caching, `.RequestedTheme()` modifier, `UseColorScheme` hook, lightweight
+styling via `ResourceBuilder`, and three Roslyn analyzers. The honest assessment
+now: **theming and styling have crossed from "functional for the common case"
+to a genuinely capable system with one unique differentiator (lightweight
+styling), but with a UseColorScheme implementation bug, still no custom theme
+resources, and the ThemeRef/lightweight styling interaction story unresolved.**
 
-### What shipped
+### What shipped previously (ThemeRef foundation)
 
-**ThemeRef tokens and modifier overloads.** Duct now provides ~40 semantic theme
-tokens (`Theme.PrimaryText`, `Theme.Accent`, `Theme.CardBackground`, etc.) and
-`Theme.Ref("AnyResourceKey")` for custom WinUI resources. These plug into the
-existing modifier API naturally:
+**ThemeRef tokens and modifier overloads.** ~40 semantic theme tokens
+(`Theme.PrimaryText`, `Theme.Accent`, `Theme.CardBackground`, etc.) and
+`Theme.Ref("AnyResourceKey")` for custom WinUI resources. Three-tier model:
+unstyled elements theme automatically (Tier 3), theme tokens resolve reactively
+(Tier 2), local concrete values override (Tier 1).
+
+**Reconciler integration via XAML Style injection.** `ApplyThemeBindings`
+constructs `{ThemeResource}` styles and assigns them to elements. WinUI handles
+theme resolution natively.
+
+### What shipped in the styling diff
+
+**1. Style caching (Proposal 5 — P0 performance fix).** This directly addresses
+the biggest criticism from the previous review: XamlReader.Load per element per
+render. The implementation:
 
 ```csharp
-Text("Hello").Foreground(Theme.PrimaryText)
-VStack(children).Background(Theme.CardBackground)
-Button("Go").Background(Theme.Accent)
+private static readonly ConcurrentDictionary<string, Style> _styleCache = new();
+
+private static string BuildCacheKey(string targetType, IReadOnlyDictionary<string, ThemeRef> bindings)
+{
+    var sortedKeys = bindings.Keys.ToArray();
+    Array.Sort(sortedKeys, StringComparer.Ordinal);
+    var sb = new StringBuilder(targetType);
+    foreach (var key in sortedKeys)
+        sb.Append('|').Append(key).Append('=').Append(bindings[key].ResourceKey);
+    return sb.ToString();
+}
 ```
 
-**Theme change detection.** `DuctHost` subscribes to `ActualThemeChanged` on the
-root content element and triggers a full re-render. Theme switches propagate
-automatically — no developer action needed.
+Cache hit path: immediate Style assignment, zero XAML parsing. Cache miss:
+build XAML → parse → store. `ApplyStyleToElement()` does a clever null-then-set
+to force WinUI re-evaluation of `{ThemeResource}` setters when the same cached
+Style reference is reapplied (without this, assigning the same reference is a
+no-op). `ClearStyleCache()` runs on theme change as conservative memory cleanup.
 
-**Reconciler integration via XAML Style injection.** The `ApplyThemeBindings`
-method constructs a WinUI `Style` with `{ThemeResource}` setters and assigns
-it to each element. This delegates theme resolution to WinUI's native machinery,
-which correctly handles Light/Dark/HighContrast and per-element
-`RequestedTheme` overrides.
+This is well-engineered. The key generation is deterministic (sorted by
+`StringComparer.Ordinal`), thread-safe (`ConcurrentDictionary`), and handles
+dictionary enumeration order correctly. For a grid of 200 elements all using
+`Theme.Accent`, `XamlReader.Load` fires once, not 200 times. The previous
+review's primary performance critique is resolved.
 
-**The three-tier model works.** Unstyled elements (Tier 3) theme automatically.
-Theme token references (Tier 2) resolve and re-resolve on theme change. Local
-concrete values (Tier 1) override everything, as documented. The "impossible
-choice" from the previous review is resolved — developers can now use
-`.Background(Theme.CardBackground)` for themed colors and
-`.Background("#FF5733")` for explicit overrides, and both behave correctly.
+**2. `.RequestedTheme()` modifier (Proposal 8A — P0 API gap).** Previously
+required `.Set(b => b.RequestedTheme = ElementTheme.Dark)`. Now:
 
-### What's actually good about this
+```csharp
+VStack(children).RequestedTheme(ElementTheme.Dark)
+```
 
-The architecture decision to generate `{ThemeResource}` styles rather than
-manually resolving brushes is smart. It means WinUI handles all the theme
-resolution complexity (theme dictionaries, merged dictionaries, HighContrast,
-per-element RequestedTheme overrides) rather than Duct trying to replicate it.
-This is the right call — let the platform do what it's good at.
+The reconciler applies `RequestedTheme` **before** `ApplyThemeBindings` — the
+ordering comment in the code is explicit about why this matters. The modifier
+is clean: one property on `ElementModifiers`, one extension method, one line
+in `ApplyModifiers` with a change guard. This is a textbook example of turning
+a `.Set()` workaround into a first-class modifier — small scope, correct
+integration, no surprises.
 
-The token catalog is well-chosen. It covers the main WinUI semantic brush
-categories (text, accent, fill, stroke, background, signal) and `Theme.Ref()`
-provides an escape hatch for any resource key. A developer who sticks to these
-tokens gets correct dark mode and high contrast support for free.
+**3. `UseColorScheme` hook (Proposal 6 — P0 reactive hook).** Previously there
+was no way to read the current theme in render logic. Now:
+
+```csharp
+var scheme = ctx.UseColorScheme();   // Light, Dark, or HighContrast
+var isDark = ctx.UseIsDarkTheme();   // convenience wrapper
+```
+
+`ColorScheme` is a clean three-value enum. `ColorSchemeContext` handles the
+`ElementTheme` → `ColorScheme` mapping with High Contrast detection via
+`AccessibilitySettings.HighContrast`. The hook re-evaluates on every render, so
+theme changes (which trigger a full re-render via DuctHost) are picked up
+naturally.
+
+**4. Lightweight Styling via ResourceBuilder (Proposal 2 — P0 unique
+differentiator).** This is the most significant feature in the diff. WinUI's
+"lightweight styling" lets you override specific theme resource keys per-control
+(e.g., `ButtonBackground`, `ButtonBackgroundPointerOver`) without replacing the
+control template. The VisualStateManager continues to work, so hover/pressed/
+disabled states respect the overrides automatically. Duct now surfaces this:
+
+```csharp
+Button("Submit").Resources(r => r
+    .Set("ButtonBackground", "#0078D4")
+    .Set("ButtonBackgroundPointerOver", "#106EBE")
+    .Set("ButtonBackgroundPressed", "#005A9E")
+    .Set("ButtonForeground", "#FFFFFF"))
+
+// Theme-reactive resource overrides
+Button("Go").Resources(r => r
+    .Set("ButtonBackground", Theme.Accent)
+    .Set("ButtonBackgroundPointerOver", Theme.Ref("AccentButtonBackgroundPointerOver")))
+```
+
+`ResourceBuilder` separates literal values from `ThemeRef`-based entries.
+`ResourceOverrides` is an immutable snapshot record. The reconciler's
+`ApplyResourceOverrides()` tracks which keys Duct has set via a
+`ConditionalWeakTable<FrameworkElement, HashSet<string>>` — ensuring cleanup
+only removes Duct-managed keys, never interfering with XAML-set resources.
+On update, old keys not present in the new overrides are removed. `ThemeRef`-
+based resources are re-resolved on theme change via the re-render pipeline.
+
+**No other C# declarative framework surfaces this.** React's CSS custom
+properties are conceptually similar but operate at a different abstraction level.
+SwiftUI's `.environment(\.font)` and Compose's `LocalContentColor` provide
+ambient overrides but not per-control resource key targeting. Duct's
+`ResourceBuilder` gives developers access to the exact same resource override
+mechanism that WinUI's XAML lightweight styling uses — but through a fluent
+builder instead of raw ResourceDictionary manipulation.
+
+**5. Three Roslyn Analyzers.** A separate `Duct.Analyzers` project provides
+static analysis:
+
+| Analyzer | Severity | Detects | Suggests |
+|---|---|---|---|
+| DUCT001 | Warning | `.Background("#FFFFFF")` hard-coded colors | Use `Theme.*` tokens |
+| DUCT002 | Info | `.Set(b => b.Background = brush)` on known controls | Use `.Resources()` lightweight styling |
+| DUCT003 | Info | `.Set(fe => fe.RequestedTheme = ...)` pattern | Use `.RequestedTheme()` modifier |
+
+Each has matching unit tests via `CSharpAnalyzerVerifier`. DUCT001 includes a
+`UseThemeRefCodeFix` that maps known colors to tokens (`#FFFFFF` → `Theme.PrimaryBackground`,
+`#0078D4` → `Theme.Accent`). DUCT003 has `RequestedThemeSetCodeFix` for
+the `.Set()` → `.RequestedTheme()` transformation.
+
+### What's actually good about this (credit where due)
+
+**Style caching is the right fix for the right problem.** The previous review
+called out XamlReader.Load-per-element as the heaviest possible implementation.
+The cache eliminates repeated parses for identical binding sets — which covers
+the vast majority of real-world usage (lists of identically-themed controls).
+The implementation is clean: deterministic keys, thread-safe concurrent
+dictionary, correct null-then-set for Style reapplication. The cache is
+conservative — cleared on theme change even though `{ThemeResource}` setters
+self-resolve. This is defense in depth, not a correctness requirement.
+
+**Lightweight styling is Duct's first genuinely unique styling feature.** Every
+other styling feature (ThemeRef, RequestedTheme, UseColorScheme) is Duct
+catching up to what the competition provides natively. `ResourceBuilder` is
+different — it surfaces a WinUI capability that no other declarative framework
+wraps. A developer who writes `.Resources(r => r.Set("ButtonBackgroundPointerOver",
+"#106EBE"))` gets hover/pressed/disabled states that respect the override, with
+zero template replacement. This is the correct abstraction level: give
+developers the resource key names (which are documented in WinUI docs), handle
+the dictionary plumbing, track cleanup.
+
+**The ConditionalWeakTable for managed-key tracking is smart.** The alternative
+approaches (Tag, attached property, side dictionary keyed by identity) all have
+GC or lifecycle problems. `ConditionalWeakTable` ties the tracking data's
+lifetime to the FrameworkElement's GC lifetime, avoiding both leaks and
+dangling references. When the element is collected, the tracking set goes with
+it.
+
+**The analyzers close the "pit of success" gap.** The previous review criticized
+hard-coded colors as a trap with no guardrails. DUCT001 now warns at edit time
+when a string literal is passed to `.Background()`, `.Foreground()`, or
+`.WithBorder()`. It's not perfect (see concerns below), but it's the difference
+between "no guidance" and "IDE squiggles on the suspicious line."
+
+**RequestedTheme ordering is explicitly documented.** The comment at
+Reconciler.cs:1615 says exactly why `RequestedTheme` must be set before
+`ApplyThemeBindings`. This is the kind of ordering invariant that causes subtle
+bugs when someone later refactors `ApplyModifiers`. The comment makes the
+constraint visible.
 
 ### What's still concerning (skeptic's view)
 
-**1. XamlReader.Load on every theme-bound element, every render.** The core of
-`ApplyThemeBindings` is:
+**1. UseColorScheme reads the app-level theme, not the element's effective
+theme.** This is a bug, not a design limitation. The implementation:
 
 ```csharp
-var xaml = $"<Style ...><Setter Property='...' Value='{{ThemeResource ...}}'/></Style>";
-var style = (Style)XamlReader.Load(xaml);
-fe.Style = style;
+public ColorScheme UseColorScheme()
+{
+    var theme = Microsoft.UI.Xaml.Application.Current?.RequestedTheme;
+    // ...maps to ColorScheme...
+}
 ```
 
-This constructs a XAML string, parses it through `XamlReader.Load()` (which
-invokes the XAML parser), creates a `Style` object, and assigns it to the
-control — on every mount AND every update. For a screen with 50 theme-bound
-elements, that's 50 XAML parse operations per render cycle. `XamlReader.Load`
-is not cheap — it involves string allocation, XML parsing, and WinUI object
-creation through the XAML type system.
+The doc comment says "Automatically reflects [...] per-element RequestedTheme
+overrides." The code reads `Application.Current.RequestedTheme` — the global
+app theme. A component inside a `.RequestedTheme(ElementTheme.Dark)` subtree
+will see `ColorScheme.Light` when the system is in Light mode. The spec
+(Proposal 6, Option A) says to read `FrameworkElement.ActualTheme` from the
+component's mounted control. The implementation doesn't do this.
 
-React's CSS custom properties are resolved by the browser's style engine with
-zero JavaScript cost. SwiftUI's semantic colors are resolved at draw time by
-the rendering pipeline. Compose's `MaterialTheme.colorScheme` is a
-`CompositionLocal` read with no parsing overhead. Duct's approach works but it's
-the heaviest implementation possible — string building + XML parsing + object
-allocation per element per render.
-
-There is no caching — if the same `Theme.Accent` token is used on 20 buttons,
-20 separate XAML strings are built and parsed, producing 20 separate Style
-objects. A style cache keyed by (targetType, bindingSet) would eliminate most
-of this cost.
-
-**2. Style assignment clobbers existing styles.** `ApplyThemeBindings` does
-`fe.Style = style` (with `BasedOn` chaining if a style already exists). But
-this means every theme-bound element gets a dynamically generated style that
-replaces (or chains on top of) whatever style WinUI would have naturally
-applied. This interacts poorly with:
-
-- `.ApplyStyle("AccentButtonStyle")` — the theme binding overwrites it (or
-  chains, changing precedence)
-- Implicit styles from WinUI's style system — the dynamically-applied style
-  becomes the effective style, potentially blocking implicit style resolution
-- Lightweight styling — when this is eventually implemented, it will need to
-  coordinate with the generated styles
-
-React and Compose don't have this problem because their theming operates at a
-different layer (CSS variables / composition locals) that doesn't conflict with
-the component styling system.
-
-**3. Hard-coded color values are still a trap with no guardrails.**
-`.Background("#FF5733")` still does a local-value set that silently breaks
-theming. The framework provides no warning, no lint, no diagnostic. A developer
-who writes `.Background("#FF5733")` instead of `.Background(Theme.Accent)` gets
-a working app in light mode and a broken app in dark mode with no indication of
-the mistake.
-
-SwiftUI solves this by making semantic colors the default — `Color.primary`,
-`Color.accentColor`. You have to go out of your way to use a hard-coded color.
-In Duct, hard-coded strings are the *first* thing developers learn (every
-tutorial, every sample until the Color Gallery), and theme tokens are the
-advanced feature. This is backwards — the pit of success should lead to themed
-colors, not hard-coded ones.
-
-**4. No custom theme resource definitions.** `Theme.Ref("key")` can reference
-any *existing* WinUI resource, but there's no way to define new theme resources
-from Duct. The `DuctThemeResources` class from the theming design spec is not
-implemented. This means:
-
-- No branded colors that adapt to light/dark (e.g., "Brand.Primary" that's blue
-  in light mode and light-blue in dark mode)
-- No app-specific semantic tokens (e.g., "PricingPositive" / "PricingNegative")
-- Developers must define custom resources by manually creating
-  `ResourceDictionary` entries via Application.Resources — the same escape
-  hatch that Duct is supposed to abstract away
-
-React's Material UI `createTheme()`, SwiftUI's asset catalogs with named colors,
-and Compose's `lightColorScheme()`/`darkColorScheme()` all provide this. Duct
-only lets you reference the platform's built-in palette.
-
-**5. No UseTheme / UseHighContrast hooks.** There's no way for a component to
-read the current theme or react to theme changes in its render logic. The
-`DuctHost` re-renders on theme change, but a component can't do:
+This is worse than missing the feature entirely, because the API exists, the
+doc comment claims it works, and the `StylingGallery` sample demonstrates it.
+A developer who writes:
 
 ```csharp
-var isDark = UseTheme();  // ← doesn't exist
-return Text(isDark ? "🌙" : "☀");
+var scheme = ctx.UseColorScheme();
+VStack(
+    scheme == ColorScheme.Dark ? Text("🌙") : Text("☀")
+).RequestedTheme(ElementTheme.Dark)
 ```
 
-The workaround is `.Set(fe => fe.ActualTheme)` in an effect, which is clunky
-and breaks the declarative model. SwiftUI has `@Environment(\.colorScheme)`.
-Compose has `isSystemInDarkTheme()`. React has `prefers-color-scheme` media
-queries.
+expects the moon icon. They get the sun. The hook re-evaluates on system theme
+change (via DuctHost re-render), so it "works" at the app level — but the
+per-element awareness that makes it useful alongside `.RequestedTheme()` is
+broken. The test suite doesn't catch this because `ColorSchemeTests` test the
+enum mapping, not the `RequestedTheme` interaction.
 
-**6. No .RequestedTheme() modifier.** Setting per-element theme (e.g., a dark
-panel in a light app) requires `.Set(b => b.RequestedTheme = ElementTheme.Dark)`
-— the theming design spec proposes `.RequestedTheme(ElementTheme.Dark)` but
-it's not implemented. The gallery sample itself uses the `.Set()` workaround.
+SwiftUI's `@Environment(\.colorScheme)` correctly reads the effective color
+scheme at the view's position in the hierarchy, including any
+`.preferredColorScheme(.dark)` overrides from ancestors. Compose's
+`isSystemInDarkTheme()` also reads from the local composition context. Duct's
+hook reads the global.
 
-**7. Only three properties support ThemeRef bindings.** `ApplyThemeBindings`
-maps "Background", "Foreground", and "BorderBrush" — that's it. There's no
-theme binding support for:
-- `Fill` / `Stroke` on shapes (Rectangle, Ellipse, Path)
-- `Foreground` on TextBlock (handled separately from Control.Foreground)
-- `PlaceholderForeground` on TextBox
-- `SelectionHighlightColor`, `CaretBrush` on text controls
-- Any other brush property
+**2. ThemeRef `{ThemeResource}` in dynamically-loaded Styles doesn't respect
+per-element RequestedTheme.** The code itself documents this (Reconciler.cs:1970):
+"Note: {ThemeResource} in dynamically-loaded Styles resolves against the app
+theme, not per-element RequestedTheme overrides." This is a WinUI platform
+behavior — `XamlReader.Load()` parses XAML in the app's default theme context,
+not the element's local theme context. The `ApplyStyleToElement` null-then-set
+trick forces WinUI to reprocess the Style assignment, which helps with system
+theme changes, but doesn't bridge the gap for per-element `RequestedTheme`.
 
-SwiftUI's semantic colors work on any color property. Compose's
-`MaterialTheme.colorScheme` works anywhere. Duct's ThemeRef only works on the
-three most common brush properties.
+This means: `.RequestedTheme(ElementTheme.Dark)` correctly sets the native
+`FrameworkElement.RequestedTheme` property, so WinUI's built-in control theming
+works (buttons, text, etc. render in dark theme). But ThemeRef bindings on that
+element (`.Background(Theme.CardBackground)`) resolve against the *app* theme,
+not the element's requested theme. A dark sidebar with
+`.Background(Theme.CardBackground)` in a Light-mode app may get the Light
+variant of `CardBackground`, not the Dark one.
+
+The workaround documented in the code ("rely on native WinUI control theming
+instead of ThemeRef bindings") is valid — WinUI controls apply their own theme
+resources based on `RequestedTheme`. But it means `.RequestedTheme()` +
+`Theme.*` tokens don't compose as a developer would expect. The two features
+work independently but not together.
+
+**3. Lightweight styling resource keys are stringly-typed with no validation.**
+`ResourceBuilder.Set("ButtonBackgrnd", "#0078D4")` — typo in the key —
+silently sets a resource that no control reads. There's no compile-time
+validation of resource key names, no IntelliSense for known keys, no runtime
+warning when a key doesn't match any control template. WinUI's own XAML
+suffers the same problem (lightweight styling keys are strings everywhere),
+but Duct had the opportunity to provide type-safe constants:
+
+```csharp
+// What could exist (from the deferred items list):
+Button("Submit").Resources(r => r
+    .Set(ButtonResources.Background, "#0078D4")
+    .Set(ButtonResources.BackgroundPointerOver, "#106EBE"))
+```
+
+The design spec lists "ButtonResources.Background constants" as future work.
+Without them, `ResourceBuilder` inherits all the discoverability problems of
+WinUI's stringly-typed XAML lightweight styling — you need to look up the
+correct resource key names in the WinUI documentation. A framework that wraps
+the platform should improve on this.
+
+**4. Lightweight styling ThemeRef resources resolve at application level, not
+element level.** `ApplyResourceOverrides` calls `ThemeRef.Resolve(resourceKey,
+fe)`, which reads the effective theme for the element via `GetEffectiveThemeName`.
+This is better than `UseColorScheme` (it does check the element). But the
+resolved brush is a *snapshot* — a concrete `Brush` set into `fe.Resources`.
+It's not a live `{ThemeResource}` binding. If the system theme changes, the
+re-render pipeline calls `ApplyResourceOverrides` again and re-resolves. But
+between renders, the resource is a frozen brush, not a theme-reactive binding.
+For ThemeRef entries in `ResourceBuilder`, this means:
+
+- System theme changes: re-resolved on next render (correct, with one-frame
+  delay)
+- Per-element RequestedTheme: resolved correctly at mount time (good — it uses
+  `GetEffectiveThemeName(fe)`)
+- VisualStateManager transitions: the resource is a frozen brush, not a
+  `{ThemeResource}`. VSM state changes that reference the resource key will
+  pick up the Duct-set brush, but it won't adapt to subsequent theme changes
+  *between renders*
+
+For the common case (set once, re-resolve on system theme change), this works.
+For the edge case (rapid theme toggling or theme-dependent VSM transitions),
+the snapshot model has a one-render-cycle delay.
+
+**5. No custom theme resource definitions (unchanged).** `Theme.Ref("key")`
+references existing WinUI resources, but there's no way to define new theme
+resources from Duct. No branded colors that adapt to light/dark, no app-specific
+semantic tokens. This was the most frequently cited remaining gap in the previous
+review and it's still unaddressed. React's Material UI `createTheme()`, SwiftUI's
+asset catalog named colors, and Compose's `lightColorScheme()`/`darkColorScheme()`
+all provide this. Duct still only references the platform's built-in palette.
+
+The lightweight styling `ResourceBuilder` makes this more pressing, not less.
+A developer who discovers they can override `ButtonBackground` with a brand
+color will immediately want a brand color that adapts to light/dark — which
+requires custom theme resources. The feature that should unblock this (custom
+theme definitions) is the feature that's still missing.
+
+**6. Only three properties support ThemeRef bindings (unchanged).** Background,
+Foreground, and BorderBrush via `GetDependencyPropertyName()`. No Fill/Stroke
+on shapes, no PlaceholderForeground, no CaretBrush. The lightweight styling
+`ResourceBuilder` partially compensates — you can override resource keys for
+any property — but ThemeRef bindings on the element itself remain limited to
+three.
+
+**7. Style assignment still clobbers existing styles.** `ApplyThemeBindings`
+does `fe.Style = cachedStyle` (via `ApplyStyleToElement`). The caching
+eliminates the performance cost of building duplicate styles, but the
+architectural concern remains: every theme-bound element gets a dynamically
+assigned style that replaces whatever style WinUI would have naturally applied.
+This interacts poorly with `.ApplyStyle("AccentButtonStyle")` and implicit
+styles. The cache means this is now a *correctness* concern (style precedence)
+rather than a *performance* concern.
+
+**8. DUCT002 analyzer coverage is shallow.** The `UseLightweightStylingAnalyzer`
+only knows about 3 properties (Background, Foreground, BorderBrush) and 6
+control types (Button, ToggleButton, RepeatButton, SplitButton, AppBarButton,
+HyperlinkButton). Missing: TextBox, CheckBox, ComboBox, Slider, ToggleSwitch.
+Missing properties: PlaceholderForeground, BorderThickness, CornerRadius.
+Missing resource keys: anything beyond the Button family. The analyzer detects
+a fraction of the cases where lightweight styling would be beneficial. It's
+better than nothing — but it won't nudge a developer who's using `.Set()` on a
+TextBox to set its placeholder foreground, which is one of the most common
+lightweight styling use cases.
+
+**9. DUCT001 color-to-token mapping is incomplete.** The `UseThemeRefAnalyzer`
+maps 5 specific colors (#FFFFFF, white, #000000, black, #0078D4) to theme
+tokens. Every other hard-coded color gets a generic "use ThemeRef" message with
+no specific token suggestion. In practice, developers use dozens of colors —
+grays (#E5E5E5, #808080), blues (#005A9E, #106EBE), reds (#D13438), greens
+(#107C10). None of these map. The analyzer is useful for the simplest cases but
+doesn't provide actionable guidance for the majority of real-world hard-coded
+colors.
 
 ### Revised theming verdict
 
-**Previously: F (architecturally broken). Now: C+.**
+**Previously: C+. Now: B-.**
 
-The ThemeRef system closes the P0 gap. A developer who uses `Theme.*` tokens
-gets correct dark mode and high contrast for background, foreground, and border.
-This is a significant improvement — the "impossible choice" is gone for the
-common case.
+The improvement is meaningful and addresses the right problems. Style caching
+eliminates the XamlReader.Load performance concern that was the #1 critique.
+Lightweight styling provides a genuinely unique capability. RequestedTheme
+modifier removes a `.Set()` workaround. The analyzers provide static guidance
+where none existed.
 
-But the implementation has performance concerns (XamlReader.Load per element per
-render), the API surface is narrow (3 properties, no custom resources, no hooks),
-there are no guardrails against hard-coded colors, and the style injection
-approach may cause conflicts with WinUI's own styling system. The competition's
-theming is built into the rendering pipeline; Duct's is bolted on via XAML
-string generation.
+But the grade is B-, not B, because of the `UseColorScheme` bug (reads app
+theme, not element effective theme), the `ThemeRef` + `RequestedTheme`
+interaction gap (dynamically-loaded styles don't respect per-element theme),
+missing custom theme resource definitions, stringly-typed resource keys with
+no validation, and shallow analyzer coverage. The two most impactful new
+features — RequestedTheme and UseColorScheme — don't compose correctly with
+each other, which is exactly the scenario they were designed for (dark sidebar
+in a light app with reactive rendering).
 
-### Other styling issues (unchanged)
+The competition has moved too. SwiftUI's styling story (semantic colors +
+`@Environment(\.colorScheme)` + asset catalog + `.tint()` + `.preferredColorScheme()`)
+is deeply integrated and consistent. Compose's Material 3 (`lightColorScheme` /
+`darkColorScheme` / `dynamicColorScheme`) provides full custom theming with
+one API surface. Duct's styling is now *functional* across more scenarios,
+but the pieces don't always compose cleanly with each other.
 
-**No style composition or reuse.** SwiftUI has `ViewModifier` for creating
-reusable style bundles. Compose has `Modifier` which is composable. Duct has no
-mechanism to group modifiers into reusable units. You can create extension methods
-as a workaround, but there's no framework-level concept of a "style."
+### Other styling issues
 
-**No lightweight styling (theme resource key overrides).** WinUI's lightweight
-styling lets you override specific theme resource keys per-control to customize
-appearance while preserving theme reactivity. Duct has no DSL for this. It's
-listed as a P1 gap.
+**No style composition or reuse (partially addressed).** The design spec notes
+that `Func<T, T>` extension methods serve as style bundles in practice. This is
+valid C# — `static T BrandButton<T>(this T el) where T : Element => el
+.Background(Theme.Accent).Foreground(Theme.PrimaryBackground)` — and is
+documented in the styling spec. No new framework-level concept was added, which
+is the right call: plain C# extension methods compose naturally with modifiers.
 
-**ApplyStyle is a string-based runtime lookup.** `.ApplyStyle("AccentButtonStyle")`
-does a dictionary lookup in `Application.Current.Resources` at runtime. A typo
-in the style name silently fails (returns null, sets Style to null). No
-compile-time validation.
+**Lightweight styling partially replaces the need for style composition.**
+`.Resources()` lets a developer customize hover/pressed/disabled appearance
+without needing to compose multiple modifiers. For the "brand button" pattern,
+lightweight styling is strictly better than modifier chaining because it
+preserves VisualStateManager integration.
+
+**ApplyStyle is still string-based runtime lookup (unchanged).**
+`.ApplyStyle("AccentButtonStyle")` does a dictionary lookup in
+`Application.Current.Resources` at runtime. A typo silently fails.
 
 ---
 
@@ -1487,16 +1685,21 @@ could provide a convenience API like `ListView(items, template, emptyState)`.
 
 ## 10. Animation
 
-### The animation story: from 5 transitions to a compositor animation system
+### The animation story: from partially-wired to fully operational (within its ceiling)
 
-The last version of this review said Duct had "5 implicit transitions and
-nothing else" and graded animation at C. Since then a single large diff (commit
-41179d0) has landed 8 new animation features, all compositor-layer, with full
-reconciler lifecycle integration. This is no longer a thin wrapper around
-WinUI's built-in transition properties — it's a real animation system. The
-honest assessment: **Duct now has a genuinely capable compositor animation
-system with good design quality, but it operates within a ceiling that SwiftUI
-and Compose don't face, and "animate any value" is still out of reach.**
+The last version of this review graded animation at C+ — good API design across
+8 new compositor-layer features, but four integration bugs where the API
+promised behavior the reconciler didn't deliver: exit transitions were dead code,
+Focused interaction state was silently ignored, WithAnimation only animated
+Opacity, and stagger didn't integrate with enter transitions. The review
+explicitly said: "Fix the four integration bugs and the compositor-property
+ceiling is the only remaining structural concern — that would be a clear B-."
+
+A focused bug-fix diff (commit d38c6ef, 3 sub-commits) has done exactly that —
+plus fixed three additional runtime issues discovered during implementation.
+The honest assessment now: **all four integration bugs are fixed, three runtime
+issues are resolved, and the compositor-property ceiling is the only remaining
+structural concern. The animation system now delivers what its API promises.**
 
 ### What Duct has now
 
@@ -1592,21 +1795,21 @@ Panel.Transition(Transition.Fade | Transition.Slide(Edge.Bottom))
 parallel composition, `|` for asymmetric enter/exit. `ElementTransition`
 wraps the transition with an optional `Curve` override.
 
-The reconciler integration is partially complete. On mount:
+The reconciler integration is now complete. On mount:
 `ApplyEnterTransition()` runs compositor animations (opacity/offset/scale) on
 the element's Visual, respecting `AnimationScope.Current` if present (priority:
 explicit curve > ambient scope > 300ms Decelerate default). On unmount:
-`ApplyExitTransition()` exists at Reconciler.cs:830 with full
-`CompositionScopedBatch` deferral logic — but **it is never called**. The
-`ChildReconciler` does immediate `RemoveAt()` + `Unmount()` without invoking
-the exit path. Exit transitions are dead code.
+`ApplyExitTransition()` creates a `CompositionScopedBatch`, runs exit
+animations, and defers removal until `batch.Completed`. All three removal paths
+in `ChildReconciler` (positional excess, keyed-only removals, keyed middle
+unmatched) route through `RemoveChildWithExitTransition()`. Type-mismatch
+replacements (e.g., `visible ? Border(...) : Text(...)`) route through
+`ReplaceChildWithExitTransition()`, which inserts the new control, re-inserts
+the old for its exit animation, then removes it on completion.
 
-This partially addresses the "no enter/exit for individual elements" critique.
-Enter transitions work. Exit transitions are defined but unreachable — the
-previous review said "True enter/exit animation needs the reconciler to delay
-unmounting until an exit animation completes." The method exists, but the
-reconciler still removes elements immediately. The composition-operator DSL
-(`+` and `|`) is well-designed, but half of it has no runtime effect.
+This fully addresses the "no enter/exit for individual elements" critique.
+Both enter and exit transitions work. The composition-operator DSL
+(`+` for parallel, `|` for asymmetric enter/exit) now has full runtime effect.
 
 **Tier 7: Interaction states (NEW — zero-reconcile visual state machine).**
 
@@ -1625,17 +1828,16 @@ handlers that apply compositor animations for transform properties (zero-cost
 during interaction) and direct brush swaps (~1μs) for brush properties. No
 reconciler re-render. No state change. No virtual tree diff.
 
-However, only PointerOver and Pressed are actually wired. The reconciler's
-`ApplyInteractionStates()` registers PointerEntered/PointerExited and
-PointerPressed/PointerReleased handlers — but **no GotFocus/LostFocus
-handlers**. The `.Focused()` builder method exists, accepts values, and
-compiles without error, but the values are silently ignored at runtime.
+All three interaction states — PointerOver, Pressed, and Focused — are wired.
+The reconciler's `ApplyInteractionStates()` registers PointerEntered/
+PointerExited, PointerPressed/PointerReleased, and GotFocus/LostFocus handlers.
+Focus styling values are properly applied and reverted through the same
+transition system as pointer states.
 
-This partially addresses the "VSM replacement is expensive" critique. Hover
-and press effects using InteractionStates run entirely on the composition
+This fully addresses the "VSM replacement is expensive" critique. Hover, press,
+and focus effects using InteractionStates run entirely on the composition
 thread (for transforms) or via pre-cached brush swap (for brushes), with zero
-managed-code re-rendering. But focus styling — arguably the most accessibility-
-critical interaction state — doesn't work.
+managed-code re-rendering.
 
 The scope is intentionally narrow — `InteractionStateValues` is a closed record,
 not an extensible property bag. No Width, Margin, FontSize, CornerRadius. The
@@ -1649,16 +1851,16 @@ StackPanel(children).Stagger(TimeSpan.FromMilliseconds(50))
 StackPanel(children).Stagger(TimeSpan.FromMilliseconds(50), Curve.Spring())
 ```
 
-`StaggerConfig` applies progressive delay to child implicit animations — layout
-animations and property animations — via `CompositionAnimation.DelayTime`. The
-reconciler's `ApplyStaggerDelays()` iterates children and sets increasing delay
-on their `ImplicitAnimationCollection`. Simple, useful for list-reveal effects.
+`StaggerConfig` applies progressive delay to child animations — layout
+animations, property animations, and enter transitions — via
+`CompositionAnimation.DelayTime`. Parent elements with `StaggerConfig` push a
+`StaggerScope` before mounting children; each child's `ApplyEnterTransition`
+consumes an incrementing index for stagger delay computation. The scope supports
+nesting — inner stagger panels reset the index independently.
 
-However, stagger does not integrate with enter transitions. `ApplyEnterTransition`
-at Mount.cs:175 is called without stagger parameters, despite the method
-signature supporting them. Stagger only affects implicit animations already
-present on child Visuals, not the enter transition animations. A staggered
-list reveal with fade-in transitions won't actually stagger the fades.
+This fully integrates stagger with enter transitions. A staggered list with
+`.Transition(Transition.Fade)` on each item produces a cascade fade-in effect
+with each item delayed by the stagger interval.
 
 **Tier 9: Keyframe animations (NEW — trigger-based multi-property keyframes).**
 
@@ -1719,22 +1921,30 @@ await AnimationScope.WithAnimationAsync(Curve.Spring(), () =>
 `AnimationScope` uses `[ThreadStatic]` fields to hold a `Curve?` and a
 `bool HasScope`. `WithAnimation()` sets the ambient curve, runs the action,
 and restores the previous curve in a `finally` block (nestable). The reconciler
-checks `AnimationScope.Current` in property assignment via
-`AnimationHelper.SetOrAnimate()`. However, **`SetOrAnimate` is only called for
-Opacity** (Reconciler.cs:1443). Scale, Rotation, Translation, and CenterPoint
-are set directly without checking `AnimationScope.Current`. The ambient curve
+routes all five compositor properties (Opacity, Scale, Rotation, Translation,
+CenterPoint) through `AnimationHelper.SetOrAnimate()` / `SetOrAnimateVector3()`,
+which check `AnimationScope.Current` for an ambient curve. The ambient curve
 also propagates to enter transitions (overrides the default 300ms Decelerate).
+Additionally, `SetOrAnimate` checks for the element's `AnimationConfig` (from
+`.Animate()`) as a fallback when no ambient scope is present, creating explicit
+compositor animations using the config's curve.
+
+A critical runtime fix ensures the scope persists across the async render
+boundary: state setters inside `WithAnimation` trigger an async re-render via
+`DispatcherQueue`, and by the time `Reconcile()` runs the scope would normally
+be gone. `DuctHost` now captures the ambient curve in `RequestRender()` and
+restores it around the `Reconcile()` call via `AnimationScope.PushScope/PopScope`.
 
 The async variant creates a `CompositionScopedBatch`, runs the action inside
 the batch, calls `batch.End()`, and returns a `Task` that completes on
 `batch.Completed`. This lets callers await animation completion.
 
-This directly addresses the "no declarative value-driven animation API"
-critique. It's close to SwiftUI's `withAnimation { }` pattern — wrap a state
-change, and the resulting property updates animate. The key difference: it only
-animates properties that the reconciler routes through `AnimationHelper`, which
-means compositor properties. Width changes, color changes, margin changes still
-don't animate. But for the properties it covers, the pattern is correct.
+This fully addresses the "no declarative value-driven animation API" critique.
+It's close to SwiftUI's `withAnimation { }` pattern — wrap a state change, and
+the resulting property updates animate. All compositor properties are covered.
+Width changes, color changes, margin changes still don't animate (those are
+layout/XAML properties, not compositor properties). But within the compositor
+property set, `WithAnimation` works completely.
 
 **Tier 12: Connected animations (previously documented).**
 
@@ -1769,63 +1979,69 @@ closed record design is honest: it covers what can be done at compositor speed
 and doesn't pretend to be a general-purpose state machine for arbitrary
 properties. The builder API is ergonomic.
 
-**The reconciler lifecycle integration is thorough but has gaps.** Every feature
-has mount/update/unmount wiring:
-- Enter transitions applied at mount (exit defined but never called — see below)
-- InteractionStates handlers registered at mount, cleared at unmount (PointerOver/Pressed only; Focused unwired)
+**The reconciler lifecycle integration is now thorough and complete.** Every
+feature has mount/update/unmount wiring:
+- Enter transitions applied at mount, exit transitions defer removal via
+  CompositionScopedBatch callback — all removal paths covered
+- InteractionStates handlers registered at mount, cleared at unmount
+  (PointerOver, Pressed, and Focused all wired)
 - Scroll animations created at mount, cleared at unmount
 - Keyframe animations triggered on mount and on trigger-value change
-- Stagger delays applied to children's implicit animations (not enter transitions)
+- Stagger delays applied to both implicit animations and enter transitions
+  via StaggerScope
 - Layout animations and `.Animate()` configs applied via implicit animation
   collections
 
 On update, the reconciler correctly diffs: if a config changed, reapply; if
-removed, clear. The structural wiring is right. But four integration gaps
-(detailed below) mean the system promises more than it delivers at runtime.
+removed, clear. The structural wiring is complete — the API delivers what it
+promises.
 
-**AnimationScope.WithAnimation is the right abstraction, incompletely wired.**
+**AnimationScope.WithAnimation is the right abstraction, now fully wired.**
 Ambient curve propagation via ThreadStatic fields, nestable with proper restore
 in `finally`, async variant with CompositionScopedBatch completion tracking.
-The reconciler checks for it during property application — but only for
-Opacity. Scale, Rotation, Translation, and CenterPoint are set directly.
-The pattern is architecturally sound (same model as SwiftUI's `withAnimation`),
-but the implementation only covers one of the five compositor properties.
+All five compositor properties route through `SetOrAnimate`/`SetOrAnimateVector3`.
+The scope persists across the async render boundary via DuctHost capture/restore.
+The pattern is architecturally sound (same model as SwiftUI's `withAnimation`)
+and the implementation is complete.
 
-### Integration bugs found during review
+### Previously-reported integration bugs: all four fixed
 
-Before the broader design critiques, four concrete integration gaps deserve
-attention. These aren't design limitations or platform constraints — they're
-bugs where the API promises behavior that the reconciler doesn't deliver.
+The previous version of this review identified four integration bugs where
+the API promised behavior the reconciler didn't deliver. All four have been
+fixed in commit d38c6ef (3 sub-commits, 767 lines added), along with three
+additional runtime issues discovered during implementation:
 
-**Bug 1: Exit transitions are dead code.** `ApplyExitTransition()` at
-Reconciler.cs:830 has a complete implementation — it creates a
-`CompositionScopedBatch`, runs exit animations, and defers removal until
-`batch.Completed`. But it is never called. The `ChildReconciler` removes
-elements immediately via `RemoveAt()` + `Unmount()`. The `.Transition()` API
-syntax `Transition.Fade | Transition.Scale(0.85f)` accepts asymmetric
-enter/exit specifications, but the exit half silently does nothing.
+**Bug 1 (exit transitions): FIXED.** All three removal paths in
+`ChildReconciler` now route through `RemoveChildWithExitTransition()`.
+Type-mismatch replacements route through `ReplaceChildWithExitTransition()`.
 
-**Bug 2: Focused interaction state is silently ignored.** The
-`InteractionStatesConfig` builder exposes `.Focused(borderBrush: focusBrush)`,
-which compiles and builds the config record correctly. But
-`ApplyInteractionStates()` only registers PointerEntered/PointerExited and
-PointerPressed/PointerReleased handlers. No GotFocus/LostFocus handlers are
-registered. Focus styling values are accepted by the API, stored in the config,
-and discarded by the reconciler.
+**Bug 2 (Focused state): FIXED.** `ApplyInteractionStates()` now registers
+GotFocus/LostFocus handlers alongside pointer handlers.
 
-**Bug 3: WithAnimation only animates Opacity.** `AnimationHelper.SetOrAnimate()`
-is only called at Reconciler.cs:1443 for Opacity. When a developer wraps a
-state change in `AnimationScope.WithAnimation(curve, () => { ... })`, they
-expect property updates within the scope to animate. Only Opacity does. Scale,
-Rotation, Translation, and CenterPoint are set directly without checking
-`AnimationScope.Current`.
+**Bug 3 (WithAnimation scope): FIXED.** All five compositor properties now
+route through `SetOrAnimate()`/`SetOrAnimateVector3()`. Additionally, the
+scope persistence across the async render boundary was fixed (DuctHost captures
+the ambient curve before DispatcherQueue dispatch and restores it around
+`Reconcile()`).
 
-**Bug 4: Stagger doesn't integrate with enter transitions.**
-`ApplyEnterTransition` at Mount.cs:175 is called without stagger parameters
-despite the method signature supporting `TimeSpan delay` and `int index`.
-`ApplyStaggerDelays` only mutates the `ImplicitAnimationCollection` on child
-Visuals. A staggered list with enter transitions gets stagger on implicit
-property animations but not on the enter transition animations.
+**Bug 4 (stagger + enter transitions): FIXED.** `StaggerScope` is pushed
+before mounting children; each child's `ApplyEnterTransition` consumes an
+incrementing index for stagger delay computation, with proper nesting support.
+
+**Additional runtime fixes:**
+- **Opacity routing for `.Animate()`:** UIElement.Opacity is a XAML DP, not a
+  compositor facade — setting it directly doesn't trigger implicit animations
+  from `.Animate()`. `SetOrAnimate` now creates explicit compositor animations
+  when an `AnimationConfig` is present.
+- **Pool crash with compositor-tainted elements:** Elements that had
+  `GetElementVisual()` called permanently lose XAML implicit transition API
+  access. `ElementPool` now tracks "compositor-tainted" elements via
+  `ConditionalWeakTable` and excludes them from pooling.
+- **Exit transitions in type-mismatch replacement:** `visible ? Border : Text`
+  scenarios now defer removal via `ReplaceChildWithExitTransition`.
+
+**47 regression tests** in `AnimationBugTests.cs` (all pure logic, no WinUI
+host) validate these fixes.
 
 ### What's still concerning (skeptic's view)
 
@@ -1930,40 +2146,44 @@ and `delayChildren` variants, and Compose's `AnimatedContent` with
 
 ### Revised animation verdict
 
-**Previously: D → C (layout animations + connected). Now: C+.**
+**Previously: C+ (good design, 4 integration bugs). Now: B-.**
 
-The API design quality is genuinely good and the grade reflects the effort. But
-the grade is C+, not B-, because several advertised features don't work at
-runtime:
+The previous review explicitly said: "Fix the four integration bugs and the
+compositor-property ceiling is the only remaining structural concern — that
+would be a clear B-." The bugs are fixed. The grade moves to B-.
 
-- Exit transitions are defined but the reconciler never calls them
-- The Focused interaction state is accepted by the builder and silently ignored
-- WithAnimation only animates Opacity, not Scale/Rotation/Translation
-- Stagger doesn't propagate to enter transitions
-
-The animation system went from "5 implicit transitions and connected
-animations" to a multi-tier compositor animation system with:
+The animation system is now a fully operational multi-tier compositor animation
+system:
 
 - A clean curve/easing DSL with springs, bezier, and presets
-- Enter transitions with composition operators (exit is dead code)
-- Zero-reconcile interaction states for hover/press (focus is unwired)
+- Enter AND exit transitions with composition operators — both work
+- Zero-reconcile interaction states for hover/press/focus — all three wired
 - Keyframe animations with per-frame easing and looping
-- Staggered child implicit animations (not enter transitions)
+- Staggered children integrated with enter transitions
 - Scroll-linked expression animations
-- Ambient animation context (WithAnimation) for Opacity only
+- Ambient animation context (WithAnimation) for ALL compositor properties
+- Compositor-tainted element tracking prevents pool crashes
 
 The design quality is real. Immutable record types, composition operators,
 proper lifecycle wiring in mount/update/unmount, ThreadStatic ambient
-propagation with correct nesting. These are well-engineered abstractions. But
-abstractions that accept configuration and silently discard it are worse than
-abstractions that don't offer the configuration at all — a developer who
-writes `.Focused(borderBrush: focusBrush)` has a right to expect it works.
+propagation with correct nesting and async-boundary persistence. The API now
+delivers what it promises — `.Focused(borderBrush: focusBrush)` works,
+`.Transition(Transition.Fade | Transition.Scale(0.85f))` runs the exit, and
+`WithAnimation` animates all five compositor properties.
 
-The C+ acknowledges that Duct now has a real animation system with thoughtful
-API design, while recognizing that the implementation has gaps that make the
-system promise more than it delivers. Fix the four integration bugs and the
-compositor-property ceiling is the only remaining structural concern — that
-would be a clear B-. As shipped, too many features are partially wired.
+The grade is B-, not B, because the compositor-property ceiling is real and
+structural. The system can only animate Opacity, Scale, Rotation, Translation,
+CenterPoint, and 3 brush swaps. Width, Height, CornerRadius, Margin, FontSize,
+arbitrary brush colors — none of these animate. SwiftUI and Compose animate
+any value. Duct has an increasingly sophisticated system for animating the same
+narrow set of properties. This isn't a Duct design failure — it's a WinUI
+platform constraint — but it's the ceiling that keeps the grade below B.
+
+Additionally, per-frame animation hooks (`UseAnimation`, `UseSpring`) still
+don't exist, connected animations still use string keys, and there's no
+cross-element sequencing/orchestration beyond stagger. These are real gaps, but
+they're design omissions rather than broken promises — the system does what it
+says it does.
 
 ---
 
@@ -2111,6 +2331,9 @@ production accessibility also needs imperative operations:
   items deleted") without needing a visible element
 - `UseFocusTrap()` — trapping focus within a modal dialog
 - `UseHighContrast()` — detecting high contrast mode in render logic
+  (`UseColorScheme()` now partially covers this — it returns
+  `ColorScheme.HighContrast` — but it reads app-level theme, not element
+  effective theme)
 - `UseReducedMotion()` — respecting user's motion preferences
 - `UseScreenReaderActive()` — adapting UI when a screen reader is running
 
@@ -2392,14 +2615,14 @@ SwiftUI, Compose).
 | **Global State** | B+ | A | A | A | DuctContext + UseContext + .Provide(); boxing in scope stack, no selector |
 | **Reconciler** | B- | A | A- | A | Works but monolithic, no concurrent mode |
 | **Layout** | B+ | B+ | A | A | Flex is good; Grid is stringly-typed |
-| **Theming** | C+ | B+ | A | A | ThemeRef works; XamlReader.Load perf concern; 3 props only; no custom resources |
+| **Theming** | B- | B+ | A | A | Style caching fixes XamlReader.Load perf; RequestedTheme modifier; UseColorScheme hook (reads app theme, not element effective); 3 ThemeRef props; no custom resources |
 | **Navigation** | B+ | A | A | A | Type-safe routes, dev-owned stack, GPU transitions, lifecycle guards, caching, serialization, deep linking; ConnectedTransition is stub, no adaptive multi-pane, E2E tests unexecuted |
 | **Commanding** | B+ | N/A | C+ | N/A | Define-once commands, 16 standard, async lifecycle, focus-scoped accelerators; no competitor has this. Accelerator rebuild per render, labels not localized, no command routing, no palette UI |
 | **Lists/Collections** | B | B+ | A | A | Virtualization exists, no sections |
-| **Animation** | C+ | B | A | A | Curve DSL, enter (no exit), interaction states (no focus), keyframes, stagger (implicit only), scroll-linked, WithAnimation (Opacity only); compositor-property-bound, 4 integration bugs |
+| **Animation** | B- | B | A | A | Curve DSL, enter+exit, interaction states (hover/press/focus), keyframes, stagger+enter integration, scroll-linked, WithAnimation (all 5 props); 4 prior bugs fixed; compositor-property-bound ceiling; no per-frame hooks |
 | **Accessibility** | C+ | B | A | A | 16 modifiers, UIA E2E tests; no custom peers, no hooks, no diagnostics |
 | **Input/Events** | C | B | A | A | Semantic events good; commanding helps but no gesture system, no pointer enter/exit, rest is .Set() |
-| **Styling** | C- | B+ | A | A | No style composition; no lightweight styling; ApplyStyle is stringly-typed |
+| **Styling** | B- | B+ | A | A | Lightweight styling is a genuine differentiator; ResourceBuilder fluent API; 3 Roslyn analyzers; stringly-typed resource keys; analyzer coverage shallow |
 | **Developer Experience** | C+ | A | B+ | B+ | Hot reload works; preview is screenshot-only; no devtools |
 | **Control Coverage** | A | N/A | A | A | 94% of WinUI wrapped |
 | **Error Handling** | B | B+ | D | D | ErrorBoundary exists (rare feature) |
@@ -2412,13 +2635,15 @@ SwiftUI, Compose).
 
 ### The sample apps are telling — and the story has shifted
 
-Duct now has six sample apps: the original four (Outlook clone, file manager,
-registry editor, word puzzle game) plus NavigationDemo and CommandingDemo. The
-new samples demonstrate their respective features comprehensively:
-NavigationDemo covers routes, guards, transitions, caching, deep linking, and
-nested navigation. CommandingDemo covers standard commands, async lifecycle,
-parameterized commands, focus-scoped accelerators, per-site overrides, and
-context-based command sharing.
+Duct now has seven sample apps: the original four (Outlook clone, file manager,
+registry editor, word puzzle game) plus NavigationDemo, CommandingDemo, and
+StylingGallery. The new samples demonstrate their respective features
+comprehensively: NavigationDemo covers routes, guards, transitions, caching,
+deep linking, and nested navigation. CommandingDemo covers standard commands,
+async lifecycle, parameterized commands, focus-scoped accelerators, per-site
+overrides, and context-based command sharing. StylingGallery demonstrates
+theme tokens, RequestedTheme, UseColorScheme, lightweight styling, and style
+caching with a 50-200 element grid.
 
 But the original showcase apps remain frozen in time:
 - **Outlook clone** still uses string-based view switching (`currentPage switch
@@ -2479,11 +2704,16 @@ This is a red flag for a framework that wants to be production-ready.
    Navigation and commanding extend this further — routes are types, commands
    are records, everything is compiler-checked.
 
-9. **Observable interop.** UseObservable, UseObservableTree, UseObservableProperty,
-   and UseCollection bridge cleanly to MVVM. Essential for incremental adoption
-   in existing WinUI codebases.
+9. **Lightweight styling surfaces a WinUI capability no competitor wraps.**
+   `ResourceBuilder` provides ergonomic access to WinUI's per-control resource
+   key overrides with proper cleanup, managed-key tracking, and ThemeRef
+   integration. No other C# declarative framework does this.
 
-10. **The localization system validates the framework's own abstractions.** The
+10. **Observable interop.** UseObservable, UseObservableTree, UseObservableProperty,
+    and UseCollection bridge cleanly to MVVM. Essential for incremental adoption
+    in existing WinUI codebases.
+
+11. **The localization system validates the framework's own abstractions.** The
     migration of LocaleProvider to `DuctContext<IntlAccessor?>` proves the context
     system works for real cross-cutting concerns. Navigation uses DuctContext for
     sharing handles. Commanding can use DuctContext for sharing commands. When
@@ -2501,40 +2731,48 @@ This is a red flag for a framework that wants to be production-ready.
    state, and surfaces Cut/Copy/Paste through `StandardCommand`, the framework's
    production-readiness is theoretical.
 
-2. **Theming is still too thin.** XamlReader.Load per element per render, only 3
-   brush properties, no custom branded theme resources, no guardrails against
-   hard-coded colors. The ThemeRef system closed the P0 blocker but hasn't been
-   deepened. A real app with brand colors and custom token sets will hit the
-   ceiling quickly.
+2. **Theming has improved but the pieces don't compose.** Style caching fixes
+   performance. Lightweight styling is a genuine differentiator. But
+   `UseColorScheme` reads the app-level theme instead of the element's effective
+   theme, and `{ThemeResource}` in dynamically-loaded Styles doesn't respect
+   per-element `RequestedTheme`. The two headline features — RequestedTheme
+   modifier and UseColorScheme hook — were designed for the "dark sidebar"
+   scenario and don't work together correctly in that exact scenario. Custom
+   branded theme resources still don't exist.
 
 3. **Accessibility lacks the hard layers.** 16 modifiers and 12 UIA tests are
    solid annotations, but custom automation peers are blocked (components can't
    describe their own semantics), accessibility hooks are unbuilt, and there's no
    diagnostics or linting. The annotation layer is the easy part.
 
-4. **Animation has good API design but incomplete wiring.** The 8-feature
-   compositor animation system (curves, transitions, interaction states,
-   keyframes, stagger, scroll-linked, WithAnimation scope) shows solid
-   abstraction work. But exit transitions are dead code, Focused state is
-   silently ignored, WithAnimation only routes Opacity, and stagger doesn't
-   integrate with enter transitions. The API promises more than the reconciler
-   delivers. Fix the four integration bugs and this is a clear B-; as shipped,
-   the gap between API surface and runtime behavior is the bigger concern than
-   the compositor-property ceiling.
+4. **Animation is now fully operational within its ceiling.** The four
+   integration bugs from the previous review (dead exit transitions, unwired
+   Focused state, WithAnimation only routing Opacity, stagger not integrating
+   with enter transitions) are all fixed. Three additional runtime issues
+   (async scope loss, Opacity routing for .Animate(), pool crash with
+   compositor-tainted elements) are also resolved. The API now delivers what
+   it promises. The remaining limitation is structural: the compositor-property
+   ceiling (Opacity, Scale, Rotation, Translation, CenterPoint + 3 brush swaps)
+   means Width, CornerRadius, Margin, FontSize, and arbitrary colors can't
+   animate. This is a WinUI platform constraint, not a Duct design failure.
 
-5. **.Set() still carries too much weight.** Navigation and commanding reclaimed
-   meaningful surface area. But gestures, pointer enter/exit, right-tap,
-   double-tap, drag-and-drop, composition-layer effects, materials, and most
-   windowing APIs still require `.Set()`. The abstraction is thicker than before
-   but still not thick enough for a "you don't need to know WinUI" claim.
+5. **.Set() still carries too much weight.** Navigation, commanding, and styling
+   have all reclaimed meaningful surface area — `.RequestedTheme()` eliminates
+   another `.Set()` workaround, and lightweight styling eliminates `.Set()`
+   for per-control resource overrides. But gestures, pointer enter/exit,
+   right-tap, double-tap, drag-and-drop, composition-layer effects, materials,
+   and most windowing APIs still require `.Set()`. The abstraction is thicker
+   than before but still not thick enough for a "you don't need to know WinUI"
+   claim.
 
-6. **Performance concerns accumulate.** Reflection-based ShouldUpdateWithProps
-   (Section 2), boxing in context scope (Section 2), unbounded persisted state
-   cache (Section 2), XamlReader.Load per themed element (Section 6),
-   accelerator rebuild per render (Section 8), invisible Border/Grid wrappers
-   adding layout cost (Sections 4, 7, 8). Each is individually minor. Together,
-   they paint a picture of a framework that hasn't done a performance pass. No
-   profiling tools exist to even measure these costs (Section 13).
+6. **Performance concerns accumulate (but one is fixed).** Style caching
+   eliminates the XamlReader.Load-per-themed-element concern. But reflection-
+   based ShouldUpdateWithProps (Section 2), boxing in context scope (Section 2),
+   unbounded persisted state cache (Section 2), accelerator rebuild per render
+   (Section 8), and invisible Border/Grid wrappers adding layout cost (Sections
+   4, 7, 8) remain. The style caching fix shows the team responds to performance
+   critiques, but no systematic profiling pass has occurred. No profiling tools
+   exist to measure the remaining costs (Section 13).
 
 7. **E2E test gaps for the newest features.** Navigation's E2E Appium tests are
    fixtures-only (not executed). Commanding has no integration tests. The unit
@@ -2571,9 +2809,14 @@ in quality, not just existence.
 
 Duct's strongest position is commanding — it's genuinely ahead of the entire
 industry. Its navigation is competitive. Its component model is solid. Animation
-has crossed from mid-tier to a capable system within compositor bounds. The
-remaining mid-tier features (theming, accessibility) are functional with scope
-limitations. The `.Set()` surface area is smaller but still too large.
+has crossed a threshold — the four integration bugs are fixed, all advertised
+features now work, and the compositor-property ceiling is the only remaining
+structural concern. Styling has made a significant jump: style caching fixes the
+major perf concern, lightweight styling is a genuine differentiator, and Roslyn
+analyzers provide static guidance — but the UseColorScheme/RequestedTheme
+composition bug and missing custom theme resources keep it from being fully
+competitive. Accessibility is functional with scope limitations. The `.Set()`
+surface area is smaller but still too large.
 
 ### To become production-ready, Duct needs to:
 
@@ -2588,14 +2831,27 @@ limitations. The `.Set()` surface area is smaller but still too large.
 4. **Localize StandardCommand labels.** The framework's own commanding system
    should use the framework's own localization system. This is embarrassing in
    its absence.
-5. **Finish the theming story.** Style caching for XamlReader.Load, more than 3
-   brush properties, custom theme resource definitions.
-6. **Add command routing to the focused view.** This is the missing piece that
+5. **Fix UseColorScheme to read element effective theme, not app theme.** This
+   is a bug that undermines the RequestedTheme + UseColorScheme composition
+   story. The fix is to read the mounted FrameworkElement's ActualTheme, not
+   Application.Current.RequestedTheme.
+6. **Finish the theming story.** Custom theme resource definitions, more than 3
+   ThemeRef binding properties, type-safe resource key constants for lightweight
+   styling.
+7. **Add command routing to the focused view.** This is the missing piece that
    makes Cut/Copy/Paste work in multi-panel apps.
 
-The trajectory is right. The foundation is solid. Navigation and commanding have
+The trajectory is right. The foundation is solid. Navigation and commanding
 moved Duct from "component library with hooks" to "framework with application
-architecture." But the gap between "features exist" and "features are production-
-quality and compose in real apps" is where the remaining work lives. That gap is
-narrower than before — and for the first time, there's a feature (commanding)
-where Duct is genuinely ahead of the competition, not just catching up.
+architecture." The styling diff moves the theming story from "functional but
+thin" to "capable with a unique feature" — lightweight styling gives Duct
+something the competition doesn't have. The animation bug-fix diff is a good
+sign for the project's health: all four integration bugs called out in the
+previous review were fixed, plus three additional runtime issues — this is the
+kind of responsive iteration that builds confidence. But the composition bugs
+(UseColorScheme + RequestedTheme) and interaction gaps (ThemeRef +
+RequestedTheme) show that shipping individual features is easier than making
+them work together. The gap between "features exist" and "features compose
+correctly in real apps" is where the remaining work lives. That gap is narrower
+than before — and Duct now has two features (commanding, lightweight styling)
+where it's genuinely ahead of the competition, not just catching up.
