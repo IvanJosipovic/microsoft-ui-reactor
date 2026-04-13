@@ -156,20 +156,37 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
 
         Element grid = Grid(["*"], rootRowDefs, gridChildren.ToArray());
 
-        // Keyboard navigation handler
+        // Keyboard navigation handler.
+        // Use a ref to hold the current props so the OnMount handler (registered once)
+        // always reads the latest values.
+        var elRef = UseRef(el);
+        elRef.Current = el;
+
+        // Register the KeyDown handler with handledEventsToo: true via OnMount.
+        // This is critical because WinUI's FocusManager processes Tab for focus
+        // navigation and marks the event as handled BEFORE normal KeyDown handlers
+        // fire. Without handledEventsToo, Tab never reaches the DataGrid when the
+        // user presses Tab inside an editing TextBox.
         grid = grid
             .IsTabStop(true)
-            .OnKeyDown((sender, e) =>
+            .OnMount(fe =>
             {
-                if (ShouldHandleKey(state, el, e.Key))
-                {
-                    e.Handled = true;
-                    var capturedKey = e.Key;
-                    Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                fe.AddHandler(
+                    UIElement.KeyDownEvent,
+                    new Microsoft.UI.Xaml.Input.KeyEventHandler((sender, e) =>
                     {
-                        HandleKeyDown(state, el, capturedKey);
-                    });
-                }
+                        var currentEl = elRef.Current;
+                        if (ShouldHandleKey(state, currentEl, e.Key))
+                        {
+                            e.Handled = true;
+                            var capturedKey = e.Key;
+                            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                            {
+                                HandleKeyDown(state, currentEl, capturedKey);
+                            });
+                        }
+                    }),
+                    true); // handledEventsToo — receive Tab even after FocusManager handles it
             });
 
         return grid;
@@ -397,14 +414,21 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
                 var mods = e.KeyModifiers;
                 Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
                 {
-                    // Commit any active edit when clicking a different row
+                    // Commit any active edit when clicking a different row.
+                    // Clicking within the same row is handled by the cell's OnTapped
+                    // handler (which commits-then-begins). Skipping commit here prevents
+                    // the editing TextBox from being prematurely dismissed when the user
+                    // clicks it to position the cursor.
                     if (state.IsEditing)
                     {
-                        var editKey = state.EditingRowKey;
-                        var origItem = editKey is not null ? GetOriginalItem(state, editKey.Value) : default;
-                        var commitResult = state.CommitEdit();
-                        if (commitResult is not null && el.OnRowChanged is not null)
-                            HandleAsyncCommit(state, el, commitResult.Value.Key, commitResult.Value.NewItem, origItem!);
+                        var editingKey = state.EditingRowKey;
+                        if (editingKey is null || !editingKey.Value.Equals(capturedKey))
+                        {
+                            var origItem = editingKey is not null ? GetOriginalItem(state, editingKey.Value) : default;
+                            var commitResult = state.CommitEdit();
+                            if (commitResult is not null && el.OnRowChanged is not null)
+                                HandleAsyncCommit(state, el, commitResult.Value.Key, commitResult.Value.NewItem, origItem!);
+                        }
                     }
 
                     state.SetFocus(capturedIndex, state.FocusedColIndex >= 0 ? state.FocusedColIndex : 0);

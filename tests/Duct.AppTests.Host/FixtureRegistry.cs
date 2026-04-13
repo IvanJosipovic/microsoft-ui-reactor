@@ -118,6 +118,9 @@ internal static class FixtureRegistry
 
         // Accessibility (validated via out-of-process UIA tests)
         "Accessibility_Showcase",
+
+        // DataGrid
+        "DataGrid_EditableGrid",
     ];
 
     public static Element? Build(string name, RenderContext ctx) => name switch
@@ -227,6 +230,9 @@ internal static class FixtureRegistry
 
         // Accessibility
         "Accessibility_Showcase" => AccessibilityFixtures.AccessibilityShowcase(ctx),
+
+        // DataGrid
+        "DataGrid_EditableGrid" => DataGridFixtures.EditableGrid(ctx),
 
         _ => null,
     };
