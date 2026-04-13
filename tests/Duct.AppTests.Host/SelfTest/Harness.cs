@@ -187,7 +187,7 @@ internal sealed class Harness
         // Small breathing room for the compositor to finish processing
         // visual tree changes. Without this, rapid fixture transitions can
         // outpace the WinUI compositor and cause native segfaults.
-        await Task.Delay(50 + ms);
+        await Task.Delay(16 + ms);
     }
 
     private static Window? _currentWindow;
