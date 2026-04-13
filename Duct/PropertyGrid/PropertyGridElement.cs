@@ -1,4 +1,5 @@
 using Duct.Core;
+using Duct.Data;
 
 namespace Duct.PropertyGrid;
 
@@ -18,7 +19,7 @@ public record PropertyGridElement : Element
     public Action<object>? OnRootChanged { get; init; }
 
     /// <summary>Optional filter predicate — return false to hide a property.</summary>
-    public Func<PropertyDescriptor, bool>? Filter { get; init; }
+    public Func<FieldDescriptor, bool>? Filter { get; init; }
 
     /// <summary>Whether to show the search/filter box.</summary>
     public bool ShowSearch { get; init; }
@@ -37,10 +38,10 @@ public delegate Element CategoryTemplate(
     string name, bool isExpanded, Action<bool> onExpandedChanged, Element[] children);
 
 public delegate Element PropertyRowTemplate(
-    PropertyDescriptor descriptor, Element label, Element editor, int indentLevel);
+    FieldDescriptor descriptor, Element label, Element editor, int indentLevel);
 
 public delegate Element PropertyLabelTemplate(
-    PropertyDescriptor descriptor, int indentLevel);
+    FieldDescriptor descriptor, int indentLevel);
 
 public delegate Element ArrayItemTemplate(
     int index, string summary, bool isExpanded, Action<bool> onExpandedChanged,

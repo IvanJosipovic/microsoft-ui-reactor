@@ -6,6 +6,7 @@ using Duct.Flex;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
+using Duct.Data;
 using Duct.PropertyGrid;
 using static Duct.UI;
 using static Duct.Core.Theme;
@@ -150,14 +151,14 @@ class PropertyGridDemo : Component
             Decompose = val =>
             {
                 var c = (RgbColor)val;
-                return new List<PropertyDescriptor>
+                return new List<FieldDescriptor>
                 {
-                    new() { Name = "R", PropertyType = typeof(byte),
-                            GetValue = () => c.R, Order = 0 },
-                    new() { Name = "G", PropertyType = typeof(byte),
-                            GetValue = () => c.G, Order = 1 },
-                    new() { Name = "B", PropertyType = typeof(byte),
-                            GetValue = () => c.B, Order = 2 },
+                    new() { Name = "R", FieldType = typeof(byte),
+                            GetValue = _ => c.R, Order = 0 },
+                    new() { Name = "G", FieldType = typeof(byte),
+                            GetValue = _ => c.G, Order = 1 },
+                    new() { Name = "B", FieldType = typeof(byte),
+                            GetValue = _ => c.B, Order = 2 },
                 };
             },
             Compose = (val, updates) =>

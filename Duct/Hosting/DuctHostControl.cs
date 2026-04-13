@@ -110,6 +110,9 @@ public sealed partial class DuctHostControl : ContentControl, IDisposable
         VerticalContentAlignment = VerticalAlignment.Stretch;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+
+        // Register built-in custom element types
+        DataGrid.ResizeGripRegistration.Register(_reconciler);
     }
 
     /// <summary>

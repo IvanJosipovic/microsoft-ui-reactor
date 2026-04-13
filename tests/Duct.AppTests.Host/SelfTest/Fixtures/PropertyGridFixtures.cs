@@ -284,12 +284,12 @@ internal static class PropertyGridFixtures
                 Decompose = val =>
                 {
                     var p = (Point2D)val;
-                    return new List<Duct.PropertyGrid.PropertyDescriptor>
+                    return new List<Duct.Data.FieldDescriptor>
                     {
-                        new Duct.PropertyGrid.PropertyDescriptor { Name = "X", PropertyType = typeof(double),
-                                GetValue = () => p.X, Order = 0 },
-                        new Duct.PropertyGrid.PropertyDescriptor { Name = "Y", PropertyType = typeof(double),
-                                GetValue = () => p.Y, Order = 1 },
+                        new Duct.Data.FieldDescriptor { Name = "X", FieldType = typeof(double),
+                                GetValue = _ => p.X, Order = 0 },
+                        new Duct.Data.FieldDescriptor { Name = "Y", FieldType = typeof(double),
+                                GetValue = _ => p.Y, Order = 1 },
                     };
                 },
                 Compose = (val, updates) =>

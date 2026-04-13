@@ -8,6 +8,11 @@ using Duct.AppTests.Host;
 using Duct.AppTests.Host.SelfTest;
 
 if (args.Contains("--self-test"))
+{
+    var filterIdx = Array.IndexOf(args, "--filter");
+    if (filterIdx >= 0 && filterIdx + 1 < args.Length)
+        SelfTestRunner.Filter = args[filterIdx + 1];
     SelfTestRunner.RunAll();
+}
 else
     DuctApp.Run<TestHost>("Duct Test Host", width: 1200, height: 800);

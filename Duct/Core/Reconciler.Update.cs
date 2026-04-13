@@ -29,20 +29,26 @@ public sealed partial class Reconciler
 #if DEBUG
         DebugElementsDiffed++;
 #endif
-        // Unwrap legacy ModifiedElement (backward compat)
+        // Unwrap all layers of ModifiedElement, accumulating modifiers.
+        // Inner modifiers override outer ones (via Merge: other wins where non-null).
         ElementModifiers? oldModifiers = oldEl.Modifiers;
         ElementModifiers? modifiers = newEl.Modifiers;
-        if (oldEl is ModifiedElement oldMod && newEl is ModifiedElement newMod)
+        while (oldEl is ModifiedElement oldMod && newEl is ModifiedElement newMod)
         {
-            oldModifiers = oldMod.WrappedModifiers;
-            if (oldMod.Inner.Modifiers is not null)
-                oldModifiers = oldModifiers.Merge(oldMod.Inner.Modifiers);
-            modifiers = newMod.WrappedModifiers;
-            if (newMod.Inner.Modifiers is not null)
-                modifiers = modifiers.Merge(newMod.Inner.Modifiers);
+            oldModifiers = oldModifiers is not null
+                ? oldModifiers.Merge(oldMod.WrappedModifiers)
+                : oldMod.WrappedModifiers;
+            modifiers = modifiers is not null
+                ? modifiers.Merge(newMod.WrappedModifiers)
+                : newMod.WrappedModifiers;
             oldEl = oldMod.Inner;
             newEl = newMod.Inner;
         }
+        // Merge any modifiers from the final inner element
+        if (oldEl.Modifiers is not null)
+            oldModifiers = oldModifiers is not null ? oldModifiers.Merge(oldEl.Modifiers) : oldEl.Modifiers;
+        if (newEl.Modifiers is not null)
+            modifiers = modifiers is not null ? modifiers.Merge(newEl.Modifiers) : newEl.Modifiers;
 
         // Short-circuit: if old and new elements are structurally identical,
         // skip all WinUI property access. This is the critical optimization for
@@ -51,7 +57,7 @@ public sealed partial class Reconciler
         // the resolved brush value depends on the control's effective theme,
         // which can change independently of the element tree (e.g., parent
         // RequestedTheme toggle).
-        if (Element.ShallowEquals(oldEl, newEl))
+        if (Element.ShallowEquals(oldEl, newEl) && ReferenceEquals(oldModifiers, modifiers))
         {
 #if DEBUG
             DebugElementsSkipped++;
@@ -1485,8 +1491,35 @@ public sealed partial class Reconciler
     {
         if (sv.Content is WinUI.ItemsRepeater repeater)
         {
-            repeater.ItemsSource = n.GetItemsSource();
-            repeater.ItemTemplate = n.CreateFactory(this, requestRerender, _pool);
+            // Try to update the existing factory in place. This avoids
+            // replacing ItemTemplate, which would cause ItemsRepeater to
+            // re-realize all items (modifying Children during layout →
+            // "Cannot run layout in the middle of a collection change").
+            // The factory keeps its identity; existing realized items
+            // stay mounted. On next scroll or layout, GetElementCore
+            // uses the updated viewBuilder to produce new content.
+            if (repeater.ItemTemplate is ElementFactory existingFactory && n.TryUpdateFactory(existingFactory))
+            {
+                // Item count may have changed — update the source
+                var newSource = n.GetItemsSource();
+                if (newSource is IReadOnlyList<int> newList
+                    && repeater.ItemsSource is IList<int> oldList
+                    && newList.Count != oldList.Count)
+                {
+                    repeater.ItemsSource = newSource;
+                }
+
+                // Reconcile realized items with the new viewBuilder output.
+                // This updates existing controls via property diffs — no
+                // collection modifications on the ItemsRepeater.
+                n.RefreshRealizedItems(existingFactory, repeater);
+            }
+            else
+            {
+                // First mount or type mismatch — full replacement
+                repeater.ItemsSource = n.GetItemsSource();
+                repeater.ItemTemplate = n.CreateFactory(this, requestRerender, _pool);
+            }
             if (repeater.Layout is WinUI.StackLayout layout)
                 layout.Spacing = n.Spacing;
             SetElementTag(repeater, n);
@@ -1691,6 +1724,42 @@ public sealed partial class Reconciler
         if (o.RowSpacing != n.RowSpacing) g.RowSpacing = n.RowSpacing;
         if (o.ColumnSpacing != n.ColumnSpacing) g.ColumnSpacing = n.ColumnSpacing;
 
+        // Update column/row definitions when the GridDefinition changes.
+        if (!ReferenceEquals(o.Definition, n.Definition))
+        {
+            var newCols = n.Definition.Columns;
+            if (newCols.Length != g.ColumnDefinitions.Count)
+            {
+                g.ColumnDefinitions.Clear();
+                foreach (var col in newCols) g.ColumnDefinitions.Add(ParseColumnDef(col));
+            }
+            else
+            {
+                for (int i = 0; i < newCols.Length; i++)
+                {
+                    var parsed = ParseColumnDef(newCols[i]);
+                    if (g.ColumnDefinitions[i].Width != parsed.Width)
+                        g.ColumnDefinitions[i].Width = parsed.Width;
+                }
+            }
+
+            var newRows = n.Definition.Rows;
+            if (newRows.Length != g.RowDefinitions.Count)
+            {
+                g.RowDefinitions.Clear();
+                foreach (var row in newRows) g.RowDefinitions.Add(ParseRowDef(row));
+            }
+            else
+            {
+                for (int i = 0; i < newRows.Length; i++)
+                {
+                    var parsed = ParseRowDef(newRows[i]);
+                    if (g.RowDefinitions[i].Height != parsed.Height)
+                        g.RowDefinitions[i].Height = parsed.Height;
+                }
+            }
+        }
+
         // When old and new child counts differ, the tree structure changed (e.g., a split
         // was added or removed). Delegate to ChildReconciler which handles this safely,
         // including the keyed path.
@@ -1734,16 +1803,18 @@ public sealed partial class Reconciler
 
             var existingCtrl = g.Children[i];
             var replacement = Reconcile(oldChild, newChild, existingCtrl, requestRerender);
-            if (replacement is not null && replacement != existingCtrl && i < g.Children.Count)
+            var wasReplaced = replacement is not null && replacement != existingCtrl;
+            if (wasReplaced && i < g.Children.Count)
             {
-                g.Children[i] = replacement;
+                g.Children[i] = replacement!;
             }
-            // Update grid placement — only if changed
+            // Update grid placement — re-apply when control was replaced (new control
+            // defaults to Row=0/Column=0) or when the attached data changed.
             if (i < g.Children.Count)
             {
                 var oldGa = oldChild.GetAttached<GridAttached>();
                 var ga = newChild.GetAttached<GridAttached>();
-                if (ga is not null && ga != oldGa && g.Children[i] is FrameworkElement ctrl)
+                if (ga is not null && (wasReplaced || ga != oldGa) && g.Children[i] is FrameworkElement ctrl)
                 {
                     WinUI.Grid.SetRow(ctrl, ga.Row);
                     WinUI.Grid.SetColumn(ctrl, ga.Column);

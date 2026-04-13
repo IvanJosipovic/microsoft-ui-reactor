@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using Duct.Core;
+using Duct.Data;
 using Duct.Flex;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using static Duct.UI;
 
 namespace Duct.PropertyGrid;
@@ -109,7 +111,7 @@ public class PropertyGridComponent : Component<PropertyGridElement>
 
             foreach (var desc in group)
             {
-                RenderProperty(rows, desc, registry, el, rowTemplate, labelTemplate,
+                RenderProperty(rows, desc, target, registry, el, rowTemplate, labelTemplate,
                     expandState, setExpandState, editChain, 0);
             }
         }
@@ -130,7 +132,8 @@ public class PropertyGridComponent : Component<PropertyGridElement>
 
     private static void RenderProperty(
         List<Element?> rows,
-        PropertyDescriptor descriptor,
+        FieldDescriptor descriptor,
+        object owner,
         TypeRegistry registry,
         PropertyGridElement el,
         PropertyRowTemplate rowTemplate,
@@ -140,7 +143,7 @@ public class PropertyGridComponent : Component<PropertyGridElement>
         EditChain editChain,
         int indentLevel)
     {
-        var propertyType = descriptor.PropertyType;
+        var propertyType = descriptor.FieldType;
         var meta = registry.Resolve(propertyType);
         var hasDecompose = meta.Decompose is not null && !IsPrimitiveOrEnum(propertyType);
         var hasEditor = meta.Editor is not null;
@@ -149,11 +152,44 @@ public class PropertyGridComponent : Component<PropertyGridElement>
 
         Element editor;
         if (hasEditor)
-            editor = RenderEditor(descriptor, meta, editChain);
+            editor = RenderEditor(descriptor, owner, meta, editChain);
         else
         {
-            var value = descriptor.GetValue();
+            var value = descriptor.GetValue(owner);
             editor = Text(value?.ToString() ?? "(null)");
+        }
+
+        // FullEditor "..." expand affordance — show a small button that opens
+        // the FullEditor in a flyout when clicked. Appears automatically when
+        // FullEditor is registered for this type.
+        if (meta.FullEditor is not null && !descriptor.IsReadOnly)
+        {
+            var currentValue = descriptor.GetValue(owner);
+            Action<object> onChange = newValue =>
+            {
+                if (descriptor.SetValue is not null)
+                {
+                    var newOwner = descriptor.SetValue(owner, newValue);
+                    if (!ReferenceEquals(newOwner, owner))
+                        editChain.PropagateNewOwner(descriptor.Name, newOwner);
+                }
+                else
+                {
+                    editChain.PropagateImmutableEdit(descriptor.Name, newValue);
+                }
+            };
+
+            var fullEditorContent = meta.FullEditor(currentValue, onChange);
+            editor = FlexRow(
+                editor.Flex(grow: 1),
+                Button("\u2026", () => { })
+                    .Width(28).Height(28)
+                    .ToolTip("Expand editor")
+                    .AutomationName($"Expand {descriptor.DisplayName ?? descriptor.Name}")
+                    .WithFlyout(ContentFlyout(
+                        fullEditorContent,
+                        placement: Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Bottom))
+            ) with { AlignItems = FlexAlign.Center, ColumnGap = 4 };
         }
 
         // For decomposable types, add expand toggle and sub-properties
@@ -180,14 +216,14 @@ public class PropertyGridComponent : Component<PropertyGridElement>
 
             if (isExpanded)
             {
-                var value = descriptor.GetValue();
+                var value = descriptor.GetValue(owner);
                 if (value is not null)
                 {
                     var subDescriptors = meta.Decompose!(value);
                     var subEditChain = editChain.Push(descriptor, meta, value);
                     foreach (var subDesc in subDescriptors)
                     {
-                        RenderProperty(rows, subDesc, registry, el, rowTemplate, labelTemplate,
+                        RenderProperty(rows, subDesc, value, registry, el, rowTemplate, labelTemplate,
                             expandState, setExpandState, subEditChain, indentLevel + 1);
                     }
                 }
@@ -200,21 +236,29 @@ public class PropertyGridComponent : Component<PropertyGridElement>
     }
 
     private static Element RenderEditor(
-        PropertyDescriptor descriptor,
+        FieldDescriptor descriptor,
+        object owner,
         TypeMetadata meta,
         EditChain editChain)
     {
-        var currentValue = descriptor.GetValue();
+        var currentValue = descriptor.GetValue(owner);
 
         if (descriptor.IsReadOnly || (descriptor.SetValue is null && editChain.CannotPropagate(descriptor)))
-            return RenderReadOnlyValue(currentValue, descriptor.PropertyType);
+            return RenderReadOnlyValue(currentValue, descriptor.FieldType);
 
         Action<object> onChange = newValue =>
         {
             if (descriptor.SetValue is not null)
-                descriptor.SetValue(newValue);
+            {
+                var newOwner = descriptor.SetValue(owner, newValue);
+                // If SetValue returned a different object (immutable), propagate upward
+                if (!ReferenceEquals(newOwner, owner))
+                    editChain.PropagateNewOwner(descriptor.Name, newOwner);
+            }
             else
+            {
                 editChain.PropagateImmutableEdit(descriptor.Name, newValue);
+            }
         };
 
         return meta.Editor!(currentValue!, onChange);
@@ -236,6 +280,8 @@ public class PropertyGridComponent : Component<PropertyGridElement>
 /// <summary>
 /// Tracks the path from a leaf property back to the root, enabling
 /// immutable edit propagation via Compose at each level.
+/// Each entry stores: the descriptor (as seen by the parent), the metadata
+/// for the child type, the child value, and the parent object.
 /// </summary>
 internal class EditChain
 {
@@ -260,9 +306,11 @@ internal class EditChain
         _path = path;
     }
 
-    public EditChain Push(PropertyDescriptor descriptor, TypeMetadata meta, object currentValue)
+    public EditChain Push(FieldDescriptor descriptor, TypeMetadata meta, object currentValue)
     {
-        var newPath = new List<EditChainEntry>(_path) { new(descriptor, meta, currentValue) };
+        // The parent is either the last entry's CurrentValue or the root
+        var parent = _path.Count > 0 ? _path[^1].CurrentValue : _root;
+        var newPath = new List<EditChainEntry>(_path) { new(descriptor, meta, currentValue, parent) };
         return new EditChain(_root, _rootMeta, _onRootChanged, newPath);
     }
 
@@ -273,7 +321,7 @@ internal class EditChain
         return string.Join(".", parts);
     }
 
-    public bool CannotPropagate(PropertyDescriptor descriptor)
+    public bool CannotPropagate(FieldDescriptor descriptor)
     {
         if (descriptor.SetValue is not null) return false;
         for (int i = _path.Count - 1; i >= 0; i--)
@@ -283,6 +331,35 @@ internal class EditChain
         }
         if (_rootMeta.Compose is null && _onRootChanged is null) return true;
         return false;
+    }
+
+    /// <summary>
+    /// Propagates a new owner object upward through the chain when SetValue
+    /// returned a different reference (immutable edit).
+    /// </summary>
+    public void PropagateNewOwner(string propertyName, object newOwner)
+    {
+        var currentObject = newOwner;
+
+        for (int i = _path.Count - 1; i >= 0; i--)
+        {
+            var entry = _path[i];
+            if (entry.Descriptor.SetValue is not null)
+            {
+                var result = entry.Descriptor.SetValue(entry.ParentValue, currentObject);
+                if (ReferenceEquals(result, entry.ParentValue))
+                    return; // Mutable ancestor absorbed the change
+                currentObject = result;
+            }
+            else if (entry.Meta.Compose is not null)
+            {
+                currentObject = entry.Meta.Compose(entry.CurrentValue,
+                    new Dictionary<string, object> { { entry.Descriptor.Name, currentObject } });
+            }
+            else return;
+        }
+
+        _onRootChanged?.Invoke(currentObject);
     }
 
     public void PropagateImmutableEdit(string propertyName, object newValue)
@@ -295,11 +372,16 @@ internal class EditChain
             if (entry.Meta.Compose is not null)
             {
                 var composed = entry.Meta.Compose(entry.CurrentValue, updates);
+
+                // Check for mutable ancestor: SetValue that mutates in place
                 if (entry.Descriptor.SetValue is not null)
                 {
-                    entry.Descriptor.SetValue(composed);
-                    return;
+                    var result = entry.Descriptor.SetValue(entry.ParentValue, composed);
+                    if (ReferenceEquals(result, entry.ParentValue))
+                        return; // Mutable ancestor absorbed the change — stop
                 }
+
+                // Continue propagating upward via Compose chain
                 updates = new Dictionary<string, object> { { entry.Descriptor.Name, composed } };
             }
             else return;
@@ -314,6 +396,7 @@ internal class EditChain
 }
 
 internal record EditChainEntry(
-    PropertyDescriptor Descriptor,
+    FieldDescriptor Descriptor,
     TypeMetadata Meta,
-    object CurrentValue);
+    object CurrentValue,
+    object ParentValue);

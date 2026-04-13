@@ -92,6 +92,9 @@ public sealed class DuctHost : IDisposable
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
         DuctApp.ActiveHost = this;
 
+        // Register built-in custom element types
+        DataGrid.ResizeGripRegistration.Register(_reconciler);
+
         // Stop the render loop when the window closes — background threads
         // may still call setState after this, but RequestRender will bail out.
         _closedHandler = (_, _) => Dispose();

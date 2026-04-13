@@ -1,3 +1,4 @@
+using Duct;
 using Duct.Core;
 using Duct.D3;
 using Duct.D3.Charts;
@@ -22,21 +23,20 @@ sealed class StateHeatmap : Component<StateHeatmapProps>
     const double CellSize = 14;
     const double CellGap = 2;
 
-    static Dictionary<TcpState, SolidColorBrush>? _stateBrush;
-    static Dictionary<TcpState, SolidColorBrush> StateBrush => _stateBrush ??= new()
+    static readonly Dictionary<TcpState, SolidColorBrush> StateBrush = new()
     {
-        [TcpState.Established] = Brushes.Green,
-        [TcpState.TimeWait] = Brushes.Orange,
-        [TcpState.CloseWait] = Brushes.Purple,
-        [TcpState.FinWait1] = Brushes.Red,
-        [TcpState.FinWait2] = Brushes.Red,
-        [TcpState.SynSent] = Brushes.Blue,
-        [TcpState.SynReceived] = Brushes.Blue,
-        [TcpState.Listen] = Brushes.GrayMed,
-        [TcpState.Closing] = Brushes.DarkOrange,
-        [TcpState.LastAck] = Brushes.DarkRed,
-        [TcpState.Closed] = Brushes.DarkGray,
-        [TcpState.DeleteTcb] = Brushes.Slate,
+        [TcpState.Established] = Brush("#2ecc71"),    // green
+        [TcpState.TimeWait] = Brush("#f39c12"),       // orange
+        [TcpState.CloseWait] = Brush("#9b59b6"),      // purple
+        [TcpState.FinWait1] = Brush("#e74c3c"),       // red
+        [TcpState.FinWait2] = Brush("#e74c3c"),
+        [TcpState.SynSent] = Brush("#3498db"),        // blue
+        [TcpState.SynReceived] = Brush("#3498db"),
+        [TcpState.Listen] = Brush("#95a5a6"),         // gray
+        [TcpState.Closing] = Brush("#e67e22"),        // dark orange
+        [TcpState.LastAck] = Brush("#c0392b"),        // dark red
+        [TcpState.Closed] = Brush("#7f8c8d"),         // dark gray
+        [TcpState.DeleteTcb] = Brush("#34495e"),      // slate
     };
 
     public override Element Render()
@@ -45,7 +45,7 @@ sealed class StateHeatmap : Component<StateHeatmapProps>
         if (connections.Count == 0)
         {
             return D3Canvas(W, H,
-                D3Text(Left, Top + 40, "No connections", 12, Brushes.Gray100));
+                D3Text(Left, Top + 40, "No connections", 12, Gray(100)));
         }
 
         // Sort by state (causes reordering as states change), then by remote port
@@ -61,7 +61,7 @@ sealed class StateHeatmap : Component<StateHeatmapProps>
         double gridH = rows * (CellSize + CellGap);
 
         var elements = new List<Element>();
-        elements.Add(D3Text(Left, 4, $"TCP State Heatmap ({sorted.Length} connections)", 13, Brushes.Gray40));
+        elements.Add(D3Text(Left, 4, $"TCP State Heatmap ({sorted.Length} connections)", 13, Gray(40)));
 
         for (int i = 0; i < sorted.Length; i++)
         {
@@ -71,15 +71,15 @@ sealed class StateHeatmap : Component<StateHeatmapProps>
             double x = Left + col * (CellSize + CellGap);
             double y = Top + row * (CellSize + CellGap);
 
-            var fill = StateBrush.GetValueOrDefault(conn.State, Brushes.Gray200);
+            var fill = StateBrush.GetValueOrDefault(conn.State, Gray(200));
 
             elements.Add(
-                D3Rect(x, y, CellSize, CellSize) with
+                (D3Rect(x, y, CellSize, CellSize) with
                 {
                     Fill = fill,
                     RadiusX = 2,
                     RadiusY = 2,
-                });
+                }).WithKey($"hm-{conn.Key}"));
         }
 
         // Legend at bottom
@@ -95,9 +95,9 @@ sealed class StateHeatmap : Component<StateHeatmapProps>
         double lx = Left;
         foreach (var (state, label) in legendStates)
         {
-            var brush = StateBrush.GetValueOrDefault(state, Brushes.Gray200);
+            var brush = StateBrush.GetValueOrDefault(state, Gray(200));
             elements.Add(D3Rect(lx, legendY, 10, 10) with { Fill = brush, RadiusX = 1, RadiusY = 1 });
-            elements.Add(D3Text(lx + 13, legendY - 1, label, 8, Brushes.Gray80));
+            elements.Add(D3Text(lx + 13, legendY - 1, label, 8, Gray(80)));
             lx += label.Length * 6 + 24;
         }
 
@@ -106,11 +106,11 @@ sealed class StateHeatmap : Component<StateHeatmapProps>
             .OrderByDescending(g => g.Count())
             .Take(4);
         double sx = W - Right - 200;
-        elements.Add(D3Text(sx, 6, "Counts:", 10, Brushes.Gray80));
+        elements.Add(D3Text(sx, 6, "Counts:", 10, Gray(80)));
         sx += 50;
         foreach (var g in stateCounts)
         {
-            elements.Add(D3Text(sx, 6, $"{g.Key}: {g.Count()}", 10, Brushes.Gray60));
+            elements.Add(D3Text(sx, 6, $"{g.Key}: {g.Count()}", 10, Gray(60)));
             sx += 80;
         }
 

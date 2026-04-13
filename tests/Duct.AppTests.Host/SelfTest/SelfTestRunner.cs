@@ -10,6 +10,8 @@ namespace Duct.AppTests.Host.SelfTest;
 /// </summary>
 internal static class SelfTestRunner
 {
+    public static string? Filter { get; set; }
+
     public static void RunAll()
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
@@ -28,7 +30,10 @@ internal static class SelfTestRunner
             {
                 try
                 {
-                    var fixtures = SelfTestFixtureRegistry.AllFixtures;
+                    var allFixtures = SelfTestFixtureRegistry.AllFixtures;
+                    var fixtures = Filter is not null
+                        ? allFixtures.Where(f => f.Contains(Filter, StringComparison.OrdinalIgnoreCase)).ToArray()
+                        : allFixtures;
                     harness.SetupTitleBar(fixtures.Length);
                     window.Activate();
                     await Harness.Render(); // wait for initial layout

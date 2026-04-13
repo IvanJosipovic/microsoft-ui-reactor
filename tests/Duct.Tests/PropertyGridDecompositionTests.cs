@@ -1,3 +1,4 @@
+using Duct.Data;
 using Duct.PropertyGrid;
 using Xunit;
 
@@ -67,13 +68,14 @@ public class PropertyGridDecompositionTests
         var detailsDesc = parentDescriptors.First(d => d.Name == "Details");
 
         // The Details property is mutable (has a setter)
-        var detailsValue = (NestedModel)detailsDesc.GetValue()!;
+        var detailsValue = (NestedModel)detailsDesc.GetValue(parent)!;
         var nestedMeta = registry.Resolve(typeof(NestedModel));
         var nestedDescriptors = nestedMeta.Decompose!(detailsValue);
 
         var descProp = nestedDescriptors.First(d => d.Name == "Description");
         Assert.NotNull(descProp.SetValue);
-        descProp.SetValue!("new");
+        var result = descProp.SetValue!(detailsValue, "new");
+        Assert.Same(detailsValue, result); // mutable — same reference
         Assert.Equal("new", parent.Details.Description);
     }
 
@@ -96,15 +98,16 @@ public class PropertyGridDecompositionTests
         Assert.NotNull(pointMeta.Compose);
 
         // Simulate editing X on the immutable ImmutablePoint
-        var currentPoint = (ImmutablePoint)positionDesc.GetValue()!;
+        var currentPoint = (ImmutablePoint)positionDesc.GetValue(parent)!;
         var newPoint = (ImmutablePoint)pointMeta.Compose!(currentPoint,
             new Dictionary<string, object> { { "X", 99 } });
 
         Assert.Equal(99, newPoint.X);
         Assert.Equal(20, newPoint.Y);
 
-        // Write back to mutable parent
-        positionDesc.SetValue!(newPoint);
+        // Write back to mutable parent via SetValue (return-new-owner)
+        var result = positionDesc.SetValue!(parent, newPoint);
+        Assert.Same(parent, result); // mutable parent — same reference
         Assert.Equal(new ImmutablePoint(99, 20), parent.Position);
     }
 
@@ -225,12 +228,12 @@ public class PropertyGridDecompositionTests
             Decompose = val =>
             {
                 var p = (ImmutablePoint)val;
-                return new List<PropertyDescriptor>
+                return new List<FieldDescriptor>
                 {
-                    new() { Name = "X", PropertyType = typeof(int),
-                            GetValue = () => p.X, Order = 0 },
-                    new() { Name = "Y", PropertyType = typeof(int),
-                            GetValue = () => p.Y, Order = 1 },
+                    new() { Name = "X", FieldType = typeof(int),
+                            GetValue = _ => p.X, Order = 0 },
+                    new() { Name = "Y", FieldType = typeof(int),
+                            GetValue = _ => p.Y, Order = 1 },
                 };
             },
             Compose = (val, updates) =>
@@ -246,5 +249,95 @@ public class PropertyGridDecompositionTests
         Assert.NotNull(meta.Editor);
         Assert.NotNull(meta.Decompose);
         Assert.NotNull(meta.Compose);
+    }
+
+    // ── New tests for return-new-owner pattern ───────────────────
+
+    [Fact]
+    public void SetValue_Mutable_Path_Stops_At_Mutated_Object()
+    {
+        var registry = new TypeRegistry();
+        var parent = new MutableParent { Name = "test", Position = new ImmutablePoint(10, 20) };
+        var meta = registry.Resolve(typeof(MutableParent));
+        var descriptors = meta.Decompose!(parent);
+
+        var nameProp = descriptors.First(d => d.Name == "Name");
+        Assert.NotNull(nameProp.SetValue);
+
+        var result = nameProp.SetValue!(parent, "updated");
+        Assert.Same(parent, result); // mutable — early termination, same reference
+        Assert.Equal("updated", parent.Name);
+    }
+
+    [Fact]
+    public void SetValue_Immutable_Path_Returns_New_Object()
+    {
+        var registry = new TypeRegistry();
+        var point = new ImmutablePoint(10, 20);
+        var meta = registry.Resolve(typeof(ImmutablePoint));
+        var descriptors = meta.Decompose!(point);
+
+        var xProp = descriptors.First(d => d.Name == "X");
+        Assert.NotNull(xProp.SetValue);
+
+        var newPoint = (ImmutablePoint)xProp.SetValue!(point, 99);
+        Assert.NotSame(point, newPoint); // immutable — new object
+        Assert.Equal(99, newPoint.X);
+        Assert.Equal(20, newPoint.Y);
+    }
+
+    [Fact]
+    public void SetValue_Mixed_Path_Immutable_Nested_In_Mutable()
+    {
+        var registry = new TypeRegistry();
+        var parent = new MutableParent { Name = "test", Position = new ImmutablePoint(10, 20) };
+        var meta = registry.Resolve(typeof(MutableParent));
+        var descriptors = meta.Decompose!(parent);
+
+        var positionDesc = descriptors.First(d => d.Name == "Position");
+        Assert.NotNull(positionDesc.SetValue);
+
+        // Setting a new immutable value on a mutable parent
+        var newPoint = new ImmutablePoint(99, 88);
+        var result = positionDesc.SetValue!(parent, newPoint);
+        Assert.Same(parent, result); // mutable parent absorbed change
+        Assert.Equal(new ImmutablePoint(99, 88), parent.Position);
+    }
+
+    [Fact]
+    public void ThreePlus_Level_Nesting_With_Mixed_Mutability()
+    {
+        var registry = new TypeRegistry();
+
+        // 3-level: ImmutableConfig → ImmutableTheme → ImmutablePoint (all immutable)
+        var original = new ImmutableConfig(
+            "MyConfig",
+            new ImmutableTheme("dark", new ImmutablePoint(5, 10)));
+
+        object? receivedRoot = null;
+        var onRootChanged = (object newRoot) => { receivedRoot = newRoot; };
+
+        var configMeta = registry.Resolve(typeof(ImmutableConfig));
+        var themeMeta = registry.Resolve(typeof(ImmutableTheme));
+        var pointMeta = registry.Resolve(typeof(ImmutablePoint));
+
+        // Verify all descriptors have SetValue (via compose-based init-only setters)
+        var configDescriptors = configMeta.Decompose!(original);
+        var themeDesc = configDescriptors.First(d => d.Name == "Theme");
+        Assert.NotNull(themeDesc.SetValue);
+
+        var themeDescriptors = themeMeta.Decompose!(original.Theme);
+        var originDesc = themeDescriptors.First(d => d.Name == "Origin");
+        Assert.NotNull(originDesc.SetValue);
+
+        var pointDescriptors = pointMeta.Decompose!(original.Theme.Origin);
+        var xDesc = pointDescriptors.First(d => d.Name == "X");
+        Assert.NotNull(xDesc.SetValue);
+
+        // Edit at the deepest level
+        var newPoint = (ImmutablePoint)xDesc.SetValue!(original.Theme.Origin, 42);
+        Assert.Equal(42, newPoint.X);
+        Assert.Equal(10, newPoint.Y);
+        Assert.NotSame(original.Theme.Origin, newPoint);
     }
 }

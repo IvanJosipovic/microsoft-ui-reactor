@@ -391,6 +391,12 @@ internal static class SelfTestFixtureRegistry
         "HooksCov_FocusManagerNavigation",
         "HooksCov_FocusManagerWithControls",
         "HooksCov_UseFocusHookIntegration",
+        // DataGrid inline editing
+        "DataGrid_EditLifecycle",
+        "DataGrid_EditCommitCycle",
+        "DataGrid_EditCellColumnPlacement",
+        "DataGrid_RapidSelection",
+        "DataGrid_ExternalStateUpdate",
     ];
 
     public static SelfTestFixtureBase? Create(string name, Harness harness) => name switch
@@ -777,6 +783,12 @@ internal static class SelfTestFixtureRegistry
         "HooksCov_FocusManagerNavigation" => new HooksCoverageFixtures.FocusManagerNavigation(harness),
         "HooksCov_FocusManagerWithControls" => new HooksCoverageFixtures.FocusManagerWithControls(harness),
         "HooksCov_UseFocusHookIntegration" => new HooksCoverageFixtures.UseFocusHookIntegration(harness),
+        // DataGrid inline editing
+        "DataGrid_EditLifecycle" => new DataGridEditFixtures.EditLifecycle(harness),
+        "DataGrid_EditCommitCycle" => new DataGridEditFixtures.EditCommitCycle(harness),
+        "DataGrid_EditCellColumnPlacement" => new DataGridEditFixtures.EditCellColumnPlacement(harness),
+        "DataGrid_RapidSelection" => new DataGridEditFixtures.RapidSelection(harness),
+        "DataGrid_ExternalStateUpdate" => new DataGridEditFixtures.ExternalStateUpdate(harness),
         _ => null,
     };
 }

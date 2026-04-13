@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Duct.Data;
 using Duct.PropertyGrid;
 using Xunit;
 
@@ -81,6 +82,22 @@ public class PropertyGridTypeRegistryTests
 
         public MixedModel() { }
         public MixedModel(int readOnlyProp) { ReadOnlyProp = readOnlyProp; }
+    }
+
+    // Grid attribute test model
+    private class GridAttributeModel
+    {
+        [ColumnWidth(200, MinWidth = 100, MaxWidth = 400)]
+        public string Name { get; set; } = "";
+
+        [ColumnPin(PinPosition.Left)]
+        public int Id { get; set; }
+
+        [NotSortable]
+        public string Description { get; set; } = "";
+
+        [NotFilterable]
+        public double Score { get; set; }
     }
 
     // ── TypeRegistry tests ────────────────────────────────────────
@@ -169,8 +186,8 @@ public class PropertyGridTypeRegistryTests
         var nameProp = descriptors.First(d => d.Name == "Name");
         var countProp = descriptors.First(d => d.Name == "Count");
 
-        Assert.Equal("Hello", nameProp.GetValue());
-        Assert.Equal(7, countProp.GetValue());
+        Assert.Equal("Hello", nameProp.GetValue(model));
+        Assert.Equal(7, countProp.GetValue(model));
     }
 
     [Fact]
@@ -184,7 +201,8 @@ public class PropertyGridTypeRegistryTests
         var nameProp = descriptors.First(d => d.Name == "Name");
 
         Assert.NotNull(nameProp.SetValue);
-        nameProp.SetValue!("new");
+        var result = nameProp.SetValue!(model, "new");
+        Assert.Same(model, result); // mutable — same reference
         Assert.Equal("new", model.Name);
     }
 
@@ -367,5 +385,181 @@ public class PropertyGridTypeRegistryTests
         var registry = new TypeRegistry();
         var meta = (ArrayTypeMetadata)registry.Resolve(typeof(SimpleModel[]));
         Assert.NotNull(meta.CreateElement);
+    }
+
+    // ── TypeRegistry extension tests ──────────────────────────────
+
+    [Fact]
+    public void RegisterCellRenderer_Stores_And_Retrieves()
+    {
+        var registry = new TypeRegistry();
+        Func<object, Duct.Core.Element> renderer = val => Duct.UI.Text(val?.ToString() ?? "");
+        registry.RegisterCellRenderer<string>(renderer);
+
+        var result = registry.GetCellRenderer(typeof(string));
+        Assert.Same(renderer, result);
+    }
+
+    [Fact]
+    public void RegisterFormatter_Stores_And_Retrieves()
+    {
+        var registry = new TypeRegistry();
+        Func<object?, string> formatter = val => val?.ToString() ?? "(empty)";
+        registry.RegisterFormatter<int>(formatter);
+
+        var result = registry.GetFormatter(typeof(int));
+        Assert.Same(formatter, result);
+    }
+
+    [Fact]
+    public void Tiered_Resolution_CompactEditor_Falls_Back_To_Editor()
+    {
+        var registry = new TypeRegistry();
+        var editorFunc = new Func<object, Action<object>, Duct.Core.Element>(
+            (val, onChange) => Duct.UI.Text("standard"));
+        registry.Register<SimpleModel>(new TypeMetadata { Editor = editorFunc });
+
+        var compactEditor = registry.ResolveEditor(typeof(SimpleModel), EditorTier.Compact);
+        Assert.Same(editorFunc, compactEditor);
+    }
+
+    [Fact]
+    public void Tiered_Resolution_CompactEditor_Preferred_Over_Editor()
+    {
+        var registry = new TypeRegistry();
+        var editorFunc = new Func<object, Action<object>, Duct.Core.Element>(
+            (val, onChange) => Duct.UI.Text("standard"));
+        var compactFunc = new Func<object, Action<object>, Duct.Core.Element>(
+            (val, onChange) => Duct.UI.Text("compact"));
+        registry.Register<SimpleModel>(new TypeMetadata { Editor = editorFunc, CompactEditor = compactFunc });
+
+        var resolved = registry.ResolveEditor(typeof(SimpleModel), EditorTier.Compact);
+        Assert.Same(compactFunc, resolved);
+    }
+
+    [Fact]
+    public void Tiered_Resolution_FullEditor_Null_When_Not_Registered()
+    {
+        var registry = new TypeRegistry();
+        registry.Register<SimpleModel>(new TypeMetadata
+        {
+            Editor = (val, onChange) => Duct.UI.Text("standard")
+        });
+
+        var fullEditor = registry.ResolveEditor(typeof(SimpleModel), EditorTier.Full);
+        Assert.Null(fullEditor);
+    }
+
+    [Fact]
+    public void Tiered_Resolution_FullEditor_Returned_When_Registered()
+    {
+        var registry = new TypeRegistry();
+        var fullFunc = new Func<object, Action<object>, Duct.Core.Element>(
+            (val, onChange) => Duct.UI.Text("full"));
+        registry.Register<SimpleModel>(new TypeMetadata
+        {
+            Editor = (val, onChange) => Duct.UI.Text("standard"),
+            FullEditor = fullFunc,
+        });
+
+        var resolved = registry.ResolveEditor(typeof(SimpleModel), EditorTier.Full);
+        Assert.Same(fullFunc, resolved);
+    }
+
+    // ── Grid attribute tests ──────────────────────────────────────
+
+    [Fact]
+    public void Grid_Attributes_Populate_FieldDescriptor()
+    {
+        var meta = ReflectionTypeMetadataProvider.CreateMetadata(typeof(GridAttributeModel));
+        var model = new GridAttributeModel();
+        var descriptors = meta.Decompose!(model);
+
+        var nameProp = descriptors.First(d => d.Name == "Name");
+        Assert.Equal(200, nameProp.Width);
+        Assert.Equal(100, nameProp.MinWidth);
+        Assert.Equal(400, nameProp.MaxWidth);
+        Assert.True(nameProp.Sortable);
+        Assert.True(nameProp.Filterable);
+
+        var idProp = descriptors.First(d => d.Name == "Id");
+        Assert.Equal(PinPosition.Left, idProp.Pin);
+
+        var descProp = descriptors.First(d => d.Name == "Description");
+        Assert.False(descProp.Sortable);
+        Assert.True(descProp.Filterable);
+
+        var scoreProp = descriptors.First(d => d.Name == "Score");
+        Assert.True(scoreProp.Sortable);
+        Assert.False(scoreProp.Filterable);
+    }
+
+    // ── SetValue tests for mutable/immutable/readonly ─────────────
+
+    [Fact]
+    public void SetValue_Generated_For_Mutable_Class_Property()
+    {
+        var meta = ReflectionTypeMetadataProvider.CreateMetadata(typeof(SimpleModel));
+        var model = new SimpleModel { Name = "old" };
+        var descriptors = meta.Decompose!(model);
+
+        var nameProp = descriptors.First(d => d.Name == "Name");
+        Assert.NotNull(nameProp.SetValue);
+
+        var result = nameProp.SetValue!(model, "new");
+        Assert.Same(model, result); // mutable — same ref
+        Assert.Equal("new", model.Name);
+    }
+
+    [Fact]
+    public void SetValue_Generated_For_Immutable_Record_Property()
+    {
+        var meta = ReflectionTypeMetadataProvider.CreateMetadata(typeof(ImmutablePoint));
+        var point = new ImmutablePoint(10, 20);
+        var descriptors = meta.Decompose!(point);
+
+        var xProp = descriptors.First(d => d.Name == "X");
+        Assert.NotNull(xProp.SetValue);
+
+        var newPoint = (ImmutablePoint)xProp.SetValue!(point, 99);
+        Assert.NotSame(point, newPoint); // immutable — new object
+        Assert.Equal(99, newPoint.X);
+        Assert.Equal(20, newPoint.Y);
+    }
+
+    [Fact]
+    public void SetValue_Null_For_Truly_ReadOnly_Property()
+    {
+        var meta = ReflectionTypeMetadataProvider.CreateMetadata(typeof(MixedModel));
+        var model = new MixedModel(42);
+        var descriptors = meta.Decompose!(model);
+
+        var readOnly = descriptors.First(d => d.Name == "ReadOnlyProp");
+        Assert.Null(readOnly.SetValue);
+        Assert.True(readOnly.IsReadOnly);
+    }
+
+    [Fact]
+    public void Mixed_Mutable_Immutable_Properties_On_Same_Type()
+    {
+        var meta = ReflectionTypeMetadataProvider.CreateMetadata(typeof(MutableParentForMixed));
+        var model = new MutableParentForMixed { Name = "hello" };
+        var descriptors = meta.Decompose!(model);
+
+        var nameProp = descriptors.First(d => d.Name == "Name");
+        Assert.NotNull(nameProp.SetValue);
+        var result1 = nameProp.SetValue!(model, "world");
+        Assert.Same(model, result1); // mutable
+
+        var positionProp = descriptors.First(d => d.Name == "Position");
+        Assert.NotNull(positionProp.SetValue);
+        var result2 = positionProp.SetValue!(model, new ImmutablePoint(1, 2));
+        Assert.Same(model, result2); // parent is mutable, setter is mutable
+    }
+
+    private class MutableParentForMixed
+    {
+        public string Name { get; set; } = "";
+        public ImmutablePoint Position { get; set; } = new(0, 0);
     }
 }

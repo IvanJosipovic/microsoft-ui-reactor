@@ -1,4 +1,5 @@
 using Duct.Core;
+using Duct.Data;
 using Duct.Flex;
 using Microsoft.UI.Xaml;
 using static Duct.UI;
@@ -12,7 +13,7 @@ namespace Duct.PropertyGrid;
 public static class PropertyGridDefaults
 {
     public static Element PropertyLabelTemplate(
-        PropertyDescriptor descriptor, int indentLevel)
+        FieldDescriptor descriptor, int indentLevel)
     =>
         Text(descriptor.DisplayName ?? descriptor.Name)
             .ToolTip(descriptor.Description ?? "")
@@ -21,7 +22,7 @@ public static class PropertyGridDefaults
             .AutomationName($"Label: {descriptor.DisplayName ?? descriptor.Name}");
 
     public static Element PropertyRowTemplate(
-        PropertyDescriptor descriptor, Element label, Element editor, int indentLevel)
+        FieldDescriptor descriptor, Element label, Element editor, int indentLevel)
     =>
         FlexRow(
             label.Flex(basis: 160, shrink: 0).Padding(indentLevel * 16, 0, 0, 0),

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
+using Duct.Data;
 
 namespace Duct.PropertyGrid;
 
@@ -20,57 +21,44 @@ public static class ReflectionTypeMetadataProvider
         => _cache.GetOrAdd(type, BuildMetadata);
 
     /// <summary>
-    /// Generates a PropertyDescriptor for a single PropertyInfo.
+    /// Generates a FieldDescriptor for a single PropertyInfo (unbound — for registry use).
     /// </summary>
-    public static PropertyDescriptor CreateDescriptor(PropertyInfo property, int defaultOrder)
+    public static FieldDescriptor CreateDescriptor(PropertyInfo property, int defaultOrder)
     {
-        // Duct-specific attributes (take precedence)
-        var ductCategory = property.GetCustomAttribute<PropertyCategoryAttribute>();
-        var ductDescription = property.GetCustomAttribute<PropertyDescriptionAttribute>();
-        var ductDisplayName = property.GetCustomAttribute<PropertyDisplayNameAttribute>();
-        var ductReadOnly = property.GetCustomAttribute<PropertyReadOnlyAttribute>();
-        var ductOrder = property.GetCustomAttribute<PropertyOrderAttribute>();
+        var attrs = ComputeAttributeData(property, defaultOrder);
 
-        // System.ComponentModel fallback
-        var scCategory = property.GetCustomAttribute<CategoryAttribute>();
-        var scDescription = property.GetCustomAttribute<DescriptionAttribute>();
-        var scDisplayName = property.GetCustomAttribute<DisplayNameAttribute>();
-        var scReadOnly = property.GetCustomAttribute<ReadOnlyAttribute>();
-
-        string? category = ductCategory?.Name ?? scCategory?.Category;
-        string? description = ductDescription?.Text ?? scDescription?.Description;
-        string? displayName = ductDisplayName?.Name ?? scDisplayName?.DisplayName;
-        int order = ductOrder?.Order ?? defaultOrder;
-
-        bool isReadOnly = ductReadOnly is not null
-            || scReadOnly?.IsReadOnly == true
-            || !PropertyIsMutable(property);
-
-        var owner = property.DeclaringType!;
-        Action<object>? setter = null;
-        if (PropertyIsMutable(property))
+        Func<object, object?, object>? setter = null;
+        if (attrs.IsMutable && !attrs.IsReadOnly)
         {
-            setter = val =>
+            setter = (owner, val) =>
             {
-                // SetValue needs the owning object — captured via closure in Decompose
-                throw new InvalidOperationException(
-                    "SetValue must be created with a captured owner instance. " +
-                    "Use the Decompose function which binds to a specific object.");
+                property.SetValue(owner, val);
+                return owner;
             };
         }
+        else if (!attrs.IsMutable && !attrs.IsReadOnly && property.CanWrite)
+        {
+            // init-only property — construct new object
+            setter = BuildInitOnlySetter(property);
+        }
 
-        return new PropertyDescriptor
+        return new FieldDescriptor
         {
             Name = property.Name,
-            DisplayName = displayName,
-            PropertyType = property.PropertyType,
-            GetValue = () => throw new InvalidOperationException(
-                "GetValue must be created with a captured owner instance."),
+            DisplayName = attrs.DisplayName,
+            FieldType = property.PropertyType,
+            GetValue = owner => property.GetValue(owner),
             SetValue = setter,
-            Category = category,
-            Description = description,
-            Order = order,
-            IsReadOnly = isReadOnly,
+            Category = attrs.Category,
+            Description = attrs.Description,
+            Order = attrs.Order,
+            IsReadOnly = attrs.IsReadOnly,
+            Width = attrs.Width,
+            MinWidth = attrs.MinWidth,
+            MaxWidth = attrs.MaxWidth,
+            Sortable = attrs.Sortable,
+            Filterable = attrs.Filterable,
+            Pin = attrs.Pin,
         };
     }
 
@@ -86,20 +74,20 @@ public static class ReflectionTypeMetadataProvider
             })
             .ToArray();
 
-        // Pre-compute attribute metadata once per property (F074)
+        // Pre-compute attribute metadata once per property
         var attributeData = new PropertyAttributeData[properties.Length];
         for (int i = 0; i < properties.Length; i++)
             attributeData[i] = ComputeAttributeData(properties[i], i);
 
         bool hasImmutableProperties = properties.Any(p => !PropertyIsMutable(p));
 
-        Func<object, IReadOnlyList<PropertyDescriptor>> decompose = owner =>
+        Func<object, IReadOnlyList<FieldDescriptor>> decompose = owner =>
         {
-            var result = new List<PropertyDescriptor>();
+            var result = new List<FieldDescriptor>();
             for (int i = 0; i < properties.Length; i++)
             {
                 var prop = properties[i];
-                var desc = CreateDescriptorBound(prop, attributeData[i], owner);
+                var desc = CreateDescriptorBound(prop, attributeData[i], owner, type);
                 result.Add(desc);
             }
             return result;
@@ -117,23 +105,57 @@ public static class ReflectionTypeMetadataProvider
     }
 
     /// <summary>
-    /// Creates a PropertyDescriptor with GetValue/SetValue bound to a specific owner instance.
+    /// Creates a FieldDescriptor with GetValue/SetValue bound to a specific owner instance.
+    /// SetValue uses the return-new-owner pattern:
+    ///   - Mutable: mutates in place, returns same reference
+    ///   - Immutable: constructs new object, returns new reference
+    ///   - Read-only: null
     /// </summary>
-    private static PropertyDescriptor CreateDescriptorBound(PropertyInfo property, PropertyAttributeData attrs, object owner)
+    private static FieldDescriptor CreateDescriptorBound(
+        PropertyInfo property, PropertyAttributeData attrs, object owner, Type ownerType)
     {
-        return new PropertyDescriptor
+        Func<object, object?, object>? setter = null;
+
+        if (attrs.IsMutable && !attrs.IsReadOnly)
+        {
+            // Mutable: mutate in place, return same reference
+            setter = (obj, val) =>
+            {
+                property.SetValue(obj, val);
+                return obj;
+            };
+        }
+        else if (!attrs.IsReadOnly && property.CanWrite && !attrs.IsMutable)
+        {
+            // Init-only: construct new object via Compose pattern
+            var compose = BuildCompose(ownerType,
+                ownerType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                    .Where(p => p.CanRead).ToArray());
+            if (compose is not null)
+            {
+                var propName = property.Name;
+                setter = (obj, val) => compose(obj,
+                    new Dictionary<string, object> { { propName, val! } });
+            }
+        }
+
+        return new FieldDescriptor
         {
             Name = property.Name,
             DisplayName = attrs.DisplayName,
-            PropertyType = property.PropertyType,
-            GetValue = () => property.GetValue(owner),
-            SetValue = attrs.IsMutable && !attrs.IsReadOnly
-                ? val => property.SetValue(owner, val)
-                : null,
+            FieldType = property.PropertyType,
+            GetValue = obj => property.GetValue(obj),
+            SetValue = setter,
             Category = attrs.Category,
             Description = attrs.Description,
             Order = attrs.Order,
             IsReadOnly = attrs.IsReadOnly,
+            Width = attrs.Width,
+            MinWidth = attrs.MinWidth,
+            MaxWidth = attrs.MaxWidth,
+            Sortable = attrs.Sortable,
+            Filterable = attrs.Filterable,
+            Pin = attrs.Pin,
         };
     }
 
@@ -147,7 +169,7 @@ public static class ReflectionTypeMetadataProvider
         return false;
     }
 
-    private static bool PropertyIsMutable(PropertyInfo property)
+    internal static bool PropertyIsMutable(PropertyInfo property)
     {
         if (!property.CanWrite) return false;
         var setter = property.SetMethod!;
@@ -162,12 +184,20 @@ public static class ReflectionTypeMetadataProvider
 
     private static PropertyAttributeData ComputeAttributeData(PropertyInfo property, int defaultOrder)
     {
+        // Duct-specific attributes (take precedence)
         var ductCategory = property.GetCustomAttribute<PropertyCategoryAttribute>();
         var ductDescription = property.GetCustomAttribute<PropertyDescriptionAttribute>();
         var ductDisplayName = property.GetCustomAttribute<PropertyDisplayNameAttribute>();
         var ductReadOnly = property.GetCustomAttribute<PropertyReadOnlyAttribute>();
         var ductOrder = property.GetCustomAttribute<PropertyOrderAttribute>();
 
+        // Grid-specific attributes
+        var colWidth = property.GetCustomAttribute<ColumnWidthAttribute>();
+        var colPin = property.GetCustomAttribute<ColumnPinAttribute>();
+        var notSortable = property.GetCustomAttribute<NotSortableAttribute>();
+        var notFilterable = property.GetCustomAttribute<NotFilterableAttribute>();
+
+        // System.ComponentModel fallback
         var scCategory = property.GetCustomAttribute<CategoryAttribute>();
         var scDescription = property.GetCustomAttribute<DescriptionAttribute>();
         var scDisplayName = property.GetCustomAttribute<DisplayNameAttribute>();
@@ -181,9 +211,13 @@ public static class ReflectionTypeMetadataProvider
         bool isMutable = PropertyIsMutable(property);
         bool isReadOnly = ductReadOnly is not null
             || scReadOnly?.IsReadOnly == true
-            || !isMutable;
+            || (!isMutable && !property.CanWrite);
 
-        return new PropertyAttributeData(category, description, displayName, order, isMutable, isReadOnly);
+        return new PropertyAttributeData(
+            category, description, displayName, order, isMutable, isReadOnly,
+            colWidth?.Width, colWidth?.MinWidth, colWidth?.MaxWidth,
+            notSortable is null, notFilterable is null,
+            colPin?.Position ?? PinPosition.None);
     }
 
     private record PropertyAttributeData(
@@ -192,9 +226,28 @@ public static class ReflectionTypeMetadataProvider
         string? DisplayName,
         int Order,
         bool IsMutable,
-        bool IsReadOnly);
+        bool IsReadOnly,
+        double? Width,
+        double? MinWidth,
+        double? MaxWidth,
+        bool Sortable,
+        bool Filterable,
+        PinPosition Pin);
 
-    private static Func<object, IReadOnlyDictionary<string, object>, object>? BuildCompose(
+    internal static Func<object, object?, object>? BuildInitOnlySetter(PropertyInfo property)
+    {
+        var type = property.DeclaringType!;
+        var compose = BuildCompose(type,
+            type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.CanRead).ToArray());
+        if (compose is null) return null;
+
+        var propName = property.Name;
+        return (owner, val) => compose(owner,
+            new Dictionary<string, object> { { propName, val! } });
+    }
+
+    internal static Func<object, IReadOnlyDictionary<string, object>, object>? BuildCompose(
         Type type, PropertyInfo[] properties)
     {
         // Try to find a constructor whose parameters match property names (case-insensitive)

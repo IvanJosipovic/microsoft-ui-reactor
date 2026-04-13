@@ -1,4 +1,6 @@
 using Duct.Core;
+using Duct.Data;
+using Duct.Validation.Validators;
 
 namespace Duct.Validation;
 
@@ -45,6 +47,45 @@ public static class FormFieldDsl
             FieldName = fieldName,
             ShowWhen = showWhen
         };
+
+    /// <summary>
+    /// Creates an auto-wired FormField from a FieldDescriptor.
+    /// Resolves the editor from TypeRegistry, sets label/description from the descriptor,
+    /// detects required from validators, and wires validation.
+    /// </summary>
+    public static FormFieldElement FormField(
+        FieldDescriptor field,
+        object value,
+        Action<object> onChange,
+        Duct.PropertyGrid.TypeRegistry? registry = null)
+    {
+        // Resolve editor
+        Element content;
+        if (field.Editor is not null)
+        {
+            content = field.Editor(value, onChange);
+        }
+        else if (registry is not null)
+        {
+            var meta = registry.Resolve(field.FieldType);
+            content = meta.Editor is not null
+                ? meta.Editor(value, onChange)
+                : Duct.UI.Text(value?.ToString() ?? "(null)");
+        }
+        else
+        {
+            content = Duct.UI.Text(value?.ToString() ?? "(null)");
+        }
+
+        var label = field.DisplayName ?? field.Name;
+        var description = field.Description;
+        var required = field.Validators?.Any(v => v is RequiredValidator) == true;
+
+        return new FormFieldElement(content, label, required, description)
+        {
+            FieldName = field.Name,
+        };
+    }
 }
 
 /// <summary>

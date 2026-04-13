@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using Duct.Core;
+using Duct.Data;
 using Duct.PropertyGrid;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Xunit;
 
 namespace Duct.Tests;
@@ -89,9 +91,9 @@ public class PropertyGridComponentTests
         var descriptors = meta.Decompose!(model);
 
         Assert.Equal(3, descriptors.Count);
-        Assert.Contains(descriptors, d => d.Name == "Name" && d.PropertyType == typeof(string));
-        Assert.Contains(descriptors, d => d.Name == "Count" && d.PropertyType == typeof(int));
-        Assert.Contains(descriptors, d => d.Name == "Active" && d.PropertyType == typeof(bool));
+        Assert.Contains(descriptors, d => d.Name == "Name" && d.FieldType == typeof(string));
+        Assert.Contains(descriptors, d => d.Name == "Count" && d.FieldType == typeof(int));
+        Assert.Contains(descriptors, d => d.Name == "Active" && d.FieldType == typeof(bool));
     }
 
     [Fact]
@@ -105,7 +107,8 @@ public class PropertyGridComponentTests
         var nameProp = descriptors.First(d => d.Name == "Name");
         Assert.NotNull(nameProp.SetValue);
 
-        nameProp.SetValue!("new");
+        var result = nameProp.SetValue!(model, "new");
+        Assert.Same(model, result);
         Assert.Equal("new", model.Name);
     }
 
@@ -162,7 +165,7 @@ public class PropertyGridComponentTests
         Assert.Equal(3, allDescriptors.Count);
 
         // Apply filter — only string properties
-        var filtered = allDescriptors.Where(d => d.PropertyType == typeof(string)).ToList();
+        var filtered = allDescriptors.Where(d => d.FieldType == typeof(string)).ToList();
         Assert.Single(filtered);
         Assert.Equal("Name", filtered[0].Name);
     }
@@ -180,7 +183,7 @@ public class PropertyGridComponentTests
         // Re-decompose and read value
         var descriptors = meta.Decompose!(model);
         var nameProp = descriptors.First(d => d.Name == "Name");
-        Assert.Equal("after", nameProp.GetValue());
+        Assert.Equal("after", nameProp.GetValue(model));
     }
 
     [Fact]
@@ -232,5 +235,121 @@ public class PropertyGridComponentTests
         Assert.Null(element.OnRootChanged);
         Assert.Null(element.Filter);
         Assert.False(element.ShowSearch);
+    }
+
+    [Fact]
+    public void Component_Renders_Properties_From_FieldDescriptor_List()
+    {
+        var registry = new TypeRegistry();
+        var model = new MutableModel { Name = "TestName", Count = 5, Active = false };
+        var meta = registry.Resolve(typeof(MutableModel));
+        var descriptors = meta.Decompose!(model);
+
+        // Verify all descriptors are FieldDescriptor instances
+        foreach (var desc in descriptors)
+        {
+            Assert.IsType<FieldDescriptor>(desc);
+            Assert.NotNull(desc.GetValue);
+            Assert.NotNull(desc.Name);
+            Assert.NotNull(desc.FieldType);
+        }
+    }
+
+    [Fact]
+    public void Template_Delegates_Receive_FieldDescriptor()
+    {
+        var registry = new TypeRegistry();
+        var model = new MutableModel();
+        var meta = registry.Resolve(typeof(MutableModel));
+        var descriptors = meta.Decompose!(model);
+
+        // Verify template delegates work with FieldDescriptor
+        var desc = descriptors.First();
+        var label = PropertyGridDefaults.PropertyLabelTemplate(desc, 0);
+        Assert.NotNull(label);
+
+        var editor = Duct.UI.Text("test");
+        var row = PropertyGridDefaults.PropertyRowTemplate(desc, label, editor, 0);
+        Assert.NotNull(row);
+    }
+
+    // ── FullEditor "..." affordance tests ───────────────────────
+
+    private record ExpandableValue(string Data)
+    {
+        public override string ToString() => Data;
+    }
+
+    [Fact]
+    public void FullEditor_Button_Visible_When_FullEditor_Registered()
+    {
+        var registry = new TypeRegistry();
+        Func<object, Action<object>, Element> fullEditor =
+            (val, onChange) => Duct.UI.Text($"Full: {val}");
+
+        registry.Register<ExpandableValue>(new TypeMetadata
+        {
+            Editor = (val, onChange) => Duct.UI.Text($"Compact: {val}"),
+            FullEditor = fullEditor,
+        });
+
+        var meta = registry.Resolve(typeof(ExpandableValue));
+
+        // FullEditor is available → "..." button should appear
+        Assert.NotNull(meta.FullEditor);
+        Assert.NotNull(meta.Editor);
+
+        // Verify FullEditor produces valid Element
+        var element = meta.FullEditor!(new ExpandableValue("test"), _ => { });
+        Assert.IsType<TextElement>(element);
+    }
+
+    [Fact]
+    public void FullEditor_Button_Hidden_When_FullEditor_Is_Null()
+    {
+        var registry = new TypeRegistry();
+        registry.Register<ExpandableValue>(new TypeMetadata
+        {
+            Editor = (val, onChange) => Duct.UI.Text($"Standard: {val}"),
+            // No FullEditor registered
+        });
+
+        var meta = registry.Resolve(typeof(ExpandableValue));
+
+        // FullEditor is null → no "..." button
+        Assert.Null(meta.FullEditor);
+        Assert.NotNull(meta.Editor);
+    }
+
+    [Fact]
+    public void FullEditor_Flyout_Contains_FullEditor_Content()
+    {
+        var registry = new TypeRegistry();
+        var receivedValue = (object?)null;
+
+        registry.Register<ExpandableValue>(new TypeMetadata
+        {
+            Editor = (val, onChange) => Duct.UI.Text("inline"),
+            FullEditor = (val, onChange) =>
+            {
+                receivedValue = val;
+                return Duct.UI.Text($"Full editor for: {val}");
+            },
+        });
+
+        var meta = registry.Resolve(typeof(ExpandableValue));
+        var testValue = new ExpandableValue("hello");
+
+        // Simulate what PropertyGridComponent does: call FullEditor to build flyout content
+        var fullEditorElement = meta.FullEditor!(testValue, _ => { });
+
+        Assert.Equal(testValue, receivedValue);
+        Assert.IsType<TextElement>(fullEditorElement);
+
+        // Verify ContentFlyout wraps the FullEditor content
+        var flyout = Duct.UI.ContentFlyout(fullEditorElement,
+            placement: Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Bottom);
+        Assert.IsType<ContentFlyoutElement>(flyout);
+        Assert.Same(fullEditorElement, flyout.Content);
     }
 }

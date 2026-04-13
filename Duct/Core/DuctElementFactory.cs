@@ -11,11 +11,15 @@ namespace Duct.Core;
 public sealed partial class DuctElementFactory<T> : ElementFactory
 #pragma warning restore CS8305
 {
-    private readonly IReadOnlyList<T> _items;
-    private readonly Func<T, int, Element> _viewBuilder;
+    private IReadOnlyList<T> _items;
+    private Func<T, int, Element> _viewBuilder;
     private readonly Reconciler _reconciler;
     private readonly Action _requestRerender;
     private readonly ElementPool? _pool;
+
+    // Track the full element (including ModifiedElement wrappers) per realized index
+    // so RefreshRealizedItems can reconcile correctly.
+    private readonly Dictionary<int, Element> _mountedElements = new();
 
     public DuctElementFactory(
         IReadOnlyList<T> items,
@@ -31,6 +35,45 @@ public sealed partial class DuctElementFactory<T> : ElementFactory
         _pool = pool;
     }
 
+    /// <summary>
+    /// Update items and viewBuilder in place without replacing the factory.
+    /// This avoids ItemsRepeater re-realizing all items (which causes
+    /// "Cannot run layout in the middle of a collection change" crashes).
+    /// Existing realized items stay mounted; they'll render new content
+    /// on the next GetElement call (scroll or explicit refresh).
+    /// </summary>
+    internal void UpdateInPlace(IReadOnlyList<T> items, Func<T, int, Element> viewBuilder)
+    {
+        _items = items;
+        _viewBuilder = viewBuilder;
+    }
+
+    /// <summary>
+    /// After updating the factory in place, reconcile all currently realized
+    /// items with the new viewBuilder output. This updates existing WinUI
+    /// controls via property changes (no add/remove on the ItemsRepeater's
+    /// Children collection).
+    /// </summary>
+    internal void RefreshRealizedItems(Microsoft.UI.Xaml.Controls.ItemsRepeater repeater)
+    {
+        // Only iterate tracked indices (realized items), not all items.
+        // Use a snapshot to avoid modifying the dictionary during iteration.
+        var indices = _mountedElements.Keys.ToArray();
+        foreach (var i in indices)
+        {
+            var child = repeater.TryGetElement(i);
+            if (child is null) { _mountedElements.Remove(i); continue; }
+
+            if (!_mountedElements.TryGetValue(i, out var oldElement)) continue;
+            if (i < 0 || i >= _items.Count) continue;
+
+            var newElement = _viewBuilder(_items[i], i);
+            _mountedElements[i] = newElement;
+
+            _reconciler.Reconcile(oldElement, newElement, child, _requestRerender);
+        }
+    }
+
     protected override UIElement GetElementCore(ElementFactoryGetArgs args)
     {
         var index = args.Data is int i ? i : 0;
@@ -39,6 +82,7 @@ public sealed partial class DuctElementFactory<T> : ElementFactory
 
         var item = _items[index];
         var element = _viewBuilder(item, index);
+        _mountedElements[index] = element;
         var control = _reconciler.Mount(element, _requestRerender);
         return control ?? new TextBlock { Text = "" };
     }

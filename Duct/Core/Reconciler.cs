@@ -1685,11 +1685,17 @@ public sealed partial class Reconciler : IDisposable
             else if (fe is WinUI.StackPanel padSp) padSp.Padding = resolvedPadding.Value;
         }
         if (m.Width.HasValue && m.Width != oldM?.Width) fe.Width = m.Width.Value;
+        else if (!m.Width.HasValue && oldM?.Width.HasValue == true) fe.Width = double.NaN;
         if (m.Height.HasValue && m.Height != oldM?.Height) fe.Height = m.Height.Value;
+        else if (!m.Height.HasValue && oldM?.Height.HasValue == true) fe.Height = double.NaN;
         if (m.MinWidth.HasValue && m.MinWidth != oldM?.MinWidth) fe.MinWidth = m.MinWidth.Value;
+        else if (!m.MinWidth.HasValue && oldM?.MinWidth.HasValue == true) fe.MinWidth = 0;
         if (m.MinHeight.HasValue && m.MinHeight != oldM?.MinHeight) fe.MinHeight = m.MinHeight.Value;
+        else if (!m.MinHeight.HasValue && oldM?.MinHeight.HasValue == true) fe.MinHeight = 0;
         if (m.MaxWidth.HasValue && m.MaxWidth != oldM?.MaxWidth) fe.MaxWidth = m.MaxWidth.Value;
+        else if (!m.MaxWidth.HasValue && oldM?.MaxWidth.HasValue == true) fe.MaxWidth = double.PositiveInfinity;
         if (m.MaxHeight.HasValue && m.MaxHeight != oldM?.MaxHeight) fe.MaxHeight = m.MaxHeight.Value;
+        else if (!m.MaxHeight.HasValue && oldM?.MaxHeight.HasValue == true) fe.MaxHeight = double.PositiveInfinity;
         if (m.HorizontalAlignment.HasValue && m.HorizontalAlignment != oldM?.HorizontalAlignment) fe.HorizontalAlignment = m.HorizontalAlignment.Value;
         if (m.VerticalAlignment.HasValue && m.VerticalAlignment != oldM?.VerticalAlignment) fe.VerticalAlignment = m.VerticalAlignment.Value;
         if (m.Opacity.HasValue && m.Opacity != oldM?.Opacity)

@@ -11,6 +11,8 @@ namespace Duct.PropertyGrid;
 public class TypeRegistry
 {
     private readonly Dictionary<Type, TypeMetadata> _map = new();
+    private readonly Dictionary<Type, Func<object, Element>> _cellRenderers = new();
+    private readonly Dictionary<Type, Func<object?, string>> _formatters = new();
 
     /// <summary>Register metadata for a type.</summary>
     public TypeRegistry Register<T>(TypeMetadata metadata)
@@ -18,6 +20,28 @@ public class TypeRegistry
         _map[typeof(T)] = metadata;
         return this;
     }
+
+    /// <summary>Register a custom cell renderer for grid display.</summary>
+    public TypeRegistry RegisterCellRenderer<T>(Func<object, Element> renderer)
+    {
+        _cellRenderers[typeof(T)] = renderer;
+        return this;
+    }
+
+    /// <summary>Register a custom value formatter for grid display.</summary>
+    public TypeRegistry RegisterFormatter<T>(Func<object?, string> formatter)
+    {
+        _formatters[typeof(T)] = formatter;
+        return this;
+    }
+
+    /// <summary>Try to get a registered cell renderer for a type.</summary>
+    public Func<object, Element>? GetCellRenderer(Type type)
+        => _cellRenderers.TryGetValue(type, out var renderer) ? renderer : null;
+
+    /// <summary>Try to get a registered formatter for a type.</summary>
+    public Func<object?, string>? GetFormatter(Type type)
+        => _formatters.TryGetValue(type, out var formatter) ? formatter : null;
 
     /// <summary>
     /// Resolve metadata for a type. Falls back to built-in rules:
@@ -47,6 +71,23 @@ public class TypeRegistry
 
         // 5. Reflection fallback
         return ReflectionTypeMetadataProvider.CreateMetadata(type);
+    }
+
+    /// <summary>
+    /// Resolves the editor for a type using tiered resolution:
+    /// For compact (grid): CompactEditor ?? Editor ?? built-in
+    /// For standard (PropertyGrid/FormField): Editor ?? built-in
+    /// For full (expand): FullEditor (null when not registered)
+    /// </summary>
+    public Func<object, Action<object>, Element>? ResolveEditor(Type type, EditorTier tier)
+    {
+        var meta = Resolve(type);
+        return tier switch
+        {
+            EditorTier.Compact => meta.CompactEditor ?? meta.Editor,
+            EditorTier.Full => meta.FullEditor,
+            _ => meta.Editor,
+        };
     }
 
     private static TypeMetadata ResolveEnum(Type enumType)
@@ -191,4 +232,17 @@ public class TypeRegistry
         };
         return true;
     }
+}
+
+/// <summary>
+/// Specifies which editor tier to resolve.
+/// </summary>
+public enum EditorTier
+{
+    /// <summary>Standard editor for PropertyGrid/FormField.</summary>
+    Standard,
+    /// <summary>Compact editor for grid inline cells.</summary>
+    Compact,
+    /// <summary>Full editor for expanded/flyout editing.</summary>
+    Full,
 }

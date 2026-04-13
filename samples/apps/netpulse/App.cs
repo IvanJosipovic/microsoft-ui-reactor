@@ -1,10 +1,7 @@
 using Duct;
 using Duct.Core;
-using Duct.D3;
-using Duct.D3.Charts;
 using Microsoft.UI.Xaml;
 using NetPulse.Charts;
-using static Duct.D3.Charts.D3;
 using static Duct.UI;
 
 namespace NetPulse;
@@ -42,8 +39,9 @@ sealed class App : Component
         var (trafficHistory, updateTrafficHistory) = UseReducer<IReadOnlyList<TrafficSample>>(
             Array.Empty<TrafficSample>(), threadSafe: true);
 
-        // Read live stats from DuctHost
-        var stats = DuctApp.ActiveHost?.Stats ?? default;
+        // Render count for perf overlay
+        var renderCountRef = UseRef(0);
+        renderCountRef.Current++;
 
         // ── Monitor lifecycle ───────────────────────────────────────
 
@@ -94,14 +92,14 @@ sealed class App : Component
         //  └──────────────────────────────────────────────────────────┘
 
         return VStack(0,
-            // Header bar with FPS meter
+            // Header bar
             HStack(12,
                 Text("NetPulse").FontSize(18).Bold().Margin(12, 8, 0, 4),
-                Text($"TCP: {tcpActive}").FontSize(11).Foreground(Brushes.Gray100).Margin(0, 10, 0, 0),
-                Text($"UDP: {udpEndpoints.Length}").FontSize(11).Foreground(Brushes.Gray100).Margin(0, 10, 0, 0),
-                Text($"Sparklines: {sparklineData.Length}").FontSize(11).Foreground(Brushes.Gray100).Margin(0, 10, 0, 0),
-                Text($"History: {trafficHistory.Count}").FontSize(11).Foreground(Brushes.Gray80).Margin(0, 10, 0, 0),
-                RenderFpsMeter(stats)
+                Text($"TCP: {tcpActive} active").FontSize(11).Foreground(Gray(100)).Margin(0, 10, 0, 0),
+                Text($"UDP: {udpEndpoints.Length} endpoints").FontSize(11).Foreground(Gray(100)).Margin(0, 10, 0, 0),
+                Text($"Sparklines: {sparklineData.Length}").FontSize(11).Foreground(Gray(100)).Margin(0, 10, 0, 0),
+                Text($"Renders: {renderCountRef.Current}").FontSize(11).Foreground(Gray(80)).Margin(0, 10, 0, 0),
+                Text($"History: {trafficHistory.Count} samples").FontSize(11).Foreground(Gray(80)).Margin(0, 10, 0, 0)
             ),
 
             // Row 1: Area chart + Donut
@@ -134,43 +132,6 @@ sealed class App : Component
         });
     }
 
-    /// <summary>
-    /// Compact D3 FPS meter: bar gauge + text stats.
-    /// Green ≥30fps, yellow ≥15fps, red below.
-    /// </summary>
-    static Element RenderFpsMeter(RenderStats s)
-    {
-        const double W = 320, H = 36;
-        double fps = s.Fps;
-        double maxFps = 60;
-        double barW = Math.Clamp(fps / maxFps, 0, 1) * (W - 130);
-
-        var barBrush = fps >= 30
-            ? Brushes.Green
-            : fps >= 15 ? Brushes.Orange : Brushes.Red;
-
-        var elements = new Element[]
-        {
-            // Bar background
-            D3Rect(0, 6, W - 130, 10) with { Fill = Brushes.BarBg, RadiusX = 3, RadiusY = 3 },
-            // Bar fill
-            D3Rect(0, 6, Math.Max(1, barW), 10) with { Fill = barBrush, RadiusX = 3, RadiusY = 3 },
-            // FPS number
-            D3Text(0, 20, $"{fps:F0} fps", 9, barBrush),
-            // Frame time
-            D3Text(44, 20, $"{s.AvgTotalMs:F1}ms", 9, Brushes.Gray100),
-            // Renders total
-            D3Text(96, 20, $"#{s.TotalRenders}", 9, Brushes.Gray140),
-#if DEBUG
-            // Element counters (debug only)
-            D3Text(W - 126, 2, $"diffed:{s.LastDiffed}", 8, Brushes.Gray120),
-            D3Text(W - 126, 12, $"skip:{s.LastSkipped}", 8, Brushes.Gray120),
-            D3Text(W - 62, 2, $"new:{s.LastCreated}", 8, Brushes.Gray120),
-            D3Text(W - 62, 12, $"mod:{s.LastModified}", 8, Brushes.Gray120),
-#endif
-        };
-
-        return D3Canvas(W, H, elements).Margin(16, 4, 0, 0);
-    }
-
+    static Microsoft.UI.Xaml.Media.SolidColorBrush Gray(byte v) =>
+        new(Windows.UI.Color.FromArgb(255, v, v, v));
 }

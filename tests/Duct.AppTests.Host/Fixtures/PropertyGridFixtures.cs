@@ -4,7 +4,7 @@ using Duct.Core;
 using Duct.PropertyGrid;
 using static Duct.UI;
 using Component = Duct.Core.Component;
-using PropertyDescriptor = Duct.PropertyGrid.PropertyDescriptor;
+using Duct.Data;
 
 namespace Duct.AppTests.Host.Fixtures;
 
@@ -219,12 +219,12 @@ internal static class PropertyGridFixtures
             Decompose = val =>
             {
                 var p = (Point2D)val;
-                return new List<PropertyDescriptor>
+                return new List<FieldDescriptor>
                 {
-                    new PropertyDescriptor { Name = "X", PropertyType = typeof(double),
-                            GetValue = () => p.X, Order = 0 },
-                    new PropertyDescriptor { Name = "Y", PropertyType = typeof(double),
-                            GetValue = () => p.Y, Order = 1 },
+                    new FieldDescriptor { Name = "X", FieldType = typeof(double),
+                            GetValue = _ => p.X, Order = 0 },
+                    new FieldDescriptor { Name = "Y", FieldType = typeof(double),
+                            GetValue = _ => p.Y, Order = 1 },
                 };
             },
             Compose = (val, updates) =>

@@ -1762,6 +1762,16 @@ public abstract record LazyStackElementBase : Element
     public abstract object GetItemsSource();
 #pragma warning disable CS8305 // ElementFactory is experimental; we coordinate with WinUI team
     public abstract ElementFactory CreateFactory(Reconciler reconciler, Action requestRerender, ElementPool? pool);
+    /// <summary>
+    /// Update an existing factory's items and viewBuilder in place, avoiding
+    /// ItemsRepeater re-realization. Returns true if the factory was updated.
+    /// </summary>
+    public abstract bool TryUpdateFactory(ElementFactory existingFactory);
+    /// <summary>
+    /// After updating the factory in place, reconcile all realized items
+    /// with the new viewBuilder output (property diffs only, no collection changes).
+    /// </summary>
+    public abstract void RefreshRealizedItems(ElementFactory factory, WinUI.ItemsRepeater repeater);
 #pragma warning restore CS8305
     internal Action<WinUI.ScrollViewer>[] ScrollViewerSetters { get; init; } = [];
     internal Action<WinUI.ItemsRepeater>[] RepeaterSetters { get; init; } = [];
@@ -1783,6 +1793,17 @@ public record LazyVStackElement<T>(
 #pragma warning disable CS8305
     public override ElementFactory CreateFactory(Reconciler reconciler, Action requestRerender, ElementPool? pool) =>
         new DuctElementFactory<T>(Items, ViewBuilder, reconciler, requestRerender, pool);
+
+    public override bool TryUpdateFactory(ElementFactory existingFactory)
+    {
+        if (existingFactory is DuctElementFactory<T> f) { f.UpdateInPlace(Items, ViewBuilder); return true; }
+        return false;
+    }
+
+    public override void RefreshRealizedItems(ElementFactory factory, WinUI.ItemsRepeater repeater)
+    {
+        if (factory is DuctElementFactory<T> f) f.RefreshRealizedItems(repeater);
+    }
 #pragma warning restore CS8305
 }
 
@@ -1802,6 +1823,17 @@ public record LazyHStackElement<T>(
 #pragma warning disable CS8305
     public override ElementFactory CreateFactory(Reconciler reconciler, Action requestRerender, ElementPool? pool) =>
         new DuctElementFactory<T>(Items, ViewBuilder, reconciler, requestRerender, pool);
+
+    public override bool TryUpdateFactory(ElementFactory existingFactory)
+    {
+        if (existingFactory is DuctElementFactory<T> f) { f.UpdateInPlace(Items, ViewBuilder); return true; }
+        return false;
+    }
+
+    public override void RefreshRealizedItems(ElementFactory factory, WinUI.ItemsRepeater repeater)
+    {
+        if (factory is DuctElementFactory<T> f) f.RefreshRealizedItems(repeater);
+    }
 #pragma warning restore CS8305
 }
 

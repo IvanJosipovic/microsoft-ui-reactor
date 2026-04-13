@@ -21,7 +21,7 @@ DuctApp.Run<DemoApp>("Duct Demo", width: 1200, height: 800
 
 // ─── Root application component ────────────────────────────────────────────────
 
-enum Tab { Counter, TodoList, ConditionalUI, Form, DynamicList, PerfStress, Virtualization, Flyout, DataTemplate, FlexPanel, Transitions, PropertyGrid, Context, Memo, Persisted, Slots, Navigation, Commanding }
+enum Tab { Counter, TodoList, ConditionalUI, Form, DynamicList, PerfStress, Virtualization, Flyout, DataTemplate, FlexPanel, Transitions, PropertyGrid, DataSystem, DataGrid, Context, Memo, Persisted, Slots, Navigation, Commanding }
 
 class DemoApp : Component
 {
@@ -42,6 +42,8 @@ class DemoApp : Component
             Tab.FlexPanel => "FlexPanel",
             Tab.Transitions => "Transitions",
             Tab.PropertyGrid => "PropertyGrid",
+            Tab.DataSystem => "Data System",
+            Tab.DataGrid => "DataGrid",
             Tab.Context => "Context",
             Tab.Memo => "Memo",
             Tab.Persisted => "Persisted",
@@ -57,10 +59,13 @@ class DemoApp : Component
         var (langIndex, setLangIndex) = UseState(0);
 
         return FlexColumn(
-            HStack(8,
-                ComboBox(TabLabels, (int)currentTab, i => setTab((Tab)i)).Width(200),
-                ComboBox(Languages, langIndex, setLangIndex)
-            ).Margin(16, 16, 16, 0),
+            (TitleBar("TestApp") with
+            {
+                Content = HStack(8,
+                    ComboBox(TabLabels, (int)currentTab, i => setTab((Tab)i)).Width(200),
+                    ComboBox(Languages, langIndex, setLangIndex)
+                ),
+            }).Flex(shrink: 0),
 
             // Content area — Flex(grow:1) fills remaining vertical space
             // so ScrollView inside each demo gets a bounded height and can scroll.
@@ -79,6 +84,8 @@ class DemoApp : Component
                     Tab.FlexPanel => Component<FlexPanelDemo>(),
                     Tab.Transitions => Component<TransitionsDemo>(),
                     Tab.PropertyGrid => Component<PropertyGridDemo>(),
+                    Tab.DataSystem => Component<DataSystemDemo>(),
+                    Tab.DataGrid => Component<DataGridDemo>(),
                     Tab.Context => Component<ContextDemo>(),
                     Tab.Memo => Component<MemoDemo>(),
                     Tab.Persisted => Component<PersistedDemo>(),

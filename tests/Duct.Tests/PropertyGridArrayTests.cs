@@ -162,8 +162,9 @@ public class PropertyGridArrayTests
 
         // Remove via array operation
         var newArray = ArrayOperations.RemoveAt(parent.Items, 0, typeof(string));
-        itemsProp.SetValue!(newArray);
+        var result = itemsProp.SetValue!(parent, newArray);
 
+        Assert.Same(parent, result); // mutable parent
         Assert.Single(parent.Items);
         Assert.Equal("B", parent.Items[0]);
     }

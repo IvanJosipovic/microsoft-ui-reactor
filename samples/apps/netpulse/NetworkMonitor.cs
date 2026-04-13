@@ -24,11 +24,6 @@ sealed class NetworkMonitor : IDisposable
     readonly Action<TrafficSample> _onTrafficSample;
     readonly Action<SparklineEntry[]> _onSparklineUpdate;
 
-    // Re-entrancy guards — prevents overlapping Timer callbacks when
-    // P/Invoke calls take longer than the poll interval
-    int _tcpRunning;       // 0 or 1 — thread 1
-    int _udpRunning;       // 0 or 1 — thread 2
-
     // Interface delta tracking (accessed only from thread 3, guarded by _ifaceRunning)
     Dictionary<uint, (ulong InOctets, ulong OutOctets, long TimestampMs)> _prevIfaceStats = new();
     int _ifaceRunning;  // 0 or 1 — re-entrancy guard
@@ -41,7 +36,7 @@ sealed class NetworkMonitor : IDisposable
     bool _disposed;
 
     /// <summary>Polling interval in ms. Lower = more stress on reconciler.</summary>
-    public const int PollIntervalMs = 33;
+    public const int PollIntervalMs = 50;
 
     public NetworkMonitor(
         Action<TcpConn[]> onTcpUpdate,
@@ -63,34 +58,30 @@ sealed class NetworkMonitor : IDisposable
         _sparklineTimer = new Timer(PollSparklines, null, stagger * 3, p);
     }
 
-    // ── Thread 1: TCP (guarded — P/Invoke can exceed poll interval) ──
+    // ── Thread 1: TCP (stateless — no re-entrancy risk) ─────────────
 
     void PollTcp(object? _)
     {
         if (_disposed) return;
-        if (Interlocked.CompareExchange(ref _tcpRunning, 1, 0) != 0) return;
         try
         {
             var connections = IpHelper.GetTcpConnections();
             _onTcpUpdate(connections);
         }
         catch { /* swallow polling failures */ }
-        finally { Interlocked.Exchange(ref _tcpRunning, 0); }
     }
 
-    // ── Thread 2: UDP (guarded — P/Invoke can exceed poll interval) ─
+    // ── Thread 2: UDP (stateless — no re-entrancy risk) ─────────────
 
     void PollUdp(object? _)
     {
         if (_disposed) return;
-        if (Interlocked.CompareExchange(ref _udpRunning, 1, 0) != 0) return;
         try
         {
             var endpoints = IpHelper.GetUdpEndpoints();
             _onUdpUpdate(endpoints);
         }
         catch { /* swallow polling failures */ }
-        finally { Interlocked.Exchange(ref _udpRunning, 0); }
     }
 
     // ── Thread 3: Interface stats (stateful — guarded) ──────────────

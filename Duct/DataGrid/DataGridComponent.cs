@@ -1,0 +1,1010 @@
+using Duct.Core;
+using Duct.Data;
+using Duct.Flex;
+using Duct.PropertyGrid;
+using Duct.Virtualization;
+using Microsoft.UI.Xaml;
+using Windows.System;
+using static Duct.UI;
+using static Duct.Core.Theme;
+
+namespace Duct.DataGrid;
+
+/// <summary>
+/// The core DataGrid component. Composes VirtualList for the row area,
+/// renders a fixed header row with sort indicators, and resolves cell
+/// renderers from TypeRegistry. Supports keyboard navigation and inline editing.
+///
+/// Architecture: the VirtualList's renderItem callback is stored in a ref so it's
+/// stable across re-renders. This prevents the LazyVStack from replacing its
+/// DuctElementFactory, which would cause ItemsRepeater to re-realize items and
+/// crash with "Cannot run layout in the middle of a collection change." Instead,
+/// cells read current state from the DataGridState ref at render time. When state
+/// changes, the DataGrid forceRenders, the VirtualList sees the same props (stable
+/// callback, same item count), and the Duct reconciler only updates the cells whose
+/// output changed — as property updates on existing controls, not collection changes.
+/// </summary>
+public class DataGridComponent<T> : Component<DataGridElement<T>>
+{
+    public override Element Render()
+    {
+        var el = Props;
+        var source = el.Source;
+        var registry = el.Registry ?? UseMemo(() => new TypeRegistry());
+
+        // Resolve columns: use explicit columns from props, or auto-generate from
+        // reflection. Re-resolve when explicit columns change (e.g., external state
+        // affecting CellRenderers). Auto-columns are cached by UseMemo.
+        var columns = el.Columns is not null
+            ? el.Columns
+            : UseMemo(() => ColumnDsl.AutoColumns<T>(registry, el.ColumnOverrides));
+
+        // Create the headless state machine once and hold it in a ref.
+        var stateRef = UseRef<DataGridState<T>>(null!);
+        var (renderCount, forceRender) = UseReducer(0);
+
+        if (stateRef.Current is null)
+        {
+            var s = new DataGridState<T>(source, columns, el.SelectionMode);
+
+            // Defer re-render to the next dispatcher tick to batch multiple
+            // StateChanged events into a single render pass.
+            var pending = false;
+            var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            s.StateChanged += () =>
+            {
+                if (dq is not null && !pending)
+                {
+                    pending = true;
+                    dq.TryEnqueue(() =>
+                    {
+                        pending = false;
+                        forceRender(n => n + 1);
+                    });
+                }
+                else if (dq is null)
+                {
+                    forceRender(n => n + 1);
+                }
+            };
+
+            stateRef.Current = s;
+        }
+        var state = stateRef.Current!;
+
+        // Load data on mount and when sort changes
+        var sortKey = string.Join(",", state.Sorts.Select(s => $"{s.Field}:{s.Direction}"));
+
+        UseEffect(() =>
+        {
+            _ = state.LoadDataAsync();
+        }, sortKey);
+
+        // Notify selection changes via effect (not during render)
+        var selVersion = UseRef(0);
+        var currentSelVersion = state.SelectionVersion;
+        UseEffect(() =>
+        {
+            if (el.OnSelectionChanged is not null && selVersion.Current != currentSelVersion)
+            {
+                selVersion.Current = currentSelVersion;
+                el.OnSelectionChanged(new HashSet<RowKey>(state.SelectedKeys));
+            }
+        }, currentSelVersion);
+
+        var loadedCount = state.LoadedItems.Count;
+        var rowKeyCache = state.RowKeyCache;
+
+        // ── Build the UI ────────────────────────────────────────────
+        // Use a WinUI Grid instead of FlexColumn for the DataGrid root container.
+        // This breaks the FlexPanel ancestor chain so header column width changes
+        // don't cascade Yoga re-layout up through every parent FlexPanel.
+        var gridChildren = new List<Element?>();
+        int gridRow = 0;
+
+        // Search bar
+        if (el.ShowSearch)
+        {
+            var searchQuery = state.SearchQuery ?? "";
+            gridChildren.Add(
+                TextField(searchQuery, q =>
+                {
+                    Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                    {
+                        state.SetSearchQuery(q);
+                        _ = state.LoadDataAsync();
+                    });
+                }).Padding(8, 4).Grid(row: gridRow, column: 0)
+            );
+            gridRow++;
+        }
+
+        if (el.ShowHeaders)
+        {
+            gridChildren.Add(RenderHeaderRow(state, columns, el).Grid(row: gridRow, column: 0));
+            gridRow++;
+        }
+
+        if (state.TotalCount is not null)
+        {
+            gridChildren.Add(
+                Text($"{state.TotalCount:N0} items").Opacity(0.5).FontSize(12)
+                    .Padding(8, 2, 8, 2).Grid(row: gridRow, column: 0)
+            );
+            gridRow++;
+        }
+
+        Element dataContent;
+        if (state.IsLoading && loadedCount == 0)
+        {
+            dataContent = el.LoadingTemplate ?? RenderDefaultLoading();
+        }
+        else if (loadedCount == 0)
+        {
+            dataContent = el.EmptyTemplate ?? RenderDefaultEmpty();
+        }
+        else
+        {
+            dataContent = RenderDataRows(state, columns, el, registry, rowKeyCache);
+        }
+        gridChildren.Add(dataContent.Grid(row: gridRow, column: 0));
+
+        // Build row definitions: "Auto" for header + count, "*" for data area.
+        var rootRowDefs = new string[gridRow + 1];
+        for (int r = 0; r < gridRow; r++) rootRowDefs[r] = "Auto";
+        rootRowDefs[gridRow] = "*";
+
+        Element grid = Grid(["*"], rootRowDefs, gridChildren.ToArray());
+
+        // Keyboard navigation handler
+        grid = grid
+            .IsTabStop(true)
+            .OnKeyDown((sender, e) =>
+            {
+                if (ShouldHandleKey(state, el, e.Key))
+                {
+                    e.Handled = true;
+                    var capturedKey = e.Key;
+                    Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                    {
+                        HandleKeyDown(state, el, capturedKey);
+                    });
+                }
+            });
+
+        return grid;
+    }
+
+    // ── Data rows ────────────────────────────────────────────────────
+
+    private static Element RenderDataRows(
+        DataGridState<T> state,
+        IReadOnlyList<FieldDescriptor> columns,
+        DataGridElement<T> el,
+        TypeRegistry registry,
+        string[] rowKeyCache)
+    {
+        var items = state.LoadedItems;
+        var selectable = el.SelectionMode != SelectionMode.None;
+        var editable = el.Editable;
+        var colCount = columns.Count;
+
+        var colWidths = new double[colCount];
+        for (int c = 0; c < colCount; c++)
+            colWidths[c] = state.GetColumnWidth(columns[c].Name);
+
+        // Build Grid column definitions: one pixel column per data column,
+        // plus an optional 40px selection checkbox column at the start,
+        // plus an optional actions column for Row edit mode.
+        var hasRowEditActions = editable && el.EditMode == EditMode.Row;
+        var gridColCount = colCount + (selectable ? 1 : 0) + (hasRowEditActions ? 1 : 0);
+        var gridColDefs = new string[gridColCount];
+        var idx = 0;
+        if (selectable) gridColDefs[idx++] = "40";
+        for (int c = 0; c < colCount; c++)
+            gridColDefs[idx++] = colWidths[c].ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (hasRowEditActions) gridColDefs[idx] = "Auto";
+        var rowDef = new string[] { "*" };
+
+        return VirtualListDsl.VirtualList(
+            itemCount: items.Count,
+            renderItem: index =>
+            {
+                return RenderRow(index, state, columns, el, registry, colWidths, gridColDefs, rowDef, rowKeyCache);
+            },
+            itemHeight: el.RowHeight,
+            estimatedItemHeight: el.EstimatedRowHeight,
+            spacing: 0,
+            getItemKey: index =>
+            {
+                if ((uint)index >= (uint)rowKeyCache.Length) return index.ToString();
+                return rowKeyCache[index];
+            }
+        ).Flex(grow: 1);
+    }
+
+    private static Element RenderRow(
+        int index,
+        DataGridState<T> state,
+        IReadOnlyList<FieldDescriptor> columns,
+        DataGridElement<T> el,
+        TypeRegistry registry,
+        double[] colWidths,
+        string[] gridColDefs,
+        string[] rowDef,
+        string[] rowKeyCache)
+    {
+        var items = state.LoadedItems;
+
+        if ((uint)index >= (uint)items.Count || (uint)index >= (uint)rowKeyCache.Length)
+            return Empty();
+
+        var item = items[index];
+        var keyStr = rowKeyCache[index];
+        var rowKey = new RowKey(keyStr);
+        var selectable = el.SelectionMode != SelectionMode.None;
+        var editable = el.Editable;
+        var colCount = columns.Count;
+        var isSelected = selectable && state.IsSelected(rowKey);
+        var isRowFocused = index == state.FocusedRowIndex;
+
+        var hasRowEditActions = editable && el.EditMode == EditMode.Row;
+        var cellOffset = selectable ? 1 : 0;
+        var cells = new Element?[colCount + cellOffset + (hasRowEditActions ? 1 : 0)];
+
+        if (selectable)
+        {
+            cells[0] = Text(isSelected ? "\u2713" : "")
+                .FontSize(12)
+                .HAlign(HorizontalAlignment.Center)
+                .VAlign(VerticalAlignment.Center)
+                .Grid(row: 0, column: 0);
+        }
+
+        var isRowInRowEdit = state.IsRowEditing && state.EditingRowKey?.Equals(rowKey) == true;
+
+        for (int c = 0; c < colCount; c++)
+        {
+            var col = columns[c];
+            var value = col.GetValue(item!);
+            var isCellFocused = isRowFocused && c == state.FocusedColIndex;
+            var isCellEditing = !isRowInRowEdit
+                                && state.EditingRowKey?.Equals(rowKey) == true
+                                && state.EditingColumnName == col.Name;
+            var isColInRowEdit = isRowInRowEdit && state.IsColumnInRowEdit(rowKey, col.Name);
+
+            Element cellContent;
+            if (isCellEditing)
+            {
+                cellContent = RenderEditingCell(col, state, registry);
+            }
+            else if (isColInRowEdit)
+            {
+                cellContent = RenderRowEditingCell(col, state, registry);
+            }
+            else if (el.CellTemplate is not null)
+            {
+                cellContent = el.CellTemplate(new CellContext<T>(item, rowKey, col, value, false, _ => { }));
+            }
+            else
+            {
+                cellContent = RenderCell(col, value, registry);
+
+                // Highlight cell if it matches the search query
+                if (state.SearchQuery is not null && value is not null)
+                {
+                    var valueStr = value.ToString() ?? "";
+                    if (valueStr.Contains(state.SearchQuery, StringComparison.OrdinalIgnoreCase))
+                        cellContent = cellContent.Background("#fff9c4"); // light yellow highlight
+                }
+            }
+
+            var cell = cellContent.VAlign(VerticalAlignment.Center);
+
+            // Validation error indicator — red border when field has errors
+            var hasValidationError = (isCellEditing || isColInRowEdit)
+                                     && state.EditValidation is not null
+                                     && state.EditValidation.HasError(col.Name);
+            if (hasValidationError)
+            {
+                cell = cell.WithBorder("#c62828", 2);
+            }
+            // Focus indicator — property change only, no structural change
+            else if (isCellFocused && !isCellEditing && !isColInRowEdit)
+            {
+                cell = cell.WithBorder("#0078d4", 2);
+            }
+
+            // Click to edit (deferred) — only for Cell edit mode
+            if (editable && el.EditMode == EditMode.Cell
+                && !isCellEditing && !isRowInRowEdit
+                && !col.IsReadOnly && col.SetValue is not null)
+            {
+                var capturedRow = index;
+                var capturedCol = c;
+                cell = cell.OnTapped((sender, e) =>
+                {
+                    Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                    {
+                        state.SetFocus(capturedRow, capturedCol);
+                        state.BeginEdit(capturedRow, capturedCol);
+                    });
+                });
+            }
+
+            cells[c + cellOffset] = cell.Grid(row: 0, column: c + cellOffset);
+        }
+
+        // Row-mode edit actions column: Edit button or Save/Cancel
+        if (hasRowEditActions)
+        {
+            var actionsCol = colCount + cellOffset;
+            if (isRowInRowEdit)
+            {
+                var capturedIdx = index;
+                cells[actionsCol] = FlexRow(
+                    Button("Save", () =>
+                    {
+                        Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                        {
+                            var editKey = state.EditingRowKey;
+                            var origItem = editKey is not null ? GetOriginalItem(state, editKey.Value) : default;
+                            var result = state.CommitRowEdit();
+                            if (result is not null && el.OnRowChanged is not null)
+                                HandleAsyncCommit(state, el, result.Value.Key, result.Value.NewItem, origItem!);
+                        });
+                    }).Padding(2),
+                    Button("Cancel", () =>
+                    {
+                        Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                        {
+                            state.CancelRowEdit();
+                        });
+                    }).Padding(2)
+                ).VAlign(VerticalAlignment.Center).Grid(row: 0, column: actionsCol);
+            }
+            else
+            {
+                var capturedIdx = index;
+                cells[actionsCol] = Button("Edit", () =>
+                {
+                    Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                    {
+                        state.BeginRowEdit(capturedIdx);
+                    });
+                }).VAlign(VerticalAlignment.Center).Padding(2, 4).Grid(row: 0, column: actionsCol);
+            }
+        }
+
+        var rowBg = isSelected ? "#e3f2fd"
+            : isRowFocused ? "#f0f4ff"
+            : (index % 2 == 0 ? "#ffffff" : "#f9f9f9");
+        // Use a WinUI Grid with pixel column definitions instead of FlexRow.
+        // Grid with pixel columns avoids Yoga layout entirely — the dominant
+        // cost identified by profiling.
+        Element row = Grid(gridColDefs, rowDef, cells);
+        row = row.Background(rowBg);
+
+        // Click handler (deferred)
+        {
+            var capturedKey = rowKey;
+            var capturedIndex = index;
+            row = row.OnPointerPressed((sender, e) =>
+            {
+                var props = e.GetCurrentPoint(null).Properties;
+                if (!props.IsLeftButtonPressed) return;
+
+                var mods = e.KeyModifiers;
+                Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                {
+                    // Commit any active edit when clicking a different row
+                    if (state.IsEditing)
+                    {
+                        var editKey = state.EditingRowKey;
+                        var origItem = editKey is not null ? GetOriginalItem(state, editKey.Value) : default;
+                        var commitResult = state.CommitEdit();
+                        if (commitResult is not null && el.OnRowChanged is not null)
+                            HandleAsyncCommit(state, el, commitResult.Value.Key, commitResult.Value.NewItem, origItem!);
+                    }
+
+                    state.SetFocus(capturedIndex, state.FocusedColIndex >= 0 ? state.FocusedColIndex : 0);
+
+                    if (selectable)
+                    {
+                        state.HandleRowClick(capturedKey,
+                            ctrlKey: mods.HasFlag(VirtualKeyModifiers.Control),
+                            shiftKey: mods.HasFlag(VirtualKeyModifiers.Shift));
+                    }
+                });
+            });
+        }
+
+        // Per-row validation visualizer: show error messages below the row
+        var isEditingThisRow = state.EditingRowKey?.Equals(rowKey) == true;
+        if (isEditingThisRow && state.HasValidationErrors)
+        {
+            var messages = state.GetAllValidationMessages();
+            var errorTexts = messages
+                .Where(m => m.Severity == Validation.Severity.Error)
+                .Select(m => m.Text);
+            var errorSummary = string.Join("; ", errorTexts);
+
+            row = FlexColumn(
+                row,
+                Text(errorSummary).Foreground("#c62828").FontSize(11).Padding(8, 2)
+            );
+        }
+
+        // Async commit: loading indicator during commit
+        if (state.IsCommitting(rowKey))
+        {
+            row = row.Opacity(0.6);
+        }
+
+        // Async commit: error display after failed commit
+        var commitError = state.GetCommitError(rowKey);
+        if (commitError is not null)
+        {
+            var capturedKey = rowKey;
+            row = FlexColumn(
+                row,
+                FlexRow(
+                    Text(commitError).Foreground("#c62828").FontSize(11).Flex(grow: 1),
+                    Button("Dismiss", () =>
+                    {
+                        Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                        {
+                            state.DismissCommitError(capturedKey);
+                        });
+                    })
+                ).Padding(8, 2)
+            );
+        }
+
+        // Row detail expansion
+        if (el.RowDetailTemplate is not null)
+        {
+            var isExpanded = state.IsExpanded(rowKey);
+            var capturedKeyForExpand = rowKey;
+
+            // Prepend expand/collapse toggle to the row
+            var expandIcon = isExpanded ? "\u25BC" : "\u25B6";
+            var expandButton = Text(expandIcon)
+                .FontSize(10).Opacity(0.6).Padding(4, 0)
+                .OnTapped((_, _) =>
+                {
+                    Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
+                    {
+                        state.ToggleRowExpansion(capturedKeyForExpand);
+                    });
+                });
+
+            if (isExpanded)
+            {
+                var detail = el.RowDetailTemplate(item, rowKey).Padding(16, 8);
+                row = FlexColumn(
+                    FlexRow(expandButton, row) with { AlignItems = FlexAlign.Center },
+                    detail.Background("#f5f5f5")
+                );
+            }
+            else
+            {
+                row = FlexRow(expandButton, row) with { AlignItems = FlexAlign.Center };
+            }
+        }
+
+        return row;
+    }
+
+    // ── Cell rendering ──────────────────────────────────────────────
+
+    private static Element RenderCell(
+        FieldDescriptor col, object? value, TypeRegistry registry)
+    {
+        if (col.CellRenderer is not null && value is not null)
+            return col.CellRenderer(value).Padding(8, 4);
+
+        if (col.FormatValue is not null)
+            return Text(col.FormatValue(value)).Padding(8, 4);
+
+        var registryRenderer = registry.GetCellRenderer(col.FieldType);
+        if (registryRenderer is not null && value is not null)
+            return registryRenderer(value).Padding(8, 4);
+
+        var registryFormatter = registry.GetFormatter(col.FieldType);
+        if (registryFormatter is not null)
+            return Text(registryFormatter(value)).Padding(8, 4);
+
+        if (value is bool boolVal)
+            return Text(boolVal ? "\u2713" : "").Padding(8, 4);
+
+        if (value is double d)
+            return Text(d.ToString("G")).Padding(8, 4);
+
+        if (value is float f)
+            return Text(f.ToString("G")).Padding(8, 4);
+
+        return Text(value?.ToString() ?? "").Padding(8, 4);
+    }
+
+    private static Element RenderEditingCell(
+        FieldDescriptor col, DataGridState<T> state, TypeRegistry registry)
+    {
+        var currentValue = state.EditingValue;
+
+        Func<object, Action<object>, Element>? editor = col.Editor;
+        if (editor is null)
+            editor = registry.ResolveEditor(col.FieldType, EditorTier.Compact);
+        if (editor is null)
+            editor = registry.ResolveEditor(col.FieldType, EditorTier.Standard);
+
+        if (editor is not null)
+            return editor(currentValue!, v => state.UpdateEditingValue(v)).Padding(2);
+
+        return TextField(currentValue?.ToString() ?? "", s => state.UpdateEditingValue(s)).Padding(2);
+    }
+
+    private static Element RenderRowEditingCell(
+        FieldDescriptor col, DataGridState<T> state, TypeRegistry registry)
+    {
+        var currentValue = state.GetRowEditValue(col.Name);
+
+        Func<object, Action<object>, Element>? editor = col.Editor;
+        if (editor is null)
+            editor = registry.ResolveEditor(col.FieldType, EditorTier.Compact);
+        if (editor is null)
+            editor = registry.ResolveEditor(col.FieldType, EditorTier.Standard);
+
+        var colName = col.Name;
+        if (editor is not null)
+            return editor(currentValue!, v => state.UpdateRowEditValue(colName, v)).Padding(2);
+
+        return TextField(currentValue?.ToString() ?? "", s => state.UpdateRowEditValue(colName, s)).Padding(2);
+    }
+
+    // ── Header rendering ────────────────────────────────────────────
+
+    private static Element RenderHeaderRow(
+        DataGridState<T> state,
+        IReadOnlyList<FieldDescriptor> columns,
+        DataGridElement<T> el)
+    {
+        var selectable = el.SelectionMode != SelectionMode.None;
+        var cellOffset = selectable ? 1 : 0;
+        var colCount = columns.Count;
+
+        var editable = el.Editable;
+        var hasRowEditActions = editable && el.EditMode == EditMode.Row;
+
+        // Build column definition strings for the header Grid.
+        var gridColDefs = new string[colCount + cellOffset + (hasRowEditActions ? 1 : 0)];
+        var idx = 0;
+        if (selectable) gridColDefs[idx++] = "40";
+        for (int c = 0; c < colCount; c++)
+            gridColDefs[idx++] = state.GetColumnWidth(columns[c].Name)
+                .ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (hasRowEditActions) gridColDefs[idx] = "Auto";
+        var rowDef = new string[] { "*" };
+
+        var headerCells = new List<Element?>();
+
+        if (selectable)
+        {
+            headerCells.Add(Border(Empty()).Grid(row: 0, column: 0));
+        }
+
+        for (int i = 0; i < colCount; i++)
+        {
+            var col = columns[i];
+            var sortDir = state.GetSortDirection(col.Name);
+            var colName = col.Name;
+
+            Element headerContent;
+            if (el.HeaderTemplate is not null)
+            {
+                headerContent = el.HeaderTemplate(new HeaderContext(
+                    col, sortDir,
+                    () => state.ToggleSort(colName),
+                    w => state.ResizeColumn(colName, w)));
+            }
+            else
+            {
+                headerContent = RenderDefaultHeader(col, sortDir, () => state.ToggleSort(colName), state, true);
+            }
+
+            if (el.AllowColumnResize || el.AllowColumnReorder)
+            {
+                // Overlay the header content and optional resize grip / reorder handler.
+                var overlayChildren = new List<Element?>
+                {
+                    headerContent.Grid(row: 0, column: 0)
+                };
+
+                if (el.AllowColumnResize)
+                {
+                    var grip = new ResizeGripElement()
+                        .Width(6)
+                        .HAlign(HorizontalAlignment.Right)
+                        .VAlign(VerticalAlignment.Stretch)
+                        .WithKey($"grip-{colName}")
+                        .OnMount(fe => AttachResizeHandlers(fe, state, colName));
+                    overlayChildren.Add(grip.Grid(row: 0, column: 0));
+                }
+
+                headerContent = new GridElement(ResizeOverlayDef, overlayChildren.ToArray());
+
+                if (el.AllowColumnReorder)
+                {
+                    var capturedIdx = i;
+                    headerContent = headerContent
+                        .OnMount(fe => AttachReorderHandlers(fe, state, capturedIdx, columns, cellOffset));
+                }
+            }
+
+            headerCells.Add(headerContent.Grid(row: 0, column: i + cellOffset));
+        }
+
+        if (hasRowEditActions)
+        {
+            headerCells.Add(
+                Text("").Padding(4, 6)
+                    .Grid(row: 0, column: colCount + cellOffset));
+        }
+
+        return Grid(gridColDefs, rowDef, headerCells.ToArray());
+    }
+
+    // Cached GridDefinition for the resize grip overlay. Using a static instance
+    // ensures the reconciler sees the same reference across renders and takes the
+    // fast update path (property changes only) instead of remounting the Grid.
+    private static readonly GridDefinition ResizeOverlayDef = new(["*"], ["*"]);
+
+    private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush TransparentBrush =
+        new(Microsoft.UI.Colors.Transparent);
+    private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush ResizeHoverBrush =
+        new(Microsoft.UI.ColorHelper.FromArgb(0x40, 0x00, 0x78, 0xD4));
+
+    /// <summary>
+    /// Attaches pointer event handlers to a resize grip control for column drag resizing.
+    /// Uses pointer capture so the drag remains responsive even when the pointer moves
+    /// outside the grip area. Calls state.ResizeColumn() on each move, which triggers a
+    /// normal Duct re-render — the reconciler updates Width on existing controls without
+    /// remounting (fast path via cached GridDefinition).
+    /// </summary>
+    private static void AttachResizeHandlers(
+        FrameworkElement fe, DataGridState<T> state, string colName)
+    {
+        var grip = (ResizeGripControl)fe;
+        var dragging = false;
+        var startX = 0.0;
+        var startWidth = 0.0;
+
+        grip.PointerEntered += (s, _) =>
+        {
+            if (!dragging)
+                ((ResizeGripControl)s!).Background = ResizeHoverBrush;
+        };
+
+        grip.PointerExited += (s, _) =>
+        {
+            if (!dragging)
+                ((ResizeGripControl)s!).Background = TransparentBrush;
+        };
+
+        grip.PointerPressed += (s, e) =>
+        {
+            var props = e.GetCurrentPoint(null).Properties;
+            if (!props.IsLeftButtonPressed) return;
+
+            var el = (UIElement)s!;
+            el.CapturePointer(e.Pointer);
+            dragging = true;
+            startX = e.GetCurrentPoint(null).Position.X;
+            startWidth = state.GetColumnWidth(colName);
+            e.Handled = true;
+        };
+
+        grip.PointerMoved += (s, e) =>
+        {
+            if (!dragging) return;
+            var x = e.GetCurrentPoint(null).Position.X;
+            state.ResizeColumn(colName, startWidth + (x - startX));
+        };
+
+        grip.PointerReleased += (s, e) =>
+        {
+            if (!dragging) return;
+            var el = (UIElement)s!;
+            el.ReleasePointerCapture(e.Pointer);
+            dragging = false;
+            e.Handled = true;
+        };
+    }
+
+    /// <summary>
+    /// Attaches pointer event handlers for column drag-and-drop reorder.
+    /// Drag begins after a 5px horizontal threshold to avoid interfering with clicks.
+    /// On release, computes the target column index from the drop X position and
+    /// calls state.ReorderColumn().
+    /// </summary>
+    private static void AttachReorderHandlers(
+        FrameworkElement fe, DataGridState<T> state, int sourceIndex,
+        IReadOnlyList<FieldDescriptor> columns, int cellOffset)
+    {
+        var dragging = false;
+        var dragStarted = false;
+        var startX = 0.0;
+
+        fe.PointerPressed += (s, e) =>
+        {
+            var props = e.GetCurrentPoint(null).Properties;
+            if (!props.IsLeftButtonPressed) return;
+
+            dragging = true;
+            dragStarted = false;
+            startX = e.GetCurrentPoint(null).Position.X;
+        };
+
+        fe.PointerMoved += (s, e) =>
+        {
+            if (!dragging) return;
+            var x = e.GetCurrentPoint(null).Position.X;
+            var delta = Math.Abs(x - startX);
+
+            if (!dragStarted && delta > 5)
+            {
+                dragStarted = true;
+                var el = (UIElement)s!;
+                el.CapturePointer(e.Pointer);
+                fe.Opacity = 0.5;
+            }
+        };
+
+        fe.PointerReleased += (s, e) =>
+        {
+            if (!dragging) return;
+            var el = (UIElement)s!;
+
+            if (dragStarted)
+            {
+                el.ReleasePointerCapture(e.Pointer);
+                fe.Opacity = 1.0;
+
+                // Compute target index from the drop X position relative to column widths.
+                var dropX = e.GetCurrentPoint(null).Position.X;
+                var totalDelta = dropX - startX;
+
+                // Estimate target column: walk columns accumulating widths.
+                var targetIndex = sourceIndex;
+                if (totalDelta > 0)
+                {
+                    // Dragging right
+                    double accumulated = 0;
+                    for (int c = sourceIndex + 1; c < columns.Count; c++)
+                    {
+                        var w = state.GetColumnWidth(columns[c].Name);
+                        accumulated += w;
+                        if (totalDelta > accumulated - w / 2)
+                            targetIndex = c;
+                        else
+                            break;
+                    }
+                }
+                else if (totalDelta < 0)
+                {
+                    // Dragging left
+                    double accumulated = 0;
+                    for (int c = sourceIndex - 1; c >= 0; c--)
+                    {
+                        var w = state.GetColumnWidth(columns[c].Name);
+                        accumulated -= w;
+                        if (totalDelta < accumulated + w / 2)
+                            targetIndex = c;
+                        else
+                            break;
+                    }
+                }
+
+                if (targetIndex != sourceIndex)
+                    state.ReorderColumn(sourceIndex, targetIndex);
+            }
+
+            dragging = false;
+            dragStarted = false;
+            e.Handled = true;
+        };
+
+        fe.PointerCanceled += (s, e) =>
+        {
+            if (dragStarted)
+            {
+                fe.Opacity = 1.0;
+            }
+            dragging = false;
+            dragStarted = false;
+        };
+    }
+
+    private static Element RenderDefaultHeader(
+        FieldDescriptor col, SortDirection? sortDir, Action toggleSort)
+    {
+        return RenderDefaultHeader(col, sortDir, toggleSort, null, false);
+    }
+
+    private static Element RenderDefaultHeader(
+        FieldDescriptor col, SortDirection? sortDir, Action toggleSort,
+        DataGridState<T>? state, bool showFilter)
+    {
+        var label = col.DisplayName ?? col.Name;
+        var sortIndicator = sortDir switch
+        {
+            SortDirection.Ascending => " \u25B2",
+            SortDirection.Descending => " \u25BC",
+            _ => "",
+        };
+
+        var hasActiveFilter = state?.GetFilter(col.Name) is not null;
+        var filterIcon = showFilter && col.Filterable
+            ? Text(hasActiveFilter ? "\u2BC7" : "\u2BC6")
+                .FontSize(10).Opacity(hasActiveFilter ? 1.0 : 0.4).Padding(2, 0)
+            : null;
+
+        if (col.Sortable)
+        {
+            return Button(
+                FlexRow(
+                    Text(label).SemiBold().Flex(grow: 1),
+                    sortIndicator.Length > 0
+                        ? Text(sortIndicator).FontSize(10).Opacity(0.7)
+                        : null,
+                    filterIcon
+                ) with { AlignItems = FlexAlign.Center },
+                toggleSort)
+                .Set(b =>
+                {
+                    b.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                        Microsoft.UI.Colors.Transparent);
+                    b.BorderThickness = new Thickness(0);
+                    b.Padding = new Thickness(8, 6, 8, 6);
+                    b.HorizontalAlignment = HorizontalAlignment.Stretch;
+                    b.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+                })
+                .HAlign(HorizontalAlignment.Stretch);
+        }
+
+        if (filterIcon is not null)
+            return FlexRow(Text(label).SemiBold().Flex(grow: 1), filterIcon).Padding(8, 6);
+
+        return Text(label).SemiBold().Padding(8, 6);
+    }
+
+    // ── Keyboard handling ───────────────────────────────────────────
+
+    private static bool ShouldHandleKey(DataGridState<T> state, DataGridElement<T> el, VirtualKey key)
+    {
+        if (state.IsEditing)
+        {
+            return key is VirtualKey.Enter or VirtualKey.Escape or VirtualKey.Tab;
+        }
+
+        return key switch
+        {
+            VirtualKey.Up or VirtualKey.Down or VirtualKey.Left or VirtualKey.Right => true,
+            VirtualKey.Tab or VirtualKey.Home or VirtualKey.End => true,
+            VirtualKey.Enter or VirtualKey.F2 => el.Editable,
+            VirtualKey.Space => state.FocusedKey is not null && el.SelectionMode != SelectionMode.None,
+            _ => false,
+        };
+    }
+
+    private static void HandleKeyDown(DataGridState<T> state, DataGridElement<T> el, VirtualKey key)
+    {
+        if (state.IsEditing)
+        {
+            switch (key)
+            {
+                case VirtualKey.Enter:
+                    {
+                        var editRowKey = state.EditingRowKey;
+                        var originalItem = editRowKey is not null ? GetOriginalItem(state, editRowKey.Value) : default;
+                        var commitResult = state.CommitEdit();
+                        if (commitResult is not null && el.OnRowChanged is not null)
+                            HandleAsyncCommit(state, el, commitResult.Value.Key, commitResult.Value.NewItem, originalItem!);
+                    }
+                    return;
+
+                case VirtualKey.Escape:
+                    state.CancelEdit();
+                    return;
+
+                case VirtualKey.Tab:
+                    {
+                        var editRowKey = state.EditingRowKey;
+                        var originalItem = editRowKey is not null ? GetOriginalItem(state, editRowKey.Value) : default;
+                        var tabResult = state.CommitAndMoveNext();
+                        if (tabResult is not null && el.OnRowChanged is not null)
+                            HandleAsyncCommit(state, el, tabResult.Value.Key, tabResult.Value.NewItem, originalItem!);
+                        if (el.Editable)
+                            state.BeginEdit();
+                    }
+                    return;
+            }
+            return;
+        }
+
+        switch (key)
+        {
+            case VirtualKey.Up:    state.MoveFocus(-1, 0);  break;
+            case VirtualKey.Down:  state.MoveFocus(1, 0);   break;
+            case VirtualKey.Left:  state.MoveFocus(0, -1);  break;
+            case VirtualKey.Right: state.MoveFocus(0, 1);   break;
+            case VirtualKey.Tab:   state.FocusNextCell();    break;
+            case VirtualKey.Home:  state.FocusHome();        break;
+            case VirtualKey.End:   state.FocusEnd();         break;
+
+            case VirtualKey.Enter:
+            case VirtualKey.F2:
+                if (el.Editable) state.BeginEdit();
+                break;
+
+            case VirtualKey.Space:
+                if (state.FocusedKey is not null && el.SelectionMode != SelectionMode.None)
+                    state.HandleRowClick(state.FocusedKey.Value);
+                break;
+        }
+    }
+
+    /// <summary>Gets the item at the given row key position, for capturing pre-edit state.</summary>
+    private static T? GetOriginalItem(DataGridState<T> state, RowKey key)
+    {
+        var idx = state.GetRowIndex(key);
+        return idx >= 0 ? state.LoadedItems[idx] : default;
+    }
+
+    private static Element RenderDefaultLoading()
+        => Text("Loading...").Opacity(0.5).Padding(16)
+            .HAlign(HorizontalAlignment.Center);
+
+    private static Element RenderDefaultEmpty()
+        => Text("No data to display").Opacity(0.5).Padding(16)
+            .HAlign(HorizontalAlignment.Center);
+
+    /// <summary>
+    /// Handles the async commit flow with optimistic updates.
+    /// The item is already updated in-memory by CommitEdit/CommitRowEdit.
+    /// This method calls OnRowChanged and handles success/failure.
+    /// </summary>
+    private static void HandleAsyncCommit(
+        DataGridState<T> state,
+        DataGridElement<T> el,
+        RowKey key,
+        T newItem,
+        T originalItem)
+    {
+        if (el.OnRowChanged is null) return;
+
+        // Capture the UI-thread dispatcher BEFORE entering Task.Run.
+        // GetForCurrentThread() returns null on threadpool threads.
+        var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        state.BeginAsyncCommit(key, originalItem);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await el.OnRowChanged(key, newItem);
+
+                if (dq is not null)
+                    dq.TryEnqueue(() => state.CompleteAsyncCommit(key));
+                else
+                    state.CompleteAsyncCommit(key);
+            }
+            catch (Exception ex)
+            {
+                if (dq is not null)
+                    dq.TryEnqueue(() => state.FailAsyncCommit(key, ex.Message));
+                else
+                    state.FailAsyncCommit(key, ex.Message);
+            }
+        });
+    }
+}

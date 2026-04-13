@@ -1,4 +1,5 @@
 using Duct.Core;
+using Duct.Data;
 
 namespace Duct.PropertyGrid;
 
@@ -16,10 +17,22 @@ public record TypeMetadata
     public Func<object, Action<object>, Element>? Editor { get; init; }
 
     /// <summary>
+    /// Compact editor variant for grid inline cells.
+    /// Falls back to Editor when null.
+    /// </summary>
+    public Func<object, Action<object>, Element>? CompactEditor { get; init; }
+
+    /// <summary>
+    /// Full editor variant for expanded/flyout editing.
+    /// Null when no expanded editing is available.
+    /// </summary>
+    public Func<object, Action<object>, Element>? FullEditor { get; init; }
+
+    /// <summary>
     /// Breaks a value into named sub-properties for recursive editing.
     /// Null if this type is atomic (edited only via Editor).
     /// </summary>
-    public Func<object, IReadOnlyList<PropertyDescriptor>>? Decompose { get; init; }
+    public Func<object, IReadOnlyList<FieldDescriptor>>? Decompose { get; init; }
 
     /// <summary>
     /// Reconstructs a value from its decomposed parts. Required for
