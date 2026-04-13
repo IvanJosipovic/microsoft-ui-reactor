@@ -1860,16 +1860,23 @@ public sealed partial class Reconciler
     private static void ApplyFlexAttached(Element child, Microsoft.UI.Xaml.UIElement ctrl)
     {
         var fa = child.GetAttached<FlexAttached>();
-        if (fa is null) return;
-        Flex.FlexPanel.SetGrow(ctrl, fa.Grow);
-        Flex.FlexPanel.SetShrink(ctrl, fa.Shrink);
-        if (fa.Basis.HasValue) Flex.FlexPanel.SetBasis(ctrl, fa.Basis.Value);
-        if (fa.AlignSelf.HasValue) Flex.FlexPanel.SetAlignSelf(ctrl, fa.AlignSelf.Value);
-        Flex.FlexPanel.SetPosition(ctrl, fa.Position);
-        if (fa.Left.HasValue) Flex.FlexPanel.SetLeft(ctrl, fa.Left.Value);
-        if (fa.Top.HasValue) Flex.FlexPanel.SetTop(ctrl, fa.Top.Value);
-        if (fa.Right.HasValue) Flex.FlexPanel.SetRight(ctrl, fa.Right.Value);
-        if (fa.Bottom.HasValue) Flex.FlexPanel.SetBottom(ctrl, fa.Bottom.Value);
+        // Always apply — reset to defaults when no FlexAttached, so stale values
+        // from pool-rented or reconciler-reused controls are cleared.
+        Flex.FlexPanel.SetGrow(ctrl, fa?.Grow ?? 0);
+        Flex.FlexPanel.SetShrink(ctrl, fa?.Shrink ?? 1);
+        if (fa is { Basis: { } basis }) Flex.FlexPanel.SetBasis(ctrl, basis);
+        else ctrl.ClearValue(Flex.FlexPanel.BasisProperty);
+        if (fa is { AlignSelf: { } alignSelf }) Flex.FlexPanel.SetAlignSelf(ctrl, alignSelf);
+        else ctrl.ClearValue(Flex.FlexPanel.AlignSelfProperty);
+        Flex.FlexPanel.SetPosition(ctrl, fa?.Position ?? Flex.FlexPositionType.Relative);
+        if (fa is { Left: { } left }) Flex.FlexPanel.SetLeft(ctrl, left);
+        else ctrl.ClearValue(Flex.FlexPanel.LeftProperty);
+        if (fa is { Top: { } top }) Flex.FlexPanel.SetTop(ctrl, top);
+        else ctrl.ClearValue(Flex.FlexPanel.TopProperty);
+        if (fa is { Right: { } right }) Flex.FlexPanel.SetRight(ctrl, right);
+        else ctrl.ClearValue(Flex.FlexPanel.RightProperty);
+        if (fa is { Bottom: { } bottom }) Flex.FlexPanel.SetBottom(ctrl, bottom);
+        else ctrl.ClearValue(Flex.FlexPanel.BottomProperty);
     }
 
     private UIElement? UpdateTreeView(TreeViewElement o, TreeViewElement n, WinUI.TreeView tv, Action requestRerender)

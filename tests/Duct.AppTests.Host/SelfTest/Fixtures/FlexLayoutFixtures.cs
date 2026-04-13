@@ -910,4 +910,76 @@ internal static class FlexLayoutFixtures
                 flex is not null && Near(flex.ActualHeight, 300, 5));
         }
     }
+
+    // ----------------------------------------------------------------
+    // Flex wrapping depth mutation regression
+    // ----------------------------------------------------------------
+    // When a FlexColumn with a shrink:0 child + grow:1 child is wrapped
+    // in increasing layers of FlexColumn during reconciliation, the flex
+    // properties get corrupted and both children end up at ~50/50 instead
+    // of fit/fill. This is a regression test for that behavior.
+
+    private static Element Wrapit(Element fe, int count)
+        => count == 0 ? fe : Wrapit(FlexColumn(fe), count - 1);
+
+    internal class FlexWrapDepthMutation(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            Action<int>? setDepth = null;
+
+            host.Mount(ctx =>
+            {
+                var (cur, setCur) = ctx.UseState(0);
+                setDepth = setCur;
+
+                return Wrapit(
+                    FlexColumn(
+                        Text($"blue: {cur}").Background("LightCoral"),
+                        Text("red").Background("LightBlue").Flex(grow: 1)
+                    ).Height(400).Width(400),
+                    cur
+                );
+            });
+
+            await Harness.Render();
+
+            // At depth=0: "blue" text takes natural height (~20px), "red" text
+            // has grow:1 and should fill the rest (~380px).
+            var red0 = H.FindText("red");
+            var blue0 = H.FindTextContaining("blue:");
+            H.Check("FlexWrapDepth_Initial_AllPresent",
+                red0 is not null && blue0 is not null);
+
+            double initialRedH = red0?.RenderSize.Height ?? 0;
+            double initialBlueH = blue0?.RenderSize.Height ?? 0;
+            H.Check("FlexWrapDepth_Initial_RedMuchTaller",
+                initialRedH > initialBlueH * 3);
+
+            // Increment depth twice: 0 → 1 → 2 (two extra wrapper layers)
+            setDepth?.Invoke(1);
+            await Harness.Render();
+            setDepth?.Invoke(2);
+            await Harness.Render();
+
+            // After two wrapping changes, the grow:1 "red" text should still
+            // fill most of the 400px. The bug causes ~50/50 split.
+            var red2 = H.FindText("red");
+            var blue2 = H.FindTextContaining("blue:");
+            H.Check("FlexWrapDepth_AfterMutation_AllPresent",
+                red2 is not null && blue2 is not null);
+
+            double mutatedRedH = red2?.RenderSize.Height ?? 0;
+            double mutatedBlueH = blue2?.RenderSize.Height ?? 0;
+
+            // The key assertion: red should still be much taller than blue.
+            // With the bug, they're roughly equal (~50/50 at 200px each).
+            H.Check("FlexWrapDepth_AfterMutation_RedStillMuchTaller",
+                mutatedRedH > mutatedBlueH * 3);
+
+            H.Check("FlexWrapDepth_AfterMutation_NeitherZero",
+                mutatedRedH > 10 && mutatedBlueH > 10);
+        }
+    }
 }

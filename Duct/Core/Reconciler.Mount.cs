@@ -922,19 +922,8 @@ public sealed partial class Reconciler
         {
             var ctrl = Mount(child, requestRerender);
             if (ctrl is null) continue;
-            var fa = child.GetAttached<FlexAttached>();
-            if (fa is not null)
-            {
-                Flex.FlexPanel.SetGrow(ctrl, fa.Grow);
-                Flex.FlexPanel.SetShrink(ctrl, fa.Shrink);
-                if (fa.Basis.HasValue) Flex.FlexPanel.SetBasis(ctrl, fa.Basis.Value);
-                if (fa.AlignSelf.HasValue) Flex.FlexPanel.SetAlignSelf(ctrl, fa.AlignSelf.Value);
-                Flex.FlexPanel.SetPosition(ctrl, fa.Position);
-                if (fa.Left.HasValue) Flex.FlexPanel.SetLeft(ctrl, fa.Left.Value);
-                if (fa.Top.HasValue) Flex.FlexPanel.SetTop(ctrl, fa.Top.Value);
-                if (fa.Right.HasValue) Flex.FlexPanel.SetRight(ctrl, fa.Right.Value);
-                if (fa.Bottom.HasValue) Flex.FlexPanel.SetBottom(ctrl, fa.Bottom.Value);
-            }
+            // Always apply flex properties — clears stale values on pool-rented controls.
+            ApplyFlexAttached(child, ctrl);
             panel.Children.Add(ctrl);
         }
         SetElementTag(panel, flex);

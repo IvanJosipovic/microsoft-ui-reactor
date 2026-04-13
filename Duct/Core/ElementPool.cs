@@ -211,6 +211,18 @@ public sealed class ElementPool : IDisposable
         fe.ClearValue(FrameworkElement.RenderTransformProperty);
         fe.ClearValue(FrameworkElement.FlowDirectionProperty);
 
+        // Clear flex attached properties so pooled controls don't carry stale
+        // Grow/Shrink/Basis values into their next parent FlexPanel.
+        fe.ClearValue(Flex.FlexPanel.GrowProperty);
+        fe.ClearValue(Flex.FlexPanel.ShrinkProperty);
+        fe.ClearValue(Flex.FlexPanel.BasisProperty);
+        fe.ClearValue(Flex.FlexPanel.AlignSelfProperty);
+        fe.ClearValue(Flex.FlexPanel.PositionProperty);
+        fe.ClearValue(Flex.FlexPanel.LeftProperty);
+        fe.ClearValue(Flex.FlexPanel.TopProperty);
+        fe.ClearValue(Flex.FlexPanel.RightProperty);
+        fe.ClearValue(Flex.FlexPanel.BottomProperty);
+
         // Type-specific cleanup
         switch (fe)
         {

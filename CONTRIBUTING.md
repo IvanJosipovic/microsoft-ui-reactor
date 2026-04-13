@@ -53,14 +53,14 @@ Duct has **three types of tests**. Each serves a different purpose — make sure
 # ── 1. Unit tests (xUnit, no UI window, ~3s) ──
 dotnet test tests/Duct.Tests
 
-# ── 2. Selfhost tests (in-process WinUI window, ~15s) ──
-dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.SelfTestBatch"
+# ── 2. Selfhost tests (in-process WinUI window, ~30s) ──
+dotnet run --project tests/Duct.AppTests.Host -- --self-test
 
 # ── 3. Appium / E2E tests (requires WinAppDriver, ~30s) ──
 dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.InteractiveTests"
 
 # ── ALL tests (unit + selfhost + E2E) ──
-dotnet test Duct.sln
+dotnet test tests/Duct.Tests && dotnet run --project tests/Duct.AppTests.Host -- --self-test && dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.InteractiveTests"
 ```
 
 > **Platform note:** Omit `-p:Platform=...` to use the default (ARM64 on ARM machines,
@@ -83,10 +83,9 @@ dotnet test tests/Duct.Tests --filter "FullyQualifiedName~TreeSerializerTests"
 
 ### 2. Selfhost tests (`tests/Duct.AppTests` → `tests/Duct.AppTests.Host --self-test`) — MSTest + TAP
 
-60+ in-process fixtures that run inside a real WinUI window at CPU speed. Each fixture
+350+ in-process checks that run inside a real WinUI window at CPU speed. Each fixture
 mounts UI via `DuctHost`, runs assertions through `VisualTreeHelper`, and outputs TAP
-results. The MSTest runner in `Duct.AppTests` parses TAP output and maps each check to
-an individual test.
+results.
 
 These exercise the full reconciler pipeline (mount → update → unmount) against real
 WinUI controls — the **only** way to test the diff system end-to-end.
@@ -94,10 +93,6 @@ WinUI controls — the **only** way to test the diff system end-to-end.
 **When to run:** After reconciler, control mount/update, or UI-related changes.
 
 ```bash
-# Via MSTest runner (reports to VS Test Explorer)
-dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.SelfTestBatch"
-
-# Or run the host directly (raw TAP output)
 dotnet run --project tests/Duct.AppTests.Host -- --self-test
 ```
 
@@ -154,7 +149,7 @@ The `coverage.settings.xml` file in the repo root controls which modules are inc
 | # | Type | Project | Runner | Count | What it tests |
 |---|------|---------|--------|-------|---------------|
 | 1 | **Unit** | `tests/Duct.Tests` | xUnit | 2,200+ | Algorithms, element equality, Yoga layout, hooks — no WinUI window |
-| 2 | **Selfhost** | `tests/Duct.AppTests.Host` | TAP → MSTest | 60+ | Full reconciler pipeline against real WinUI controls, in-process |
+| 2 | **Selfhost** | `tests/Duct.AppTests.Host` | TAP | 350+ | Full reconciler pipeline against real WinUI controls, in-process |
 | 3 | **E2E** | `tests/Duct.AppTests` | Appium/MSTest | 2+ | Cross-process input injection via WinAppDriver |
 
 > **No stale binaries:** `Duct.AppTests.csproj` has a `ProjectReference` to the Host app with `ReferenceOutputAssembly="false"`, so `dotnet test` always builds the Host before running tests.
