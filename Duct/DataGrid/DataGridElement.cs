@@ -77,6 +77,13 @@ public record DataGridElement<T> : Element
 
     /// <summary>Element to show when data is empty.</summary>
     public Element? EmptyTemplate { get; init; }
+
+    /// <summary>
+    /// Custom cell content for placeholder (unloaded) rows. Receives the column
+    /// descriptor and column width; returns the element to render in that cell.
+    /// When null, uses a default shimmer-style gray bar.
+    /// </summary>
+    public Func<FieldDescriptor, double, Element>? PlaceholderCellTemplate { get; init; }
 }
 
 // ── Enums ────────────────────────────────────────────────────────

@@ -1,0 +1,23 @@
+{
+  "name": "headtrax-service",
+  "version": "1.0.0",
+  "description": "HeadTrax GraphQL service – serves employee data from SQLite",
+  "type": "module",
+  "scripts": {
+    "generate": "node generate-data.js",
+    "generate:small": "node generate-data.js --count 500",
+    "generate:medium": "node generate-data.js --count 50000",
+    "generate:large": "node generate-data.js --count 200000",
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@apollo/server": "^4.11.0",
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^9.3.0"
+  }
+}

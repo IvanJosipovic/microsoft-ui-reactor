@@ -111,8 +111,7 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
             }
         }, currentSelVersion);
 
-        var loadedCount = state.LoadedItems.Count;
-        var rowKeyCache = state.RowKeyCache;
+        var itemCount = state.ItemCount;
 
         // ── Build the UI ────────────────────────────────────────────
         // Use a WinUI Grid instead of FlexColumn for the DataGrid root container.
@@ -154,17 +153,17 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
         }
 
         Element dataContent;
-        if (state.IsLoading && loadedCount == 0)
+        if (state.IsLoading && itemCount == 0)
         {
             dataContent = el.LoadingTemplate ?? RenderDefaultLoading();
         }
-        else if (loadedCount == 0)
+        else if (itemCount == 0)
         {
             dataContent = el.EmptyTemplate ?? RenderDefaultEmpty();
         }
         else
         {
-            dataContent = RenderDataRows(state, columns, el, registry, rowKeyCache);
+            dataContent = RenderDataRows(state, columns, el, registry);
         }
         gridChildren.Add(dataContent.Grid(row: gridRow, column: 0));
 
@@ -272,10 +271,9 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
         DataGridState<T> state,
         IReadOnlyList<FieldDescriptor> columns,
         DataGridElement<T> el,
-        TypeRegistry registry,
-        string[] rowKeyCache)
+        TypeRegistry registry)
     {
-        var items = state.LoadedItems;
+        var totalItems = state.ItemCount;
         var selectable = el.SelectionMode != SelectionMode.None;
         var editable = el.Editable;
         var colCount = columns.Count;
@@ -298,18 +296,24 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
         var rowDef = new string[] { "*" };
 
         return VirtualListDsl.VirtualList(
-            itemCount: items.Count,
+            itemCount: totalItems,
             renderItem: index =>
             {
-                return RenderRow(index, state, columns, el, registry, colWidths, gridColDefs, rowDef, rowKeyCache);
+                return RenderRow(index, state, columns, el, registry, colWidths, gridColDefs, rowDef);
             },
             itemHeight: el.RowHeight,
             estimatedItemHeight: el.EstimatedRowHeight,
             spacing: 0,
             getItemKey: index =>
             {
-                if ((uint)index >= (uint)rowKeyCache.Length) return index.ToString();
-                return rowKeyCache[index];
+                return state.GetRowKeyAt(index) ?? index.ToString();
+            },
+            onVisibleRangeChanged: (first, last) =>
+            {
+                // Prefetch blocks that are about to enter the viewport.
+                // This triggers async loads; when they complete, ItemCount
+                // grows and new items are realized with real data.
+                state.EnsureRangeLoaded(first, last);
             }
         ).Flex(grow: 1);
     }
@@ -322,22 +326,18 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
         TypeRegistry registry,
         double[] colWidths,
         string[] gridColDefs,
-        string[] rowDef,
-        string[] rowKeyCache)
+        string[] rowDef)
     {
-        var items = state.LoadedItems;
+        var item = state.GetItemAt(index);
+        var keyStr = state.GetRowKeyAt(index);
+        var isPlaceholder = item is null || keyStr is null;
 
-        if ((uint)index >= (uint)items.Count || (uint)index >= (uint)rowKeyCache.Length)
-            return Empty();
-
-        var item = items[index];
-        var keyStr = rowKeyCache[index];
-        var rowKey = new RowKey(keyStr);
+        var rowKey = isPlaceholder ? default : new RowKey(keyStr!);
         var selectable = el.SelectionMode != SelectionMode.None;
-        var editable = el.Editable;
+        var editable = el.Editable && !isPlaceholder;
         var colCount = columns.Count;
-        var isSelected = selectable && state.IsSelected(rowKey);
-        var isRowFocused = index == state.FocusedRowIndex;
+        var isSelected = !isPlaceholder && selectable && state.IsSelected(rowKey);
+        var isRowFocused = !isPlaceholder && index == state.FocusedRowIndex;
 
         var hasRowEditActions = editable && el.EditMode == EditMode.Row;
         var cellOffset = selectable ? 1 : 0;
@@ -352,14 +352,14 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
                 .Grid(row: 0, column: 0);
         }
 
-        var isRowInRowEdit = state.IsRowEditing && state.EditingRowKey?.Equals(rowKey) == true;
+        var isRowInRowEdit = !isPlaceholder && state.IsRowEditing && state.EditingRowKey?.Equals(rowKey) == true;
 
         for (int c = 0; c < colCount; c++)
         {
             var col = columns[c];
-            var value = col.GetValue(item!);
+            var value = isPlaceholder ? null : col.GetValue(item!);
             var isCellFocused = isRowFocused && c == state.FocusedColIndex;
-            var isCellEditing = !isRowInRowEdit
+            var isCellEditing = !isPlaceholder && !isRowInRowEdit
                                 && state.EditingRowKey?.Equals(rowKey) == true
                                 && state.EditingColumnName == col.Name;
             var isColInRowEdit = isRowInRowEdit && state.IsColumnInRowEdit(rowKey, col.Name);
@@ -373,9 +373,18 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
             {
                 cellContent = RenderRowEditingCell(col, state, registry);
             }
-            else if (el.CellTemplate is not null)
+            else if (!isPlaceholder && el.CellTemplate is not null)
             {
-                cellContent = el.CellTemplate(new CellContext<T>(item, rowKey, col, value, false, _ => { }));
+                cellContent = el.CellTemplate(new CellContext<T>(item!, rowKey, col, value, false, _ => { }));
+            }
+            else if (isPlaceholder)
+            {
+                // Placeholder cell: use custom template or default shimmer bar.
+                // Must produce the same element TYPE as RenderCell (a Text with Padding)
+                // so RefreshRealizedItems can patch properties without structural changes.
+                cellContent = el.PlaceholderCellTemplate is not null
+                    ? el.PlaceholderCellTemplate(col, colWidths[c])
+                    : RenderDefaultPlaceholderCell(col, colWidths[c]);
             }
             else
             {
@@ -476,12 +485,15 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
         Element row = Grid(gridColDefs, rowDef, cells);
         row = row.Background(rowBg);
 
-        // Click handler (deferred)
+        // Click handler — always present (maintains element tree structure).
+        // For placeholders the handler is a no-op.
         {
             var capturedKey = rowKey;
             var capturedIndex = index;
+            var capturedIsPlaceholder = isPlaceholder;
             row = row.OnPointerPressed((sender, e) =>
             {
+                if (capturedIsPlaceholder) return;
                 var props = e.GetCurrentPoint(null).Properties;
                 if (!props.IsLeftButtonPressed) return;
 
@@ -517,8 +529,9 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
             });
         }
 
-        // Per-row validation visualizer: show error messages below the row
-        var isEditingThisRow = state.EditingRowKey?.Equals(rowKey) == true;
+        // Per-row validation visualizer — always evaluate (never wraps for placeholders
+        // since isEditingThisRow is false, so the element tree stays flat).
+        var isEditingThisRow = !isPlaceholder && state.EditingRowKey?.Equals(rowKey) == true;
         if (isEditingThisRow && state.HasValidationErrors)
         {
             var messages = state.GetAllValidationMessages();
@@ -534,13 +547,13 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
         }
 
         // Async commit: loading indicator during commit
-        if (state.IsCommitting(rowKey))
+        if (!isPlaceholder && state.IsCommitting(rowKey))
         {
             row = row.Opacity(0.6);
         }
 
         // Async commit: error display after failed commit
-        var commitError = state.GetCommitError(rowKey);
+        var commitError = isPlaceholder ? null : state.GetCommitError(rowKey);
         if (commitError is not null)
         {
             var capturedKey = rowKey;
@@ -559,11 +572,13 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
             );
         }
 
-        // Row detail expansion
+        // Row detail expansion — always present so element tree structure is stable.
+        // For placeholders, isExpanded is always false → collapsed path taken.
         if (el.RowDetailTemplate is not null)
         {
-            var isExpanded = state.IsExpanded(rowKey);
+            var isExpanded = !isPlaceholder && state.IsExpanded(rowKey);
             var capturedKeyForExpand = rowKey;
+            var capturedIsPlaceholder2 = isPlaceholder;
 
             // Prepend expand/collapse toggle to the row
             var expandIcon = isExpanded ? "\u25BC" : "\u25B6";
@@ -571,6 +586,7 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
                 .FontSize(10).Opacity(0.6).Padding(4, 0)
                 .OnTapped((_, _) =>
                 {
+                    if (capturedIsPlaceholder2) return;
                     Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
                     {
                         state.ToggleRowExpansion(capturedKeyForExpand);
@@ -579,7 +595,7 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
 
             if (isExpanded)
             {
-                var detail = el.RowDetailTemplate(item, rowKey).Padding(16, 8);
+                var detail = el.RowDetailTemplate(item!, rowKey).Padding(16, 8);
                 row = FlexColumn(
                     FlexRow(expandButton, row) with { AlignItems = FlexAlign.Center },
                     detail.Background("#f5f5f5")
@@ -1056,7 +1072,20 @@ public class DataGridComponent<T> : Component<DataGridElement<T>>
     private static T? GetOriginalItem(DataGridState<T> state, RowKey key)
     {
         var idx = state.GetRowIndex(key);
-        return idx >= 0 ? state.LoadedItems[idx] : default;
+        return idx >= 0 ? state.GetItemAt(idx) : default;
+    }
+
+    /// <summary>
+    /// Default placeholder cell: a rounded gray bar that mimics a text shimmer.
+    /// Produces a Text element with Padding — same structure as RenderCell —
+    /// so RefreshRealizedItems can patch it to real content with property-only changes.
+    /// </summary>
+    private static Element RenderDefaultPlaceholderCell(FieldDescriptor col, double colWidth)
+    {
+        // Vary the bar width per column so it looks organic, not uniform
+        var barText = new string('\u2003', Math.Max(1, (int)(colWidth / 24)));
+        return Text(barText).Padding(8, 4)
+            .Background("#e0e0e0").Opacity(0.5);
     }
 
     private static Element RenderDefaultLoading()

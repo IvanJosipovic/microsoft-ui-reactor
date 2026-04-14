@@ -133,10 +133,45 @@ public class DataGridState<T>
     private int? _totalCount;
     private bool _isLoading;
 
-    /// <summary>Currently loaded items.</summary>
-    public IReadOnlyList<T> LoadedItems => _loadedItems;
+    // ── Incremental paging (Phase 4) ─────────────────────────────
+    private DataPageCache<T>? _cache;
+    private readonly Dictionary<int, T> _mutations = new();
+    private readonly Dictionary<int, string> _keyOverrides = new();
 
-    /// <summary>Pre-computed row key strings for O(1) access during scroll.</summary>
+    /// <summary>
+    /// Currently loaded items. In paged mode, returns items from all loaded cache blocks
+    /// plus any mutations overlay. Prefer GetItemAt for index-based access.
+    /// </summary>
+    public IReadOnlyList<T> LoadedItems
+    {
+        get
+        {
+            if (_cache is null) return _loadedItems;
+
+            // Materialize items from loaded cache blocks + mutations.
+            var total = _cache.TotalCount ?? 0;
+            var blockSize = _cache.BlockSize;
+            var result = new List<T>();
+            var blockCount = (total + blockSize - 1) / blockSize;
+            for (int b = 0; b < blockCount; b++)
+            {
+                if (!_cache.IsLoaded(b * blockSize)) continue;
+                var block = _cache.GetBlock(b);
+                if (block.Status != BlockStatus.Loaded) continue;
+                for (int i = 0; i < block.Items.Count; i++)
+                {
+                    var rowIndex = b * blockSize + i;
+                    if (_mutations.TryGetValue(rowIndex, out var mutated))
+                        result.Add(mutated);
+                    else
+                        result.Add(block.Items[i]);
+                }
+            }
+            return result;
+        }
+    }
+
+    /// <summary>Pre-computed row key strings (legacy — prefer GetRowKeyAt for paginated access).</summary>
     public string[] RowKeyCache => _rowKeyCache;
 
     /// <summary>Total item count from the data source.</summary>
@@ -144,6 +179,77 @@ public class DataGridState<T>
 
     /// <summary>Whether data is currently being fetched.</summary>
     public bool IsLoading => _isLoading;
+
+    /// <summary>
+    /// Total number of items in the data set. In paged mode, this is the total count
+    /// from the data source (even if not all pages are loaded yet). The VirtualList
+    /// uses this for the full scrollbar extent. Unloaded items render as placeholders.
+    /// </summary>
+    public int ItemCount => _cache?.TotalCount ?? _loadedItems.Count;
+
+    /// <summary>The underlying page cache, or null if using legacy eager loading.</summary>
+    public DataPageCache<T>? PageCache => _cache;
+
+    /// <summary>
+    /// Request that blocks covering the given row range be loaded.
+    /// Call from OnVisibleRangeChanged to prefetch ahead of the viewport.
+    /// </summary>
+    public void EnsureRangeLoaded(int firstRow, int lastRow)
+    {
+        if (_cache is null) return;
+        var blockSize = _cache.BlockSize;
+        var total = _cache.TotalCount ?? 0;
+        // Prefetch one extra block beyond the visible range
+        var endRow = Math.Min(lastRow + blockSize, total - 1);
+        for (int b = firstRow / blockSize; b <= endRow / blockSize; b++)
+        {
+            if (!_cache.IsLoaded(b * blockSize))
+                _cache.RequestBlock(b);
+        }
+    }
+
+    /// <summary>
+    /// Get the item at a specific row index. Returns default(T) if the item's
+    /// block hasn't been loaded yet. Does not trigger fetches — ItemCount is
+    /// bounded to loaded items, so indices within range are always available.
+    /// </summary>
+    public T? GetItemAt(int index)
+    {
+        if (_cache is not null)
+        {
+            if (_mutations.TryGetValue(index, out var mutated))
+                return mutated;
+            return _cache.PeekItem(index);
+        }
+        if ((uint)index >= (uint)_loadedItems.Count) return default;
+        return _loadedItems[index];
+    }
+
+    /// <summary>
+    /// Get the row key string for a specific index. Returns null if the item
+    /// is not yet loaded.
+    /// </summary>
+    public string? GetRowKeyAt(int index)
+    {
+        if (_cache is not null)
+        {
+            if (_keyOverrides.TryGetValue(index, out var overridden))
+                return overridden;
+            var item = _cache.PeekItem(index);
+            if (item is null) return null;
+            return _source.GetRowKey(item).Value;
+        }
+        if ((uint)index >= (uint)_rowKeyCache.Length) return null;
+        return _rowKeyCache[index];
+    }
+
+    /// <summary>Whether the item at a specific row index is loaded.</summary>
+    public bool IsItemLoaded(int index)
+    {
+        if (_cache is not null)
+            return _mutations.ContainsKey(index) || _cache.IsLoaded(index);
+        return (uint)index < (uint)_loadedItems.Count;
+    }
 
     /// <summary>Fires when state changes requiring a re-render.</summary>
     public event Action? StateChanged;
@@ -480,7 +586,7 @@ public class DataGridState<T>
     /// <summary>Set cell focus to a specific row and column index.</summary>
     public void SetFocus(int rowIndex, int colIndex)
     {
-        var rowCount = _loadedItems.Count;
+        var rowCount = ItemCount;
         var colCount = _columns.Count;
         if (rowCount == 0 || colCount == 0) return;
 
@@ -488,8 +594,9 @@ public class DataGridState<T>
         _focusedColIndex = Math.Clamp(colIndex, 0, colCount - 1);
 
         // Sync FocusedKey with the row index
-        if (_focusedRowIndex >= 0 && _focusedRowIndex < _rowKeyCache.Length)
-            FocusedKey = new RowKey(_rowKeyCache[_focusedRowIndex]);
+        var key = GetRowKeyAt(_focusedRowIndex);
+        if (key is not null)
+            FocusedKey = new RowKey(key);
 
         StateChanged?.Invoke();
     }
@@ -497,7 +604,7 @@ public class DataGridState<T>
     /// <summary>Move focus by a delta. Used for arrow key navigation.</summary>
     public void MoveFocus(int rowDelta, int colDelta)
     {
-        if (_loadedItems.Count == 0 || _columns.Count == 0) return;
+        if (ItemCount == 0 || _columns.Count == 0) return;
 
         // If no focus yet, start at (0, 0)
         if (_focusedRowIndex < 0) { SetFocus(0, 0); return; }
@@ -522,7 +629,8 @@ public class DataGridState<T>
     /// <summary>Move focus to the next cell (left to right, top to bottom). Returns false at the end.</summary>
     public bool FocusNextCell()
     {
-        if (_loadedItems.Count == 0 || _columns.Count == 0) return false;
+        var totalRows = ItemCount;
+        if (totalRows == 0 || _columns.Count == 0) return false;
         if (_focusedRowIndex < 0) { SetFocus(0, 0); return true; }
 
         var nextCol = _focusedColIndex + 1;
@@ -534,7 +642,7 @@ public class DataGridState<T>
 
         // Wrap to next row
         var nextRow = _focusedRowIndex + 1;
-        if (nextRow < _loadedItems.Count)
+        if (nextRow < totalRows)
         {
             SetFocus(nextRow, 0);
             return true;
@@ -546,7 +654,7 @@ public class DataGridState<T>
     /// <summary>Move focus to the previous cell (right to left, bottom to top). Returns false at the start.</summary>
     public bool FocusPrevCell()
     {
-        if (_loadedItems.Count == 0 || _columns.Count == 0) return false;
+        if (ItemCount == 0 || _columns.Count == 0) return false;
         if (_focusedRowIndex < 0) { SetFocus(0, 0); return true; }
 
         var prevCol = _focusedColIndex - 1;
@@ -569,11 +677,42 @@ public class DataGridState<T>
 
     /// <summary>
     /// Get the row index for a given row key, or -1 if not found.
-    /// Uses the pre-cached row key array for O(n) lookup (typically after click).
+    /// Searches the key cache (legacy mode) or scans loaded cache blocks (paged mode).
     /// </summary>
     public int GetRowIndex(RowKey key)
     {
         var keyStr = key.Value;
+
+        if (_cache is not null)
+        {
+            // Check mutation overlay first
+            foreach (var (idx, item) in _mutations)
+            {
+                if (_source.GetRowKey(item).Value == keyStr) return idx;
+            }
+            // Check key overrides
+            foreach (var (idx, k) in _keyOverrides)
+            {
+                if (k == keyStr) return idx;
+            }
+            // Scan loaded cache blocks
+            var total = _cache.TotalCount ?? 0;
+            var blockSize = _cache.BlockSize;
+            for (int b = 0; b * blockSize < total; b++)
+            {
+                if (!_cache.IsLoaded(b * blockSize)) continue;
+                var block = _cache.GetBlock(b);
+                if (block.Status != BlockStatus.Loaded) continue;
+                for (int i = 0; i < block.Items.Count; i++)
+                {
+                    var rowIndex = b * blockSize + i;
+                    if (_mutations.ContainsKey(rowIndex)) continue; // already checked
+                    if (_source.GetRowKey(block.Items[i]).Value == keyStr) return rowIndex;
+                }
+            }
+            return -1;
+        }
+
         for (int i = 0; i < _rowKeyCache.Length; i++)
             if (_rowKeyCache[i] == keyStr) return i;
         return -1;
@@ -591,14 +730,17 @@ public class DataGridState<T>
     /// <summary>Begin editing a specific cell.</summary>
     public bool BeginEdit(int rowIndex, int colIndex)
     {
-        if (rowIndex < 0 || rowIndex >= _loadedItems.Count) return false;
+        if (rowIndex < 0 || rowIndex >= ItemCount) return false;
         if (colIndex < 0 || colIndex >= _columns.Count) return false;
 
         var col = _columns[colIndex];
         if (col.IsReadOnly || col.SetValue is null) return false;
 
-        var item = _loadedItems[rowIndex];
-        var rowKey = new RowKey(_rowKeyCache[rowIndex]);
+        var item = GetItemAt(rowIndex);
+        if (item is null) return false;
+        var keyStr = GetRowKeyAt(rowIndex);
+        if (keyStr is null) return false;
+        var rowKey = new RowKey(keyStr);
         var currentValue = col.GetValue(item!);
 
         _editingRowKey = rowKey;
@@ -661,17 +803,24 @@ public class DataGridState<T>
         var col = _columns.FirstOrDefault(c => c.Name == colName);
         if (col?.SetValue is null) { CancelEdit(); return null; }
 
-        var item = _loadedItems[rowIndex];
+        var item = GetItemAt(rowIndex);
+        if (item is null) { CancelEdit(); return null; }
 
         // Apply return-new-owner SetValue
         var newOwner = col.SetValue(item!, newValue);
         var newItem = (T)newOwner;
 
         // Update in-memory state
-        _loadedItems[rowIndex] = newItem;
-
-        // Update row key cache in case the key changed
-        _rowKeyCache[rowIndex] = _source.GetRowKey(newItem).Value;
+        if (_cache is not null)
+        {
+            _mutations[rowIndex] = newItem;
+            _keyOverrides[rowIndex] = _source.GetRowKey(newItem).Value;
+        }
+        else
+        {
+            _loadedItems[rowIndex] = newItem;
+            _rowKeyCache[rowIndex] = _source.GetRowKey(newItem).Value;
+        }
 
         // Clear editing state
         var savedKey = rowKey;
@@ -715,10 +864,13 @@ public class DataGridState<T>
     /// </summary>
     public bool BeginRowEdit(int rowIndex)
     {
-        if (rowIndex < 0 || rowIndex >= _loadedItems.Count) return false;
+        if (rowIndex < 0 || rowIndex >= ItemCount) return false;
 
-        var item = _loadedItems[rowIndex];
-        var rowKey = new RowKey(_rowKeyCache[rowIndex]);
+        var item = GetItemAt(rowIndex);
+        if (item is null) return false;
+        var keyStr = GetRowKeyAt(rowIndex);
+        if (keyStr is null) return false;
+        var rowKey = new RowKey(keyStr);
 
         // Snapshot current values for all editable columns
         var values = new Dictionary<string, object?>();
@@ -778,7 +930,8 @@ public class DataGridState<T>
         var rowIndex = GetRowIndex(rowKey);
         if (rowIndex < 0) { CancelRowEdit(); return null; }
 
-        var item = _loadedItems[rowIndex];
+        var item = GetItemAt(rowIndex);
+        if (item is null) { CancelRowEdit(); return null; }
         var current = item!;
 
         // Apply all pending values via return-new-owner SetValue
@@ -790,8 +943,16 @@ public class DataGridState<T>
         }
 
         // Update in-memory state
-        _loadedItems[rowIndex] = current;
-        _rowKeyCache[rowIndex] = _source.GetRowKey(current).Value;
+        if (_cache is not null)
+        {
+            _mutations[rowIndex] = current;
+            _keyOverrides[rowIndex] = _source.GetRowKey(current).Value;
+        }
+        else
+        {
+            _loadedItems[rowIndex] = current;
+            _rowKeyCache[rowIndex] = _source.GetRowKey(current).Value;
+        }
 
         // Clear row editing state
         var savedKey = rowKey;
@@ -866,8 +1027,16 @@ public class DataGridState<T>
             var rowIndex = GetRowIndex(key);
             if (rowIndex >= 0)
             {
-                _loadedItems[rowIndex] = original;
-                _rowKeyCache[rowIndex] = _source.GetRowKey(original).Value;
+                if (_cache is not null)
+                {
+                    _mutations[rowIndex] = original;
+                    _keyOverrides[rowIndex] = _source.GetRowKey(original).Value;
+                }
+                else
+                {
+                    _loadedItems[rowIndex] = original;
+                    _rowKeyCache[rowIndex] = _source.GetRowKey(original).Value;
+                }
             }
             _pendingCommitOriginals.Remove(key);
         }
@@ -950,45 +1119,88 @@ public class DataGridState<T>
             var serverFilter = caps.HasFlag(DataSourceCapabilities.ServerFilter);
             var serverSearch = caps.HasFlag(DataSourceCapabilities.ServerSearch);
 
-            // Use int.MaxValue to load all rows for in-memory sources.
-            // Server-side paging (Phase 4) will use DataPageCache instead.
-            var request = new DataRequest
-            {
-                PageSize = int.MaxValue,
-                // Only push sorts/filters/search to the source if it declares the capability.
-                Sort = serverSort && _sorts.Count > 0 ? _sorts : null,
-                Filters = serverFilter && _filters.Count > 0 ? _filters : null,
-                SearchQuery = serverSearch ? _searchQuery : null,
-            };
+            var needsClientSort = !serverSort && _sorts.Count > 0;
+            var needsClientFilter = !serverFilter && _filters.Count > 0;
 
-            var page = await _source.GetPageAsync(request, cancellationToken);
-            _loadedItems = new List<T>(page.Items);
-            _totalCount = page.TotalCount;
-
-            // Client-side fallback: if the source doesn't support server sort/filter,
-            // apply them here on the loaded items.
-            if (!serverFilter && _filters.Count > 0)
+            if (needsClientSort || needsClientFilter)
             {
-                _loadedItems = ApplyClientFilters(_loadedItems, _filters);
-                _totalCount = _loadedItems.Count;
+                // Client-side fallback: source can't sort/filter server-side,
+                // so we must load all rows and apply locally.
+                _cache = null;
+                _mutations.Clear();
+                _keyOverrides.Clear();
+
+                var request = new DataRequest
+                {
+                    PageSize = int.MaxValue,
+                    Sort = serverSort && _sorts.Count > 0 ? _sorts : null,
+                    Filters = serverFilter && _filters.Count > 0 ? _filters : null,
+                    SearchQuery = serverSearch ? _searchQuery : null,
+                };
+
+                var page = await _source.GetPageAsync(request, cancellationToken);
+                _loadedItems = new List<T>(page.Items);
+                _totalCount = page.TotalCount;
+
+                if (needsClientFilter)
+                {
+                    _loadedItems = ApplyClientFilters(_loadedItems, _filters);
+                    _totalCount = _loadedItems.Count;
+                }
+
+                if (needsClientSort)
+                {
+                    _loadedItems = ApplyClientSort(_loadedItems, _sorts);
+                }
+
+                // Pre-cache row key strings so getItemKey during scroll is a simple array lookup.
+                var keys = new string[_loadedItems.Count];
+                for (int i = 0; i < _loadedItems.Count; i++)
+                    keys[i] = _source.GetRowKey(_loadedItems[i]).Value;
+                _rowKeyCache = keys;
             }
-
-            if (!serverSort && _sorts.Count > 0)
+            else
             {
-                _loadedItems = ApplyClientSort(_loadedItems, _sorts);
-            }
+                // Incremental paging: use DataPageCache for block-based fetching.
+                // Only the pages needed for the visible viewport are loaded.
+                if (_cache is null)
+                {
+                    _cache = new DataPageCache<T>(_source);
+                    _cache.BlockLoaded += OnBlockLoaded;
+                }
 
-            // Pre-cache row key strings so getItemKey during scroll is a simple array lookup.
-            var keys = new string[_loadedItems.Count];
-            for (int i = 0; i < _loadedItems.Count; i++)
-                keys[i] = _source.GetRowKey(_loadedItems[i]).Value;
-            _rowKeyCache = keys;
+                var state = new DataRequest
+                {
+                    Sort = _sorts.Count > 0 ? _sorts : null,
+                    Filters = _filters.Count > 0 ? _filters : null,
+                    SearchQuery = _searchQuery,
+                };
+                _cache.SetState(state);
+                _mutations.Clear();
+                _keyOverrides.Clear();
+
+                // Clear legacy collections — paged mode uses cache accessors.
+                _loadedItems = new List<T>();
+                _rowKeyCache = Array.Empty<string>();
+
+                // Pre-fetch block 0 to get initial data + total count.
+                await _cache.GetBlockAsync(0, cancellationToken);
+                _totalCount = _cache.TotalCount;
+            }
         }
         finally
         {
             _isLoading = false;
             StateChanged?.Invoke();
         }
+    }
+
+    private void OnBlockLoaded(int blockIndex)
+    {
+        // Update total count from the latest response.
+        if (_cache?.TotalCount is int tc)
+            _totalCount = tc;
+        StateChanged?.Invoke();
     }
 
     // ── Client-side sort/filter fallback ─────────────────────────

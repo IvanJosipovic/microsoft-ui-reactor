@@ -29,7 +29,8 @@ public static class DataGridDsl
         Element? loadingTemplate = null,
         Element? emptyTemplate = null,
         bool showSearch = false,
-        Func<T, RowKey, Element>? rowDetailTemplate = null)
+        Func<T, RowKey, Element>? rowDetailTemplate = null,
+        Func<FieldDescriptor, double, Element>? placeholderCellTemplate = null)
     {
         var props = new DataGridElement<T>
         {
@@ -49,6 +50,7 @@ public static class DataGridDsl
             EmptyTemplate = emptyTemplate,
             ShowSearch = showSearch,
             RowDetailTemplate = rowDetailTemplate,
+            PlaceholderCellTemplate = placeholderCellTemplate,
         };
 
         return Component<DataGridComponent<T>, DataGridElement<T>>(props)

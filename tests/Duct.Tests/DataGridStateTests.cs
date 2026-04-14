@@ -374,6 +374,39 @@ public class DataGridStateTests
         Assert.Equal(175, state.GetColumnWidth("Name"));
     }
 
+    // ── Page-tracking data source ──────────────────────────────
+
+    /// <summary>
+    /// Wraps a ListDataSource and tracks every GetPageAsync call — recording
+    /// the requested PageSize and cumulative items returned. Used to prove
+    /// whether loading is eager (one giant page) or incremental (small blocks).
+    /// </summary>
+    private class PageTrackingSource<TItem> : IDataSource<TItem>
+    {
+        private readonly IDataSource<TItem> _inner;
+        public int CallCount { get; private set; }
+        public int TotalItemsFetched { get; private set; }
+        public int LargestPageRequested { get; private set; }
+        public List<int> RequestedPageSizes { get; } = new();
+
+        public PageTrackingSource(IDataSource<TItem> inner) => _inner = inner;
+
+        public DataSourceCapabilities Capabilities => _inner.Capabilities;
+        public RowKey GetRowKey(TItem item) => _inner.GetRowKey(item);
+
+        public async Task<DataPage<TItem>> GetPageAsync(DataRequest request, CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            RequestedPageSizes.Add(request.PageSize);
+            if (request.PageSize > LargestPageRequested)
+                LargestPageRequested = request.PageSize;
+
+            var page = await _inner.GetPageAsync(request, cancellationToken);
+            TotalItemsFetched += page.Items.Count;
+            return page;
+        }
+    }
+
     // ── Data loading ─────────────────────────────────────────────
 
     [Fact]
@@ -382,9 +415,31 @@ public class DataGridStateTests
         var state = new DataGridState<TestItem>(CreateSource(50), CreateColumns(), SelectionMode.None);
         await state.LoadDataAsync();
 
-        Assert.Equal(50, state.LoadedItems.Count);
+        Assert.Equal(50, state.ItemCount);
         Assert.Equal(50, state.TotalCount);
         Assert.False(state.IsLoading);
+    }
+
+    [Fact]
+    public async Task LoadDataAsync_Uses_Incremental_Paging()
+    {
+        // Given a data source with 10,000 items
+        var inner = CreateSource(10_000);
+        var tracking = new PageTrackingSource<TestItem>(inner);
+        var state = new DataGridState<TestItem>(tracking, CreateColumns(), SelectionMode.None);
+
+        // When we load data
+        await state.LoadDataAsync();
+
+        // ItemCount and TotalCount both reflect the full dataset
+        Assert.Equal(10_000, state.TotalCount);
+        Assert.Equal(10_000, state.ItemCount);
+
+        // Only a small page was fetched — NOT all 10,000 items
+        Assert.True(tracking.LargestPageRequested <= 100,
+            $"Expected incremental page size <= 100, but largest request was {tracking.LargestPageRequested}");
+        Assert.True(tracking.TotalItemsFetched <= 100,
+            $"Expected <= 100 items fetched initially, but got {tracking.TotalItemsFetched}");
     }
 
     [Fact]
@@ -404,7 +459,7 @@ public class DataGridStateTests
     }
 
     [Fact]
-    public async Task LoadDataAsync_Fires_StateChanged_Twice()
+    public async Task LoadDataAsync_Fires_StateChanged_Multiple_Times()
     {
         var state = new DataGridState<TestItem>(CreateSource(), CreateColumns(), SelectionMode.None);
         int changes = 0;
@@ -412,8 +467,9 @@ public class DataGridStateTests
 
         await state.LoadDataAsync();
 
-        // Once for IsLoading=true, once for IsLoading=false + data loaded
-        Assert.Equal(2, changes);
+        // At least twice: once for IsLoading=true, once for IsLoading=false.
+        // In paged mode, BlockLoaded also fires StateChanged.
+        Assert.True(changes >= 2, $"Expected >= 2 StateChanged fires, got {changes}");
     }
 
     // ── Focus navigation ─────────────────────────────────────────

@@ -398,6 +398,9 @@ internal static class SelfTestFixtureRegistry
         "DataGrid_EditCellColumnPlacement",
         "DataGrid_RapidSelection",
         "DataGrid_ExternalStateUpdate",
+        // DataGrid incremental paging
+        "DataGrid_IncrementalLoadVerification",
+        "DataGrid_SmallDatasetFullyLoaded",
     ];
 
     public static SelfTestFixtureBase? Create(string name, Harness harness) => name switch
@@ -791,6 +794,9 @@ internal static class SelfTestFixtureRegistry
         "DataGrid_EditCellColumnPlacement" => new DataGridEditFixtures.EditCellColumnPlacement(harness),
         "DataGrid_RapidSelection" => new DataGridEditFixtures.RapidSelection(harness),
         "DataGrid_ExternalStateUpdate" => new DataGridEditFixtures.ExternalStateUpdate(harness),
+        // DataGrid incremental paging
+        "DataGrid_IncrementalLoadVerification" => new DataGridPagingFixtures.IncrementalLoadVerification(harness),
+        "DataGrid_SmallDatasetFullyLoaded" => new DataGridPagingFixtures.SmallDatasetFullyLoaded(harness),
         _ => null,
     };
 }

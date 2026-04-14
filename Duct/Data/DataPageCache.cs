@@ -175,6 +175,7 @@ public class DataPageCache<T>
 
     /// <summary>
     /// Get the item at a specific row index, or default if not loaded.
+    /// Triggers an async fetch for missing blocks.
     /// </summary>
     public T? GetItem(int rowIndex)
     {
@@ -185,6 +186,55 @@ public class DataPageCache<T>
         if (block.Status != BlockStatus.Loaded) return default;
         if (offsetInBlock >= block.Items.Count) return default;
         return block.Items[offsetInBlock];
+    }
+
+    /// <summary>
+    /// Read-only peek: returns the item if its block is already loaded,
+    /// or default if not. Does NOT trigger a fetch for missing blocks.
+    /// Safe to call during a render pass.
+    /// </summary>
+    public T? PeekItem(int rowIndex)
+    {
+        var blockIndex = rowIndex / _blockSize;
+        var offsetInBlock = rowIndex % _blockSize;
+
+        lock (_lock)
+        {
+            if (_blocks.TryGetValue(blockIndex, out var block)
+                && block.Status == BlockStatus.Loaded
+                && offsetInBlock < block.Items.Count)
+            {
+                TouchLru(blockIndex);
+                return block.Items[offsetInBlock];
+            }
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// Request that a block be loaded if it isn't already cached or in-flight.
+    /// The fetch is deferred via Task.Yield so it never runs synchronously
+    /// in the caller's stack frame, but stays on the caller's thread (UI thread).
+    /// Fires <see cref="BlockLoaded"/> on completion.
+    /// </summary>
+    public void RequestBlock(int blockIndex)
+    {
+        lock (_lock)
+        {
+            if (_blocks.ContainsKey(blockIndex)) return;
+            if (_inflight.Contains(blockIndex)) return;
+            _inflight.Add(blockIndex);
+        }
+        _ = RequestBlockAsync(blockIndex);
+    }
+
+    private async Task RequestBlockAsync(int blockIndex)
+    {
+        // Yield to the message loop so the fetch doesn't execute synchronously
+        // inside the current render pass. On the UI thread this posts to the
+        // DispatcherQueue; the fetch + BlockLoaded callback fire on the next tick.
+        await Task.Yield();
+        await FetchBlockAsync(blockIndex);
     }
 
     /// <summary>
