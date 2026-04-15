@@ -101,7 +101,7 @@ public sealed partial class DuctHostControl : ContentControl, IDisposable
     /// </summary>
     public Action<double, double, double>? OnRenderComplete { get; set; }
 
-    public DuctHostControl(IDuctLogger? logger = null)
+    public DuctHostControl(Component? component = null, IDuctLogger? logger = null)
     {
         _logger = logger ?? new DebugDuctLogger();
         _reconciler = new Reconciler(_logger);
@@ -119,6 +119,9 @@ public sealed partial class DuctHostControl : ContentControl, IDisposable
 
         // Register built-in custom element types
         DataGrid.ResizeGripRegistration.Register(_reconciler);
+
+        if (component is not null)
+            Mount(component);
     }
 
     /// <summary>
