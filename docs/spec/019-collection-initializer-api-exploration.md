@@ -1,0 +1,1136 @@
+# Collection Initializers & Properties as an Alternative to Fluent Modifiers
+
+## Status
+
+**Exploration / RFC** — 2026-04-15.
+
+---
+
+## Motivation
+
+Duct's current API is built on **fluent method chaining**: factory methods return immutable records, and
+extension methods return modified copies via `el with { ... }`. This model is clean for simple
+cases but introduces friction at scale:
+
+1. **Three distinct syntax modes** coexist in user code — fluent methods (`.Padding(12)`), `with { }`
+   for record properties (`with { ColumnGap = 8 }`), and `.Set()` callbacks for native WinUI
+   properties — forcing developers to learn when to use which.
+2. **Long chains are hard to scan** — a 6-modifier chain reads linearly, but properties aren't
+   visually grouped (layout vs. styling vs. events).
+3. **Every new property requires a new extension method** — the API surface (1400+ lines in
+   `ElementExtensions.cs`) grows linearly with the platform it wraps.
+
+This spec explores what the Duct API would look like if it leaned into **C# object/collection
+initializers and properties** instead of (or alongside) fluent methods. It does not propose
+replacing the current API wholesale — it explores the design space to understand trade-offs.
+
+### Prior Art Within This Project
+
+[Spec 008 §5 — Collection Initializer Trees](008-csharp-language-improvements.md#5-collection-initializer-trees)
+already explored the C# language gap where collection initializers only work after `new`, not after
+factory methods. This spec takes a different angle: **what can we do today with existing C# syntax**,
+and what are the trade-offs vs. the current fluent model?
+
+---
+
+## Part 1: The Current Model (Baseline)
+
+### TodoApp — Current Fluent API
+
+```csharp
+return VStack(0,
+    Text("todos").FontSize(36)
+        .Set(t => t.FontWeight = FontWeights.Light)
+        .Foreground(AccentText)
+        .HAlign(HorizontalAlignment.Center)
+        .Margin(0, 16, 0, 8),
+
+    HStack(8,
+        TextField(state.NewItemText, v => dispatch(new SetNewItemText(v)))
+            .Set(tb => tb.PlaceholderText = "What needs to be done?")
+            .HAlign(HorizontalAlignment.Stretch),
+        Button(addCmd)
+    ).Padding(16, 8, 16, 8)
+     .Background(CardBackground),
+
+    ScrollView(
+        VStack(0,
+            filtered.Select(item => TodoRow(item, dispatch)).ToArray()
+        )
+    ).Flex(grow: 1, basis: 0),
+
+    HStack(8,
+        Text($"{remaining} items left").FontSize(12).Foreground(SecondaryText)
+            .VAlign(VerticalAlignment.Center),
+        Empty().HAlign(HorizontalAlignment.Stretch),
+        FilterButton("All", "all", state.Filter, dispatch),
+        FilterButton("Active", "active", state.Filter, dispatch),
+        FilterButton("Completed", "completed", state.Filter, dispatch)
+    ).Padding(12, 8, 12, 8)
+     .WithBorder(DividerStroke)
+).Background(SolidBackground)
+ .MaxWidth(600)
+ .HAlign(HorizontalAlignment.Center);
+```
+
+### Outlook MessageRow — Current Fluent API
+
+```csharp
+var senderLine = FlexRow(
+    Text(msg.SenderName).FontSize(14)
+        .Set(t => { t.FontWeight = bold; t.TextTrimming = TextTrimming.CharacterEllipsis; })
+        .Flex(grow: 1),
+    Text(dateStr).FontSize(12).Foreground(TertiaryText)
+) with { ColumnGap = 8 };
+
+return Button(
+    Grid(["*"], ["*"],
+        content.Padding(14, 10, 14, 10).Grid(row: 0, column: 0),
+        unreadBar.Grid(row: 0, column: 0)
+    ),
+    Props.OnSelected
+).Set(b =>
+{
+    b.Background = bg;
+    b.BorderThickness = new Thickness(0, 0, 0, 1);
+    b.BorderBrush = BorderBrush;
+    b.Padding = new Thickness(0);
+    b.HorizontalAlignment = HorizontalAlignment.Stretch;
+    b.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+    b.CornerRadius = new CornerRadius(0);
+    b.Resources["ButtonBackgroundPointerOver"] = HoverBrush;
+    b.Resources["ButtonBackgroundPressed"] = SelectedBrush;
+});
+```
+
+### What the Current Model Does Well
+
+- **Concise for simple cases** — `Text("Hello").Bold().Margin(8)` is hard to beat.
+- **Type preservation** — generic `T` extensions preserve the concrete type through chains, so
+  `Text("hi").Bold().Set(tb => ...)` still knows it's a `TextElement`.
+- **Composable** — modifiers can be applied at any point, conditionally, from helper methods.
+- **Discoverable** — IntelliSense on `.` shows all available modifiers.
+
+### Where the Current Model Has Friction
+
+| Pain point | Example | Frequency |
+|---|---|---|
+| **Three syntax modes** | `.Padding()` vs `with { ColumnGap = 8 }` vs `.Set(b => ...)` | Every complex component |
+| **`.Set()` as escape hatch** | `.Set(t => t.FontWeight = FontWeights.Light)` for a property that could be `.FontWeight(FontWeights.Light)` | ~30% of real-world components |
+| **API surface bloat** | 1400+ lines of extension methods, 500+ `.Set()` overloads, growing with every new WinUI property | Maintenance burden |
+| **Record property gap** | FlexElement's `ColumnGap`, `RowGap`, `JustifyContent` require `with { }` not fluent methods | Every FlexRow usage |
+| **Modifier order is invisible** | `.Background().CornerRadius().Padding()` — is layout mixed with styling? | Code review |
+| **Allocated ModifierObjects** | Each `.Margin()` creates a new `ElementModifiers` record and merges — O(n) per modifier | Hot render paths |
+
+---
+
+## Part 2: Option A — `new` + Object/Collection Initializers (Works Today)
+
+### The Idea
+
+Replace factory methods (`VStack(...)`, `Text(...)`) with `new` expressions and use C#'s native
+object/collection initializer syntax. Container elements get `IEnumerable<Element>` + `Add()`
+so children go inside `{ }`. Properties are set via object initializer syntax.
+
+### Required Type Changes
+
+```csharp
+// StackElement adds IEnumerable<Element> + Add() for collection initializer support
+public record StackElement : Element, IEnumerable<Element>
+{
+    public Orientation Orientation { get; init; } = Orientation.Vertical;
+    public double Spacing { get; init; } = 8;
+
+    // Layout modifiers promoted to properties
+    public double? Width { get; init; }
+    public double? Height { get; init; }
+    public Thickness? Margin { get; init; }
+    public Thickness? Padding { get; init; }
+    public Brush? Background { get; init; }
+    public Brush? Foreground { get; init; }
+    public HorizontalAlignment? HAlign { get; init; }
+    public VerticalAlignment? VAlign { get; init; }
+    // ... all ElementModifiers promoted to settable init properties
+
+    // Mutable child list for collection initializer, frozen on first read
+    private List<Element>? _children;
+    public void Add(Element? child) { if (child != null) (_children ??= new()).Add(child); }
+    public Element[] Children => _children?.ToArray() ?? [];
+    public IEnumerator<Element> GetEnumerator() => ((IEnumerable<Element>)(Children)).GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
+// TextElement — leaf, no collection initializer needed
+public record TextElement : Element
+{
+    public string Content { get; init; } = "";
+    public double? FontSize { get; init; }
+    public FontWeight? Weight { get; init; }
+    public bool Bold { get; init; }
+    // ... modifiers as properties
+}
+```
+
+### TodoApp — Option A
+
+```csharp
+return new VStack {
+    Spacing = 0,
+    Background = SolidBackground,
+    MaxWidth = 600,
+    HAlign = HorizontalAlignment.Center,
+
+    // Header
+    new Text("todos") {
+        FontSize = 36,
+        Weight = FontWeights.Light,
+        Foreground = AccentText,
+        HAlign = HorizontalAlignment.Center,
+        Margin = Thick(0, 16, 0, 8),
+    },
+
+    // Input bar
+    new HStack {
+        Spacing = 8,
+        Padding = Thick(16, 8, 16, 8),
+        Background = CardBackground,
+
+        new TextField {
+            Value = state.NewItemText,
+            OnChanged = v => dispatch(new SetNewItemText(v)),
+            Placeholder = "What needs to be done?",
+            HAlign = HorizontalAlignment.Stretch,
+        },
+        new Button(addCmd),
+    },
+
+    // List
+    new ScrollView {
+        Flex = new(grow: 1, basis: 0),
+        new VStack {
+            Spacing = 0,
+            filtered.Select(item => TodoRow(item, dispatch)).ToArray(),
+        },
+    },
+
+    // Footer
+    new HStack {
+        Spacing = 8,
+        Padding = Thick(12, 8, 12, 8),
+        Border = new(DividerStroke),
+
+        new Text($"{remaining} items left") {
+            FontSize = 12, Foreground = SecondaryText,
+            VAlign = VerticalAlignment.Center,
+        },
+        new Spacer(),
+        FilterButton("All", "all", state.Filter, dispatch),
+        FilterButton("Active", "active", state.Filter, dispatch),
+        FilterButton("Completed", "completed", state.Filter, dispatch),
+    },
+};
+```
+
+### Outlook MessageRow — Option A
+
+```csharp
+var senderLine = new FlexRow {
+    ColumnGap = 8,
+
+    new Text(msg.SenderName) {
+        FontSize = 14,
+        Weight = bold,
+        TextTrimming = TextTrimming.CharacterEllipsis,
+        Flex = new(grow: 1),
+    },
+    new Text(dateStr) {
+        FontSize = 12,
+        Foreground = TertiaryText,
+    },
+};
+
+return new Button(Props.OnSelected) {
+    Background = bg,
+    BorderThickness = Thick(0, 0, 0, 1),
+    BorderBrush = BorderBrush,
+    Padding = Thick(0),
+    HAlign = HorizontalAlignment.Stretch,
+    HContentAlign = HorizontalAlignment.Stretch,
+    CornerRadius = 0,
+    Resources = r => r
+        .Set("ButtonBackgroundPointerOver", HoverBrush)
+        .Set("ButtonBackgroundPressed", SelectedBrush),
+
+    Content = new Grid(["*"], ["*"]) {
+        content.At(row: 0, column: 0).WithPadding(14, 10, 14, 10),
+        unreadBar.At(row: 0, column: 0),
+    },
+};
+```
+
+### Analysis — Option A
+
+**What's better:**
+- **No more `.Set()` escape hatch** — all properties are directly settable via object initializer.
+  `FontWeight`, `TextTrimming`, `HorizontalContentAlignment` — just assign them.
+- **Properties are visually grouped** — layout, styling, and content are naturally grouped in
+  `{ }` blocks rather than strung along a chain.
+- **`{ }` closes better than `)`** — IDE brace matching, folding, and indentation all work better
+  with braces. No more walls of `), ), )`.
+- **Eliminates the three-syntax split** — no more choosing between `.Padding()` vs
+  `with { ColumnGap = 8 }` vs `.Set()`. Everything is `Property = value` or a child element.
+- **Drastically smaller API surface** — no need for 1400+ lines of extension methods. Properties
+  are just `{ get; init; }` on the record. Adding a new WinUI property means adding one line.
+- **`FlexRow { ColumnGap = 8 }` is cleaner than `FlexRow(...) with { ColumnGap = 8 }`** — the
+  awkward `with { }` on factory results disappears.
+
+**What's worse:**
+- **`new` keyword noise** — every element gets `new`. The fluent factory methods (`VStack`, `Text`,
+  `Button`) are cleaner than `new VStack`, `new Text`, `new Button`. This is significant visual
+  noise in deep trees.
+- **Children arrays are awkward** — inserting a computed `filtered.Select(...).ToArray()` inside
+  `{ }` needs the collection initializer `Add()` to handle arrays, or developers wrap in a spread.
+  Today's `params Element?[]` is more natural.
+- **Loss of type-safe chains** — `Text("hi").Bold().Margin(8)` is concise and type-safe. The
+  initializer equivalent `new Text("hi") { Bold = true, Margin = Thick(8) }` is more verbose for
+  simple cases.
+- **Immutability tension** — collection initializers call `Add()` mutably. This conflicts with
+  records being immutable value types. Requires internal mutability behind an immutable facade,
+  which is a correctness risk (concurrent reads during build, re-entrancy).
+- **Loss of conditional modifier composition** — fluent chains can conditionally apply modifiers:
+  `el.Margin(8).If(isActive, e => e.Background("red"))`. Initializers are static declarations —
+  conditional properties require ternary inline: `Background = isActive ? "red" : null`.
+- **`null` children** — `condition ? Text("yes") : null` works in `params Element?[]` because
+  the factory method's `FilterChildren` strips nulls. Collection initializers call `Add(null)` which
+  the `Add()` method must handle (guard check on every call).
+- **Helper methods can't return partially-configured elements** — today you can write
+  `static Element StyledButton(string label) => Button(label).Padding(8).Background(Accent)`.
+  With initializers, the properties are set at the call site, not inside the helper, unless the
+  helper returns `new Button { Padding = ..., Background = ... }` which loses the collection
+  initializer capability.
+
+**Verdict:** Strong improvement for complex components (Outlook, regedit), worse for simple ones
+(TodoApp helpers, one-liners). The `new` keyword noise is the biggest downside.
+
+---
+
+## Part 3: Option B — Factory Methods + `with { }` for Everything
+
+### The Idea
+
+Keep factory methods (`VStack`, `Text`, `Button`) but promote all common modifiers to `init`
+properties on the element records. Use `with { }` consistently instead of fluent chains for
+anything beyond the factory method's positional parameters.
+
+This already partially works today — `FlexRow(...) with { ColumnGap = 8 }` is valid C#.
+The change is to **make this the primary style** by putting layout/style properties directly on
+each element record instead of hiding them in `ElementModifiers`.
+
+### Required Changes
+
+```csharp
+// Element base gets all common modifiers as init properties
+public abstract record Element
+{
+    public string? Key { get; init; }
+    public Thickness? Margin { get; init; }
+    public Thickness? Padding { get; init; }
+    public double? Width { get; init; }
+    public double? Height { get; init; }
+    public Brush? Background { get; init; }
+    public Brush? Foreground { get; init; }
+    public double? Opacity { get; init; }
+    public HorizontalAlignment? HAlign { get; init; }
+    public VerticalAlignment? VAlign { get; init; }
+    // ... all former ElementModifiers become init properties on Element
+}
+```
+
+### TodoApp — Option B
+
+```csharp
+return VStack(0,
+    Text("todos") with {
+        FontSize = 36,
+        Weight = FontWeights.Light,
+        Foreground = AccentText,
+        HAlign = HorizontalAlignment.Center,
+        Margin = Thick(0, 16, 0, 8),
+    },
+
+    HStack(8,
+        TextField(state.NewItemText, v => dispatch(new SetNewItemText(v)))
+            with { Placeholder = "What needs to be done?", HAlign = HorizontalAlignment.Stretch },
+        Button(addCmd)
+    ) with { Padding = Thick(16, 8, 16, 8), Background = CardBackground },
+
+    ScrollView(
+        VStack(0, filtered.Select(item => TodoRow(item, dispatch)).ToArray())
+    ) with { Flex = new(grow: 1, basis: 0) },
+
+    HStack(8,
+        Text($"{remaining} items left")
+            with { FontSize = 12, Foreground = SecondaryText, VAlign = VerticalAlignment.Center },
+        Spacer(),
+        FilterButton("All", "all", state.Filter, dispatch),
+        FilterButton("Active", "active", state.Filter, dispatch),
+        FilterButton("Completed", "completed", state.Filter, dispatch)
+    ) with { Padding = Thick(12, 8, 12, 8), Border = new(DividerStroke) }
+) with { Background = SolidBackground, MaxWidth = 600, HAlign = HorizontalAlignment.Center };
+```
+
+### Outlook MessageRow — Option B
+
+```csharp
+var senderLine = FlexRow(
+    Text(msg.SenderName) with {
+        FontSize = 14,
+        Weight = bold,
+        TextTrimming = TextTrimming.CharacterEllipsis,
+        Flex = new(grow: 1),
+    },
+    Text(dateStr) with { FontSize = 12, Foreground = TertiaryText }
+) with { ColumnGap = 8 };
+
+return Button(
+    Grid(["*"], ["*"],
+        content with { Padding = Thick(14, 10, 14, 10), Grid = new(0, 0) },
+        unreadBar with { Grid = new(0, 0) }
+    ),
+    Props.OnSelected
+) with {
+    Background = bg,
+    BorderThickness = Thick(0, 0, 0, 1),
+    BorderBrush = BorderBrush,
+    Padding = Thick(0),
+    HAlign = HorizontalAlignment.Stretch,
+    HContentAlign = HorizontalAlignment.Stretch,
+    CornerRadius = 0,
+    Resources = r => r
+        .Set("ButtonBackgroundPointerOver", HoverBrush)
+        .Set("ButtonBackgroundPressed", SelectedBrush),
+};
+```
+
+### Analysis — Option B
+
+**What's better:**
+- **No `new` keyword** — keeps the clean factory method names.
+- **Eliminates `.Set()` for common properties** — `FontWeight`, `TextTrimming`, `CornerRadius`
+  all become direct init properties via `with { }`.
+- **Consistent with existing `with { }` usage** — the codebase already uses
+  `FlexRow(...) with { ColumnGap = 8 }`. This just makes it universal.
+- **Children remain as params arrays** — no `IEnumerable`/`Add()` complexity.
+  `VStack(0, child1, child2, child3)` still works.
+- **Helper methods still work** — `static Element StyledButton(string label) => Button(label) with { Padding = Thick(8), Background = Accent }` is natural.
+- **Record copy semantics work correctly** — `with { }` is the intended way to copy-mutate
+  records. No immutability hacks.
+
+**What's worse:**
+- **Verbosity for simple cases** — `Text("hi").Bold().Margin(8)` becomes
+  `Text("hi") with { Bold = true, Margin = Thick(8) }`. More characters, less fluid.
+- **Parentheses + `with { }` is noisy** — `VStack(0, ...) with { Background = red }` has both
+  `)` and `}` delimiters at the same nesting level. It's two distinct syntactic constructs on one
+  line.
+- **`with { }` creates a full record copy** — every `with { }` allocates a new record instance.
+  For a 5-property `with { }` block, C# copies all fields then overwrites 5. This is roughly
+  the same cost as 5 chained modifier calls, so no worse, but also no better.
+- **Property explosion on Element base** — moving all modifiers from `ElementModifiers` to `Element`
+  adds ~40 properties to the abstract record. Every concrete element inherits them all. The
+  `ShallowEquals` / `DiffProps` logic in the reconciler must compare all of them.
+- **No IntelliSense after `with`** — while `with { }` does offer IntelliSense for properties, the
+  experience is worse than method chaining. After `.`, IntelliSense shows all available methods
+  filtered by type. After `with {`, it shows ALL properties on the type (including inherited ones),
+  which is noisier.
+- **Loses the fluent chain aesthetic** — the current API reads top-to-bottom:
+  `.FontSize(14).Bold().Margin(8)`. The `with { }` block reads as a clump of assignments
+  without that flowing quality.
+- **Harder to conditionally compose** — you can't easily conditionally add a property to a `with`
+  block. You'd need: `var el = Text("hi") with { FontSize = 14 }; if (cond) el = el with { Bold = true };`
+  which is much worse than `Text("hi").FontSize(14).If(cond, Bold)`.
+
+**Verdict:** A solid middle ground. The `with { }` block is great for complex configuration
+(MessageRow) but feels heavy for simple chains. Biggest win: eliminating the
+fluent/with/Set three-way split. Biggest loss: simple cases get more verbose.
+
+---
+
+## Part 4: Option C — Hybrid (Fluent + Properties for What Fluent Can't Reach)
+
+### The Idea
+
+Keep the current fluent API for common modifiers but **promote element-specific properties** to
+`init` properties on the records, so `with { }` becomes the standard way to set element-specific
+configuration. Fluent methods handle cross-cutting concerns (layout, styling); `with { }` handles
+type-specific config.
+
+The rule: if a property is common across many element types (Margin, Padding, Background, Foreground,
+Width, Height, Opacity, etc.), it stays as a fluent extension method. If it's type-specific
+(ColumnGap, TextTrimming, FontWeight, PlaceholderText, IsReadOnly), it's an init property accessed
+via `with { }`.
+
+### Required Changes
+
+Minimal. Most type-specific properties are *already* init properties on the records. The change is:
+- Remove the `.Set()` overloads
+- Remove fluent extension methods that duplicate init properties (e.g., `.Spacing()` on StackElement)
+- Promote the most common `.Set()` targets to init properties on their element records
+- Document the convention: fluent for layout/style, `with { }` for element config
+
+### TodoApp — Option C
+
+```csharp
+return VStack(0,
+    // Header
+    Text("todos")
+        .FontSize(36)
+        .Foreground(AccentText)
+        .HAlign(HorizontalAlignment.Center)
+        .Margin(0, 16, 0, 8)
+        with { Weight = FontWeights.Light },
+
+    // Input bar
+    HStack(8,
+        TextField(state.NewItemText, v => dispatch(new SetNewItemText(v)))
+            with { Placeholder = "What needs to be done?" }
+            .HAlign(HorizontalAlignment.Stretch),
+        Button(addCmd)
+    ).Padding(16, 8, 16, 8)
+     .Background(CardBackground),
+
+    // List
+    ScrollView(
+        VStack(0, filtered.Select(item => TodoRow(item, dispatch)).ToArray())
+    ).Flex(grow: 1, basis: 0),
+
+    // Footer
+    HStack(8,
+        Text($"{remaining} items left")
+            .FontSize(12).Foreground(SecondaryText).VAlign(VerticalAlignment.Center),
+        Spacer(),
+        FilterButton("All", "all", state.Filter, dispatch),
+        FilterButton("Active", "active", state.Filter, dispatch),
+        FilterButton("Completed", "completed", state.Filter, dispatch)
+    ).Padding(12, 8, 12, 8).WithBorder(DividerStroke)
+).Background(SolidBackground).MaxWidth(600).HAlign(HorizontalAlignment.Center);
+```
+
+### Analysis — Option C
+
+**What's better:**
+- **Minimal migration** — keep 90% of the current API. Only add init properties for what `.Set()`
+  is currently used for.
+- **Simple cases stay simple** — `Text("hi").Bold().Margin(8)` unchanged.
+- **Eliminates `.Set()` for known properties** — `FontWeight`, `TextTrimming`, `PlaceholderText`
+  become init properties, so `with { Weight = FontWeights.Light }` replaces
+  `.Set(t => t.FontWeight = FontWeights.Light)`.
+- **Familiar** — existing Duct developers don't need to relearn anything.
+
+**What's worse:**
+- **Still two syntax modes** — fluent for modifiers, `with { }` for type-specific. Better than
+  three (no more `.Set()`), but not unified.
+- **Chaining after `with { }` is questionable** —
+  `TextField(...) with { Placeholder = "..." }.HAlign(Stretch)` — does this work? Yes, but the
+  semantics are: create a TextField, copy it with Placeholder set, then copy it again with HAlign.
+  Three copies. And visually it reads oddly — a `with { }` block then a `.Method()` tail.
+- **Where to draw the line** — which properties are "common enough" for fluent methods vs.
+  "type-specific enough" for `with { }`? This is subjective and will lead to inconsistencies.
+  Is `.Foreground()` common (on Text, Button, etc.)? Yes. Is `.TextWrapping()`? It's on Text and
+  TextField only — fluent or property?
+
+**Verdict:** Lowest risk, smallest gain. Reduces the three-syntax problem to two-syntax. Good
+as an incremental improvement but doesn't address the fundamental API shape question.
+
+---
+
+## Part 5: Option D — `new` With Factory Aliases (Best of A + B)
+
+### The Idea
+
+Use `new` + object/collection initializers (Option A) but add `using` aliases to hide the noise:
+
+```csharp
+using V = Duct.Core.StackElement;   // or: using VStack = Duct.Core.StackElement;
+using H = Duct.Core.HStackElement;
+using T = Duct.Core.TextElement;
+```
+
+Or, more practically, leverage C# 12's **`using` type aliases** and provide short names that
+look identical to the current factory methods:
+
+```csharp
+// Duct provides these as global usings or a well-known import
+global using VStack = Duct.Core.VStackElement;
+global using HStack = Duct.Core.HStackElement;
+global using Text = Duct.Core.TextElement;
+global using Button = Duct.Core.ButtonElement;
+```
+
+### Problem: Name Collisions
+
+This immediately collides with `System.Text`, `System.Windows.Controls.Button`, etc. Global using
+aliases with short names would be hostile to any codebase. This is a non-starter for types that
+share names with the BCL or WinUI.
+
+### Alternative: Implicit `new`
+
+C# supports target-typed `new()` where the type can be inferred. If element records had
+parameterless constructors and the context expected `Element`:
+
+```csharp
+Element[] children = [
+    new Text { Content = "Hello", FontSize = 14 },
+    new Button { Label = "Click", OnClick = handler },
+];
+```
+
+But this only works when there's a target type. Inside `params Element?[]` it works:
+
+```csharp
+return new VStack {
+    Spacing = 0,
+    Children = [
+        new() { Content = "Hello", FontSize = 14 },  // Ambiguous! What type?
+    ]
+};
+```
+
+Target-typed new fails because the compiler can't infer which `Element` subtype to create from
+`new()`. The concrete type carries semantic meaning (Text vs. Button vs. Border).
+
+**Verdict:** Alias approaches create more problems than they solve. `new` noise is inherent to
+the initializer model and can't be cleanly abstracted away.
+
+---
+
+## Part 6: Option E — Collection Expression Builders (C# 12+)
+
+### The Idea
+
+C# 12 introduced **collection expressions** (`[a, b, c]`) with the `[CollectionBuilder]` attribute.
+This allows a type to control how `[item1, item2, ...]` syntax desugars. Combined with an
+element type, children could use `[ ]` syntax:
+
+```csharp
+[CollectionBuilder(typeof(StackBuilder), "Create")]
+public record StackElement : Element
+{
+    public Element[] Children { get; init; }
+    public double Spacing { get; init; } = 8;
+    // ...
+}
+
+public static class StackBuilder
+{
+    public static StackElement Create(ReadOnlySpan<Element> children) =>
+        new() { Children = children.ToArray() };
+}
+```
+
+### Usage
+
+```csharp
+StackElement items = [
+    Text("Hello").Bold(),
+    Text("World"),
+    Button("Click", handler),
+];
+// items is a StackElement with Children = [Text, Text, Button]
+```
+
+### Problem: Properties
+
+Collection expressions only handle the child list. You can't set `Spacing`, `Background`, etc.
+via the collection expression. You'd need `with { }` on top:
+
+```csharp
+StackElement items = ([
+    Text("Hello").Bold(),
+    Text("World"),
+]) with { Spacing = 0, Background = CardBackground };
+```
+
+This is awkward — the `[ ]` gives you children, then `with { }` gives you properties. Two
+distinct blocks for one element. And the cast/type annotation is required because `[...]` alone
+can't infer the target type in all contexts.
+
+### Problem: Nesting
+
+Nested containers are the real test:
+
+```csharp
+StackElement ui = [
+    Text("Title"),
+    (StackElement)[       // Must cast nested collections to the right type
+        Text("Inner 1"),
+        Text("Inner 2"),
+    ] with { Spacing = 4 },
+    Button("Go", handler),
+];
+```
+
+The nesting is ugly. Every nested container needs an explicit cast to its element type because
+`[...]` is polymorphic — the compiler needs to know whether `[a, b]` is a `StackElement`,
+`List<Element>`, `Element[]`, etc.
+
+**Verdict:** Collection expressions solve the child-list half of the problem cleanly but don't
+help with properties. They create a split between child specification (`[ ]`) and configuration
+(`with { }`). Worse than Option B for holistic element construction.
+
+---
+
+## Part 7: Comparative Summary
+
+### TodoRow helper — all options side-by-side
+
+**Current (fluent):**
+```csharp
+static Element TodoRow(TodoItem item, Action<TodoAction> dispatch) =>
+    HStack(8,
+        CheckBox(item.IsCompleted, _ => dispatch(new ToggleItem(item.Id))),
+        Text(item.Text)
+            .FontSize(14)
+            .Opacity(item.IsCompleted ? 0.5 : 1)
+            .Set(t => { if (item.IsCompleted) t.TextDecorations = TextDecorations.Strikethrough; })
+            .VAlign(VerticalAlignment.Center),
+        Empty().HAlign(HorizontalAlignment.Stretch),
+        Button("✕", () => dispatch(new DeleteItem(item.Id)))
+            .Set(b => { b.Padding = new Thickness(6, 2, 6, 2); b.MinWidth = 0; b.MinHeight = 0; })
+    ).Padding(12, 6, 12, 6).WithKey(item.Id);
+```
+
+**Option A (`new` + initializers):**
+```csharp
+static Element TodoRow(TodoItem item, Action<TodoAction> dispatch) =>
+    new HStack {
+        Key = item.Id,
+        Spacing = 8,
+        Padding = Thick(12, 6, 12, 6),
+
+        new CheckBox { IsChecked = item.IsCompleted, OnChanged = _ => dispatch(new ToggleItem(item.Id)) },
+        new Text(item.Text) {
+            FontSize = 14,
+            Opacity = item.IsCompleted ? 0.5 : 1,
+            TextDecorations = item.IsCompleted ? TextDecorations.Strikethrough : TextDecorations.None,
+            VAlign = VerticalAlignment.Center,
+        },
+        new Spacer(),
+        new Button("✕") {
+            OnClick = () => dispatch(new DeleteItem(item.Id)),
+            Padding = Thick(6, 2, 6, 2),
+            MinWidth = 0,
+            MinHeight = 0,
+        },
+    };
+```
+
+**Option B (factory + `with { }`):**
+```csharp
+static Element TodoRow(TodoItem item, Action<TodoAction> dispatch) =>
+    HStack(8,
+        CheckBox(item.IsCompleted, _ => dispatch(new ToggleItem(item.Id))),
+        Text(item.Text) with {
+            FontSize = 14,
+            Opacity = item.IsCompleted ? 0.5 : 1,
+            TextDecorations = item.IsCompleted ? TextDecorations.Strikethrough : TextDecorations.None,
+            VAlign = VerticalAlignment.Center,
+        },
+        Spacer(),
+        Button("✕", () => dispatch(new DeleteItem(item.Id))) with {
+            Padding = Thick(6, 2, 6, 2),
+            MinWidth = 0,
+            MinHeight = 0,
+        }
+    ) with { Padding = Thick(12, 6, 12, 6), Key = item.Id };
+```
+
+**Option C (hybrid):**
+```csharp
+static Element TodoRow(TodoItem item, Action<TodoAction> dispatch) =>
+    HStack(8,
+        CheckBox(item.IsCompleted, _ => dispatch(new ToggleItem(item.Id))),
+        Text(item.Text)
+            .FontSize(14)
+            .Opacity(item.IsCompleted ? 0.5 : 1)
+            .VAlign(VerticalAlignment.Center)
+            with { TextDecorations = item.IsCompleted ? TextDecorations.Strikethrough : TextDecorations.None },
+        Spacer(),
+        Button("✕", () => dispatch(new DeleteItem(item.Id)))
+            with { Padding = Thick(6, 2, 6, 2), MinWidth = 0, MinHeight = 0 }
+    ).Padding(12, 6, 12, 6).WithKey(item.Id);
+```
+
+### Scoring Matrix
+
+| Criteria | Current | A: `new` + init | B: factory + `with` | C: hybrid | E: collection expr |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Simple element (1-2 props) | **A+** | B | B+ | **A+** | B |
+| Complex element (5+ props) | C | **A** | **A-** | B+ | C |
+| Nested container trees | B+ | **A** | B | B+ | C- |
+| Conditional modifiers | **A** | B- | B | **A-** | B- |
+| No `.Set()` escape hatch | F | **A+** | **A** | B | B |
+| No `new` keyword noise | **A+** | D | **A+** | **A+** | B |
+| API surface size | D | **A+** | B | C | B |
+| Immutability correctness | **A+** | C | **A+** | **A+** | **A** |
+| Migration cost | **A+** | D | C+ | **A-** | C |
+| IntelliSense / discoverability | **A** | B+ | B | **A-** | B- |
+| Learning curve for new devs | B+ | B | B | B | C |
+| Reconciler perf impact | **A** | C | B+ | **A** | B+ |
+
+### Legend
+- **A+/A/A-** — Excellent / strong
+- **B+/B/B-** — Good / acceptable
+- **C+/C/C-** — Mediocre / workable but painful
+- **D** — Poor
+- **F** — Fails / not possible
+
+---
+
+## Part 8: Deep Dive — Specific Problem Areas
+
+### 8.1 The `.Set()` Problem
+
+`.Set()` exists because the fluent API can't expose every WinUI property. It accounts for ~30%
+of real-world component code (see MessageRow, TodoApp, DirectoryTree). Each option addresses it
+differently:
+
+| What `.Set()` is used for | Current | Option A | Option B | Option C |
+|---|---|---|---|---|
+| FontWeight on TextBlock | `.Set(t => t.FontWeight = ...)` | `Weight = ...` in init | `with { Weight = ... }` | `with { Weight = ... }` |
+| TextTrimming | `.Set(t => t.TextTrimming = ...)` | `TextTrimming = ...` | `with { TextTrimming = ... }` | `with { TextTrimming = ... }` |
+| Button.Padding / MinWidth | `.Set(b => { b.Padding = ...; b.MinWidth = 0; })` | `Padding = ..., MinWidth = 0` | `with { Padding = ..., MinWidth = 0 }` | `.Padding(...) with { MinWidth = 0 }` |
+| Resources dictionary | `.Set(b => { b.Resources["X"] = Y; })` | `Resources = r => r.Set(...)` | `with { Resources = r => r.Set(...) }` | Same as B |
+| Arbitrary WinUI property | `.Set(c => c.SomeObscureProperty = ...)` | Need init property or fallback | Need init property or fallback | Still need `.Set()` fallback |
+
+**Key insight:** Options A and B eliminate `.Set()` *for properties modeled on the element record*.
+But any WinUI property NOT on the record still needs an escape hatch. The question is: how many
+properties does the record model, and how do you handle the rest?
+
+**Proposed solution for any option:** Keep `.Set()` as a last-resort escape hatch but make it
+unnecessary for the top ~50 properties used in real code. The element records already model most
+of these (FontSize, IsEnabled, Spacing, etc.) — the gap is primarily FontWeight, TextDecorations,
+TextTrimming, Padding/MinWidth on Button, and resource dictionary access.
+
+### 8.2 The Immutability Problem (Option A Only)
+
+Collection initializers require `Add()`, which is a mutating operation. Duct elements are immutable
+records. These are fundamentally at odds.
+
+**Approach 1: Internal mutable builder, freeze on read.** The record has a private `List<Element>`
+that `Add()` appends to, and `Children` returns a frozen array. Risk: the record is mutable during
+construction, which violates the assumption that records are immutable.
+
+**Approach 2: `[CollectionBuilder]` attribute.** C# 12 allows `[CollectionBuilder(typeof(X), "Create")]`
+to specify a factory that receives `ReadOnlySpan<T>`. But this only works with collection expressions
+(`[a, b, c]`), not with `{ a, b, c }` collection initializers. Different feature, different syntax.
+
+**Approach 3: Separate mutable builder type.** `new VStackBuilder { child1, child2 } .Build()`
+returns an immutable `StackElement`. But this adds a `.Build()` call and a parallel type hierarchy.
+
+**Approach 4: Accept the internal mutability.** The record is mutable during construction via `Add()`,
+but C# guarantees sequential execution within an expression. No other code can observe the partially-
+constructed state. This is the same pattern `List<T>` uses with collection initializers. It's safe
+in practice but aesthetically impure.
+
+**Recommendation:** Approach 4 (accept internal mutability) if pursuing Option A. The alternatives
+add too much ceremony.
+
+### 8.3 The Conditional Children Problem
+
+Duct's current `params Element?[]` + `FilterChildren()` elegantly handles conditional rendering:
+
+```csharp
+VStack(
+    Text("Always visible"),
+    condition ? Text("Sometimes visible") : null,
+    showExtra ? ExtraSection() : null
+)
+```
+
+Each option handles this differently:
+
+**Option A:** `Add(null)` must be a no-op. The `Add()` method filters nulls. Works, but every
+call site pays a null check.
+
+**Option B:** No change — `params Element?[]` still handles this. The `with { }` block is only
+for properties, not children.
+
+**Option C:** Same as current.
+
+**Option E:** Collection expressions don't support null elements by default. You'd need
+`[a, b, ...(condition ? [c] : [])]` which is ugly.
+
+### 8.4 The Conditional Modifier Problem
+
+Today:
+```csharp
+Text("Hello")
+    .FontSize(14)
+    .Apply(isHighlighted, e => e.Background("yellow").FontWeight(FontWeights.Bold))
+    .Margin(8)
+```
+
+With `with { }` (Options B/C):
+```csharp
+// Can't conditionally add properties to a with block
+var el = Text("Hello") with { FontSize = 14, Margin = Thick(8) };
+if (isHighlighted)
+    el = el with { Background = BrushHelper.Parse("yellow"), Weight = FontWeights.Bold };
+```
+
+Or with ternary:
+```csharp
+Text("Hello") with {
+    FontSize = 14,
+    Margin = Thick(8),
+    Background = isHighlighted ? BrushHelper.Parse("yellow") : null,
+    Weight = isHighlighted ? FontWeights.Bold : null,
+}
+```
+
+The ternary approach works but duplicates the condition. The multi-statement approach loses
+the single-expression ergonomics.
+
+**Possible extension: `.Apply()` helper**
+```csharp
+Text("Hello")
+    with { FontSize = 14, Margin = Thick(8) }
+    .Apply(isHighlighted, e => e with { Background = yellow, Weight = FontWeights.Bold })
+```
+
+This chains a `with { }` block followed by a fluent `.Apply()` — mixing styles, but it works.
+
+### 8.5 The Performance Problem
+
+Each fluent modifier call today does:
+1. Create a new `ElementModifiers` record with one property set
+2. Call `Merge()` to combine with existing modifiers (copies ~40 fields)
+3. Return `el with { Modifiers = merged }` (copies all element fields + new Modifiers)
+
+For a 5-modifier chain, that's 5 `ElementModifiers` allocations + 5 merge operations + 5 element
+copies.
+
+With `with { }` (Option B), a 5-property `with { }` block does:
+1. One element copy with 5 fields overwritten
+
+This is **significantly cheaper** — one allocation instead of five, no intermediate merge objects.
+The reconciler's `ShallowEquals` also gets simpler: compare properties directly on the element
+instead of drilling into a nested `Modifiers` record.
+
+With `new` + initializer (Option A), the cost is:
+1. One allocation of the element
+2. N `Add()` calls for children (list append, amortized O(1) each)
+3. Properties set directly on the init-properties
+
+Also cheaper than the current model.
+
+**Performance verdict:** Both Options A and B are strictly better than the current fluent model
+for elements with multiple modifiers. The current model's per-modifier allocation + merge cost
+is its worst performance characteristic.
+
+---
+
+## Part 9: Recommendations
+
+### Short Term (Low Risk)
+
+**Adopt Option C (Hybrid)** as an incremental improvement:
+
+1. Promote the top ~20 `.Set()` targets to init properties on their element records:
+   - `TextElement`: `TextDecorations`, `MaxLines`, `TextTrimming` (already has `TextWrapping`)
+   - `ButtonElement`: `Padding` (as init property, not just via Modifiers)
+   - `TextFieldElement`: `PlaceholderText` (already `Placeholder` in constructor)
+   - Common for all: `MinWidth`, `MinHeight` (already on `ElementModifiers` but needed as
+     escape-hatch-free properties)
+
+2. Document the convention: "Use fluent methods for layout and styling that applies to any element.
+   Use `with { }` for type-specific configuration."
+
+3. Deprecate `.Set()` usage for properties that have init-property equivalents. Keep `.Set()` as
+   a documented last-resort for truly obscure WinUI properties.
+
+### Medium Term (Consider Carefully)
+
+**Evaluate Option B** as the primary API style for Duct v2:
+
+1. Move all `ElementModifiers` properties to init properties on the `Element` base record.
+2. Make `with { }` the standard way to configure elements beyond positional factory parameters.
+3. Keep fluent extension methods as **convenience aliases** for the most common properties
+   (`.Margin()`, `.Padding()`, `.Background()`, `.Width()`, `.Height()`), but they become thin
+   wrappers over `with { }`.
+4. This gives developers a choice: use fluent for quick one-liners, `with { }` for complex config.
+
+### Long Term (If C# Evolves)
+
+**Watch for factory method initializers** ([csharplang #6602](https://github.com/dotnet/csharplang/discussions/6602)):
+If C# ever allows `VStack(16) { child1, child2 }` syntax (collection initializer after factory
+method calls), this unlocks the best possible Duct syntax — no `new`, `{ }` for children,
+properties inline. This is the "Option A without the `new`" future that Spec 008 §5 describes.
+
+### What NOT to Do
+
+1. **Don't pursue Option A (pure `new` + initializers) today.** The `new` keyword noise, immutability
+   tension, and name collision issues make it a poor fit for Duct's ergonomic goals. It could be
+   revisited if C# adds factory-method initializers.
+
+2. **Don't pursue Option E (collection expressions) as a primary model.** It solves half the problem
+   (children) while creating a new split (children in `[ ]`, properties in `with { }`).
+
+3. **Don't try to eliminate fluent methods entirely.** They're superior for simple, common cases.
+   The goal is to reduce the cases where `.Set()` is the only option, not to replace a working
+   pattern.
+
+---
+
+## Part 10: Migration Path for Option C (Hybrid)
+
+### Phase 1: Add init properties (non-breaking)
+
+```diff
+ public record TextElement(string Content) : Element
+ {
+     public double? FontSize { get; init; }
+     public FontWeight? Weight { get; init; }
++    public TextDecorations? TextDecorations { get; init; }
++    public int? MaxLines { get; init; }
++    public TextTrimming? TextTrimming { get; init; }
+     // ...
+ }
+
+ public record ButtonElement(string Label, Action? OnClick = null) : Element
+ {
+     public bool IsEnabled { get; init; } = true;
++    public Thickness? Padding { get; init; }
++    public double? MinWidth { get; init; }
++    public double? MinHeight { get; init; }
+     // ...
+ }
+```
+
+### Phase 2: Update reconciler to read new properties
+
+The reconciler already reads init properties from element records (FontSize, Weight, etc.).
+New properties follow the same pattern: check if non-null, apply to WinUI control.
+
+### Phase 3: Migrate samples from `.Set()` to `with { }`
+
+```diff
+ // Before
+ Text(item.Text)
+     .FontSize(14)
+     .Opacity(item.IsCompleted ? 0.5 : 1)
+-    .Set(t => { if (item.IsCompleted) t.TextDecorations = TextDecorations.Strikethrough; })
++    with { TextDecorations = item.IsCompleted ? TextDecorations.Strikethrough : TextDecorations.None }
+     .VAlign(VerticalAlignment.Center),
+
+ // Before
+ Button("✕", () => dispatch(new DeleteItem(item.Id)))
+-    .Set(b => { b.Padding = new Thickness(6, 2, 6, 2); b.MinWidth = 0; b.MinHeight = 0; })
++    with { Padding = Thick(6, 2, 6, 2), MinWidth = 0, MinHeight = 0 }
+```
+
+### Phase 4: Deprecate `.Set()` for migrated properties
+
+Add `[Obsolete]` or analyzer warnings when `.Set()` is used for properties that have init-property
+equivalents.
+
+---
+
+## Appendix A: What Other Frameworks Do
+
+| Framework | Element construction | Properties | Children |
+|---|---|---|---|
+| **SwiftUI** | View structs | ViewModifier chain | `body: some View` / `@ViewBuilder` |
+| **Jetpack Compose** | `@Composable` functions | `Modifier` chain + named params | Trailing lambda `{ }` |
+| **Flutter** | `new Widget(...)` constructors | Named constructor params | `children: [...]` param |
+| **React JSX** | `<Component />` | JSX attributes | JSX children |
+| **Avalonia.Markup.Declarative** | Factory methods | Fluent `.Prop(value)` chain | `.Content(child)` / `.Items(...)` |
+| **MAUI (C# Markup)** | `new Label()` | Object initializer `{ }` | `.Content()` / `.Children()` |
+| **Fabulous (F#)** | View functions | Fluent modifiers | Computation expression `{ }` |
+| **Duct (current)** | Factory methods | Fluent + `.Set()` + `with { }` | `params Element?[]` |
+
+**Key observation:** Every successful declarative UI framework lands on one of two models:
+1. **Function + modifier chain** (SwiftUI, Compose, Duct) — construction is a function call,
+   configuration is chained modifiers.
+2. **Constructor + properties** (Flutter, MAUI) — construction is `new`, configuration is named
+   params or object initializer.
+
+No framework successfully mixes both as equals. Duct's `with { }` usage on FlexElement is already
+a sign of model #2 leaking into model #1. The question is whether to commit to one or deliberately
+operate in the hybrid space.
+
+## Appendix B: Detailed C# Syntax Limitations
+
+### `with { }` After Method Calls
+
+`with { }` works after any expression of a record type. This means:
+
+```csharp
+// All valid C# today:
+var a = Text("hi") with { FontSize = 14 };
+var b = VStack(child1, child2) with { Spacing = 0 };
+var c = FlexRow(items) with { ColumnGap = 8, JustifyContent = FlexJustify.Center };
+```
+
+But `with { }` is a **copy operation** — it creates a new record with the specified properties
+changed. This means the factory method runs first (allocating the record with children), then
+`with { }` copies the entire record to change one property. For records with array fields
+(Children), the copy is shallow — the array reference is copied, not the contents.
+
+### Chaining After `with { }`
+
+```csharp
+// Valid C# — .Margin() is called on the result of `with { }`
+var x = Text("hi") with { FontSize = 14 }.Margin(8);
+
+// But this binds as: Text("hi") with { FontSize = (14).Margin(8) }
+// which fails because int has no Margin method.
+// Must parenthesize:
+var x = (Text("hi") with { FontSize = 14 }).Margin(8);
+```
+
+This is a **real syntax gotcha**. The `with { }` expression has lower precedence than `.` member
+access. So `expr with { P = V }.Method()` is parsed as `expr with { P = V.Method() }`, not
+`(expr with { P = V }).Method()`.
+
+**Impact:** In Option B and C, you CANNOT chain fluent methods after `with { }` without
+parentheses. This makes hybrid usage ugly:
+
+```csharp
+// WRONG — parses as with { Placeholder = "...".HAlign(Stretch) }
+TextField(text, setter) with { Placeholder = "..." }.HAlign(HorizontalAlignment.Stretch)
+
+// RIGHT — but ugly
+(TextField(text, setter) with { Placeholder = "..." }).HAlign(HorizontalAlignment.Stretch)
+
+// BETTER — put fluent first, with last
+TextField(text, setter).HAlign(HorizontalAlignment.Stretch) with { Placeholder = "..." }
+```
+
+**Practical rule for Options B/C:** Put `with { }` as the **last** thing on the expression. Fluent
+methods go before, `with { }` goes after. This works because fluent methods return the same record
+type, which is still valid as the left operand of `with { }`.
+
+### Collection Initializer Constraints
+
+Collection initializers require:
+1. The type implements `IEnumerable` (or `IEnumerable<T>`)
+2. The type has one or more `Add()` instance methods
+3. The expression uses `new` (not a factory method — this is the key limitation)
+
+`Add()` can have multiple overloads:
+```csharp
+void Add(Element child)        // Add one child
+void Add(Element[] children)   // Add an array (spread)
+void Add(string text)          // Implicit conversion: Add(new Text(text))
+```
+
+### `init` Properties on Records
+
+All properties shown in this spec are `{ get; init; }`, meaning they can only be set:
+1. In a constructor/factory method
+2. In an object initializer (`new Foo { Prop = val }`)
+3. In a `with` expression (`foo with { Prop = val }`)
+
+They CANNOT be set via `foo.Prop = val` after construction. This preserves the immutability
+guarantee that the reconciler depends on.
