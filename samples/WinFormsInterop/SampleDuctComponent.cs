@@ -1,6 +1,7 @@
 using Duct;
 using Duct.Core;
 using static Duct.UI;
+using static Duct.Core.Theme;
 using XamlAlignment = Microsoft.UI.Xaml.HorizontalAlignment;
 
 namespace WinFormsInterop.Sample;
@@ -17,7 +18,11 @@ class SampleDuctComponent : Component
         var (name, setName) = UseState("World");
         var (sliderValue, setSliderValue) = UseState(50.0);
 
-        return VStack(
+        // Grid stretches to fill the island and provides a themed background.
+        // DesktopWindowXamlSource doesn't stretch content or provide a background
+        // like a WinUI Window does — hosted components should fill their container.
+        return Grid(["*"], ["*"],
+          VStack(
             // ── Header ─────────────────────────────────────
             Text("Duct Component (via XAML Island)")
                 .FontSize(22)
@@ -83,6 +88,7 @@ class SampleDuctComponent : Component
                 .FontSize(11)
                 .Opacity(0.35)
                 .Margin(0, 8, 0, 0)
-        ).Padding(24);
+          ).Padding(24)
+        ).Background(SolidBackground);
     }
 }

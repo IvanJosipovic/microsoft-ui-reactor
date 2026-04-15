@@ -120,14 +120,7 @@ class WinFormsOutsideForm : WinForms.Form
 
         var ductHost = new DuctHostControl();
         ductHost.Mount(new SampleDuctComponent());
-
-        // DesktopWindowXamlSource doesn't stretch its Content like a Window does.
-        // Wrap in a Grid (which fills available space) with a themed background.
-        var root = new Microsoft.UI.Xaml.Controls.Grid();
-        root.Background = (Microsoft.UI.Xaml.Media.Brush)
-            Microsoft.UI.Xaml.Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
-        root.Children.Add(ductHost);
-        island.XamlContent = root;
+        island.XamlContent = ductHost;
 
         // Dock layout order: left panel, splitter, then island fills the rest
         Controls.Add(island);

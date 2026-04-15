@@ -3,6 +3,7 @@ using Duct.Core;
 using Duct.Interop.WinForms;
 using Microsoft.UI.Xaml;
 using static Duct.UI;
+using static Duct.Core.Theme;
 using WinForms = System.Windows.Forms;
 
 namespace WinFormsInterop.Sample;
@@ -18,7 +19,8 @@ class DuctOutsideComponent : Component
         var (count, setCount) = UseState(0);
         var (gridRows, setGridRows) = UseState(3);
 
-        return VStack(
+        return Grid(["*"], ["*"],
+          VStack(
             // ── Header ──────────────────────────────────
             Text("Duct / WinUI on the Outside")
                 .FontSize(24)
@@ -55,7 +57,8 @@ class DuctOutsideComponent : Component
                 .FontSize(11)
                 .Opacity(0.4)
 
-        ).Padding(24);
+          ).Padding(24)
+        ).Background(SolidBackground);
     }
 
     private static WinForms.DataGridView CreateDataGridView()

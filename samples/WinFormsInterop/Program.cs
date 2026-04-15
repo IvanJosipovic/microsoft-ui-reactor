@@ -113,14 +113,7 @@ static class Program
         var ductHost = new DuctHostControl();
         WinFormsHostBridge.Register(ductHost.Reconciler, () => form.Handle);
         ductHost.Mount(new DuctOutsideComponent());
-
-        // DesktopWindowXamlSource doesn't stretch its Content like a Window does.
-        // Wrap in a Grid (which fills available space) with a themed background.
-        var root = new Microsoft.UI.Xaml.Controls.Grid();
-        root.Background = (Microsoft.UI.Xaml.Media.Brush)
-            Microsoft.UI.Xaml.Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
-        root.Children.Add(ductHost);
-        island.XamlContent = root;
+        island.XamlContent = ductHost;
         form.Controls.Add(island);
 
         return form;

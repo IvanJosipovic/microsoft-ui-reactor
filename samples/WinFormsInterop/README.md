@@ -39,6 +39,100 @@ Both modes open two windows:
   - Owned overlay Form (borderless tool window) — WinUI window still paints over it
   - Removing placeholder background — compositor surface itself is opaque
 
+## Quick Start: Add Duct to an Existing WinForms App
+
+Starting from a standard `dotnet new winforms` app:
+
+**Before** — vanilla WinForms (`Program.cs`):
+```csharp
+namespace MyApp;
+
+static class Program
+{
+    [STAThread]
+    static void Main()
+    {
+        ApplicationConfiguration.Initialize();
+        Application.Run(new Form1());
+    }
+}
+```
+
+**After** — three changes to host a Duct component:
+
+**1. Add to `.csproj`:**
+```xml
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.0-experimental6" />
+    <ProjectReference Include="path\to\Duct.Interop.WinForms.csproj" />
+    <ProjectReference Include="path\to\Duct.csproj" />
+```
+
+**2. Change `Program.cs`** — wrap `Application.Run` with `XamlIslandBootstrap.Run`:
+```csharp
+using Duct.Interop.WinForms;
+
+namespace MyApp;
+
+static class Program
+{
+    [STAThread]
+    static void Main()
+    {
+        ApplicationConfiguration.Initialize();
+        XamlIslandBootstrap.Run(() =>              // replaces Application.Run —
+        {                                          // initializes WinUI runtime,
+            var form = new Form1();                // then runs your app normally
+            form.Show();
+            form.FormClosed += (_, _) =>
+                Microsoft.UI.Xaml.Application.Current.Exit();
+        });
+    }
+}
+```
+
+**3. Drop an `XamlIslandControl` into your form** (designer or code-behind):
+```csharp
+using Duct;
+using Duct.Interop.WinForms;
+
+// In Form1 constructor or Load handler:
+var island = new XamlIslandControl { Dock = DockStyle.Fill };
+var ductHost = new DuctHostControl();
+ductHost.Mount(new MyDuctComponent());
+island.XamlContent = ductHost;
+Controls.Add(island);
+```
+
+**4. Write the Duct component:**
+```csharp
+using Duct;
+using Duct.Core;
+using static Duct.UI;
+using static Duct.Core.Theme;
+
+class MyDuctComponent : Component
+{
+    public override Element Render()
+    {
+        var (count, setCount) = UseState(0);
+
+        // Grid + Background fills the island — XAML Islands don't provide
+        // a background or stretch content like a WinUI Window does.
+        return Grid(["*"], ["*"],
+            VStack(
+                Text("Hello from Duct!").FontSize(24),
+                Button($"Clicked {count} times", () => setCount(count + 1))
+            ).Padding(24)
+        ).Background(SolidBackground);
+    }
+}
+```
+
+That's it. The `XamlIslandControl` works anywhere in your WinForms layout — panels, split containers, tab pages, etc.
+
 ## Architecture
 
 ```
