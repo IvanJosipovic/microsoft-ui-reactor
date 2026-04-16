@@ -1,7 +1,7 @@
 # 018 — Namespace Rename: Duct → Microsoft.UI.Reactor
 
 **Status:** Draft  
-**Date:** 2026-04-14
+**Date:** 2026-04-15
 
 ## Overview
 
@@ -49,6 +49,7 @@ The CLI tool is renamed to **mur** (Microsoft.UI.Reactor).
 | `Duct.Cli` | `Microsoft.UI.Reactor.Cli` |
 | `Duct.Cli.Docs` | `Microsoft.UI.Reactor.Cli.Docs` |
 | `Duct.Cli.Loc` | `Microsoft.UI.Reactor.Cli.Loc` |
+| `Duct.Interop.WinForms` | `Microsoft.UI.Reactor.Interop.WinForms` |
 
 ### Test / infrastructure namespaces
 
@@ -61,6 +62,7 @@ The CLI tool is renamed to **mur** (Microsoft.UI.Reactor).
 | `CmdPerf.Duct` | `CmdPerf.Reactor` |
 | `StressPerf.Duct` | `StressPerf.Reactor` |
 | `StressPerf.DuctGrid` | `StressPerf.ReactorGrid` |
+| `Duct.WinFormsTests.Host` | `Reactor.WinFormsTests.Host` |
 | `PerfBench.*.Duct` (all variants) | `PerfBench.*.Reactor` |
 
 ### Sample app namespaces
@@ -109,6 +111,7 @@ The CLI tool is renamed to **mur** (Microsoft.UI.Reactor).
 | `DuctAppOptions` | `ReactorAppOptions` |
 | `DuctFilesApp` | `ReactorFilesApp` |
 | `DuctFilesEvents` | `ReactorFilesEvents` |
+| `DuctComponentTypeConverter` | `ReactorComponentTypeConverter` |
 
 ### Test fixture classes
 
@@ -124,6 +127,8 @@ The CLI tool is renamed to **mur** (Microsoft.UI.Reactor).
 | `DuctHostRenderStats` | `HostRenderStats` |
 | `DuctHostDispose` | `HostDispose` |
 | `DuctPageHelperExercise` | `PageHelperExercise` |
+| `TestDuctComponent` | `TestReactorComponent` |
+| `SampleDuctComponent` | `SampleReactorComponent` |
 
 ### DSL entry point class
 
@@ -266,6 +271,17 @@ Used in: `UseThemeRefAnalyzer.cs`, `UseLightweightStylingAnalyzer.cs`,
 | EventSource name | `[EventSource(Name = "DuctFiles")]` | `[EventSource(Name = "ReactorFiles")]` |
 | DuctHostControlDemo XAML | `Title="DuctHostControl Demo"` | `Title="ReactorHostControl Demo"` |
 | flex-layout sample tags | `"Duct"` in tag list | `"Reactor"` |
+| UseAnnounce.cs TypeKey | `"DuctAnnounce"` | `"ReactorAnnounce"` |
+| RenderContext.cs debug prefix | `"[Duct] "` in Debug.WriteLine calls | `"[Reactor] "` |
+| XamlIslandControl.cs category | `[Category("Duct")]` | `[Category("Reactor")]` |
+| XamlIslandControl.cs description | `"The Duct Component type to host. Creates a DuctHostControl…"` | `"The Reactor Component type to host. Creates a ReactorHostControl…"` |
+| TestDuctComponent.cs title | `"Duct Island Content"` | `"Reactor Island Content"` |
+| TestDuctComponent.cs AutomationIds | `"Duct_Title"`, `"Duct_TextField1"`, `"Duct_Button1"`, `"Duct_TextDisplay"`, `"Duct_CountDisplay"`, `"Duct_TextField2"`, `"Duct_LiveRegion"`, `"Duct_RenderProof"` | `"Reactor_Title"`, `"Reactor_TextField1"`, etc. |
+| WinFormsInteropTests.cs | Same AutomationId strings in test assertions | Match test host renames |
+| WinFormsOutsideForm.Designer.cs title | `"WinForms hosts Duct"` | `"WinForms hosts Reactor"` |
+| WinFormsOutsideForm.Designer.cs text | `"hosting a Duct component tree"` | `"hosting a Reactor component tree"` |
+| SampleDuctComponent.cs heading | `"Duct Component (via XAML Island)"` | `"Reactor Component (via XAML Island)"` |
+| SampleDuctComponent.cs body | `"This Duct/WinUI component…"` | `"This Reactor/WinUI component…"` |
 
 ---
 
@@ -284,6 +300,7 @@ Used in: `UseThemeRefAnalyzer.cs`, `UseLightweightStylingAnalyzer.cs`,
 | `Duct/Flex/` | *(merged into `Reactor/Layout/`)* |
 | `Duct/Yoga/` | `Reactor/Layout/` |
 | `Duct.Analyzers/` | `Reactor.Analyzers/` |
+| `Duct.Interop.WinForms/` | `Reactor.Interop.WinForms/` |
 | `Duct.Cli/` | `Reactor.Cli/` |
 | `Duct.Localization.Generator/` | `Reactor.Localization.Generator/` |
 | `DuctD3/` | *(merged into `Reactor/Charting/` — see Section 9b)* |
@@ -300,6 +317,7 @@ Used in: `UseThemeRefAnalyzer.cs`, `UseLightweightStylingAnalyzer.cs`,
 | `tests/cmd_perf/CmdPerf.Duct/` | `tests/cmd_perf/CmdPerf.Reactor/` |
 | `tests/stress_perf/StressPerf.Duct/` | `tests/stress_perf/StressPerf.Reactor/` |
 | `tests/stress_perf/StressPerf.DuctGrid/` | `tests/stress_perf/StressPerf.ReactorGrid/` |
+| `tests/Duct.WinFormsTests.Host/` | `tests/Reactor.WinFormsTests.Host/` |
 
 ### Perf bench projects (`tests/perf_bench/`)
 
@@ -334,6 +352,8 @@ Each project's `.csproj` filename changes to match, e.g.:
 - `Duct.Tests.csproj` → `Reactor.Tests.csproj`
 - `DuctFiles.csproj` → `ReactorFiles.csproj`
 - `DuctD3.Tests.csproj` → `ReactorD3.Tests.csproj`
+- `Duct.Interop.WinForms.csproj` → `Reactor.Interop.WinForms.csproj`
+- `Duct.WinFormsTests.Host.csproj` → `Reactor.WinFormsTests.Host.csproj`
 - etc.
 
 ---
@@ -744,24 +764,26 @@ All `.md` files in the repo will be updated:
 
 ### Spec file renames (docs/spec/)
 
+Drop `-duct` / `duct` from filenames rather than replacing with `-reactor`:
+
 | Old | New |
 |---|---|
-| `001-duct-theming-design.md` | `001-reactor-theming-design.md` |
-| `002-duct-winui3-gap-analysis.md` | `002-reactor-winui3-gap-analysis.md` |
-| `004-duct-property-grid.md` | `004-reactor-property-grid.md` |
-| `005-duct-localization-design.md` | `005-reactor-localization-design.md` |
-| `006-duct-accessibility-design.md` | `006-reactor-accessibility-design.md` |
-| `007-duct-perf-experiments.md` | `007-reactor-perf-experiments.md` |
-| `009-duct-state-and-components-design.md` | `009-reactor-state-and-components-design.md` |
-| `010-duct-source-mapping-design.md` | `010-reactor-source-mapping-design.md` |
-| `011-duct-navigation-design.md` | `011-reactor-navigation-design.md` |
-| `012-duct-commanding-design.md` | `012-reactor-commanding-design.md` |
-| `013-duct-doc-system-design.md` | `013-reactor-doc-system-design.md` |
-| `014-duct-animation-design.md` | `014-reactor-animation-design.md` |
-| `015-duct-styling-design.md` | `015-reactor-styling-design.md` |
-| `016-ductd3-native-chart-migration.md` | `016-reactord3-native-chart-migration.md` |
-| `017-duct-data-system-design.md` | `017-reactor-data-system-design.md` |
-| `archived/ductcpp-*.md` | `archived/reactorcpp-*.md` |
+| `001-duct-theming-design.md` | `001-theming-design.md` |
+| `002-duct-winui3-gap-analysis.md` | `002-winui3-gap-analysis.md` |
+| `004-duct-property-grid.md` | `004-property-grid.md` |
+| `005-duct-localization-design.md` | `005-localization-design.md` |
+| `006-duct-accessibility-design.md` | `006-accessibility-design.md` |
+| `007-duct-perf-experiments.md` | `007-perf-experiments.md` |
+| `009-duct-state-and-components-design.md` | `009-state-and-components-design.md` |
+| `010-duct-source-mapping-design.md` | `010-source-mapping-design.md` |
+| `011-duct-navigation-design.md` | `011-navigation-design.md` |
+| `012-duct-commanding-design.md` | `012-commanding-design.md` |
+| `013-duct-doc-system-design.md` | `013-doc-system-design.md` |
+| `014-duct-animation-design.md` | `014-animation-design.md` |
+| `015-duct-styling-design.md` | `015-styling-design.md` |
+| `016-ductd3-native-chart-migration.md` | `016-native-chart-migration.md` |
+| `017-duct-data-system-design.md` | `017-data-system-design.md` |
+| `archived/ductcpp-*.md` | `archived/cpp-*.md` |
 
 ### Other docs
 
@@ -770,12 +792,17 @@ All `.md` files in the repo will be updated:
 | `README.md` | Full rewrite of framework name references |
 | `CONTRIBUTING.md` | Update paths, project names, build instructions |
 | `SKILL.md` | Update all code references |
-| `docs/duct-critical-review.md` | Rename file → `docs/reactor-critical-review.md`, update content |
+| `docs/duct-critical-review.md` | Rename file → `docs/critical-review.md`, update content |
 | `docs/flux-ui-analysis.md` | Update Duct references |
 | `docs/winui3-integration-proposals.md` | Update references |
 | `docs/compare/*.md` | Update references |
 | `docs/output/*.md` | Update references |
 | `docs/tasks/*.md` | Update references |
+| `docs/investigation/winforms-interop.md` | Update references (~27 occurrences) |
+| `design-skill/SKILL.md` and `design-skill/docs/*.md` | Update references (~39 occurrences across 7 files) |
+| `samples/WinFormsInterop/README.md` | Update references (~24 occurrences) |
+| `docs/worksummary/work-summary.md` | Update references (~13 occurrences) |
+| `docs/worksummary/*.svg` | Update embedded "Duct" text labels (~7 occurrences across 2 SVGs) |
 | `reviewer/reports/fix-list.md` | Update references |
 | `Duct/Docs/Architecture.md` | Move to `Reactor/Docs/`, update content |
 | `Duct/Docs/GettingStarted.md` | Move to `Reactor/Docs/`, update content |
