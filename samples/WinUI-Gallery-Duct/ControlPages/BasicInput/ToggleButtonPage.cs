@@ -1,0 +1,37 @@
+using Duct;
+using Duct.Core;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using static Duct.UI;
+using static WinUIGalleryDuct.SamplePageHost;
+
+namespace WinUIGalleryDuct.ControlPages.BasicInput;
+
+class ToggleButtonPage: Component
+{
+    public override Element Render()
+    {
+        var (isChecked, setIsChecked) = UseState(false);
+        var (isChecked2, setIsChecked2) = UseState(true);
+
+        return ScrollView(VStack(16,
+            PageHeader("ToggleButton", "A button that can be toggled between two states."),
+
+            SampleCard("Basic ToggleButton",
+                VStack(8,
+                    ToggleButton("Mute", isChecked, v => setIsChecked(v)),
+                    Text($"Toggled: {isChecked}").Foreground(Theme.SecondaryText)),
+                sourceCode: @"
+ToggleButton(""Mute"", isChecked, v => setIsChecked(v))
+"),
+
+            SampleCard("ToggleButton with State Display",
+                VStack(8,
+                    ToggleButton(isChecked2 ? "ON" : "OFF", isChecked2, v => setIsChecked2(v)),
+                    Text(isChecked2 ? "Feature is enabled" : "Feature is disabled").Foreground(Theme.SecondaryText)),
+                sourceCode: @"
+ToggleButton(isChecked2 ? ""ON"" : ""OFF"", isChecked2, v => setIsChecked2(v))
+")
+        ).Margin(36, 24, 36, 36));
+    }
+}

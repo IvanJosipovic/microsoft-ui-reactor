@@ -325,6 +325,9 @@ public static class UI
     public static NavigationViewItemData NavItem(string content, string? icon = null, string? tag = null) =>
         new(content, icon, tag);
 
+    public static NavigationViewItemData NavItemHeader(string content) =>
+        new(content) { IsHeader = true };
+
     public static TitleBarElement TitleBar(string title) => new(title);
 
     public static TabViewElement TabView(params TabViewItemData[] tabs) => new(tabs);

@@ -1,0 +1,42 @@
+using Duct;
+using Duct.Core;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using static Duct.UI;
+using static WinUIGalleryDuct.SamplePageHost;
+
+namespace WinUIGalleryDuct.ControlPages.BasicInput;
+
+class ToggleSwitchPage: Component
+{
+    public override Element Render()
+    {
+        var (isOn, setIsOn) = UseState(false);
+        var (customOn, setCustomOn) = UseState(true);
+        var (headerOn, setHeaderOn) = UseState(false);
+
+        return ScrollView(VStack(16,
+            PageHeader("ToggleSwitch", "A switch that toggles between two mutually exclusive states."),
+
+            SampleCard("Basic ToggleSwitch",
+                VStack(8,
+                    ToggleSwitch(isOn, v => setIsOn(v)),
+                    Text($"State: {(isOn ? "On" : "Off")}").Foreground(Theme.SecondaryText)),
+                sourceCode: @"
+ToggleSwitch(isOn, v => setIsOn(v))
+"),
+
+            SampleCard("Custom On/Off Labels",
+                ToggleSwitch(customOn, v => setCustomOn(v), "Working", "Not working"),
+                sourceCode: @"
+ToggleSwitch(customOn, v => setCustomOn(v), ""Working"", ""Not working"")
+"),
+
+            SampleCard("ToggleSwitch with Header",
+                ToggleSwitch(headerOn, v => setHeaderOn(v)).Header("Wi-Fi"),
+                sourceCode: @"
+ToggleSwitch(headerOn, v => setHeaderOn(v)).Header(""Wi-Fi"")
+")
+        ).Margin(36, 24, 36, 36));
+    }
+}

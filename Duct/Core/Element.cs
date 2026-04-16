@@ -816,6 +816,8 @@ public record RelativePanelAttached(string Name)
 public record NavigationViewItemData(string Content, string? Icon = null, string? Tag = null)
 {
     public NavigationViewItemData[]? Children { get; init; }
+    public bool IsHeader { get; init; }
+    public IconData? IconElement { get; init; }
 }
 
 public record TabViewItemData(string Header, Element Content)

@@ -1002,7 +1002,13 @@ public sealed partial class Reconciler
         };
         if (nav.PaneTitle is not null) nv.PaneTitle = nav.PaneTitle;
         if (nav.Header is not null) nv.Header = Mount(nav.Header, requestRerender);
-        foreach (var item in nav.MenuItems) nv.MenuItems.Add(CreateNavItem(item));
+        foreach (var item in nav.MenuItems)
+        {
+            if (item.IsHeader)
+                nv.MenuItems.Add(new WinUI.NavigationViewItemHeader { Content = item.Content });
+            else
+                nv.MenuItems.Add(CreateNavItem(item));
+        }
         if (nav.Content is not null) nv.Content = Mount(nav.Content, requestRerender);
         if (nav.SelectedTag is not null)
         {
@@ -1023,7 +1029,8 @@ public sealed partial class Reconciler
     private static WinUI.NavigationViewItem CreateNavItem(NavigationViewItemData data)
     {
         var item = new WinUI.NavigationViewItem { Content = data.Content, Tag = data.Tag ?? data.Content };
-        if (data.Icon is not null) item.Icon = new WinUI.SymbolIcon(ParseSymbol(data.Icon));
+        var icon = ResolveIcon(data.IconElement, data.Icon);
+        if (icon is not null) item.Icon = icon;
         if (data.Children is not null)
             foreach (var child in data.Children) item.MenuItems.Add(CreateNavItem(child));
         return item;
