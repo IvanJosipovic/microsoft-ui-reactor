@@ -776,6 +776,11 @@ static Element TodoRow(TodoItem item, Action<TodoAction> dispatch) =>
 | IntelliSense / discoverability | **A** | B+ | B | **A-** | B- |
 | Learning curve for new devs | B+ | B | B | B | C |
 | Reconciler perf impact | **A** | C | B+ | **A** | B+ |
+| `.Select().ToArray()` children | **A+** | C | **A+** | **A+** | B |
+| Switch/ternary as children | **A** | **A** | **A** | **A** | B- |
+| LINQ + `.SelectMany()` + spread | **A** | **A** | **A** | **A** | B |
+| Imperative `List<>` building | B+ | B+ | B+ | B+ | C |
+| Mixing static + dynamic children | **A+** | C+ | **A+** | **A+** | C |
 
 ### Legend
 - **A+/A/A-** — Excellent / strong
@@ -783,6 +788,979 @@ static Element TodoRow(TodoItem item, Action<TodoAction> dispatch) =>
 - **C+/C/C-** — Mediocre / workable but painful
 - **D** — Poor
 - **F** — Fails / not possible
+
+---
+
+## Part 7B: Stress Tests — Complex Real-World Patterns
+
+The TodoApp examples in Parts 2–6 are deliberately simple. Real Duct components use LINQ
+pipelines, switch expressions, nested conditionals, collection concatenation, and imperative
+`List<Element>` building. These patterns expose the true strengths and weaknesses of each
+option in ways that simple examples do not.
+
+### 7B.1 LINQ + Conditional Rendering: FolderPane
+
+The Outlook FolderPane partitions a folder list with `.Where()`, maps to elements with
+`.Select()`, and renders conditional unread badges with ternaries inside a FlexRow.
+
+**Current (fluent) — from `samples/apps/outlook/Components/Email/FolderPane.cs`:**
+```csharp
+public override Element Render()
+{
+    var favorites = Props.Folders.Where(f => f.IsFavorite).ToArray();
+    var others = Props.Folders.Where(f => !f.IsFavorite).ToArray();
+
+    return FlexColumn(
+        NewMailButton(),
+
+        Text("Favorites").SemiBold().FontSize(13).Foreground(SecondaryText)
+            .Padding(18, 6, 18, 6),
+
+        VStack(0, favorites.Select(FolderRow).ToArray()),
+
+        Border(Empty()).Height(1).Background(DividerStroke).Margin(16, 10, 16, 10),
+
+        Text("Folders").SemiBold().FontSize(13).Foreground(SecondaryText)
+            .Padding(18, 4, 18, 6),
+
+        ScrollView(
+            VStack(0, others.Select(FolderRow).ToArray())
+        ).Flex(grow: 1, basis: 0)
+    );
+}
+
+Element FolderRow(MailFolder folder)
+{
+    var isSelected = folder.Id == Props.SelectedFolderId;
+    var bg = isSelected ? SelectedBrush : TransparentBrush;
+
+    return Button(
+        (FlexRow(
+            MdlIcon(folder.Icon, 16, SecondaryText),
+            Text(folder.DisplayName).FontSize(14).Flex(grow: 1),
+            folder.UnreadCount > 0
+                ? Text(folder.UnreadCount.ToString())
+                    .SemiBold().FontSize(13).Foreground(AccentText)
+                : Empty()
+        ) with { ColumnGap = 10 }).Padding(18, 7, 18, 7),
+        () => Props.OnFolderSelected(folder.Id)
+    ).Set(b =>
+    {
+        b.Background = bg;
+        b.BorderThickness = new Thickness(0);
+        b.Padding = new Thickness(0);
+        b.CornerRadius = new CornerRadius(0);
+        b.HorizontalAlignment = HorizontalAlignment.Stretch;
+        b.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        b.Resources["ButtonBackgroundPointerOver"] = isSelected ? SelectedBrush : HoverBrush;
+        b.Resources["ButtonBackgroundPressed"] = SelectedBrush;
+    });
+}
+```
+
+**Option A (`new` + initializers):**
+```csharp
+public override Element Render()
+{
+    var favorites = Props.Folders.Where(f => f.IsFavorite).ToArray();
+    var others = Props.Folders.Where(f => !f.IsFavorite).ToArray();
+
+    return new FlexColumn {
+        NewMailButton(),
+
+        new Text("Favorites") {
+            Weight = FontWeights.SemiBold, FontSize = 13,
+            Foreground = SecondaryText, Padding = Thick(18, 6, 18, 6),
+        },
+
+        // PROBLEM: Can't splat an array into a collection initializer directly.
+        // Must wrap in a container or call AddRange (non-standard).
+        new VStack { Spacing = 0, Children = favorites.Select(FolderRow).ToArray() },
+
+        new Border(new Empty()) { Height = 1, Background = DividerStroke, Margin = Thick(16, 10, 16, 10) },
+
+        new Text("Folders") {
+            Weight = FontWeights.SemiBold, FontSize = 13,
+            Foreground = SecondaryText, Padding = Thick(18, 4, 18, 6),
+        },
+
+        new ScrollView {
+            Flex = new(grow: 1, basis: 0),
+            // Same problem: dynamically computed children can't splat inline
+            new VStack { Spacing = 0, Children = others.Select(FolderRow).ToArray() },
+        },
+    };
+}
+
+Element FolderRow(MailFolder folder)
+{
+    var isSelected = folder.Id == Props.SelectedFolderId;
+    var bg = isSelected ? SelectedBrush : TransparentBrush;
+
+    return new Button(() => Props.OnFolderSelected(folder.Id)) {
+        Background = bg,
+        BorderThickness = Thick(0),
+        Padding = Thick(0),
+        CornerRadius = 0,
+        HAlign = HorizontalAlignment.Stretch,
+        HContentAlign = HorizontalAlignment.Stretch,
+        Resources = r => r
+            .Set("ButtonBackgroundPointerOver", isSelected ? SelectedBrush : HoverBrush)
+            .Set("ButtonBackgroundPressed", SelectedBrush),
+
+        Content = new FlexRow {
+            ColumnGap = 10,
+            Padding = Thick(18, 7, 18, 7),
+
+            MdlIcon(folder.Icon, 16, SecondaryText),
+            new Text(folder.DisplayName) { FontSize = 14, Flex = new(grow: 1) },
+            // Conditional child is clean — null filtered by Add()
+            folder.UnreadCount > 0
+                ? new Text(folder.UnreadCount.ToString()) {
+                    Weight = FontWeights.SemiBold, FontSize = 13, Foreground = AccentText,
+                  }
+                : null,
+        },
+    };
+}
+```
+
+**Option B (factory + `with { }`):**
+```csharp
+public override Element Render()
+{
+    var favorites = Props.Folders.Where(f => f.IsFavorite).ToArray();
+    var others = Props.Folders.Where(f => !f.IsFavorite).ToArray();
+
+    return FlexColumn(
+        NewMailButton(),
+
+        Text("Favorites") with {
+            Weight = FontWeights.SemiBold, FontSize = 13,
+            Foreground = SecondaryText, Padding = Thick(18, 6, 18, 6),
+        },
+
+        // .Select().ToArray() in params — identical to current, no friction
+        VStack(0, favorites.Select(FolderRow).ToArray()),
+
+        (Border(Empty()) with { Height = 1 }).Background(DividerStroke).Margin(16, 10, 16, 10),
+
+        Text("Folders") with {
+            Weight = FontWeights.SemiBold, FontSize = 13,
+            Foreground = SecondaryText, Padding = Thick(18, 4, 18, 6),
+        },
+
+        ScrollView(
+            VStack(0, others.Select(FolderRow).ToArray())
+        ) with { Flex = new(grow: 1, basis: 0) }
+    );
+}
+
+Element FolderRow(MailFolder folder)
+{
+    var isSelected = folder.Id == Props.SelectedFolderId;
+    var bg = isSelected ? SelectedBrush : TransparentBrush;
+
+    return Button(
+        FlexRow(
+            MdlIcon(folder.Icon, 16, SecondaryText),
+            Text(folder.DisplayName) with { FontSize = 14, Flex = new(grow: 1) },
+            folder.UnreadCount > 0
+                ? Text(folder.UnreadCount.ToString()) with {
+                    Weight = FontWeights.SemiBold, FontSize = 13, Foreground = AccentText,
+                  }
+                : Empty()
+        ) with { ColumnGap = 10, Padding = Thick(18, 7, 18, 7) },
+        () => Props.OnFolderSelected(folder.Id)
+    ) with {
+        Background = bg,
+        BorderThickness = Thick(0),
+        Padding = Thick(0),
+        CornerRadius = 0,
+        HAlign = HorizontalAlignment.Stretch,
+        HContentAlign = HorizontalAlignment.Stretch,
+        Resources = r => r
+            .Set("ButtonBackgroundPointerOver", isSelected ? SelectedBrush : HoverBrush)
+            .Set("ButtonBackgroundPressed", SelectedBrush),
+    };
+}
+```
+
+**Analysis:** LINQ pipelines (`.Where().ToArray()` and `.Select().ToArray()`) work identically
+in the current model and Option B because children are still passed as `params` arrays. Option A
+has friction — you can't splat a `.Select().ToArray()` *inline* in a collection initializer `{ }`.
+You must either use a `Children = ...` property assignment or add elements from a loop. This is a
+significant ergonomic regression for data-driven UIs.
+
+---
+
+### 7B.2 Switch Expression Routing + LINQ Tabs
+
+A tabbed app where a switch expression picks entirely different subtrees and LINQ builds the
+tab buttons.
+
+**Current (fluent) — from `samples/CommandingDemo/App.cs`:**
+```csharp
+return VStack(
+    Text("Duct Demo").FontSize(24).Bold().Margin(16, 16, 16, 8),
+    HStack(8,
+        tabs.Select((tab, i) =>
+            Button(tab, () => setSelectedTab(i))
+                .Background(i == selectedTab ? Accent : SubtleFill)
+                .Margin(0, 0, 0, 8)
+        ).ToArray()
+    ).Margin(16, 0),
+    selectedTab switch
+    {
+        0 => Component<StandardCommandsDemo>(),
+        1 => Component<AsyncCommandDemo>(),
+        2 => Component<ParameterizedCommandDemo>(),
+        3 => Component<CommandHostDemo>(),
+        _ => Empty(),
+    }
+);
+```
+
+**Option A (`new` + initializers):**
+```csharp
+return new VStack {
+    new Text("Duct Demo") { FontSize = 24, Bold = true, Margin = Thick(16, 16, 16, 8) },
+
+    // PROBLEM: Can't put .Select().ToArray() inline as children.
+    // Must assign to Children property, losing the inline feel.
+    new HStack {
+        Spacing = 8,
+        Margin = Thick(16, 0),
+        Children = tabs.Select((tab, i) =>
+            new Button(tab) {
+                OnClick = () => setSelectedTab(i),
+                Background = i == selectedTab ? Accent : SubtleFill,
+                Margin = Thick(0, 0, 0, 8),
+            }
+        ).ToArray(),
+    },
+
+    // Switch works fine — each arm returns a single element
+    selectedTab switch
+    {
+        0 => Component<StandardCommandsDemo>(),
+        1 => Component<AsyncCommandDemo>(),
+        2 => Component<ParameterizedCommandDemo>(),
+        3 => Component<CommandHostDemo>(),
+        _ => new Empty(),
+    },
+};
+```
+
+**Option B (factory + `with { }`):**
+```csharp
+return VStack(
+    Text("Duct Demo") with { FontSize = 24, Bold = true, Margin = Thick(16, 16, 16, 8) },
+
+    // LINQ inline in params — works perfectly, same as current
+    HStack(8,
+        tabs.Select((tab, i) =>
+            Button(tab, () => setSelectedTab(i))
+                with { Background = i == selectedTab ? Accent : SubtleFill,
+                       Margin = Thick(0, 0, 0, 8) }
+        ).ToArray()
+    ) with { Margin = Thick(16, 0) },
+
+    // Switch identical to current
+    selectedTab switch
+    {
+        0 => Component<StandardCommandsDemo>(),
+        1 => Component<AsyncCommandDemo>(),
+        2 => Component<ParameterizedCommandDemo>(),
+        3 => Component<CommandHostDemo>(),
+        _ => Empty(),
+    }
+);
+```
+
+**Analysis:** Switch expressions work equally well across all options — each arm returns
+a single `Element`. The real differentiator is the LINQ `.Select().ToArray()` pipeline.
+Option B handles it identically to the current model. Option A forces you into either
+a `Children = expr` assignment (which prevents mixing static and dynamic children) or
+requires an `AddRange()` method on the collection initializer.
+
+---
+
+### 7B.3 Nested Conditionals + Switch: ConditionalDemo
+
+Deep conditional nesting where checkbox state controls which subtrees exist, and a switch
+expression picks between completely different view modes.
+
+**Current (fluent) — from `samples/Duct.TestApp/Demos/ConditionalDemo.cs`:**
+```csharp
+return ScrollView(VStack(16,
+    Heading("Conditional UI"),
+
+    CheckBox(showAdvanced, setShowAdvanced, label: "Show advanced options"),
+
+    showAdvanced
+        ? Border(
+            VStack(8,
+                Text("Advanced Settings").SemiBold(),
+                CheckBox(enableFeatureA, setFeatureA, label: "Enable Feature A"),
+                CheckBox(enableFeatureB, setFeatureB, label: "Enable Feature B"),
+
+                enableFeatureA
+                    ? Border(
+                        VStack(4,
+                            Text("Feature A Configuration").SemiBold(),
+                            Slider(50, 0, 100).Width(200)
+                        )
+                      ).CornerRadius(4).Background(SubtleFill).Padding(12)
+                    : null,
+
+                enableFeatureB
+                    ? Border(
+                        VStack(4,
+                            Text("Feature B Configuration").SemiBold(),
+                            ToggleSwitch(false, null, onContent: "On", offContent: "Off")
+                        )
+                      ).CornerRadius(4).Background(SubtleFill).Padding(12)
+                    : null
+            )
+          ).CornerRadius(8).Background(SubtleFill).Padding(16)
+        : Text("Check the box above.").Foreground(TertiaryText),
+
+    viewMode switch
+    {
+        ViewMode.Simple => VStack(4,
+            Text("Simple view — just a summary."),
+            Text($"{itemCount} items in the list.")
+        ),
+        ViewMode.Detailed => VStack(4,
+            Text("Detailed view:").SemiBold(),
+            ForEach(Enumerable.Range(1, itemCount),
+                i => HStack(4, Text($"Item {i}").Width(80), Progress(i * 100.0 / itemCount).Width(150)))
+        ),
+        ViewMode.Custom => VStack(8,
+            Text("Custom view:").SemiBold(),
+            HStack(8,
+                Text("Item count:"),
+                Slider(itemCount, 1, 10, v => setItemCount((int)v)).Width(200),
+                Text($"{itemCount}")
+            ),
+            ForEach(Enumerable.Range(1, itemCount),
+                i => Border(Text($"Custom item {i}")).CornerRadius(4).Background(SubtleFill).Padding(8, 4))
+        ),
+        _ => Empty()
+    },
+
+    When(showAdvanced && enableFeatureA && enableFeatureB,
+        () => Border(Text("Warning: conflicts possible."))
+                .CornerRadius(4).Background(CautionBackground).Padding(12))
+));
+```
+
+**Option A (`new` + initializers):**
+```csharp
+return new ScrollView {
+    new VStack {
+        Spacing = 16,
+
+        new Heading("Conditional UI"),
+
+        new CheckBox { IsChecked = showAdvanced, OnChanged = setShowAdvanced, Label = "Show advanced options" },
+
+        // Nested ternaries work — each arm returns an element for Add()
+        showAdvanced
+            ? new Border {
+                CornerRadius = 8, Background = SubtleFill, Padding = Thick(16),
+                new VStack {
+                    Spacing = 8,
+                    new Text("Advanced Settings") { Weight = FontWeights.SemiBold },
+                    new CheckBox { IsChecked = enableFeatureA, OnChanged = setFeatureA, Label = "Enable Feature A" },
+                    new CheckBox { IsChecked = enableFeatureB, OnChanged = setFeatureB, Label = "Enable Feature B" },
+
+                    enableFeatureA
+                        ? new Border {
+                            CornerRadius = 4, Background = SubtleFill, Padding = Thick(12),
+                            new VStack {
+                                Spacing = 4,
+                                new Text("Feature A Configuration") { Weight = FontWeights.SemiBold },
+                                new Slider { Value = 50, Min = 0, Max = 100, Width = 200 },
+                            },
+                          }
+                        : null,
+
+                    enableFeatureB
+                        ? new Border {
+                            CornerRadius = 4, Background = SubtleFill, Padding = Thick(12),
+                            new VStack {
+                                Spacing = 4,
+                                new Text("Feature B Configuration") { Weight = FontWeights.SemiBold },
+                                new ToggleSwitch { OnContent = "On", OffContent = "Off" },
+                            },
+                          }
+                        : null,
+                },
+              }
+            : (Element)new Text("Check the box above.") { Foreground = TertiaryText },
+
+        // Switch inside collection initializer — works, each arm is one Add() call
+        viewMode switch
+        {
+            ViewMode.Simple => new VStack {
+                Spacing = 4,
+                new Text("Simple view — just a summary."),
+                new Text($"{itemCount} items in the list."),
+            },
+            ViewMode.Detailed => new VStack {
+                Spacing = 4,
+                new Text("Detailed view:") { Weight = FontWeights.SemiBold },
+                // ForEach returns a GroupElement — Add() handles it
+                ForEach(Enumerable.Range(1, itemCount),
+                    i => new HStack {
+                        Spacing = 4,
+                        new Text($"Item {i}") { Width = 80 },
+                        new Progress(i * 100.0 / itemCount) { Width = 150 },
+                    }),
+            },
+            ViewMode.Custom => new VStack {
+                Spacing = 8,
+                new Text("Custom view:") { Weight = FontWeights.SemiBold },
+                new HStack {
+                    Spacing = 8,
+                    new Text("Item count:"),
+                    new Slider { Value = itemCount, Min = 1, Max = 10, OnChanged = v => setItemCount((int)v), Width = 200 },
+                    new Text($"{itemCount}"),
+                },
+                ForEach(Enumerable.Range(1, itemCount),
+                    i => new Border {
+                        CornerRadius = 4, Background = SubtleFill, Padding = Thick(8, 4),
+                        new Text($"Custom item {i}"),
+                    }),
+            },
+            _ => new Empty(),
+        },
+
+        // When() still works — returns Element
+        When(showAdvanced && enableFeatureA && enableFeatureB,
+            () => new Border {
+                CornerRadius = 4, Background = CautionBackground, Padding = Thick(12),
+                new Text("Warning: conflicts possible."),
+            }),
+    },
+};
+```
+
+**Option B (factory + `with { }`):**
+```csharp
+return ScrollView(VStack(16,
+    Heading("Conditional UI"),
+
+    CheckBox(showAdvanced, setShowAdvanced, label: "Show advanced options"),
+
+    showAdvanced
+        ? (Border(
+            VStack(8,
+                Text("Advanced Settings") with { Weight = FontWeights.SemiBold },
+                CheckBox(enableFeatureA, setFeatureA, label: "Enable Feature A"),
+                CheckBox(enableFeatureB, setFeatureB, label: "Enable Feature B"),
+
+                enableFeatureA
+                    ? Border(
+                        VStack(4,
+                            Text("Feature A Configuration") with { Weight = FontWeights.SemiBold },
+                            Slider(50, 0, 100) with { Width = 200 }
+                        )
+                      ) with { CornerRadius = 4, Background = SubtleFill, Padding = Thick(12) }
+                    : null,
+
+                enableFeatureB
+                    ? Border(
+                        VStack(4,
+                            Text("Feature B Configuration") with { Weight = FontWeights.SemiBold },
+                            ToggleSwitch(false, null, onContent: "On", offContent: "Off")
+                        )
+                      ) with { CornerRadius = 4, Background = SubtleFill, Padding = Thick(12) }
+                    : null
+            )
+          ) with { CornerRadius = 8, Background = SubtleFill, Padding = Thick(16) })
+        : (Element)(Text("Check the box above.") with { Foreground = TertiaryText }),
+
+    viewMode switch
+    {
+        ViewMode.Simple => VStack(4,
+            Text("Simple view — just a summary."),
+            Text($"{itemCount} items in the list.")
+        ),
+        ViewMode.Detailed => VStack(4,
+            Text("Detailed view:") with { Weight = FontWeights.SemiBold },
+            ForEach(Enumerable.Range(1, itemCount),
+                i => HStack(4,
+                    Text($"Item {i}") with { Width = 80 },
+                    Progress(i * 100.0 / itemCount) with { Width = 150 }))
+        ),
+        ViewMode.Custom => VStack(8,
+            Text("Custom view:") with { Weight = FontWeights.SemiBold },
+            HStack(8,
+                Text("Item count:"),
+                Slider(itemCount, 1, 10, v => setItemCount((int)v)) with { Width = 200 },
+                Text($"{itemCount}")
+            ),
+            ForEach(Enumerable.Range(1, itemCount),
+                i => Border(Text($"Custom item {i}"))
+                    with { CornerRadius = 4, Background = SubtleFill, Padding = Thick(8, 4) })
+        ),
+        _ => Empty()
+    },
+
+    When(showAdvanced && enableFeatureA && enableFeatureB,
+        () => Border(Text("Warning: conflicts possible."))
+                with { CornerRadius = 4, Background = CautionBackground, Padding = Thick(12) })
+));
+```
+
+**Analysis:** Nested conditionals work in all options. The key observation:
+
+- **Current**: fluent chains after ternary branches read well (`.CornerRadius(4).Background(...).Padding(12)`).
+- **Option A**: `new` + initializer nesting is *deep* but has clear `{ }` scoping. The structure
+  reads like a data literal. `new` noise accumulates in proportion to nesting depth.
+- **Option B**: `with { }` after ternary branches requires parenthesizing the outer expression —
+  `(Border(...)) with { ... }` — or using the rule "put `with` last." The ternary arms need
+  explicit `(Element)` casts when the two arms have different concrete types.
+
+Switch expressions work equally well across all options. `ForEach` (which returns a GroupElement)
+works as a child in both `params` and collection initializer contexts.
+
+---
+
+### 7B.4 Imperative Collection Building + LINQ: AllDayRow
+
+The calendar's AllDayRow uses a `for` loop with imperative `children.Add()`, nested `.Where()`,
+`.Select().ToArray()`, `.Concat()`, and `.Set()` for border styling. This is the hardest pattern
+to translate.
+
+**Current (fluent) — from `samples/apps/outlook/Components/Calendar/AllDayRow.cs`:**
+```csharp
+public override Element Render()
+{
+    var columns = new[] { "60" }.Concat(Enumerable.Repeat("*", 7)).ToArray();
+
+    var children = new List<Element>
+    {
+        Text("").FontSize(11).Foreground(TertiaryText)
+            .Grid(row: 0, column: 0).Padding(4, 2, 4, 2)
+    };
+
+    for (int d = 0; d < 7; d++)
+    {
+        var day = Props.WeekStart.AddDays(d).Date;
+        var dayEvents = Props.AllDayEvents
+            .Where(e => e.Start.Date <= day && e.End.Date > day)
+            .ToArray();
+
+        if (dayEvents.Length > 0)
+        {
+            var stack = VStack(1,
+                dayEvents.Select(e =>
+                {
+                    var color = Props.SourceColors.GetValueOrDefault(e.CalendarSourceId, "#0078D4");
+                    return (Element)Border(
+                        Text(e.Title).FontSize(10)
+                            .Set(t => { t.TextTrimming = TextTrimming.CharacterEllipsis; t.MaxLines = 1; })
+                    )
+                    .Background(color + "30")
+                    .WithBorder(color, 1)
+                    .CornerRadius(2)
+                    .Padding(4, 1, 4, 1)
+                    .Set(b => b.BorderThickness = new Thickness(2, 0, 0, 0));
+                }).ToArray()
+            ).Padding(2);
+            children.Add(stack.Grid(row: 0, column: d + 1));
+        }
+    }
+
+    return Grid(columns, ["Auto"], children.ToArray())
+        .Set(g =>
+        {
+            g.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 224, 224, 224));
+            g.BorderThickness = new Thickness(0, 0, 0, 1);
+        });
+}
+```
+
+**Option A (`new` + initializers):**
+```csharp
+public override Element Render()
+{
+    var columns = new[] { "60" }.Concat(Enumerable.Repeat("*", 7)).ToArray();
+
+    // Imperative building is identical — Option A's collection initializer only helps
+    // with static trees. For imperative loops, you fall back to List<Element>.Add().
+    var children = new List<Element>
+    {
+        new Text("") {
+            FontSize = 11, Foreground = TertiaryText,
+            Grid = new(0, 0), Padding = Thick(4, 2, 4, 2),
+        }
+    };
+
+    for (int d = 0; d < 7; d++)
+    {
+        var day = Props.WeekStart.AddDays(d).Date;
+        var dayEvents = Props.AllDayEvents
+            .Where(e => e.Start.Date <= day && e.End.Date > day)
+            .ToArray();
+
+        if (dayEvents.Length > 0)
+        {
+            var stack = new VStack {
+                Spacing = 1, Padding = Thick(2),
+                // PROBLEM: Can't splat dayEvents.Select(...).ToArray() into { }.
+                // Must use Children = ... property
+                Children = dayEvents.Select(e =>
+                {
+                    var color = Props.SourceColors.GetValueOrDefault(e.CalendarSourceId, "#0078D4");
+                    return (Element)new Border {
+                        Background = BrushHelper.Parse(color + "30"),
+                        BorderBrush = BrushHelper.Parse(color),
+                        BorderThickness = Thick(2, 0, 0, 0),
+                        CornerRadius = 2,
+                        Padding = Thick(4, 1, 4, 1),
+
+                        new Text(e.Title) {
+                            FontSize = 10,
+                            TextTrimming = TextTrimming.CharacterEllipsis,
+                            MaxLines = 1,
+                        },
+                    };
+                }).ToArray(),
+            };
+            children.Add(stack with { Grid = new(0, d + 1) });
+        }
+    }
+
+    return new Grid(columns, ["Auto"]) {
+        Children = children.ToArray(),
+        BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 224, 224, 224)),
+        BorderThickness = Thick(0, 0, 0, 1),
+    };
+}
+```
+
+**Option B (factory + `with { }`):**
+```csharp
+public override Element Render()
+{
+    var columns = new[] { "60" }.Concat(Enumerable.Repeat("*", 7)).ToArray();
+
+    // Imperative building — identical pattern, with { } replaces .Set()
+    var children = new List<Element>
+    {
+        Text("") with {
+            FontSize = 11, Foreground = TertiaryText,
+            Grid = new(0, 0), Padding = Thick(4, 2, 4, 2),
+        }
+    };
+
+    for (int d = 0; d < 7; d++)
+    {
+        var day = Props.WeekStart.AddDays(d).Date;
+        var dayEvents = Props.AllDayEvents
+            .Where(e => e.Start.Date <= day && e.End.Date > day)
+            .ToArray();
+
+        if (dayEvents.Length > 0)
+        {
+            var stack = VStack(1,
+                dayEvents.Select(e =>
+                {
+                    var color = Props.SourceColors.GetValueOrDefault(e.CalendarSourceId, "#0078D4");
+                    return (Element)Border(
+                        Text(e.Title) with { FontSize = 10, TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 1 }
+                    ) with {
+                        Background = BrushHelper.Parse(color + "30"),
+                        BorderBrush = BrushHelper.Parse(color),
+                        BorderThickness = Thick(2, 0, 0, 0),
+                        CornerRadius = 2,
+                        Padding = Thick(4, 1, 4, 1),
+                    };
+                }).ToArray()
+            ) with { Padding = Thick(2) };
+            children.Add(stack with { Grid = new(0, d + 1) });
+        }
+    }
+
+    return Grid(columns, ["Auto"], children.ToArray()) with {
+        BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 224, 224, 224)),
+        BorderThickness = Thick(0, 0, 0, 1),
+    };
+}
+```
+
+**Analysis:** Imperative `List<Element>` building + `for` loop is identical across all
+options — none of them can collection-initialize a dynamic loop. The interesting differences
+are:
+
+- **`.Set()` elimination** is the biggest win: compare `Border(...).Background(...).WithBorder(...).CornerRadius(...).Set(b => b.BorderThickness = ...)`
+  (current, 5 chained calls + 1 Set) vs `Border(...) with { Background = ..., BorderBrush = ..., BorderThickness = ..., CornerRadius = ..., Padding = ... }`
+  (Option B, 1 with block).
+- **Option A's `Children = ...`** property assignment is forced here because the children come
+  from `.Select().ToArray()`. This means you can't mix static children with the dynamic list
+  in one `{ }` block.
+- **`.Concat()` on the column array** is untouched by any option — it's pure data, not UI.
+
+---
+
+### 7B.5 Collection Spread + SelectMany: D3 Stacked Bar Chart
+
+The D3 chart samples use C# 12 spread operators `[..]` and `.SelectMany()` to build flat
+element arrays from nested data structures. This is the most aggressive LINQ pattern in
+the codebase.
+
+**Current (fluent) — from `samples/DuctD3.Gallery/Samples/StackedBarChart.cs`:**
+```csharp
+return D3Canvas(W, H,
+    [.. D3Grid(ys, left, plotW),
+
+     .. series.SelectMany((s, si) =>
+     {
+         var fill = Brush(Palette[si]);
+         return months.Select((month, j) =>
+         {
+             var pt = s.Points[j];
+             return D3Rect(left + band.Map(month), ys.Map(pt.Y1),
+                 band.Bandwidth, ys.Map(pt.Y0) - ys.Map(pt.Y1))
+                 with { Fill = fill };
+         });
+     }),
+
+     .. months.Select((m, i) =>
+         D3Text(left + band.Map(m) + band.Bandwidth / 2, H - marginBottom + 14,
+             m, 10, Gray(80)) with { TextAnchor = "middle" }),
+
+     .. series.Select((s, si) =>
+         D3Rect(legendX, legendY + si * 20, 14, 14)
+             with { Fill = Brush(Palette[si]) }),
+
+     .. series.Select((s, si) =>
+         D3Text(legendX + 20, legendY + si * 20 + 2, s.Name, 11, Gray(60)))
+    ]);
+```
+
+**Option A (`new` + initializers):**
+```csharp
+// D3Canvas takes params Element[] — but these are spread collection expressions, not
+// collection initializers. The two features are orthogonal.
+// This pattern is UNCHANGED in Option A because D3Canvas is a factory method, and the
+// children use [...] collection expression syntax, not { } initializer syntax.
+// You'd only see a difference if D3Rect/D3Text used initializers for properties:
+
+return D3Canvas(W, H,
+    [.. D3Grid(ys, left, plotW),
+
+     .. series.SelectMany((s, si) =>
+     {
+         var fill = Brush(Palette[si]);
+         return months.Select((month, j) =>
+         {
+             var pt = s.Points[j];
+             return new D3Rect(left + band.Map(month), ys.Map(pt.Y1),
+                 band.Bandwidth, ys.Map(pt.Y0) - ys.Map(pt.Y1)) { Fill = fill };
+         });
+     }),
+
+     // ... rest identical, with { } replaced by { } initializers on new ...
+    ]);
+```
+
+**Option B (factory + `with { }`):**
+```csharp
+// Identical to current — with { } is already used for D3Rect properties.
+// No change required. SelectMany, spread, LINQ all untouched.
+return D3Canvas(W, H,
+    [.. D3Grid(ys, left, plotW),
+
+     .. series.SelectMany((s, si) =>
+     {
+         var fill = Brush(Palette[si]);
+         return months.Select((month, j) =>
+         {
+             var pt = s.Points[j];
+             return D3Rect(left + band.Map(month), ys.Map(pt.Y1),
+                 band.Bandwidth, ys.Map(pt.Y0) - ys.Map(pt.Y1))
+                 with { Fill = fill };
+         });
+     }),
+
+     // ... rest identical
+    ]);
+```
+
+**Analysis:** Collection expressions (`[..]`) and `.SelectMany()` are **orthogonal to the
+initializer question**. They operate on `params` arrays or `IEnumerable<T>`, not on collection
+initializer `{ }` blocks. All options handle them identically. The D3 chart pattern already
+uses `with { Fill = fill }` on records — this is the current model's strongest validation of
+Option B's direction.
+
+---
+
+### 7B.6 GroupBy + Nested LINQ: Gallery Landing Page
+
+Grouping items by category, mapping each group to a section with a header, and wrapping
+grouped items in a flex panel.
+
+**Current (fluent) — from `samples/DuctD3.Gallery/Program.cs`:**
+```csharp
+var categories = SampleRegistry.All
+    .GroupBy(s => s.Category)
+    .OrderBy(g => CategoryOrder(g.Key));
+
+var sections = categories.Select(group =>
+    VStack(8,
+        SubHeading(group.Key).Foreground(PrimaryText),
+        new FlexElement(
+            group.Select(sample =>
+                Button(
+                    VStack(6,
+                        SampleIcon(sample, 36),
+                        Text(sample.Title) with { FontSize = 12 }
+                    ).MaxWidth(100).HAlign(HorizontalAlignment.Center),
+                    () => navigate(sample)
+                ).Width(130).Height(90)
+            ).ToArray()
+        )
+        {
+            Direction = FlexDirection.Row,
+            Wrap = FlexWrap.Wrap,
+            ColumnGap = 8,
+            RowGap = 8,
+        }
+    )
+).ToArray();
+
+return FlexColumn(
+    HStack(12,
+        Heading("Gallery").Foreground(PrimaryText).Flex(grow: 1),
+        ThemeToggle(isDark, setIsDark)
+    ).Padding(24, 24, 24, 0),
+    Caption($"{SampleRegistry.All.Length} samples").Foreground(SecondaryText).Padding(24, 0),
+    ScrollView(
+        VStack(24, sections).Padding(24, 12, 24, 24)
+    ).Flex(grow: 1, basis: 0)
+);
+```
+
+Note: this code *already* uses `new FlexElement(...) { Direction = ..., Wrap = ... }` — mixing
+`new` with initializer `{ }` alongside factory methods. The current API is already hybrid!
+
+**Option A (`new` + initializers):**
+```csharp
+var sections = categories.Select(group =>
+    (Element)new VStack {
+        Spacing = 8,
+        new SubHeading(group.Key) { Foreground = PrimaryText },
+        new FlexPanel {
+            Direction = FlexDirection.Row,
+            Wrap = FlexWrap.Wrap,
+            ColumnGap = 8,
+            RowGap = 8,
+            Children = group.Select(sample =>
+                new Button(() => navigate(sample)) {
+                    Width = 130, Height = 90,
+                    Content = new VStack {
+                        Spacing = 6,
+                        MaxWidth = 100,
+                        HAlign = HorizontalAlignment.Center,
+                        SampleIcon(sample, 36),
+                        new Text(sample.Title) { FontSize = 12 },
+                    },
+                }
+            ).ToArray(),
+        },
+    }
+).ToArray();
+
+return new FlexColumn {
+    new HStack {
+        Spacing = 12,
+        Padding = Thick(24, 24, 24, 0),
+        new Heading("Gallery") { Foreground = PrimaryText, Flex = new(grow: 1) },
+        ThemeToggle(isDark, setIsDark),
+    },
+    new Caption($"{SampleRegistry.All.Length} samples") { Foreground = SecondaryText, Padding = Thick(24, 0) },
+    new ScrollView {
+        Flex = new(grow: 1, basis: 0),
+        new VStack { Spacing = 24, Padding = Thick(24, 12, 24, 24), Children = sections },
+    },
+};
+```
+
+**Option B (factory + `with { }`):**
+```csharp
+var sections = categories.Select(group =>
+    (Element)VStack(8,
+        SubHeading(group.Key) with { Foreground = PrimaryText },
+        FlexRow(
+            group.Select(sample =>
+                Button(
+                    VStack(6,
+                        SampleIcon(sample, 36),
+                        Text(sample.Title) with { FontSize = 12 }
+                    ) with { MaxWidth = 100, HAlign = HorizontalAlignment.Center },
+                    () => navigate(sample)
+                ) with { Width = 130, Height = 90 }
+            ).ToArray()
+        ) with { Wrap = FlexWrap.Wrap, ColumnGap = 8, RowGap = 8 }
+    )
+).ToArray();
+
+return FlexColumn(
+    HStack(12,
+        Heading("Gallery") with { Foreground = PrimaryText, Flex = new(grow: 1) },
+        ThemeToggle(isDark, setIsDark)
+    ) with { Padding = Thick(24, 24, 24, 0) },
+    Caption($"{SampleRegistry.All.Length} samples")
+        with { Foreground = SecondaryText, Padding = Thick(24, 0) },
+    ScrollView(
+        VStack(24, sections) with { Padding = Thick(24, 12, 24, 24) }
+    ) with { Flex = new(grow: 1, basis: 0) }
+);
+```
+
+**Analysis:** This is the most interesting example because the current codebase *already* uses
+`new FlexElement(...) { ... }` with a collection initializer for the flex panel. This proves
+the pattern works today for `new`-constructed elements. The key findings:
+
+- **`.GroupBy().OrderBy()` pipeline** is pure data transformation — identical across all options.
+- **Nested `.Select()` inside `.Select()`** is the LINQ stress test. Option A forces `Children = group.Select(...).ToArray()` inside the `{ }` block, while Option B puts the array in `FlexRow(group.Select(...).ToArray())` as a positional param.
+- **The existing codebase already mixes `new` initializers with factory methods** — this validates
+  that a hybrid model is natural, not a theoretical construct.
+- **Option B `with { }`** cascading: `FlexRow(...) with { Wrap = ..., ColumnGap = ... }` reads
+  cleanly for container-level properties while children stay in the positional `params`.
+
+---
+
+### 7B.7 Updated Scoring (Including Complex Patterns)
+
+| Criteria | Current | A: `new` + init | B: factory + `with` | C: hybrid |
+|---|:---:|:---:|:---:|:---:|
+| `.Select().ToArray()` in children | **A+** | C | **A+** | **A+** |
+| `.SelectMany()` + spread `[..]` | **A** | **A** | **A** | **A** |
+| Switch expressions as children | **A** | **A** | **A** | **A** |
+| Nested ternary conditionals | **A-** | **A-** | B+ | **A-** |
+| Imperative `List<>` + loop | B+ | B+ | B+ | B+ |
+| `.GroupBy().Select()` pipelines | **A** | B | **A** | **A** |
+| `.Concat()` / collection building | **A** | B | **A** | **A** |
+| `.Where()` filter → `.Select()` map | **A+** | B+ | **A+** | **A+** |
+| Deep nesting (4+ levels) | B | **A-** | B | B |
+| Mixing static + dynamic children | **A+** | C+ | **A+** | **A+** |
+
+**Key takeaway:** Option A's biggest weakness is `.Select().ToArray()` as inline children.
+The collection initializer `{ }` syntax can only accept individual `Add()` calls, not splatted
+arrays. This forces a `Children = expr` property assignment which prevents mixing static
+children with dynamic ones in the same block. This is a fundamental limitation that makes
+Option A significantly worse for data-driven UIs — exactly the kind of UI Duct targets.
+
+Options B and C handle all LINQ patterns identically to the current model because children
+remain in `params` arrays. The `with { }` block is purely additive — it replaces `.Set()` and
+augments fluent chains, without touching the child-passing mechanism.
 
 ---
 
