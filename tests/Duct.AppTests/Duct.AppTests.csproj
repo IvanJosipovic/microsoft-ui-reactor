@@ -16,5 +16,7 @@
   <ItemGroup>
     <!-- Build dependency: ensures Host is built before tests, no runtime reference -->
     <ProjectReference Include="..\Duct.AppTests.Host\Duct.AppTests.Host.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <!-- Build dependency: ensures WinForms host is built before interop tests -->
+    <ProjectReference Include="..\Duct.WinFormsTests.Host\Duct.WinFormsTests.Host.csproj" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
 </Project>
