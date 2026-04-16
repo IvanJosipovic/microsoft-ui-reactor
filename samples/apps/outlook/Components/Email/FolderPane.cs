@@ -53,6 +53,7 @@ internal sealed class FolderPane : Component<FolderPaneProps>
             // Favorites section
             Text("Favorites")
                 .SemiBold().FontSize(13).Foreground(SecondaryText)
+                .HeadingLevel(Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2)
                 .Padding(18, 6, 18, 6),
 
             VStack(0, favorites.Select(FolderRow).ToArray()),
@@ -63,6 +64,7 @@ internal sealed class FolderPane : Component<FolderPaneProps>
             // All folders section
             Text("Folders")
                 .SemiBold().FontSize(13).Foreground(SecondaryText)
+                .HeadingLevel(Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2)
                 .Padding(18, 4, 18, 6),
 
             ScrollView(
@@ -76,17 +78,23 @@ internal sealed class FolderPane : Component<FolderPaneProps>
         var isSelected = folder.Id == Props.SelectedFolderId;
         var bg = isSelected ? SelectedBrush : TransparentBrush;
 
+        var folderLabel = folder.UnreadCount > 0
+            ? $"{folder.DisplayName}, {folder.UnreadCount} unread"
+            : folder.DisplayName;
+
         return Button(
             (FlexRow(
-                MdlIcon(folder.Icon, 16, SecondaryText),
+                MdlIcon(folder.Icon, 16, SecondaryText).AccessibilityHidden(),
                 Text(folder.DisplayName).FontSize(14).Flex(grow: 1),
                 folder.UnreadCount > 0
                     ? Text(folder.UnreadCount.ToString())
                         .SemiBold().FontSize(13).Foreground(AccentText)
+                        .AccessibilityHidden()
                     : Empty()
             ) with { ColumnGap = 10 }).Padding(18, 7, 18, 7),
             () => Props.OnFolderSelected(folder.Id)
-        ).Set(b =>
+        ).AutomationName(folderLabel)
+         .Set(b =>
         {
             b.Background = bg;
             b.BorderThickness = new Thickness(0);

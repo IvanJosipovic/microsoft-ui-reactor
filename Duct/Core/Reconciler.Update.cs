@@ -267,6 +267,8 @@ public sealed partial class Reconciler
                 => UpdateValidationVisualizer(oldVv, newVv, sp, requestRerender),
             (ValidationRuleElement, ValidationRuleElement n, WinUI.StackPanel)
                 => UpdateValidationRule(n),
+            (SemanticElement oldSem, SemanticElement newSem, Accessibility.SemanticPanel sp)
+                => UpdateSemantic(oldSem, newSem, sp, requestRerender),
             (Hooks.AnnounceRegionElement, Hooks.AnnounceRegionElement, TextBlock)
                 => null, // static element — nothing to update
             (XamlHostElement, XamlHostElement n, FrameworkElement hostCtrl)
@@ -1103,18 +1105,29 @@ public sealed partial class Reconciler
             UIElement? newChildControl;
             Element? newChildElement;
 
+            bool wasCacheHit = false;
             if (node.Cache is not null && node.Cache.TryGet(currentRoute, out var cached))
             {
                 // Cache hit — restore the mounted control
                 newChildControl = cached.MountedControl;
                 newChildElement = cached.LastElement;
                 node.Cache.Remove(currentRoute);
+                wasCacheHit = true;
             }
             else
             {
                 // Cache miss — mount fresh
                 newChildElement = node.RouteMap(currentRoute);
                 newChildControl = Mount(newChildElement, requestRerender);
+            }
+
+            // Destination-side guard: invoke onNavigatingTo on the new page.
+            // If cancelled, revert to old page.
+            if (!InvokeNavigatingTo(newChildControl, currentRoute, pendingPreviousRoute, mode))
+            {
+                if (!wasCacheHit && newChildControl is not null)
+                    Unmount(newChildControl);
+                return null;
             }
 
             // Update node state immediately
@@ -2284,6 +2297,43 @@ public sealed partial class Reconciler
         if (oldEl.PageType != newEl.PageType || !Equals(oldEl.Parameter, newEl.Parameter))
             frame.Navigate(newEl.PageType, newEl.Parameter);
         SetElementTag(frame, newEl);
+        return null; // updated in place
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  SemanticElement — composite accessibility wrapper
+    // ════════════════════════════════════════════════════════════════════
+
+    private UIElement? UpdateSemantic(
+        SemanticElement oldSem, SemanticElement newSem,
+        Accessibility.SemanticPanel panel, Action requestRerender)
+    {
+        // Update semantic properties if changed
+        var s = newSem.Semantics;
+        if (oldSem.Semantics.Role != s.Role)
+            panel.SemanticRole = s.Role;
+        if (oldSem.Semantics.Value != s.Value)
+            panel.SemanticValue = s.Value;
+        if (oldSem.Semantics.RangeMin != s.RangeMin)
+            panel.RangeMinimum = s.RangeMin ?? 0.0;
+        if (oldSem.Semantics.RangeMax != s.RangeMax)
+            panel.RangeMaximum = s.RangeMax ?? 0.0;
+        if (oldSem.Semantics.RangeValue != s.RangeValue)
+            panel.RangeValue = s.RangeValue ?? 0.0;
+        if (oldSem.Semantics.IsReadOnly != s.IsReadOnly)
+            panel.IsReadOnly = s.IsReadOnly;
+
+        // Reconcile the child element
+        var existingChild = panel.Children.Count > 0 ? panel.Children[0] : null;
+        var newChild = Reconcile(oldSem.Child, newSem.Child, existingChild, requestRerender);
+        if (newChild != existingChild)
+        {
+            panel.Children.Clear();
+            if (newChild is not null)
+                panel.Children.Add(newChild);
+        }
+
+        SetElementTag(panel, newSem);
         return null; // updated in place
     }
 }

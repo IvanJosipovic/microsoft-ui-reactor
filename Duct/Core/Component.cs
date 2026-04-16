@@ -92,10 +92,11 @@ public abstract class Component
         => Context.UseNavigation<TRoute>();
 
     protected void UseNavigationLifecycle(
+        Action<Navigation.NavigatingToContext>? onNavigatingTo = null,
         Action<Navigation.NavigatedToContext>? onNavigatedTo = null,
         Action<Navigation.NavigatingFromContext>? onNavigatingFrom = null,
         Action<Navigation.NavigatedFromContext>? onNavigatedFrom = null)
-        => Context.UseNavigationLifecycle(onNavigatedTo, onNavigatingFrom, onNavigatedFrom);
+        => Context.UseNavigationLifecycle(onNavigatingTo, onNavigatedTo, onNavigatingFrom, onNavigatedFrom);
 
     protected void UseSystemBackButton<TRoute>(
         Navigation.NavigationHandle<TRoute> nav,

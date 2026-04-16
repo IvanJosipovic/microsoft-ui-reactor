@@ -50,7 +50,8 @@ internal sealed class CalendarViewComponent : Component
                 GoPrev: () => setWeekStart(weekStart.AddDays(-7)),
                 GoNext: () => setWeekStart(weekStart.AddDays(7)),
                 OnViewModeChanged: setViewMode
-            )).Grid(row: 0, column: 0),
+            )).Grid(row: 0, column: 0)
+             .AutomationName("Calendar toolbar"),
 
             // Body: sidebar + calendar
             Component<SplitPanel, SplitPanelProps>(new(

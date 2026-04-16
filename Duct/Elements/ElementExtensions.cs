@@ -1199,6 +1199,35 @@ public static class ElementExtensions
         ModifyA11y(el, new AccessibilityModifiers { TabFocusNavigation = mode });
 
     // ════════════════════════════════════════════════════════════════
+    //  Composite component semantics
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Wraps this element in a SemanticPanel that provides custom automation
+    /// semantics to screen readers. Use this for composite components that need
+    /// to describe their role and value (e.g., a star rating widget built from
+    /// Image elements that should announce as "slider, 3 of 5 stars").
+    ///
+    /// Analogous to SwiftUI's .accessibilityRepresentation {} and Compose's
+    /// Modifier.semantics { role = Role.Slider }.
+    /// </summary>
+    /// <example>
+    /// StarRating(value: 3, max: 5)
+    ///     .Semantics(role: "slider", value: "3 of 5 stars",
+    ///                rangeValue: 3, rangeMin: 0, rangeMax: 5)
+    /// </example>
+    public static SemanticElement Semantics<T>(this T el,
+        string? role = null,
+        string? value = null,
+        double? rangeMin = null,
+        double? rangeMax = null,
+        double? rangeValue = null,
+        bool isReadOnly = true) where T : Element
+    {
+        return new SemanticElement(el, new SemanticDescription(role, value, rangeMin, rangeMax, rangeValue, isReadOnly));
+    }
+
+    // ════════════════════════════════════════════════════════════════
     //  ThemeShadow / Translation modifiers
     // ════════════════════════════════════════════════════════════════
 

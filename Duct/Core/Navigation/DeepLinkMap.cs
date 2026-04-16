@@ -9,10 +9,12 @@ namespace Duct.Core.Navigation;
 public sealed class RouteArgs
 {
     private readonly Dictionary<string, string> _values;
+    private readonly Dictionary<string, string>? _queryParams;
 
-    internal RouteArgs(Dictionary<string, string> values)
+    internal RouteArgs(Dictionary<string, string> values, Dictionary<string, string>? queryParams = null)
     {
         _values = values;
+        _queryParams = queryParams;
     }
 
     /// <summary>
@@ -24,6 +26,50 @@ public sealed class RouteArgs
         if (!_values.TryGetValue(name, out var raw))
             throw new KeyNotFoundException($"Parameter '{name}' not found in route args.");
 
+        return ConvertValue<T>(name, raw);
+    }
+
+    /// <summary>
+    /// Gets an optional parameter value. Returns <paramref name="defaultValue"/>
+    /// if the parameter was not present in the matched URI.
+    /// </summary>
+    public T GetOrDefault<T>(string name, T defaultValue = default!)
+    {
+        if (_values.TryGetValue(name, out var raw) && !string.IsNullOrEmpty(raw))
+            return ConvertValue<T>(name, raw);
+        return defaultValue;
+    }
+
+    /// <summary>
+    /// Returns the raw string value of a parameter, or null if not found.
+    /// </summary>
+    public string? GetString(string name) =>
+        _values.TryGetValue(name, out var v) ? v : null;
+
+    /// <summary>
+    /// Gets a query string parameter value by name, converted to the specified type.
+    /// Returns <paramref name="defaultValue"/> if the parameter is not present.
+    /// </summary>
+    public T Query<T>(string name, T defaultValue = default!)
+    {
+        if (_queryParams is null || !_queryParams.TryGetValue(name, out var raw))
+            return defaultValue;
+        return ConvertValue<T>(name, raw);
+    }
+
+    /// <summary>
+    /// Returns the raw query string parameter value, or null if not found.
+    /// </summary>
+    public string? QueryString(string name) =>
+        _queryParams?.TryGetValue(name, out var v) == true ? v : null;
+
+    /// <summary>
+    /// Gets a wildcard/catch-all segment value captured by a <c>**</c> pattern.
+    /// </summary>
+    public string? GetWildcard() => GetString("**");
+
+    private static T ConvertValue<T>(string name, string raw)
+    {
         var type = typeof(T);
         object result;
         try
@@ -44,12 +90,6 @@ public sealed class RouteArgs
         }
         return (T)result;
     }
-
-    /// <summary>
-    /// Returns the raw string value of a parameter, or null if not found.
-    /// </summary>
-    public string? GetString(string name) =>
-        _values.TryGetValue(name, out var v) ? v : null;
 }
 
 /// <summary>
@@ -68,14 +108,15 @@ public readonly struct DeepLinkResult<TRoute>
 /// Maps URI patterns to route constructors for deep linking.
 /// Patterns use <c>/segment/{param:type}</c> syntax where type is <c>int</c> or <c>string</c>.
 /// </summary>
+/// <summary>
+/// Maps URI patterns to route constructors for deep linking.
+/// Supports <c>/segment/{param:type}</c>, optional params <c>{param?}</c>,
+/// wildcards <c>/path/**</c>, and query string parsing.
+/// </summary>
 public sealed class DeepLinkMap<TRoute> where TRoute : notnull
 {
     private readonly List<(Regex Pattern, string[] ParamNames, Func<RouteArgs, TRoute> Factory, Func<TRoute[]>? BackStackFactory)> _routes = new();
 
-    /// <summary>
-    /// Registers a URI pattern mapped to a route factory.
-    /// Pattern syntax: <c>/segment/{param}</c> or <c>/segment/{param:int}</c>.
-    /// </summary>
     public DeepLinkMap<TRoute> Map(string pattern, Func<RouteArgs, TRoute> factory)
     {
         var (regex, paramNames) = CompilePattern(pattern);
@@ -83,10 +124,6 @@ public sealed class DeepLinkMap<TRoute> where TRoute : notnull
         return this;
     }
 
-    /// <summary>
-    /// Registers a URI pattern with a synthetic back stack.
-    /// The back stack factory provides routes that appear "behind" the deep-linked route.
-    /// </summary>
     public DeepLinkMap<TRoute> Map(string pattern, Func<RouteArgs, TRoute> factory, Func<TRoute[]> backStackFactory)
     {
         var (regex, paramNames) = CompilePattern(pattern);
@@ -94,21 +131,26 @@ public sealed class DeepLinkMap<TRoute> where TRoute : notnull
         return this;
     }
 
-    /// <summary>
-    /// Resolves a URI to a route (and optional back stack).
-    /// Returns <see cref="DeepLinkResult{TRoute}.Matched"/> = false if no pattern matches.
-    /// </summary>
     public DeepLinkResult<TRoute> Resolve(Uri uri)
     {
-        return Resolve(uri.AbsolutePath);
+        var queryParams = ParseQueryString(uri.Query);
+        return Resolve(uri.AbsolutePath, queryParams);
     }
 
-    /// <summary>
-    /// Resolves a URI path string to a route.
-    /// </summary>
     public DeepLinkResult<TRoute> Resolve(string path)
     {
-        // Normalize: remove trailing slash
+        Dictionary<string, string>? queryParams = null;
+        var qi = path.IndexOf('?');
+        if (qi >= 0)
+        {
+            queryParams = ParseQueryString(path.Substring(qi));
+            path = path.Substring(0, qi);
+        }
+        return Resolve(path, queryParams);
+    }
+
+    private DeepLinkResult<TRoute> Resolve(string path, Dictionary<string, string>? queryParams)
+    {
         path = path.TrimEnd('/');
         if (string.IsNullOrEmpty(path))
             path = "/";
@@ -122,10 +164,12 @@ public sealed class DeepLinkMap<TRoute> where TRoute : notnull
             var values = new Dictionary<string, string>();
             for (int i = 0; i < paramNames.Length; i++)
             {
-                values[paramNames[i]] = match.Groups[i + 1].Value;
+                var group = match.Groups[i + 1];
+                if (group.Success && group.Length > 0)
+                    values[paramNames[i]] = group.Value;
             }
 
-            var route = factory(new RouteArgs(values));
+            var route = factory(new RouteArgs(values, queryParams));
 
             if (backStackFactory is not null)
             {
@@ -142,26 +186,74 @@ public sealed class DeepLinkMap<TRoute> where TRoute : notnull
         return new DeepLinkResult<TRoute> { Routes = Array.Empty<TRoute>(), Matched = false };
     }
 
+    private static Dictionary<string, string>? ParseQueryString(string? query)
+    {
+        if (string.IsNullOrEmpty(query)) return null;
+        if (query.StartsWith('?')) query = query.Substring(1);
+        if (string.IsNullOrEmpty(query)) return null;
+
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = pair.IndexOf('=');
+            if (eq >= 0)
+                result[Uri.UnescapeDataString(pair.Substring(0, eq))] = Uri.UnescapeDataString(pair.Substring(eq + 1));
+            else
+                result[Uri.UnescapeDataString(pair)] = "";
+        }
+        return result;
+    }
+
     private static (Regex Regex, string[] ParamNames) CompilePattern(string pattern)
     {
         var paramNames = new List<string>();
-        // Match {name} or {name:type} placeholders
-        var regexPattern = Regex.Replace(pattern, @"\{(\w+)(?::(\w+))?\}", m =>
+
+        // Handle wildcard: /path/** → /path/(.+)
+        string regexPattern;
+        if (pattern.EndsWith("/**"))
+        {
+            var prefix = pattern.Substring(0, pattern.Length - 3);
+            prefix = CompileSegments(prefix, paramNames);
+            paramNames.Add("**");
+            regexPattern = $"{prefix}/(.+)";
+        }
+        else
+        {
+            regexPattern = CompileSegments(pattern, paramNames);
+        }
+
+        return (new Regex($"^{regexPattern}$", RegexOptions.Compiled | RegexOptions.IgnoreCase), paramNames.ToArray());
+    }
+
+    private static string CompileSegments(string pattern, List<string> paramNames)
+    {
+        // First: replace optional /{name?} or /{name:type?} — preceding / is part of the optional group
+        var result = Regex.Replace(pattern, @"/\{(\w+)(?::(\w+))?\?\}", m =>
         {
             var name = m.Groups[1].Value;
             var type = m.Groups[2].Success ? m.Groups[2].Value : "string";
             paramNames.Add(name);
-
-            return type switch
-            {
-                "int" => @"(\d+)",
-                "long" => @"(\d+)",
-                "bool" => @"(true|false)",
-                "guid" => @"([0-9a-fA-F\-]+)",
-                _ => @"([^/]+)", // string (default)
-            };
+            return $"(?:/({GetTypePattern(type)}))?";
         });
 
-        return (new Regex($"^{regexPattern}$", RegexOptions.Compiled | RegexOptions.IgnoreCase), paramNames.ToArray());
+        // Then: replace required {name} or {name:type}
+        result = Regex.Replace(result, @"\{(\w+)(?::(\w+))?\}", m =>
+        {
+            var name = m.Groups[1].Value;
+            var type = m.Groups[2].Success ? m.Groups[2].Value : "string";
+            paramNames.Add(name);
+            return $"({GetTypePattern(type)})";
+        });
+
+        return result;
     }
+
+    private static string GetTypePattern(string type) => type switch
+    {
+        "int" => @"\d+",
+        "long" => @"\d+",
+        "bool" => @"true|false",
+        "guid" => @"[0-9a-fA-F\-]+",
+        _ => @"[^/]+",
+    };
 }

@@ -48,12 +48,15 @@ internal class App : Component
         {
             Content = HStack(6,
                 ToggleButton("SQLite Direct", isChecked: mode == "sqlite",
-                    onToggled: on => { if (on) setMode("sqlite"); }),
+                    onToggled: on => { if (on) setMode("sqlite"); })
+                    .AutomationName("SQLite Direct data source"),
                 ToggleButton("GraphQL API", isChecked: mode == "graphql",
                     onToggled: on => { if (on) setMode("graphql"); })
+                    .AutomationName("GraphQL API data source")
             ),
 
             RightHeader = Text($"{rowsLoaded:N0} rows fetched").FontSize(12).Opacity(0.6)
+                .LiveRegion(Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite)
                 .Set(t => t.IsHitTestVisible = false),
         }).Flex(shrink: 0);
 
@@ -65,6 +68,8 @@ internal class App : Component
             {
                 DataSource = dataSource,
             }).Flex(grow: 1)
+              .Landmark(Microsoft.UI.Xaml.Automation.Peers.AutomationLandmarkType.Main)
+              .AutomationName("Employee data")
         );
     }
 

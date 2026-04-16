@@ -118,6 +118,14 @@ internal static class FixtureRegistry
 
         // Accessibility (validated via out-of-process UIA tests)
         "Accessibility_Showcase",
+        "Accessibility_KeyboardNav",
+        "Accessibility_LiveRegion",
+        "Accessibility_UseAnnounce",
+        "Accessibility_HeadingHierarchy",
+        "Accessibility_AccessKey",
+        "Accessibility_SemanticPanel",
+        "Accessibility_LabeledBy",
+        "Accessibility_TabNavigation",
 
         // DataGrid
         "DataGrid_EditableGrid",
@@ -230,6 +238,14 @@ internal static class FixtureRegistry
 
         // Accessibility
         "Accessibility_Showcase" => AccessibilityFixtures.AccessibilityShowcase(ctx),
+        "Accessibility_KeyboardNav" => AccessibilityInteractionFixtures.KeyboardNavTest(ctx),
+        "Accessibility_LiveRegion" => AccessibilityInteractionFixtures.LiveRegionStaticTest(ctx),
+        "Accessibility_UseAnnounce" => AccessibilityInteractionFixtures.UseAnnounceTest(ctx),
+        "Accessibility_HeadingHierarchy" => AccessibilityInteractionFixtures.HeadingHierarchyTest(ctx),
+        "Accessibility_AccessKey" => AccessibilityInteractionFixtures.AccessKeyTest(ctx),
+        "Accessibility_SemanticPanel" => AccessibilityInteractionFixtures.SemanticPanelTest(ctx),
+        "Accessibility_LabeledBy" => AccessibilityInteractionFixtures.LabeledByTest(ctx),
+        "Accessibility_TabNavigation" => AccessibilityInteractionFixtures.TabNavigationTest(ctx),
 
         // DataGrid
         "DataGrid_EditableGrid" => DataGridFixtures.EditableGrid(ctx),

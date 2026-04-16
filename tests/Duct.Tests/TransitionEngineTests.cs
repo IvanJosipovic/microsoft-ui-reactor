@@ -80,11 +80,19 @@ public class TransitionEngineTests
     }
 
     [Fact]
-    public void Connected_Factory_Creates_ConnectedTransition()
+    public void Slide_Factory_Accepts_Custom_Distance()
     {
-        var transition = NavigationTransition.Connected("hero-image");
-        var connected = Assert.IsType<ConnectedTransition>(transition);
-        Assert.Equal("hero-image", connected.AnimationKey);
+        var transition = NavigationTransition.Slide(distance: 400f);
+        var slide = Assert.IsType<SlideTransition>(transition);
+        Assert.Equal(400f, slide.Distance);
+    }
+
+    [Fact]
+    public void Slide_Factory_Distance_Null_By_Default()
+    {
+        var transition = NavigationTransition.Slide();
+        var slide = Assert.IsType<SlideTransition>(transition);
+        Assert.Null(slide.Distance);
     }
 
     // ════════════════════════════════════════════════════════════════

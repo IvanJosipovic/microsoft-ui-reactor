@@ -37,6 +37,8 @@ public sealed record NavigationEventArgs<TRoute>(
 internal interface INavigationHandle
 {
     object CurrentRoute { get; }
+    bool CanGoBack { get; }
+    bool GoBack();
     event Action? RouteChanged;
 
     /// <summary>
@@ -85,6 +87,8 @@ public sealed class NavigationHandle<TRoute> : INavigationHandle where TRoute : 
     }
 
     object INavigationHandle.CurrentRoute => _stack.Current;
+    bool INavigationHandle.CanGoBack => _stack.CanGoBack;
+    bool INavigationHandle.GoBack() => GoBack();
 
     Action<NavigatingFromContext>? INavigationHandle.LifecycleGuard
     {
@@ -139,6 +143,7 @@ public sealed class NavigationHandle<TRoute> : INavigationHandle where TRoute : 
             success = _stack.Replace(route);
             if (success)
             {
+                NavigationDiagnostics.OnNavigationCompleted(previous!, route!, NavigationMode.Replace);
                 Navigated?.Invoke(new NavigationEventArgs<TRoute>(route, previous, NavigationMode.Replace, options));
                 RouteChanged?.Invoke();
             }
@@ -148,6 +153,7 @@ public sealed class NavigationHandle<TRoute> : INavigationHandle where TRoute : 
             success = _stack.Push(route);
             if (success)
             {
+                NavigationDiagnostics.OnNavigationCompleted(previous!, route!, NavigationMode.Push);
                 Navigated?.Invoke(new NavigationEventArgs<TRoute>(route, previous, NavigationMode.Push, options));
                 RouteChanged?.Invoke();
             }

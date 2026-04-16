@@ -53,14 +53,14 @@ Duct has **three types of tests**. Each serves a different purpose — make sure
 # ── 1. Unit tests (xUnit, no UI window, ~3s) ──
 dotnet test tests/Duct.Tests
 
-# ── 2. Selfhost tests (in-process WinUI window, ~30s) ──
+# ── 2. Selfhost tests (in-process WinUI window, ~10s) ──
 dotnet run --project tests/Duct.AppTests.Host -- --self-test
 
-# ── 3. Appium / E2E tests (requires WinAppDriver, ~30s) ──
-dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.InteractiveTests"
+# ── 3. Appium / E2E tests (requires WinAppDriver) ──
+dotnet test tests/Duct.AppTests --filter "ClassName!=Duct.AppTests.Tests.SelfTestBatch"
 
 # ── ALL tests (unit + selfhost + E2E) ──
-dotnet test tests/Duct.Tests && dotnet run --project tests/Duct.AppTests.Host -- --self-test && dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.InteractiveTests"
+dotnet test tests/Duct.Tests && dotnet test tests/Duct.AppTests
 ```
 
 > **Platform note:** Omit `-p:Platform=...` to use the default (ARM64 on ARM machines,
@@ -81,11 +81,11 @@ dotnet test tests/Duct.Tests
 dotnet test tests/Duct.Tests --filter "FullyQualifiedName~TreeSerializerTests"
 ```
 
-### 2. Selfhost tests (`tests/Duct.AppTests` → `tests/Duct.AppTests.Host --self-test`) — MSTest + TAP
+### 2. Selfhost tests (`tests/Duct.AppTests.Host --self-test`) — TAP
 
 350+ in-process checks that run inside a real WinUI window at CPU speed. Each fixture
-mounts UI via `DuctHost`, runs assertions through `VisualTreeHelper`, and outputs TAP
-results.
+(in `tests/Duct.AppTests.Host/SelfTest/Fixtures/`) mounts UI via `DuctHost`, runs
+assertions through `VisualTreeHelper`, and outputs TAP results to stdout.
 
 These exercise the full reconciler pipeline (mount → update → unmount) against real
 WinUI controls — the **only** way to test the diff system end-to-end.
@@ -93,24 +93,54 @@ WinUI controls — the **only** way to test the diff system end-to-end.
 **When to run:** After reconciler, control mount/update, or UI-related changes.
 
 ```bash
+# Run directly (TAP output to stdout, ~10s)
 dotnet run --project tests/Duct.AppTests.Host -- --self-test
+
+# Filter by fixture name prefix
+dotnet run --project tests/Duct.AppTests.Host -- --self-test --filter "Flex"
 ```
 
-### 3. Appium / E2E tests (`tests/Duct.AppTests` → Appium + WinAppDriver) — MSTest
+> **How it connects to `dotnet test`:** The `SelfTestBatch` class in
+> `tests/Duct.AppTests/Tests/SelfTestBatch.cs` launches the Host app as a subprocess
+> with `--self-test`, parses the TAP output, and maps each fixture result to an MSTest
+> `[TestMethod]`. This means selfhost tests also run as part of `dotnet test
+> tests/Duct.AppTests` — you don't need to run them separately unless you want the
+> raw TAP output or faster iteration.
+
+### 3. Appium / E2E tests (`tests/Duct.AppTests`) — MSTest + WinAppDriver
 
 End-to-end tests that use Appium/WinAppDriver to simulate real user input (button
-clicks, INPC mutation) through the cross-process UI Automation pipeline. These verify
-the full input→render→output path.
+clicks, keyboard input, tab navigation) through the cross-process UI Automation
+pipeline. These verify the full input→render→output path and validate that UIA
+properties are visible to assistive technology.
 
 **When to run:** Before shipping. These are slow and require WinAppDriver.
 
+There are **6 E2E test classes** across two host apps:
+
+| Class | Host app | Methods | What it tests |
+|-------|----------|---------|---------------|
+| `InteractiveTests` | WinUI | 2 | Counter clicks, observable mutation |
+| `AccessibilityTests` | WinUI | 14 | WCAG property validation via UIA |
+| `AccessibilityInteractionTests` | WinUI | 10 | Keyboard nav, live regions, headings, semantic panels |
+| `EventHandlerTests` | WinUI | 5 | OnTapped, OnSizeChanged, OnPointerPressed, OnKeyDown, UseReducer |
+| `DataGridTests` | WinUI | 1 | Click-to-edit, keyboard commit |
+| `WinFormsInteropTests` | WinForms | 14 | XAML Island rendering, tab navigation, UIA across boundaries |
+
 ```bash
-dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.InteractiveTests"
+# All E2E tests (excludes SelfTestBatch)
+dotnet test tests/Duct.AppTests --filter "ClassName!=Duct.AppTests.Tests.SelfTestBatch"
+
+# Run a specific E2E test class
+dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.AccessibilityTests"
 ```
 
 > **Requires:** [WinAppDriver](https://github.com/microsoft/WinAppDriver/releases) installed
 > at `C:\Program Files (x86)\Windows Application Driver\WinAppDriver.exe`. The unit tests
 > and selfhost tests run without it.
+>
+> **WinForms tests** also require the `Duct.WinFormsTests.Host` project to be built.
+> It launches a separate WinForms app with a XAML Island.
 
 ### Code coverage
 
@@ -150,9 +180,13 @@ The `coverage.settings.xml` file in the repo root controls which modules are inc
 |---|------|---------|--------|-------|---------------|
 | 1 | **Unit** | `tests/Duct.Tests` | xUnit | 2,200+ | Algorithms, element equality, Yoga layout, hooks — no WinUI window |
 | 2 | **Selfhost** | `tests/Duct.AppTests.Host` | TAP | 350+ | Full reconciler pipeline against real WinUI controls, in-process |
-| 3 | **E2E** | `tests/Duct.AppTests` | Appium/MSTest | 2+ | Cross-process input injection via WinAppDriver |
+| 3 | **E2E** | `tests/Duct.AppTests` | Appium/MSTest | 46 | Cross-process UIA validation via WinAppDriver (6 test classes) |
 
 > **No stale binaries:** `Duct.AppTests.csproj` has a `ProjectReference` to the Host app with `ReferenceOutputAssembly="false"`, so `dotnet test` always builds the Host before running tests.
+
+> **`dotnet test tests/Duct.AppTests` without a filter runs everything:** both the
+> SelfTestBatch (selfhost via subprocess) and all 6 E2E test classes. This is the
+> simplest way to run all non-unit tests.
 
 ### What the tests cover
 
@@ -172,7 +206,12 @@ The `coverage.settings.xml` file in the repo root controls which modules are inc
 - **Observable/INPC** — `UseObservable`, `UseObservableProperty`, `UseCollection` hooks
 - **PropertyGrid** — reflection, categories, enums, immutable records, custom editors, target switching
 - **Localization** — locale switching with ICU MessageFormat
-- **Interactive input** — counter buttons, INPC mutation via WinAppDriver
+- **Interactive input** — counter buttons, INPC mutation via WinAppDriver (`InteractiveTests.cs`)
+- **Accessibility (WCAG)** — UIA property validation for Name, HelpText, HeadingLevel, Landmarks, LiveRegions, AccessKeys, PositionInSet (`AccessibilityTests.cs`)
+- **Accessibility interactions** — keyboard tab order, live region announcements, heading hierarchy, semantic panels, LabeledBy resolution (`AccessibilityInteractionTests.cs`)
+- **Event handlers** — OnTapped, OnSizeChanged, OnPointerPressed, OnKeyDown, UseReducer via Appium (`EventHandlerTests.cs`)
+- **DataGrid editing** — click-to-edit, keyboard commit, cross-row navigation via Appium (`DataGridTests.cs`)
+- **WinForms interop** — XAML Island rendering, forward/backward tab cycle across WinForms ↔ WinUI boundary, UIA properties through the island (`WinFormsInteropTests.cs`)
 
 ## Running the demo app
 

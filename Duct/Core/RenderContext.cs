@@ -1,3 +1,5 @@
+using Duct.Hooks;
+
 namespace Duct.Core;
 
 /// <summary>
@@ -544,6 +546,7 @@ public sealed class RenderContext
     /// Callbacks are always updated to the latest references on every render.
     /// </summary>
     public void UseNavigationLifecycle(
+        Action<Navigation.NavigatingToContext>? onNavigatingTo = null,
         Action<Navigation.NavigatedToContext>? onNavigatedTo = null,
         Action<Navigation.NavigatingFromContext>? onNavigatingFrom = null,
         Action<Navigation.NavigatedFromContext>? onNavigatedFrom = null)
@@ -560,6 +563,7 @@ public sealed class RenderContext
         _hookIndex++;
 
         // Always update to latest callbacks so closures capture current state
+        hook.OnNavigatingTo = onNavigatingTo;
         hook.OnNavigatedTo = onNavigatedTo;
         hook.OnNavigatingFrom = onNavigatingFrom;
         hook.OnNavigatedFrom = onNavigatedFrom;
@@ -993,6 +997,7 @@ public sealed class RenderContext
 
     internal class NavigationLifecycleHookState : HookState
     {
+        public Action<Navigation.NavigatingToContext>? OnNavigatingTo;
         public Action<Navigation.NavigatedToContext>? OnNavigatedTo;
         public Action<Navigation.NavigatingFromContext>? OnNavigatingFrom;
         public Action<Navigation.NavigatedFromContext>? OnNavigatedFrom;

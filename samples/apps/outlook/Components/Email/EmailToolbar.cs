@@ -13,30 +13,33 @@ internal sealed class EmailToolbar : Component
     {
         return VStack(0,
             (FlexRow(
-                ToolbarBtn("\uE74D", "Delete"),
-                ToolbarBtn("\uE7B8", "Archive"),
+                ToolbarBtn("\uE74D", "Delete", "D"),
+                ToolbarBtn("\uE7B8", "Archive", "A"),
                 ToolbarBtn("\uE8DE", "Move to"),
                 Separator(),
-                ToolbarBtn("\uE97A", "Reply"),
+                ToolbarBtn("\uE97A", "Reply", "R"),
                 ToolbarBtn("\uE8C2", "Reply all"),
-                ToolbarBtn("\uE72A", "Forward"),
+                ToolbarBtn("\uE72A", "Forward", "F"),
                 Separator(),
                 ToolbarBtn("\uE8A3", "Read / Unread"),
                 ToolbarBtn("\uE129", "Flag")
             ) with { ColumnGap = 4 }).Padding(10, 6, 10, 6),
             Border(Empty()).Height(1).Background(DividerStroke)
-        );
+        ).AutomationName("Message actions toolbar");
     }
 
-    static Element ToolbarBtn(string icon, string label) =>
-        Button(
+    static Element ToolbarBtn(string icon, string label, string? accessKey = null)
+    {
+        var btn = Button(
             (FlexRow(
                 Text(icon).FontSize(16).Foreground(SecondaryText)
-                    .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets")),
+                    .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets"))
+                    .AccessibilityHidden(),
                 Text(label).FontSize(13).Foreground(PrimaryText)
             ) with { ColumnGap = 6 }),
             null
-        ).Set(b =>
+        ).AutomationName(label)
+         .Set(b =>
         {
             b.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
             b.BorderThickness = new Thickness(0);
@@ -47,6 +50,9 @@ internal sealed class EmailToolbar : Component
             b.Resources["ButtonBorderBrushPointerOver"] = new SolidColorBrush(
                 Windows.UI.Color.FromArgb(0, 0, 0, 0));
         });
+        if (accessKey is not null) btn = btn.AccessKey(accessKey);
+        return btn;
+    }
 
     static Element Separator() =>
         Border(Empty()).Width(1).Height(22).Background(DividerStroke).Margin(4, 0, 4, 0);

@@ -21,6 +21,7 @@ internal sealed class NavigationCache
 {
     private readonly Dictionary<object, CachedPage> _cache = new();
     private readonly Action<UIElement>? _onEvict;
+    private readonly object _lock = new();
 
     public int MaxSize { get; set; }
 
@@ -38,13 +39,16 @@ internal sealed class NavigationCache
     /// </summary>
     public bool TryGet(object route, out CachedPage page)
     {
-        if (_cache.TryGetValue(route, out page))
+        lock (_lock)
         {
-            page.LastAccessed = DateTime.UtcNow;
-            _cache[route] = page;
-            return true;
+            if (_cache.TryGetValue(route, out page))
+            {
+                page.LastAccessed = DateTime.UtcNow;
+                _cache[route] = page;
+                return true;
+            }
+            return false;
         }
-        return false;
     }
 
     /// <summary>
@@ -52,13 +56,16 @@ internal sealed class NavigationCache
     /// </summary>
     public void Add(object route, CachedPage page)
     {
-        page.LastAccessed = DateTime.UtcNow;
-        _cache[route] = page;
-
-        while (_cache.Count > MaxSize)
+        lock (_lock)
         {
-            if (!Evict())
-                break; // All remaining entries are Required — stop evicting
+            page.LastAccessed = DateTime.UtcNow;
+            _cache[route] = page;
+
+            while (_cache.Count > MaxSize)
+            {
+                if (!EvictLocked())
+                    break;
+            }
         }
     }
 
@@ -67,6 +74,11 @@ internal sealed class NavigationCache
     /// Returns false if all entries are Required and nothing was evicted.
     /// </summary>
     public bool Evict()
+    {
+        lock (_lock) { return EvictLocked(); }
+    }
+
+    private bool EvictLocked()
     {
         object? lruKey = null;
         var lruTime = DateTime.MaxValue;
@@ -99,7 +111,7 @@ internal sealed class NavigationCache
     /// </summary>
     public bool Remove(object route)
     {
-        return _cache.Remove(route);
+        lock (_lock) { return _cache.Remove(route); }
     }
 
     /// <summary>
@@ -107,12 +119,13 @@ internal sealed class NavigationCache
     /// </summary>
     public void Clear()
     {
-        foreach (var entry in _cache.Values)
+        lock (_lock)
         {
-            _onEvict?.Invoke(entry.MountedControl);
+            foreach (var entry in _cache.Values)
+                _onEvict?.Invoke(entry.MountedControl);
+            _cache.Clear();
         }
-        _cache.Clear();
     }
 
-    public int Count => _cache.Count;
+    public int Count { get { lock (_lock) { return _cache.Count; } } }
 }

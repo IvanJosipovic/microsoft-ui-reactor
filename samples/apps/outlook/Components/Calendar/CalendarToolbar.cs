@@ -57,13 +57,19 @@ internal sealed class CalendarToolbar : Component<CalendarToolbarProps>
 
             // Navigation
             Button(MdlIcon("\uE76B", 12), Props.GoPrev)
+                .AutomationName("Previous week")
+                .AccessKey("P")
                 .Set(b => { b.BorderThickness = new Thickness(0); b.Padding = new Thickness(6); }),
-            Button("Today", Props.GoToday),
+            Button("Today", Props.GoToday)
+                .AccessKey("T"),
             Button(MdlIcon("\uE76C", 12), Props.GoNext)
+                .AutomationName("Next week")
+                .AccessKey("N")
                 .Set(b => { b.BorderThickness = new Thickness(0); b.Padding = new Thickness(6); }),
 
             // Date range title
             Text(title).SemiBold().FontSize(16).VAlign(VerticalAlignment.Center)
+                .HeadingLevel(Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level1)
         ).Padding(8, 6, 8, 6);
     }
 

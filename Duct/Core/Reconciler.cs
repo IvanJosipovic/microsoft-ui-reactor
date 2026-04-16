@@ -1960,11 +1960,28 @@ public sealed partial class Reconciler : IDisposable
             fe.TabFocusNavigation = a.TabFocusNavigation.Value;
 
         // LabeledBy — resolve AutomationId string to the target element in the visual tree.
+        // During mount the element may not be in the visual tree yet (XamlRoot is null),
+        // so defer resolution to the Loaded event if needed.
         if (a.LabeledBy is not null && a.LabeledBy != oldA?.LabeledBy)
         {
             var target = FindByAutomationId(fe, a.LabeledBy);
             if (target is not null)
+            {
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetLabeledBy(fe, target);
+            }
+            else
+            {
+                // Element not yet in visual tree — defer until Loaded.
+                var labelId = a.LabeledBy;
+                void OnLoaded(object sender, RoutedEventArgs _)
+                {
+                    fe.Loaded -= OnLoaded;
+                    var deferred = FindByAutomationId(fe, labelId);
+                    if (deferred is not null)
+                        Microsoft.UI.Xaml.Automation.AutomationProperties.SetLabeledBy(fe, deferred);
+                }
+                fe.Loaded += OnLoaded;
+            }
         }
         else if (a.LabeledBy is null && oldA?.LabeledBy is not null)
         {
@@ -2569,6 +2586,33 @@ public sealed partial class Reconciler : IDisposable
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Invokes <c>onNavigatingTo</c> (destination-side guard) on all lifecycle hooks
+    /// in the new page's subtree. Returns true if navigation should proceed.
+    /// </summary>
+    internal bool InvokeNavigatingTo(
+        UIElement? newChildControl,
+        object currentRoute, object? previousRoute, Navigation.NavigationMode mode)
+    {
+        var hooks = CollectLifecycleHooks(newChildControl);
+        var ctx = new Navigation.NavigatingToContext(currentRoute, previousRoute, mode);
+        foreach (var hook in hooks)
+        {
+            try { hook.OnNavigatingTo?.Invoke(ctx); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Duct] onNavigatingTo threw: {ex}");
+            }
+            if (ctx.IsCancelled)
+            {
+                Navigation.NavigationDiagnostics.OnNavigationCancelled(
+                    previousRoute ?? currentRoute, currentRoute, mode, "destination guard");
+                return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>

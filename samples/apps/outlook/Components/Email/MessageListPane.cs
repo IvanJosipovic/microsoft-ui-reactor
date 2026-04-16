@@ -56,9 +56,11 @@ internal sealed class MessageListPane : Component<MessageListPaneProps>
                 (item, _) => item switch
                 {
                     DateHeaderItem dh => (FlexRow(
-                        MdlIcon("\uE76C", 10),
+                        MdlIcon("\uE76C", 10).AccessibilityHidden(),
                         Text(dh.Label).FontSize(13).SemiBold().Foreground(SecondaryText)
-                    ) with { ColumnGap = 5 }).Padding(16, 12, 16, 4),
+                    ) with { ColumnGap = 5 })
+                        .HeadingLevel(Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level3)
+                        .Padding(16, 12, 16, 4),
 
                     MessageItem mi => Component<MessageRow, MessageRowProps>(new(
                         Message: mi.Message,

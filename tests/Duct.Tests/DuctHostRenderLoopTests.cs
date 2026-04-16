@@ -16,19 +16,20 @@ public class DuctHostRenderLoopTests
     [Fact]
     public void DuctHostControl_Constructor_Accepts_Logger()
     {
-        var ctor = typeof(DuctHostControl).GetConstructor([typeof(IDuctLogger)]);
+        var ctor = typeof(DuctHostControl).GetConstructor([typeof(Component), typeof(IDuctLogger)]);
         Assert.NotNull(ctor);
+        // Both parameters should be optional
+        foreach (var param in ctor!.GetParameters())
+            Assert.True(param.HasDefaultValue, $"Parameter '{param.Name}' should have a default value");
     }
 
     [Fact]
     public void DuctHostControl_Has_Default_Constructor()
     {
-        // Parameterless ctor (logger defaults to DebugDuctLogger)
-        var ctor = typeof(DuctHostControl).GetConstructor([typeof(IDuctLogger)]);
+        // Constructor has (Component?, IDuctLogger?) — both optional, so callable with no args
+        var ctor = typeof(DuctHostControl).GetConstructor([typeof(Component), typeof(IDuctLogger)]);
         Assert.NotNull(ctor);
-        // Verify it has a default value
-        var param = ctor!.GetParameters()[0];
-        Assert.True(param.HasDefaultValue);
+        Assert.True(ctor!.GetParameters().All(p => p.HasDefaultValue));
     }
 
     // ── DuctHost API surface ─────────────────────────────────────

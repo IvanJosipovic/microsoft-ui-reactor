@@ -39,16 +39,18 @@ public abstract record NavigationTransition
     /// <summary>No animation — instant swap.</summary>
     public static readonly NavigationTransition None = new SuppressTransition();
 
-    /// <summary>Slide transition with configurable direction, duration, and easing.</summary>
+    /// <summary>Slide transition with configurable direction, duration, distance, and easing.</summary>
     public static NavigationTransition Slide(
         SlideDirection direction = SlideDirection.FromRight,
         TimeSpan? duration = null,
-        CompositionEasingFunction? easing = null)
+        CompositionEasingFunction? easing = null,
+        float? distance = null)
         => new SlideTransition
         {
             Direction = direction,
             Duration = duration,
             Easing = easing,
+            Distance = distance,
         };
 
     /// <summary>Crossfade transition.</summary>
@@ -82,6 +84,8 @@ public sealed record SlideTransition : NavigationTransition
     public SlideDirection Direction { get; init; } = SlideDirection.FromRight;
     public TimeSpan? Duration { get; init; }
     public CompositionEasingFunction? Easing { get; init; }
+    /// <summary>Slide distance in pixels. When null, defaults to 200px.</summary>
+    public float? Distance { get; init; }
 }
 
 /// <summary>Crossfade transition — animate opacity on both visuals.</summary>

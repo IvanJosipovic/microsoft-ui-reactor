@@ -148,6 +148,7 @@ public sealed partial class Reconciler
             Validation.FormFieldElement ff => MountFormField(ff, requestRerender),
             Validation.ValidationVisualizerElement vv => MountValidationVisualizer(vv, requestRerender),
             Validation.ValidationRuleElement rule => MountValidationRule(rule),
+            SemanticElement sem => MountSemantic(sem, requestRerender),
             AnnounceRegionElement ann => MountAnnounceRegion(ann),
             XamlHostElement host => MountXamlHost(host),
             XamlPageElement page => MountXamlPage(page),
@@ -2620,5 +2621,31 @@ public sealed partial class Reconciler
         ann.Handle.SetTextBlock(tb);
         SetElementTag(tb, ann);
         return tb;
+    }
+
+    /// <summary>
+    /// Mounts a SemanticPanel that provides custom automation semantics
+    /// for composite Duct components that can't override OnCreateAutomationPeer().
+    /// </summary>
+    private UIElement MountSemantic(SemanticElement sem, Action requestRerender)
+    {
+        var panel = new Accessibility.SemanticPanel();
+
+        // Apply semantic properties
+        var s = sem.Semantics;
+        if (s.Role is not null) panel.SemanticRole = s.Role;
+        if (s.Value is not null) panel.SemanticValue = s.Value;
+        if (s.RangeMin.HasValue) panel.RangeMinimum = s.RangeMin.Value;
+        if (s.RangeMax.HasValue) panel.RangeMaximum = s.RangeMax.Value;
+        if (s.RangeValue.HasValue) panel.RangeValue = s.RangeValue.Value;
+        panel.IsReadOnly = s.IsReadOnly;
+
+        // Mount child inside the panel
+        var childControl = Mount(sem.Child, requestRerender);
+        if (childControl is not null)
+            panel.Children.Add(childControl);
+
+        SetElementTag(panel, sem);
+        return panel;
     }
 }

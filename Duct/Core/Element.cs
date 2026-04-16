@@ -477,6 +477,29 @@ public record FuncElement(Func<RenderContext, Element> RenderFunc) : Element;
 /// </summary>
 public record MemoElement(Func<RenderContext, Element> RenderFunc, object?[]? Dependencies = null) : Element;
 
+// ════════════════════════════════════════════════════════════════════════
+//  Semantic wrapper for composite accessibility
+// ════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// Describes the semantic role, value, and range of a composite component
+/// for assistive technology. Used with the .Semantics() modifier.
+/// </summary>
+public record SemanticDescription(
+    string? Role = null,
+    string? Value = null,
+    double? RangeMin = null,
+    double? RangeMax = null,
+    double? RangeValue = null,
+    bool IsReadOnly = true);
+
+/// <summary>
+/// Wraps a child element in a SemanticPanel that provides custom automation
+/// semantics to screen readers. This solves the problem where Duct components
+/// can't override OnCreateAutomationPeer().
+/// </summary>
+public record SemanticElement(Element Child, SemanticDescription Semantics) : Element;
+
 public record ElementModifiers
 {
     public Thickness? Margin { get; init; }

@@ -92,13 +92,14 @@ internal static class TransitionEngine
         SlideTransition slide, NavigationMode mode)
     {
         var duration = slide.Duration ?? TimeSpan.FromMilliseconds(250);
+        var distance = slide.Distance ?? 200f;
         var direction = slide.Direction;
 
         // Reverse direction for GoBack/Forward-reverse
         if (mode == NavigationMode.Pop)
             direction = ReverseDirection(direction);
 
-        var (outEnd, inStart) = GetSlideOffsets(direction);
+        var (outEnd, inStart) = GetSlideOffsets(direction, distance);
         var easing = slide.Easing ?? compositor.CreateCubicBezierEasingFunction(
             new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1.0f));
 
@@ -142,15 +143,14 @@ internal static class TransitionEngine
         _ => direction,
     };
 
-    private static (Vector3 OutEnd, Vector3 InStart) GetSlideOffsets(SlideDirection direction)
+    private static (Vector3 OutEnd, Vector3 InStart) GetSlideOffsets(SlideDirection direction, float distance = 200f)
     {
-        const float slideDistance = 200f;
         return direction switch
         {
-            SlideDirection.FromRight => (new Vector3(-slideDistance, 0, 0), new Vector3(slideDistance, 0, 0)),
-            SlideDirection.FromLeft => (new Vector3(slideDistance, 0, 0), new Vector3(-slideDistance, 0, 0)),
-            SlideDirection.FromBottom => (new Vector3(0, -slideDistance, 0), new Vector3(0, slideDistance, 0)),
-            SlideDirection.FromTop => (new Vector3(0, slideDistance, 0), new Vector3(0, -slideDistance, 0)),
+            SlideDirection.FromRight => (new Vector3(-distance, 0, 0), new Vector3(distance, 0, 0)),
+            SlideDirection.FromLeft => (new Vector3(distance, 0, 0), new Vector3(-distance, 0, 0)),
+            SlideDirection.FromBottom => (new Vector3(0, -distance, 0), new Vector3(0, distance, 0)),
+            SlideDirection.FromTop => (new Vector3(0, distance, 0), new Vector3(0, -distance, 0)),
             _ => (Vector3.Zero, Vector3.Zero),
         };
     }

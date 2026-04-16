@@ -43,10 +43,18 @@ public static class UI
     public static TextElement Text(string content) => new(content);
 
     public static TextElement Heading(string content) =>
-        new(content) { FontSize = 28, Weight = new Windows.UI.Text.FontWeight(700) };
+        new(content) { FontSize = 28, Weight = new Windows.UI.Text.FontWeight(700),
+            Modifiers = new Core.ElementModifiers
+            {
+                HeadingLevel = Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level1
+            } };
 
     public static TextElement SubHeading(string content) =>
-        new(content) { FontSize = 20, Weight = new Windows.UI.Text.FontWeight(600) };
+        new(content) { FontSize = 20, Weight = new Windows.UI.Text.FontWeight(600),
+            Modifiers = new Core.ElementModifiers
+            {
+                HeadingLevel = Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2
+            } };
 
     public static TextElement Caption(string content) =>
         new(content) { FontSize = 12 };

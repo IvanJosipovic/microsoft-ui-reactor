@@ -211,6 +211,24 @@ public sealed class ElementPool : IDisposable
         fe.ClearValue(FrameworkElement.RenderTransformProperty);
         fe.ClearValue(FrameworkElement.FlowDirectionProperty);
 
+        // Clear accessibility / automation properties so pooled controls don't
+        // carry stale UIA state (Name, LabeledBy, LiveSetting, etc.) into reuse.
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.AutomationIdProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.HelpTextProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.FullDescriptionProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.LandmarkTypeProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.AccessibilityViewProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.IsRequiredForFormProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.LiveSettingProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.PositionInSetProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.SizeOfSetProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.LevelProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.ItemStatusProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.LabeledByProperty);
+        fe.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.HeadingLevelProperty);
+        fe.AccessKey = "";
+
         // Clear flex attached properties so pooled controls don't carry stale
         // Grow/Shrink/Basis values into their next parent FlexPanel.
         fe.ClearValue(Flex.FlexPanel.GrowProperty);
