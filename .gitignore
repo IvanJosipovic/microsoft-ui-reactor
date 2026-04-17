@@ -204,3 +204,4 @@ selfhost/
 
 # Rust build artifacts
 Reactor/Native/differ/target/
+samples/apps/reactorfiles/Native/reactorfs/target/
