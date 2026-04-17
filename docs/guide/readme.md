@@ -32,8 +32,8 @@ class HelloWorld : Component
     public override Element Render()
     {
         return VStack(12,
-            Text("Hello from Reactor!").FontSize(24).Bold(),
-            Text("No XAML. No data binding. Just C#.")
+            Factories.Text("Hello from Reactor!").FontSize(24).Bold(),
+            Factories.Text("No XAML. No data binding. Just C#.")
         ).Padding(24);
     }
 }
@@ -52,7 +52,7 @@ class QuickCounter : Component
 
         return HStack(8,
             Button("- 1", () => setCount(count - 1)),
-            Text($"{count}").FontSize(20).SemiBold().Width(40)
+            Factories.Text($"{count}").FontSize(20).SemiBold().Width(40)
                 .HAlign(HorizontalAlignment.Center),
             Button("+ 1", () => setCount(count + 1))
         ).Padding(24);
@@ -72,7 +72,7 @@ class StyledText : Component
         return VStack(8,
             Heading("Heading element"),
             SubHeading("SubHeading element"),
-            Text("Regular text with modifiers")
+            Factories.Text("Regular text with modifiers")
                 .FontSize(14).Foreground("#0078D4"),
             Caption("Caption for fine print")
         ).Padding(24);
@@ -120,7 +120,7 @@ to wire up, no dispatcher threading to worry about.
 - **[Accessibility](accessibility.md)** — Screen readers, keyboard navigation, focus trapping, runtime scanning
 - **[Localization](localization.md)** — Multi-language support, resource strings, RTL layouts
 - **[Animation](animation.md)** — Transitions, keyframes, interaction states, choreography
-- **[Charting](charting.md)** — Line, bar, area, and pie charts with the ReactorCharting library
+- **[Charting](charting.md)** — Line, bar, area, and pie charts with the ReactorD3 library
 - **[Advanced Patterns](advanced.md)** — Performance tuning, custom hooks, large-scale architecture
 - **[Data System](data-system.md)** — DataGrid with sort, filter, search, inline editing, paging
 - **[WinForms Interop](winforms-interop.md)** — Host Reactor components inside WinForms apps via XAML Islands

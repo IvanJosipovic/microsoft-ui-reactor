@@ -17,10 +17,10 @@ class ThemeTokensExample : Component
     public override Element Render()
     {
         return VStack(12,
-            Text("Primary Text").Foreground(Theme.PrimaryText),
-            Text("Secondary Text").Foreground(Theme.SecondaryText),
-            Text("Accent Text").Foreground(Theme.AccentText).SemiBold(),
-            Text("On Accent Background")
+            Factories.Text("Primary Text").Foreground(Theme.PrimaryText),
+            Factories.Text("Secondary Text").Foreground(Theme.SecondaryText),
+            Factories.Text("Accent Text").Foreground(Theme.AccentText).SemiBold(),
+            Factories.Text("On Accent Background")
                 .Foreground("#FFFFFF")
                 .Padding(8, 4)
                 .Background(Theme.Accent)
@@ -61,7 +61,7 @@ class CardLayoutExample : Component
         Border(
             VStack(8,
                 Caption(title).Foreground(Theme.SecondaryText),
-                Text(value).FontSize(28).Bold().Foreground(accent)
+                Factories.Text(value).FontSize(28).Bold().Foreground(accent)
             ).Padding(16)
         ).Background(Theme.CardBackground)
          .CornerRadius(8)
@@ -86,9 +86,9 @@ class ColorModifiersExample : Component
     public override Element Render()
     {
         return VStack(8,
-            Text("Theme token").Background(Theme.SubtleFill).Padding(8),
-            Text("Hex string").Background("#E8F5E9").Padding(8),
-            Text("Mixed").Foreground(Theme.PrimaryText)
+            Factories.Text("Theme token").Background(Theme.SubtleFill).Padding(8),
+            Factories.Text("Hex string").Background("#E8F5E9").Padding(8),
+            Factories.Text("Mixed").Foreground(Theme.PrimaryText)
                 .Background("#1E1E2E").Padding(8)
         ).Padding(24);
     }
@@ -123,7 +123,7 @@ class SignalColorsExample : Component
     }
 
     static Element Badge(string label, ThemeRef color) =>
-        Text(label)
+        Factories.Text(label)
             .FontSize(12).SemiBold()
             .Foreground(color)
             .Padding(8, 4)
@@ -155,8 +155,8 @@ class DarkLightToggleExample : Component
             ToggleSwitch(isDark, setIsDark, onContent: "Dark", offContent: "Light"),
             Border(
                 VStack(12,
-                    Text("This panel follows the toggle.").Foreground(Theme.PrimaryText),
-                    Text("Background adapts automatically.").Foreground(Theme.SecondaryText)
+                    Factories.Text("This panel follows the toggle.").Foreground(Theme.PrimaryText),
+                    Factories.Text("Background adapts automatically.").Foreground(Theme.SecondaryText)
                 ).Padding(16)
             ).Background(Theme.CardBackground)
              .CornerRadius(8)
@@ -187,11 +187,11 @@ class ColorSchemeHookExample : Component
         var scheme = UseColorScheme();
 
         return VStack(12,
-            Text($"Color scheme: {scheme}").FontSize(16).SemiBold(),
-            Text(isDark ? "Dark mode is active" : "Light mode is active")
+            Factories.Text($"Color scheme: {scheme}").FontSize(16).SemiBold(),
+            Factories.Text(isDark ? "Dark mode is active" : "Light mode is active")
                 .Foreground(Theme.SecondaryText),
             Border(
-                Text(isDark ? "Dark content" : "Light content")
+                Factories.Text(isDark ? "Dark content" : "Light content")
                     .Padding(12)
             ).Background(Theme.CardBackground)
              .CornerRadius(8)
@@ -256,9 +256,9 @@ class CustomResourceExample : Component
     public override Element Render()
     {
         return VStack(12,
-            Text("Using a named WinUI resource:")
+            Factories.Text("Using a named WinUI resource:")
                 .Foreground(Theme.PrimaryText),
-            Text("NavigationViewItemForeground")
+            Factories.Text("NavigationViewItemForeground")
                 .Foreground(Theme.Ref("NavigationViewItemForeground"))
         ).Padding(24);
     }

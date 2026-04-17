@@ -1,16 +1,16 @@
 
 # Charting
 
-ReactorCharting brings data visualization to Reactor. The chart DSL provides high-level
+ReactorD3 brings data visualization to Reactor. The chart DSL provides high-level
 `LineChart`, `BarChart`, `AreaChart`, and `PieChart` factories that produce
 standard Reactor elements. You bind data, configure appearance with a fluent
 API, and the chart renders as native WinUI shapes on a Canvas.
 
-Add a reference to `ReactorCharting.csproj` and import the DSL:
+Add a reference to `ReactorD3.csproj` and import the DSL:
 
 ```csharp
-using Microsoft.UI.Reactor.Charting;
-using static Microsoft.UI.Reactor.Charting.ChartDsl;
+using Reactor.D3.Charts;
+using static Reactor.D3.Charts.ChartDsl;
 ```
 
 ## Line Chart
@@ -214,8 +214,9 @@ smooth interaction.
 
 ## Dynamic Data Updates
 
-For frequent updates (live dashboards, real-time feeds), use `OnReady` to
-get a `ChartHandle` that redraws the canvas without a Reactor re-render:
+Charts are native Reactor elements, so changing state is all you need. Use
+`UseState`, `UseReducer`, or any hook to update the data — the reconciler
+diffs the old and new element trees and patches only what changed:
 
 ```csharp
 class DynamicDataDemo : Component
@@ -244,14 +245,13 @@ class DynamicDataDemo : Component
 
 ![Dynamic data](images/charting/dynamic-data.png)
 
-You can also call `handle.Redraw(newData)` from a timer or event callback
-to push new data directly to the canvas. This bypasses the reconciler for
-maximum throughput.
+For high-frequency updates (60fps streaming), use `OnReady` to get a
+handle that exposes the underlying `Canvas` for direct manipulation.
 
 ## Low-Level Drawing
 
-For custom visualizations, ReactorCharting provides shape generators and a Canvas
-DSL. Import `using static Microsoft.UI.Reactor.Charting.D3` for:
+For custom visualizations, ReactorD3 provides shape generators and a Canvas
+DSL. Import `using static Reactor.D3.Charts.D3` for:
 
 - **`D3Canvas(w, h, children)`** — create a drawing surface
 - **`D3Rect`, `D3Circle`, `D3Line`, `D3Path`** — primitive shapes
@@ -281,9 +281,9 @@ to read values from a chart, especially line and area charts.
 **Keep datasets under 1000 points.** Each data point creates WinUI shapes on
 a Canvas. For larger datasets, aggregate or sample before charting.
 
-**Use `OnReady` for live data.** The chart handle bypasses reconciliation,
-so you can push data at 60fps from a `DispatcherTimer` without triggering
-full component re-renders.
+**Just change state for live data.** Charts diff efficiently — updating
+state triggers the reconciler to patch only what changed. For 60fps
+escape hatches, use `OnReady` to access the underlying Canvas directly.
 
 **Use donut charts (`InnerRadius > 0`) for proportional data.** The center
 space works well for displaying a total or label.

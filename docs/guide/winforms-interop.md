@@ -59,7 +59,7 @@ class WinFormsHostDemo : Component
 
         return VStack(12,
             Heading("Reactor in WinForms"),
-            Text($"Count: {count}").FontSize(24),
+            Factories.Text($"Count: {count}").FontSize(24),
             Button("+1", () => setCount(count + 1))
         ).Padding(24).Background(SolidBackground);
     }
@@ -88,10 +88,10 @@ all concrete `Component` subclasses with parameterless constructors:
 ```csharp
 // In the form's Designer.cs file:
 //
-// this.ductIsland = new XamlIslandControl();
-// this.ductIsland.ComponentType = typeof(DashboardComponent);
-// this.ductIsland.Dock = DockStyle.Fill;
-// this.panel1.Controls.Add(this.ductIsland);
+// this.reactorIsland = new XamlIslandControl();
+// this.reactorIsland.ComponentType = typeof(DashboardComponent);
+// this.reactorIsland.Dock = DockStyle.Fill;
+// this.panel1.Controls.Add(this.reactorIsland);
 //
 // The Properties grid shows a dropdown of all Component subclasses
 // with parameterless constructors. Select your component and the
@@ -198,8 +198,8 @@ class BackgroundDemo : Component
         // XAML Islands have no default background — without this,
         // content renders on a transparent surface.
         return VStack(12,
-            Text("Theme-aware background").Bold(),
-            Text($"Count: {count}"),
+            Factories.Text("Theme-aware background").Bold(),
+            Factories.Text($"Count: {count}"),
             Button("Increment", () => setCount(count + 1))
         ).Padding(24).Background(SolidBackground);
     }
@@ -237,7 +237,7 @@ class ConfigurableComponent : Component
         var (count, setCount) = UseState(0);
         return VStack(12,
             Heading("Dashboard"),
-            Text($"Value: {count}"),
+            Factories.Text($"Value: {count}"),
             Button("+1", () => setCount(count + 1))
         ).Padding(24).Background(SolidBackground);
     }

@@ -1,7 +1,7 @@
 
 # Commanding
 
-A `Command` bundles an action with its label, icon, keyboard accelerator,
+A `ReactorCommand` bundles an action with its label, icon, keyboard accelerator,
 and enabled state into a single object. Define it once and use it across
 buttons, menus, and toolbars — the metadata stays consistent everywhere.
 
@@ -31,7 +31,7 @@ class BasicCommandExample : Component
                 .Width(400),
             HStack(8,
                 Button(saveCmd),
-                When(saved, () => Text("Saved!").Foreground(Theme.SystemSuccess))
+                When(saved, () => Factories.Text("Saved!").Foreground(Theme.SystemSuccess))
             )
         ).Padding(24);
     }
@@ -40,7 +40,7 @@ class BasicCommandExample : Component
 
 ![Editor with save command](images/commanding/basic-command.png)
 
-Pass a `Command` to `Button()`, `MenuItem()`, or `AppBarButton()` and the
+Pass a `ReactorCommand` to `Button()`, `MenuItem()`, or `AppBarButton()` and the
 label, icon, accelerator, and enabled state are all wired automatically. See
 [Components](components.md) for the full set of controls that accept commands.
 You don't set them individually on each control.
@@ -69,7 +69,7 @@ class StandardCommandsExample : Component
                 primaryCommands: new[] { AppBarButton(cut), AppBarButton(copy),
                     AppBarButton(paste), AppBarButton(undo) }
             ),
-            Text($"Actions: {string.Join(", ", log)}").Padding(12)
+            Factories.Text($"Actions: {string.Join(", ", log)}").Padding(12)
         ).Padding(24);
     }
 }
@@ -109,7 +109,7 @@ class AsyncCommandExample : Component
         return VStack(12,
             HStack(8,
                 Button(saveCmd),
-                Text(status).Foreground(Theme.SecondaryText)
+                Factories.Text(status).Foreground(Theme.SecondaryText)
             ),
             When(saveCmd.IsExecuting, () =>
                 ProgressRing().Width(20).Height(20))
@@ -127,7 +127,7 @@ sets `IsExecuting = true` during execution so you can show progress indicators.
 ## Command Bar Integration
 
 Use `CommandBar` with `AppBarButton` to build a toolbar. Each button can be
-driven by a `Command`:
+driven by a `ReactorCommand`:
 
 ```csharp
 class CommandBarExample : Component
@@ -180,7 +180,7 @@ class MenuBarExample : Component
                 Menu("File", MenuItem(save), MenuItem(close)),
                 Menu("Edit", MenuItem(undo), MenuItem(redo))
             ),
-            Text(text).Padding(16)
+            Factories.Text(text).Padding(16)
         );
     }
 }

@@ -2,7 +2,7 @@
 # Context
 
 Context lets you pass data through the [component](components.md) tree without
-threading it through every level of props. Define a `Context<T>`, provide
+threading it through every level of props. Define a `ReactorContext<T>`, provide
 a value at any level, and any descendant can read it with `UseContext`.
 
 ## Creating a Context
@@ -33,7 +33,7 @@ class ProvideConsumeExample : Component
     public override Element Render()
     {
         return VStack(12,
-            Text("Outside: no provider"),
+            Factories.Text("Outside: no provider"),
             VStack(12,
                 Component<Greeting>()
             ).Provide(Contexts.UserName, "Alice")
@@ -46,7 +46,7 @@ class Greeting : Component
     public override Element Render()
     {
         var name = UseContext(Contexts.UserName);
-        return Text($"Hello, {name}!").FontSize(20).Bold();
+        return Factories.Text($"Hello, {name}!").FontSize(20).Bold();
     }
 }
 ```
@@ -84,8 +84,8 @@ class ThemePanel : Component
         var elTheme = theme == "dark" ? ElementTheme.Dark : ElementTheme.Light;
         return Border(
             VStack(8,
-                Text($"Current theme: {theme}").Bold(),
-                Text("Panel adapts to context.").Foreground(Theme.SecondaryText)
+                Factories.Text($"Current theme: {theme}").Bold(),
+                Factories.Text("Panel adapts to context.").Foreground(Theme.SecondaryText)
             ).Padding(16)
         ).Background(Theme.CardBackground)
          .CornerRadius(8)
@@ -129,7 +129,7 @@ class NameDisplay : Component
     public override Element Render()
     {
         var name = UseContext(Contexts.UserName);
-        return Text(name).FontSize(18).SemiBold().Foreground(Theme.Accent);
+        return Factories.Text(name).FontSize(18).SemiBold().Foreground(Theme.Accent);
     }
 }
 ```
@@ -167,8 +167,8 @@ class ProfileCard : Component
 
         return Border(
             VStack(8,
-                Text(name).FontSize(fontSize).Bold(),
-                Text($"Font scale from context: {fontSize}px")
+                Factories.Text(name).FontSize(fontSize).Bold(),
+                Factories.Text($"Font scale from context: {fontSize}px")
                     .Foreground(Theme.SecondaryText)
             ).Padding(16)
         ).Background(Theme.CardBackground).CornerRadius(8);
@@ -178,7 +178,7 @@ class ProfileCard : Component
 
 ![Component reading two contexts](images/context/multiple-contexts.png)
 
-Each `Context<T>` is a separate channel. Providing one doesn't affect
+Each `ReactorContext<T>` is a separate channel. Providing one doesn't affect
 another. A component can call `UseContext` as many times as it needs.
 
 ## Tips
