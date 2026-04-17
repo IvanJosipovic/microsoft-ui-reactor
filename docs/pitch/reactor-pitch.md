@@ -124,5 +124,5 @@ This is an **experiment** and you should expect that every line of code will cha
 
 - [Getting Started](Reactor/Docs/GettingStarted.md)
 - [Architecture](Reactor/Docs/Architecture.md)
-- [Design Specs](docs/spec/) — 19 numbered specs covering theming, navigation, animation, data, accessibility, and more
-- [WinUI Integration Proposals](docs/winui3-integration-proposals.md) — 25 proposals for deeper platform integration
+- [Design Specs](../specs/) — numbered specs covering theming, navigation, animation, data, accessibility, and more
+- [WinUI Integration Proposals](../specs/proposals/winui3-integration.md) — 25 proposals for deeper platform integration

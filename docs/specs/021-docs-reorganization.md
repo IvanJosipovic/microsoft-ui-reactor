@@ -1,6 +1,6 @@
 # 021 — Docs Folder Reorganization
 
-**Status:** Draft
+**Status:** Accepted — executed
 **Date:** 2026-04-17
 
 ## Overview
@@ -182,8 +182,8 @@ Tracked in `docs/specs/tasks/docs-reorganization-implementation.md` (to be writt
 
 Three commits keep review tractable: a pure rename, a code update, a docs update.
 
-## 10. Open Questions
+## 10. Resolved Questions
 
-- Should `_pipeline/` move to top-level `tools/doc-pipeline/` instead? Leaning no — keeps apps + templates + output visually paired.
-- Should `pitch/` live under `docs/` at all, or move to a top-level `branding/` folder? Current call: keep in `docs/` since the pitch doc links heavily to `guide/` content.
-- Should `reports/work-summary/` be gitignored going forward and regenerated on demand? Current call: keep committed, same reasoning as `guide/`.
+- **`_pipeline/` stays under `docs/`** (not moved to top-level `tools/doc-pipeline/`). Apps, templates, and `guide/` output remain visually paired.
+- **`pitch/` stays under `docs/`** (not promoted to top-level `branding/`). Pitch doc links heavily to `guide/` content.
+- **`reports/work-summary/` stays committed** (not gitignored + regenerated). Same reasoning as `guide/` — readable from GitHub without running tooling.
