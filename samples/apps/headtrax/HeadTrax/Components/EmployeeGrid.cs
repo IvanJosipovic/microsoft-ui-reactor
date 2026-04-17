@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using Duct.Data;
-using Duct.DataGrid;
-using Duct.Flex;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Data;
+using Microsoft.UI.Reactor.Controls;
+using Microsoft.UI.Reactor.Layout;
 using HeadTrax.Schema;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
 namespace HeadTrax.Components;
 
@@ -67,10 +67,10 @@ internal class EmployeeGrid : Component<EmployeeGridProps>
         return (FlexRow(
             // Left column: person info
             (FlexColumn(
-                Text($"{Get("first_name")} {Get("last_name")}").FontSize(16).Bold(),
-                Text(Get("title")).Opacity(0.7),
-                Text(Get("email")).FontSize(12).Opacity(0.5),
-                Text(Get("phone")).FontSize(12).Opacity(0.5)
+                Factories.Text($"{Get("first_name")} {Get("last_name")}").FontSize(16).Bold(),
+                Factories.Text(Get("title")).Opacity(0.7),
+                Factories.Text(Get("email")).FontSize(12).Opacity(0.5),
+                Factories.Text(Get("phone")).FontSize(12).Opacity(0.5)
             ) with { RowGap = 2 }).Flex(grow: 1),
 
             // Middle column: org info
@@ -98,8 +98,8 @@ internal class EmployeeGrid : Component<EmployeeGridProps>
     private static Element DetailField(string label, string value)
     {
         return (FlexRow(
-            Text($"{label}: ").FontSize(12).Opacity(0.5),
-            Text(value).FontSize(12)
+            Factories.Text($"{label}: ").FontSize(12).Opacity(0.5),
+            Factories.Text(value).FontSize(12)
         ) with { ColumnGap = 4 });
     }
 
@@ -115,14 +115,14 @@ internal class EmployeeGrid : Component<EmployeeGridProps>
             ? $"Server: {string.Join(", ", parts)}"
             : "Client-side only";
 
-        return Text(label).FontSize(11).Opacity(0.4);
+        return Factories.Text(label).FontSize(11).Opacity(0.4);
     }
 
     private static Element LoadingIndicator()
     {
         return (FlexColumn(
             ProgressRing().Width(32).Height(32),
-            Text("Loading employee data...").Opacity(0.6).Margin(8, 0, 0, 0)
+            Factories.Text("Loading employee data...").Opacity(0.6).Margin(8, 0, 0, 0)
         ) with { AlignItems = FlexAlign.Center, JustifyContent = FlexJustify.Center })
             .Flex(grow: 1);
     }
@@ -130,8 +130,8 @@ internal class EmployeeGrid : Component<EmployeeGridProps>
     private static Element EmptyState()
     {
         return (FlexColumn(
-            Text("No employees found").FontSize(16).Bold(),
-            Text("Try adjusting your filters or generate sample data.").Opacity(0.6)
+            Factories.Text("No employees found").FontSize(16).Bold(),
+            Factories.Text("Try adjusting your filters or generate sample data.").Opacity(0.6)
         ) with { AlignItems = FlexAlign.Center, JustifyContent = FlexJustify.Center })
             .Flex(grow: 1);
     }

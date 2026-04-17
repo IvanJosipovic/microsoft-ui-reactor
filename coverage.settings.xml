@@ -3,9 +3,9 @@
   <CodeCoverage>
     <ModulePaths>
       <Include>
-        <ModulePath>.*[/\\]Duct\.dll$</ModulePath>
-        <ModulePath>.*[/\\]DuctD3\.dll$</ModulePath>
-        <ModulePath>.*[/\\]Duct\.AppTests\.Host\.dll$</ModulePath>
+        <ModulePath>.*[/\\]Reactor\.dll$</ModulePath>
+        <ModulePath>.*[/\\]ReactorD3\.dll$</ModulePath>
+        <ModulePath>.*[/\\]Reactor\.AppTests\.Host\.dll$</ModulePath>
       </Include>
     </ModulePaths>
   </CodeCoverage>

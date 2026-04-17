@@ -1,6 +1,6 @@
 # WinForms Interop Sample
 
-Demonstrates hosting Duct/WinUI content inside a WinForms application via XAML Islands (`DesktopWindowXamlSource`). This is the officially supported interop direction — WinForms on the outside, Duct/WinUI content rendered inside.
+Demonstrates hosting Reactor/WinUI content inside a WinForms application via XAML Islands (`DesktopWindowXamlSource`). This is the officially supported interop direction — WinForms on the outside, Reactor/WinUI content rendered inside.
 
 ## Usage
 
@@ -10,11 +10,11 @@ dotnet run
 
 Opens a single WinForms window with:
 - **Left panel:** native WinForms controls (label, textbox, button, event log)
-- **Right panel:** XAML Island hosting a Duct component (counter, text input, slider, rounded boxes)
+- **Right panel:** XAML Island hosting a Reactor component (counter, text input, slider, rounded boxes)
 
 Tab navigation works across both panels.
 
-## Quick Start: Add Duct to an Existing WinForms App
+## Quick Start: Add Reactor to an Existing WinForms App
 
 Starting from a standard `dotnet new winforms` app:
 
@@ -33,7 +33,7 @@ static class Program
 }
 ```
 
-**After** — three changes to host a Duct component:
+**After** — three changes to host a Reactor component:
 
 **1. Add to `.csproj`:**
 ```xml
@@ -41,13 +41,13 @@ static class Program
     <WindowsPackageType>None</WindowsPackageType>
 
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.0-experimental6" />
-    <ProjectReference Include="path\to\Duct.Interop.WinForms.csproj" />
-    <ProjectReference Include="path\to\Duct.csproj" />
+    <ProjectReference Include="path\to\Reactor.Interop.WinForms.csproj" />
+    <ProjectReference Include="path\to\Reactor.csproj" />
 ```
 
 **2. Change `Program.cs`** — wrap `Application.Run` with `XamlIslandBootstrap.Run`:
 ```csharp
-using Duct.Interop.WinForms;
+using Microsoft.UI.Reactor.Interop.WinForms;
 
 namespace MyApp;
 
@@ -71,38 +71,38 @@ static class Program
 **3. Drop an `XamlIslandControl` into your form:**
 
 In the designer: drag `XamlIslandControl` onto your form, set `Dock = Fill`, and set
-`ComponentType` to your Duct component in the Properties grid (under the "Duct" category).
+`ComponentType` to your Reactor component in the Properties grid (under the "Reactor" category).
 The designer shows a placeholder; the real WinUI content appears at runtime.
 
 In code (e.g., `InitializeComponent` or a `.Designer.cs` file):
 ```csharp
-using Duct.Interop.WinForms;
+using Microsoft.UI.Reactor.Interop.WinForms;
 
 var island = new XamlIslandControl
 {
     Dock = DockStyle.Fill,
-    ComponentType = typeof(MyDuctComponent),
+    ComponentType = typeof(MyReactorComponent),
 };
 Controls.Add(island);
 ```
 
 The `ComponentType` property is fully designer-safe — it serializes as `typeof(...)` and
-the `DuctHostControl` is created automatically at runtime.
+the `ReactorHostControl` is created automatically at runtime.
 
-For advanced scenarios (custom DuctHostControl configuration, props, etc.) use
+For advanced scenarios (custom ReactorHostControl configuration, props, etc.) use
 `ContentFactory` instead:
 ```csharp
-island.ContentFactory = () => new DuctHostControl(new MyDuctComponent());
+island.ContentFactory = () => new ReactorHostControl(new MyReactorComponent());
 ```
 
-**4. Write the Duct component:**
+**4. Write the Reactor component:**
 ```csharp
-using Duct;
-using Duct.Core;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
+using static Reactor.Core.Theme;
 
-class MyDuctComponent : Component
+class MyReactorComponent : Component
 {
     public override Element Render()
     {
@@ -112,7 +112,7 @@ class MyDuctComponent : Component
         // a background or stretch content like a WinUI Window does.
         return Grid(["*"], ["*"],
             VStack(
-                Text("Hello from Duct!").FontSize(24),
+                Text("Hello from Reactor!").FontSize(24),
                 Button($"Clicked {count} times", () => setCount(count + 1))
             ).Padding(24)
         ).Background(SolidBackground);
@@ -125,15 +125,15 @@ That's it. The `XamlIslandControl` works anywhere in your WinForms layout — pa
 ## Architecture
 
 ```
-Duct.Interop.WinForms/              Library
+Reactor.Interop.WinForms/              Library
   XamlIslandControl.cs               WinForms Control -> DesktopWindowXamlSource
   XamlIslandBootstrap.cs             Initialize WinAppSDK for WinForms-primary apps
-  DuctComponentTypeConverter.cs      TypeConverter for ComponentType property grid
+  ReactorComponentTypeConverter.cs      TypeConverter for ComponentType property grid
 
 samples/WinFormsInterop/            This sample
   Program.cs                         Bootstrap via XamlIslandBootstrap.Run
-  WinFormsOutsideForm.cs             WinForms Form with WinForms + Duct side-by-side
-  SampleDuctComponent.cs             Duct component shown inside the XAML Island
+  WinFormsOutsideForm.cs             WinForms Form with WinForms + Reactor side-by-side
+  SampleReactorComponent.cs             Reactor component shown inside the XAML Island
 ```
 
 ## Key Notes

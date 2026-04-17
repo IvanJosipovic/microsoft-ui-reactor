@@ -1,0 +1,360 @@
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.AppTests.Host.SelfTest;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using static Microsoft.UI.Reactor.Factories;
+
+namespace Microsoft.UI.Reactor.AppTests.Host.SelfTest.Fixtures;
+
+internal static class ReconcilerFixtures
+{
+    internal class MountText(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            host.Mount(ctx => Factories.Text("Hello from Reactor"));
+
+            await Harness.Render();
+
+            H.Check("Reconciler_MountText_TextAppears",
+                H.FindText("Hello from Reactor") is not null);
+
+            H.Check("Reconciler_MountText_IsTextBlock",
+                H.FindControl<TextBlock>(tb => tb.Text == "Hello from Reactor") is not null);
+        }
+    }
+
+    internal class UpdateText(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            host.Mount(ctx =>
+            {
+                var (text, setText) = ctx.UseState("Before");
+                return VStack(
+                    Factories.Text(text),
+                    Button("Change", () => setText("After"))
+                );
+            });
+
+            await Harness.Render();
+
+            H.Check("Reconciler_UpdateText_InitialText",
+                H.FindText("Before") is not null);
+
+            H.ClickButton("Change");
+            await Harness.Render();
+
+            H.Check("Reconciler_UpdateText_UpdatedText",
+                H.FindText("After") is not null);
+
+            H.Check("Reconciler_UpdateText_OldTextGone",
+                H.FindText("Before") is null);
+        }
+    }
+
+    internal class AddRemoveChildren(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            host.Mount(ctx =>
+            {
+                var (count, setCount) = ctx.UseState(3);
+                return VStack(
+                    HStack(
+                        Button("Add", () => setCount(count + 1)),
+                        Button("Remove", () => setCount(Math.Max(0, count - 1)))
+                    ),
+                    VStack(Enumerable.Range(0, count).Select(i => Factories.Text($"Item {i}")).ToArray())
+                );
+            });
+
+            await Harness.Render();
+
+            H.Check("Reconciler_AddRemoveChildren_InitialCount",
+                H.FindText("Item 0") is not null && H.FindText("Item 2") is not null);
+
+            H.ClickButton("Add");
+            await Harness.Render();
+
+            H.Check("Reconciler_AddRemoveChildren_AfterAdd",
+                H.FindText("Item 3") is not null);
+
+            H.ClickButton("Remove");
+            await Harness.Render();
+            H.ClickButton("Remove");
+            await Harness.Render();
+
+            H.Check("Reconciler_AddRemoveChildren_AfterRemove",
+                H.FindText("Item 3") is null && H.FindText("Item 2") is null);
+        }
+    }
+
+    // Simple counter component to test re-rendering
+    private class CounterComponent : Component
+    {
+        public override Element Render()
+        {
+            var (count, setCount) = UseState(0);
+            return VStack(
+                Factories.Text($"Count: {count}"),
+                Button("Increment", () => setCount(count + 1))
+            );
+        }
+    }
+
+    internal class ComponentRerender(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            host.Mount(new CounterComponent());
+
+            await Harness.Render();
+
+            H.Check("Reconciler_ComponentRerender_InitialState",
+                H.FindText("Count: 0") is not null);
+
+            H.ClickButton("Increment");
+            await Harness.Render();
+
+            H.Check("Reconciler_ComponentRerender_AfterClick",
+                H.FindText("Count: 1") is not null);
+
+            H.ClickButton("Increment");
+            await Harness.Render();
+            H.ClickButton("Increment");
+            await Harness.Render();
+
+            H.Check("Reconciler_ComponentRerender_MultipleClicks",
+                H.FindText("Count: 3") is not null);
+        }
+    }
+
+    internal class KeyedList(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            host.Mount(ctx =>
+            {
+                var (reversed, setReversed) = ctx.UseState(false);
+                var items = new[] { "Alpha", "Beta", "Gamma" };
+                var ordered = reversed ? items.Reverse().ToArray() : items;
+
+                return VStack(
+                    Button("Reverse", () => setReversed(!reversed)),
+                    VStack(ordered.Select(item => Factories.Text(item).WithKey(item)).ToArray())
+                );
+            });
+
+            await Harness.Render();
+
+            // Capture the initial TextBlock references
+            var alpha1 = H.FindText("Alpha");
+            H.Check("Reconciler_KeyedList_InitialOrder",
+                alpha1 is not null && H.FindText("Beta") is not null && H.FindText("Gamma") is not null);
+
+            H.ClickButton("Reverse");
+            await Harness.Render();
+
+            // After reversal, keyed items should be reused (same TextBlock instances)
+            var alpha2 = H.FindText("Alpha");
+            H.Check("Reconciler_KeyedList_AfterReverse",
+                alpha2 is not null && H.FindText("Gamma") is not null);
+
+            H.Check("Reconciler_KeyedList_ControlReused",
+                ReferenceEquals(alpha1, alpha2));
+        }
+    }
+
+    /// <summary>
+    /// Regression test for the docking window crash: dynamically adding/removing
+    /// children from a Grid. The original bug was in UpdateGrid which did inline
+    /// positional add/remove instead of delegating to ChildReconciler.
+    /// </summary>
+    internal class GridDynamicChildCount(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            host.Mount(ctx =>
+            {
+                var (paneCount, setPaneCount) = ctx.UseState(1);
+
+                var panes = Enumerable.Range(0, paneCount)
+                    .Select(i => Factories.Text($"Pane {i}").Grid(row: 0, column: i))
+                    .ToArray();
+                var cols = Enumerable.Range(0, Math.Max(1, paneCount)).Select(_ => "*").ToArray();
+
+                return VStack(
+                    HStack(
+                        Button("Split", () => setPaneCount(paneCount + 1)),
+                        Button("Collapse", () => setPaneCount(Math.Max(0, paneCount - 1)))
+                    ),
+                    Grid(cols, ["*"], panes)
+                );
+            });
+
+            await Harness.Render();
+
+            // Initial: 1 pane
+            H.Check("Reconciler_GridDynamic_InitialPane",
+                H.FindText("Pane 0") is not null);
+
+            // Split: 1 → 2 panes
+            H.ClickButton("Split");
+            await Harness.Render();
+
+            H.Check("Reconciler_GridDynamic_AfterFirstSplit",
+                H.FindText("Pane 0") is not null && H.FindText("Pane 1") is not null);
+
+            // Split again: 2 → 3 panes
+            H.ClickButton("Split");
+            await Harness.Render();
+
+            H.Check("Reconciler_GridDynamic_AfterSecondSplit",
+                H.FindText("Pane 2") is not null);
+
+            // Verify all three panes exist
+            var grid = H.FindControl<Microsoft.UI.Xaml.Controls.Grid>(g => g.Children.Count >= 3);
+            H.Check("Reconciler_GridDynamic_ThreePanesInGrid",
+                grid is not null);
+
+            // Collapse: 3 → 2 panes
+            H.ClickButton("Collapse");
+            await Harness.Render();
+
+            H.Check("Reconciler_GridDynamic_AfterCollapse",
+                H.FindText("Pane 2") is null && H.FindText("Pane 1") is not null);
+
+            // Collapse to 1, then to 0
+            H.ClickButton("Collapse");
+            await Harness.Render();
+            H.ClickButton("Collapse");
+            await Harness.Render();
+
+            H.Check("Reconciler_GridDynamic_CollapsedToEmpty",
+                H.FindText("Pane 0") is null);
+
+            // Grow back from empty: 0 → 1
+            H.ClickButton("Split");
+            await Harness.Render();
+
+            H.Check("Reconciler_GridDynamic_GrowFromEmpty",
+                H.FindText("Pane 0") is not null);
+        }
+    }
+
+    /// <summary>
+    /// Verifies all layout containers (Stack, Grid, Flex, WrapGrid, Canvas)
+    /// handle dynamic child count changes without crashing. Ensures the
+    /// same class of bug fixed in UpdateGrid doesn't exist elsewhere.
+    /// </summary>
+    internal class AllLayoutsDynamicChildCount(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            host.Mount(ctx =>
+            {
+                var (count, setCount) = ctx.UseState(2);
+
+                var stackChildren = Enumerable.Range(0, count)
+                    .Select(i => Factories.Text($"S{i}"))
+                    .ToArray();
+                var gridChildren = Enumerable.Range(0, count)
+                    .Select(i => Factories.Text($"G{i}").Grid(row: 0, column: i))
+                    .ToArray();
+                var flexChildren = Enumerable.Range(0, count)
+                    .Select(i => Factories.Text($"F{i}"))
+                    .ToArray();
+                var wrapChildren = Enumerable.Range(0, count)
+                    .Select(i => Factories.Text($"W{i}"))
+                    .ToArray();
+                var canvasChildren = Enumerable.Range(0, count)
+                    .Select(i => Factories.Text($"C{i}"))
+                    .ToArray();
+                var cols = Enumerable.Range(0, Math.Max(1, count)).Select(_ => "*").ToArray();
+
+                return VStack(
+                    HStack(
+                        Button("Add", () => setCount(count + 1)),
+                        Button("Remove", () => setCount(Math.Max(0, count - 1)))
+                    ),
+                    VStack(stackChildren),
+                    Grid(cols, ["*"], gridChildren),
+                    FlexRow(flexChildren),
+                    WrapGrid(wrapChildren),
+                    Canvas(canvasChildren)
+                );
+            });
+
+            await Harness.Render();
+
+            // Initial: 2 items in each layout
+            H.Check("Reconciler_AllLayouts_Initial",
+                H.FindText("S0") is not null && H.FindText("S1") is not null &&
+                H.FindText("G0") is not null && H.FindText("G1") is not null &&
+                H.FindText("F0") is not null && H.FindText("F1") is not null &&
+                H.FindText("W0") is not null && H.FindText("W1") is not null &&
+                H.FindText("C0") is not null && H.FindText("C1") is not null);
+
+            // Grow: 2 → 4
+            H.ClickButton("Add");
+            await Harness.Render();
+            H.ClickButton("Add");
+            await Harness.Render();
+
+            H.Check("Reconciler_AllLayouts_AfterGrow",
+                H.FindText("S3") is not null &&
+                H.FindText("G3") is not null &&
+                H.FindText("F3") is not null &&
+                H.FindText("W3") is not null &&
+                H.FindText("C3") is not null);
+
+            // Shrink: 4 → 1
+            H.ClickButton("Remove");
+            await Harness.Render();
+            H.ClickButton("Remove");
+            await Harness.Render();
+            H.ClickButton("Remove");
+            await Harness.Render();
+
+            H.Check("Reconciler_AllLayouts_AfterShrink",
+                H.FindText("S0") is not null && H.FindText("S1") is null &&
+                H.FindText("G0") is not null && H.FindText("G1") is null &&
+                H.FindText("F0") is not null && H.FindText("F1") is null &&
+                H.FindText("W0") is not null && H.FindText("W1") is null &&
+                H.FindText("C0") is not null && H.FindText("C1") is null);
+
+            // Shrink to empty: 1 → 0
+            H.ClickButton("Remove");
+            await Harness.Render();
+
+            H.Check("Reconciler_AllLayouts_Empty",
+                H.FindText("S0") is null &&
+                H.FindText("G0") is null &&
+                H.FindText("F0") is null &&
+                H.FindText("W0") is null &&
+                H.FindText("C0") is null);
+
+            // Grow from empty: 0 → 2
+            H.ClickButton("Add");
+            await Harness.Render();
+            H.ClickButton("Add");
+            await Harness.Render();
+
+            H.Check("Reconciler_AllLayouts_GrowFromEmpty",
+                H.FindText("S0") is not null && H.FindText("S1") is not null &&
+                H.FindText("G0") is not null && H.FindText("G1") is not null &&
+                H.FindText("F0") is not null && H.FindText("F1") is not null &&
+                H.FindText("W0") is not null && H.FindText("W1") is not null &&
+                H.FindText("C0") is not null && H.FindText("C1") is not null);
+        }
+    }
+}

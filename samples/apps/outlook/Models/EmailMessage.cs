@@ -1,4 +1,4 @@
-namespace DuctOutlook.Models;
+namespace ReactorOutlook.Models;
 
 public enum MessageImportance { Normal, High, Low }
 public enum MessageTab { Focused, Other }

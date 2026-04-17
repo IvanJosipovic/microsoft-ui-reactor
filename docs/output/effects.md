@@ -31,7 +31,7 @@ class MountEffectExample : Component
 
 ![Mount effect with loaded timestamp](images/effects/mount-effect.png)
 
-The empty `Array.Empty<object>()` dependency array tells Duct this effect has
+The empty `Array.Empty<object>()` dependency array tells Reactor this effect has
 no external dependencies. It runs once after the first render and never again.
 
 ## Running When Dependencies Change
@@ -65,14 +65,14 @@ class DependencyEffectExample : Component
 
 ![Search with debounced query](images/effects/dependency-effect.png)
 
-Every time `query` changes, the effect runs again. Duct compares the current
+Every time `query` changes, the effect runs again. Reactor compares the current
 dependencies to the previous ones using structural equality. If nothing
 changed, the effect is skipped.
 
 ## Cleanup with Timers
 
 When an effect creates a resource (timer, subscription, event handler), return
-a cleanup function. Duct calls it before re-running the effect and when the
+a cleanup function. Reactor calls it before re-running the effect and when the
 component unmounts:
 
 ```csharp

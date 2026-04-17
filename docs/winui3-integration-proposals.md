@@ -1,15 +1,15 @@
-# Duct + WinUI3 Integration Proposals
+# Reactor + WinUI3 Integration Proposals
 
-> Analysis of how Duct's declarative reconciler could integrate more deeply with the WinUI3 native framework to unlock performance, correctness, and developer experience improvements.
+> Analysis of how Reactor's declarative reconciler could integrate more deeply with the WinUI3 native framework to unlock performance, correctness, and developer experience improvements.
 >
-> **Duct repo:** `C:\Users\andersonch\Code\patch`
+> **Reactor repo:** `C:\Users\andersonch\Code\patch`
 > **WinUI3 repo:** `C:\Users\andersonch\Code\microsoft-ui-xaml`
 
 ---
 
 ## 1. Programmatic DataTemplate Construction Without XamlReader (Unblock)
 
-**Problem:** WinUI's `DataTemplate` can only be created from XAML markup — there is no public API to construct one programmatically from code. Duct works around this by calling `XamlReader.Load()` with a XAML string at runtime to create a DataTemplate wrapping a ContentControl shell:
+**Problem:** WinUI's `DataTemplate` can only be created from XAML markup — there is no public API to construct one programmatically from code. Reactor works around this by calling `XamlReader.Load()` with a XAML string at runtime to create a DataTemplate wrapping a ContentControl shell:
 
 ```csharp
 // Current hack in Reconciler.Mount.cs (lines 687-690, repeated for GridView at 746-749):
@@ -21,15 +21,15 @@ listView.ItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
 
 This is a significant hack with real costs:
 1. **XML parsing at runtime** — `XamlReader.Load()` invokes the full XAML parser, allocating an `XamlTextReader`, parsing the XML, resolving namespaces, and instantiating objects through the XAML type system. This is orders of magnitude more expensive than a constructor call.
-2. **Called per ListView/GridView mount** — every time Duct mounts a list, it re-parses this string. No caching is possible because DataTemplate instances can't be reliably shared across different ItemsControls.
+2. **Called per ListView/GridView mount** — every time Reactor mounts a list, it re-parses this string. No caching is possible because DataTemplate instances can't be reliably shared across different ItemsControls.
 3. **Fragile string-based API** — a typo in the XAML string is a runtime crash, not a compile error. The xmlns declaration is boilerplate noise.
 4. **Incompatible with AOT/trimming** — `XamlReader.Load()` depends on runtime type resolution that may not survive aggressive trimming.
 
-The underlying need is simple: Duct wants a DataTemplate that produces a single ContentControl, then takes over content management via `ContainerContentChanging`. The ContentControl is just a shell — Duct mounts its own element tree into `ContentControl.Content`.
+The underlying need is simple: Reactor wants a DataTemplate that produces a single ContentControl, then takes over content management via `ContainerContentChanging`. The ContentControl is just a shell — Reactor mounts its own element tree into `ContentControl.Content`.
 
-**Gallery migration workarounds:** During the WinUI Gallery migration (70+ pages migrated), every page that used data-driven collections (FlipViewPage, TreeViewPage, SemanticZoomPage, SelectorBarPage) required imperative `XamlReader.Load()` workarounds to construct DataTemplates. The FlipView data-template example was the worst case — the migrated page had to create a hidden placeholder element, hook into its `Loaded` event, walk up to the parent panel, remove existing controls, then programmatically construct a FlipView with a parsed DataTemplate and inject it into the visual tree. This pattern completely defeats the declarative model Duct provides.
+**Gallery migration workarounds:** During the WinUI Gallery migration (70+ pages migrated), every page that used data-driven collections (FlipViewPage, TreeViewPage, SemanticZoomPage, SelectorBarPage) required imperative `XamlReader.Load()` workarounds to construct DataTemplates. The FlipView data-template example was the worst case — the migrated page had to create a hidden placeholder element, hook into its `Loaded` event, walk up to the parent panel, remove existing controls, then programmatically construct a FlipView with a parsed DataTemplate and inject it into the visual tree. This pattern completely defeats the declarative model Reactor provides.
 
-To partially address this on the Duct side, we built typed collection elements (`FlipView<T>`, `ListView<T>`, `GridView<T>`) that accept a `Func<T, int, Element> viewBuilder` instead of a DataTemplate. The reconciler drives mounting/updating/recycling of templated items natively, using a shared cached `DataTemplate` with a ContentControl shell. This eliminates the per-mount parsing cost and gives Gallery pages a declarative API. However, the underlying WinUI limitation remains — the cached template still requires one `XamlReader.Load()` call at startup, and any scenario that needs a DataTemplate outside of these typed wrappers (e.g., TreeView `ItemTemplate`, custom `ItemTemplateSelector`, grouped `GridView` with `GroupStyle`) still falls back to string-based XAML parsing.
+To partially address this on the Reactor side, we built typed collection elements (`FlipView<T>`, `ListView<T>`, `GridView<T>`) that accept a `Func<T, int, Element> viewBuilder` instead of a DataTemplate. The reconciler drives mounting/updating/recycling of templated items natively, using a shared cached `DataTemplate` with a ContentControl shell. This eliminates the per-mount parsing cost and gives Gallery pages a declarative API. However, the underlying WinUI limitation remains — the cached template still requires one `XamlReader.Load()` call at startup, and any scenario that needs a DataTemplate outside of these typed wrappers (e.g., TreeView `ItemTemplate`, custom `ItemTemplateSelector`, grouped `GridView` with `GroupStyle`) still falls back to string-based XAML parsing.
 
 **Proposal:** WinUI should expose a code-based DataTemplate construction API. The minimal version:
 
@@ -47,7 +47,7 @@ var template = DataTemplate.FromFactory(() => new ContentControl { ... });
 
 Internally, this would create a `DataTemplate` whose `LoadContent()` method calls the factory delegate instead of instantiating from a parsed XAML tree. WinUI's `CDataTemplate` already has the concept of a template content factory (`IDataTemplateComponent`) — the proposal is to make this accessible from managed code without XAML markup.
 
-**Impact:** Eliminates runtime XAML parsing for every ListView/GridView mount. Makes Duct's list virtualization compatible with NativeAOT trimming. Removes a class of potential runtime errors from string-based XAML. Any declarative framework that manages its own item rendering (not just Duct) would benefit from this API.
+**Impact:** Eliminates runtime XAML parsing for every ListView/GridView mount. Makes Reactor's list virtualization compatible with NativeAOT trimming. Removes a class of potential runtime errors from string-based XAML. Any declarative framework that manages its own item rendering (not just Reactor) would benefit from this API.
 
 **Cross-reference:** The theming system (Proposal #22) has the same fundamental problem — `ApplyThemeBindings` in `Reconciler.cs` calls `XamlReader.Load()` to create `Style` objects with `{ThemeResource}` setters because there's no code API to create a theme-resource-referencing Setter. Both proposals stem from WinUI lacking code-based equivalents for XAML markup extensions. A unified approach that exposes `{ThemeResource}`, `{StaticResource}`, and DataTemplate factories from code would address both.
 
@@ -57,19 +57,19 @@ Internally, this would create a `DataTemplate` whose `LoadContent()` method call
 - `src/dxaml/xcp/core/Parser/XamlReader.cpp` — `XamlReader::Load()` full parser invocation
 - `src/dxaml/xcp/core/inc/DataTemplate.h` — Template content factory interfaces
 
-**Duct files:**
-- `Duct/Core/Reconciler.Mount.cs` — ListView mount (lines 687-690) and GridView mount (lines 746-749) both use the `XamlReader.Load()` hack
-- `Duct/Core/Reconciler.Mount.cs` — `ContainerContentChanging` handler (lines 692-712) that populates the ContentControl shell with Duct-mounted content
-- `Duct/Core/Element.cs` — `TemplatedListElementBase` / `TemplatedFlipViewElement<T>` / `TemplatedListViewElement<T>` / `TemplatedGridViewElement<T>` — typed collection elements that work around the DataTemplate gap
-- `Duct/Elements/Dsl.cs` — `FlipView<T>()`, `ListView<T>()`, `GridView<T>()` DSL functions
+**Reactor files:**
+- `Reactor/Core/Reconciler.Mount.cs` — ListView mount (lines 687-690) and GridView mount (lines 746-749) both use the `XamlReader.Load()` hack
+- `Reactor/Core/Reconciler.Mount.cs` — `ContainerContentChanging` handler (lines 692-712) that populates the ContentControl shell with Reactor-mounted content
+- `Reactor/Core/Element.cs` — `TemplatedListElementBase` / `TemplatedFlipViewElement<T>` / `TemplatedListViewElement<T>` / `TemplatedGridViewElement<T>` — typed collection elements that work around the DataTemplate gap
+- `Reactor/Elements/Dsl.cs` — `FlipView<T>()`, `ListView<T>()`, `GridView<T>()` DSL functions
 
 ---
 
 ## 2. XAML-Free Navigation via Custom Navigation Stack (Unblock)
 
-**Problem:** WinUI's `Frame.Navigate()` requires page types registered in the XAML type metadata system (`MetadataAPI::GetClassInfoByFullName()` in `NavigationCache.cpp`), parameterless constructors (via `ActivationAPI::ActivateInstance()`), and typically XAML code-behind files. Duct components are render functions with props — they don't have parameterless constructors and aren't registered in the XAML type system. This means Duct apps can't use Frame-based navigation at all, leaving them with no back stack, no navigation lifecycle events, and no state serialization for page history.
+**Problem:** WinUI's `Frame.Navigate()` requires page types registered in the XAML type metadata system (`MetadataAPI::GetClassInfoByFullName()` in `NavigationCache.cpp`), parameterless constructors (via `ActivationAPI::ActivateInstance()`), and typically XAML code-behind files. Reactor components are render functions with props — they don't have parameterless constructors and aren't registered in the XAML type system. This means Reactor apps can't use Frame-based navigation at all, leaving them with no back stack, no navigation lifecycle events, and no state serialization for page history.
 
-**Proposal:** Build a declarative navigation system that bypasses Frame entirely. Introduce a `UseNavigation()` hook that manages a navigation stack internally, and a `NavigationHost` element that renders the current page component. The stack tracks page type + props + scroll position, supports back/forward, and provides lifecycle hooks (`OnNavigatedTo`, `OnNavigatedFrom`, `OnNavigatingFrom` with cancellation). Navigation transitions would use the Composition animation system from Proposal #15. The key insight is that Duct doesn't need Frame's type activation — it already knows how to instantiate components from their type + props.
+**Proposal:** Build a declarative navigation system that bypasses Frame entirely. Introduce a `UseNavigation()` hook that manages a navigation stack internally, and a `NavigationHost` element that renders the current page component. The stack tracks page type + props + scroll position, supports back/forward, and provides lifecycle hooks (`OnNavigatedTo`, `OnNavigatedFrom`, `OnNavigatingFrom` with cancellation). Navigation transitions would use the Composition animation system from Proposal #15. The key insight is that Reactor doesn't need Frame's type activation — it already knows how to instantiate components from their type + props.
 
 ```csharp
 var nav = UseNavigation(initialPage: Component<HomePage>());
@@ -92,38 +92,38 @@ return NavigationView(
 **WinUI3 files:**
 - `src/dxaml/xcp/dxaml/lib/Frame_Partial.cpp` — Frame.Navigate() implementation (lines 310-405), shows the type resolution + cache + lifecycle pattern to replicate
 - `src/dxaml/xcp/dxaml/lib/NavigationCache.cpp` — `LoadContent()` (lines 125-145) uses `ActivationAPI::ActivateInstance()` — the parameterless constructor requirement we bypass
-- `src/dxaml/xcp/dxaml/lib/Page_Partial.h` — OnNavigatedTo/From/OnNavigatingFrom lifecycle (lines 16-47) — pattern to mirror in Duct hooks
+- `src/dxaml/xcp/dxaml/lib/Page_Partial.h` — OnNavigatedTo/From/OnNavigatingFrom lifecycle (lines 16-47) — pattern to mirror in Reactor hooks
 - `src/controls/dev/NavigationView/NavigationView.cpp` — NavigationView is decoupled from Frame (fires SelectionChanged only), so it works naturally with a custom stack
 
-**Duct files:**
-- `Duct/Core/Element.cs` — `NavigationViewElement` (lines 528-543) already wraps NavigationView with Content + OnSelectionChanged
-- `Duct/Core/Reconciler.Mount.cs` — `MountNavigationView()` (lines 576-610) sets Content to mounted subtree — NavigationHost would replace this content on navigation
-- `Duct/Hosting/DuctHost.cs` — `RenderLoop()` / root content management — navigation changes trigger re-render naturally
-- `Duct/Core/RenderContext.cs` — `UseState` pattern to model `UseNavigation` after
+**Reactor files:**
+- `Reactor/Core/Element.cs` — `NavigationViewElement` (lines 528-543) already wraps NavigationView with Content + OnSelectionChanged
+- `Reactor/Core/Reconciler.Mount.cs` — `MountNavigationView()` (lines 576-610) sets Content to mounted subtree — NavigationHost would replace this content on navigation
+- `Reactor/Hosting/ReactorHost.cs` — `RenderLoop()` / root content management — navigation changes trigger re-render naturally
+- `Reactor/Core/RenderContext.cs` — `UseState` pattern to model `UseNavigation` after
 
 ---
 
 ## 3. Deep Virtualization Hooks for ListView, GridView, and ItemsRepeater (Unblock)
 
-**Problem:** Duct's virtualized list integration has three major gaps:
+**Problem:** Reactor's virtualized list integration has three major gaps:
 
 1. **Full-reset on data change:** ListView/GridView updates replace the entire `ItemsSource` (`lv.ItemsSource = Enumerable.Range(0, n.Items.Length).ToList()`), which destroys and recreates all containers. Inserting 1 item into a 10,000-item list causes a full reset — hundreds of milliseconds of work.
 
-2. **No element lifecycle awareness:** ItemsRepeater fires `ElementPrepared`, `ElementClearing`, and `ElementIndexChanged` events that Duct ignores entirely. Components inside virtualized lists have no way to know when they become visible or get recycled, preventing deferred loading patterns (lazy image loading, analytics visibility tracking).
+2. **No element lifecycle awareness:** ItemsRepeater fires `ElementPrepared`, `ElementClearing`, and `ElementIndexChanged` events that Reactor ignores entirely. Components inside virtualized lists have no way to know when they become visible or get recycled, preventing deferred loading patterns (lazy image loading, analytics visibility tracking).
 
-3. **Recycling gap:** `DuctElementFactory.RecycleElementCore()` calls `UnmountChild()` but explicitly skips element pooling because modifying the visual tree during ItemsRepeater's layout pass causes `COMException 0x800F1000`. This means every scroll creates fresh allocations instead of reusing pooled controls.
+3. **Recycling gap:** `ElementFactory.RecycleElementCore()` calls `UnmountChild()` but explicitly skips element pooling because modifying the visual tree during ItemsRepeater's layout pass causes `COMException 0x800F1000`. This means every scroll creates fresh allocations instead of reusing pooled controls.
 
 **Proposal:** Three targeted fixes:
 
 **(a) Fine-grained collection change notifications:** Replace the index-list `ItemsSource` with a custom `ObservableCollection<int>` (or a custom `INotifyCollectionChanged` implementation) that emits Add/Remove/Replace/Move notifications. On update, diff the old and new item arrays by key, then emit granular change events. ListView/GridView handle these natively — they'll create/remove/move only the affected containers.
 
-**(b) Expose ItemsRepeater lifecycle events:** Wire `ElementPrepared` and `ElementClearing` to new Duct component lifecycle hooks (`OnAppeared` / `OnDisappeared`). When an element enters the realization window, fire `OnAppeared` on its component context; when it leaves, fire `OnDisappeared`. This enables lazy loading, visibility-driven prefetch, and resource cleanup without framework-level changes.
+**(b) Expose ItemsRepeater lifecycle events:** Wire `ElementPrepared` and `ElementClearing` to new Reactor component lifecycle hooks (`OnAppeared` / `OnDisappeared`). When an element enters the realization window, fire `OnAppeared` on its component context; when it leaves, fire `OnDisappeared`. This enables lazy loading, visibility-driven prefetch, and resource cleanup without framework-level changes.
 
-**(c) Deferred recycling via Dispatcher:** Instead of recycling synchronously during ItemsRepeater's layout pass, queue cleanup work to `DispatcherQueue.TryEnqueue()` at low priority. After layout completes, the queued work safely unmounts Duct state and returns the control to `ElementPool`. This bridges the timing gap between ItemsRepeater's recycling cadence and Duct's cleanup requirements.
+**(c) Deferred recycling via Dispatcher:** Instead of recycling synchronously during ItemsRepeater's layout pass, queue cleanup work to `DispatcherQueue.TryEnqueue()` at low priority. After layout completes, the queued work safely unmounts Reactor state and returns the control to `ElementPool`. This bridges the timing gap between ItemsRepeater's recycling cadence and Reactor's cleanup requirements.
 
 ```csharp
 // (a) Granular collection updates
-private DuctObservableSource<T> _source;
+private ReactorObservableSource<T> _source;
 private void UpdateLazyStack(LazyStackElement<T> n) {
     _source.DiffAndApply(n.Items, n.KeySelector); // emits Add/Remove/Move
 }
@@ -149,26 +149,26 @@ protected override void RecycleElementCore(ElementFactoryRecycleArgs args) {
 **Impact:** (a) Inserting/removing items in a 10k list goes from full reset (~500ms) to O(changed) (~1ms). (b) Components gain visibility awareness, enabling lazy image loading and scroll-driven analytics. (c) Element reuse during scrolling reduces GC pressure — a fast scroll through 1000 items reuses ~32 pooled controls instead of allocating 1000.
 
 **WinUI3 files:**
-- `src/controls/dev/Repeater/ViewManager.cpp` — `GetElement()` cascade (lines 22-96) and `ClearElement()` flow (lines 98-137) showing the full element lifecycle Duct must coordinate with
+- `src/controls/dev/Repeater/ViewManager.cpp` — `GetElement()` cascade (lines 22-96) and `ClearElement()` flow (lines 98-137) showing the full element lifecycle Reactor must coordinate with
 - `src/controls/dev/Repeater/ViewManager.h` — PinnedPool, UniqueIdResetPool, Animator ownership states
 - `src/controls/dev/Repeater/VirtualizationInfo.h` — `ElementOwner` enum (lines 26-117), `AutoRecycleCandidate` / `KeepAlive` flags that control when elements are cleared
 - `src/controls/dev/Repeater/ItemsRepeater.cpp` — `MeasureOverride` auto-clear logic (lines 136-150) where realized elements outside the viewport are recycled
-- `src/controls/dev/Repeater/BuildTreeScheduler.h` — Frame-budget work scheduling with `QueryPerformanceCounter` timing — pattern for Duct's deferred recycling
+- `src/controls/dev/Repeater/BuildTreeScheduler.h` — Frame-budget work scheduling with `QueryPerformanceCounter` timing — pattern for Reactor's deferred recycling
 - `src/controls/dev/Repeater/ViewportManager.h` — VisibleWindow / RealizationWindow / CacheLength concepts
 - `src/dxaml/xcp/dxaml/lib/ListViewBase_Partial.cpp` — ContainerContentChanging event, container lifecycle for ListView/GridView
 
-**Duct files:**
-- `Duct/Core/DuctElementFactory.cs` — `GetElementCore()` / `RecycleElementCore()` — recycling gap fix site
-- `Duct/Core/Reconciler.Mount.cs` — ListView mounting (lines 675-733), GridView mounting (lines 735-800), LazyStack mounting (lines 1046-1071)
-- `Duct/Core/Reconciler.Update.cs` — ListView update (lines 457-472) full-reset pattern, LazyStack update (lines 499-511)
-- `Duct/Core/ElementPool.cs` — `CleanElement()` / pool management — target for deferred return
-- `Duct/Core/Element.cs` — `LazyVStackElement<T>` / `LazyHStackElement<T>` (lines 733-774) — KeySelector exists but unused
+**Reactor files:**
+- `Reactor/Core/ElementFactory.cs` — `GetElementCore()` / `RecycleElementCore()` — recycling gap fix site
+- `Reactor/Core/Reconciler.Mount.cs` — ListView mounting (lines 675-733), GridView mounting (lines 735-800), LazyStack mounting (lines 1046-1071)
+- `Reactor/Core/Reconciler.Update.cs` — ListView update (lines 457-472) full-reset pattern, LazyStack update (lines 499-511)
+- `Reactor/Core/ElementPool.cs` — `CleanElement()` / pool management — target for deferred return
+- `Reactor/Core/Element.cs` — `LazyVStackElement<T>` / `LazyHStackElement<T>` (lines 733-774) — KeySelector exists but unused
 
 ---
 
-## 4. Bypass DependencyProperty for Duct Element↔UIElement Binding (Tactical)
+## 4. Bypass DependencyProperty for Reactor Element↔UIElement Binding (Tactical)
 
-**Problem:** Duct stores its `Element` reference in `FrameworkElement.Tag` (a DependencyProperty) so that generic event handlers can find the current Element at invocation time. `SetElementTag()` is called ~80 times across Mount and Update — on every control type including layout-only containers (StackPanel, Grid, Border, ScrollViewer, Canvas), not just interactive controls. Each call is a COM property set through the DP system via `CDependencyObject::SetValue` (`src/dxaml/xcp/core/core/elements/depends.cpp`). The Tag property is read on every event handler invocation (button clicks, text changes, toggle switches) via `GetElementTag()`.
+**Problem:** Reactor stores its `Element` reference in `FrameworkElement.Tag` (a DependencyProperty) so that generic event handlers can find the current Element at invocation time. `SetElementTag()` is called ~80 times across Mount and Update — on every control type including layout-only containers (StackPanel, Grid, Border, ScrollViewer, Canvas), not just interactive controls. Each call is a COM property set through the DP system via `CDependencyObject::SetValue` (`src/dxaml/xcp/core/core/elements/depends.cpp`). The Tag property is read on every event handler invocation (button clicks, text changes, toggle switches) via `GetElementTag()`.
 
 **What didn't work:** Replacing Tag with a managed-side `ConditionalWeakTable<UIElement, Element>` or `Dictionary<nint, Element>` was **empirically slower**. WinUI's C# objects are CsWinRT-generated projections — thin RCW wrappers with only an `IObjectReference _inner` field. There is no CLR-side layer where fields could be added. The Tag DP is optimized internally — it's a known property index with no change notification, no layout invalidation, and no coercion, making it close to a bare field write on the native `CDependencyObject`. A `ConditionalWeakTable` adds ephemeron GC handle tracking, hash computation, and lock contention on every access, which outweighs the COM marshaling cost. A plain `Dictionary` adds hash + resize overhead and requires manual cleanup.
 
@@ -204,19 +204,19 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/dxaml/xcp/core/core/elements/depends.cpp` — `SetValue` path (~line 477). Tag goes through `SetValueByKnownIndex` which is optimized but still involves COM marshaling, effective value computation, and thread affinity checks. The key finding: this is *fast enough* that a managed hash table can't beat it, but *not free* — eliminating it entirely via closure capture is still a win.
 - `src/dxaml/xcp/core/inc/CDependencyObject.h` — `SetValueByKnownIndex` overloads
 
-**Duct files:**
-- `Duct/Core/Reconciler.cs` — `SetElementTag()` / `GetElementTag()` (lines 44-50) — would be replaced by StrongBox pattern for interactive controls
-- `Duct/Core/Reconciler.Mount.cs` — ~80 `SetElementTag` call sites. ~35 are on layout-only controls (StackPanel line 464, Grid line 488, ScrollViewer line 499, Border line 513, Canvas line 571, etc.) that should simply be removed. ~45 are on interactive controls that should migrate to StrongBox.
-- `Duct/Core/Reconciler.Update.cs` — ~35 `SetElementTag` calls on Update path, all replaceable with `elementRef.Value = n`
-- `Duct/Core/ElementPool.cs` — `CleanElement()` clears `fe.Tag = null` — would null the StrongBox instead
+**Reactor files:**
+- `Reactor/Core/Reconciler.cs` — `SetElementTag()` / `GetElementTag()` (lines 44-50) — would be replaced by StrongBox pattern for interactive controls
+- `Reactor/Core/Reconciler.Mount.cs` — ~80 `SetElementTag` call sites. ~35 are on layout-only controls (StackPanel line 464, Grid line 488, ScrollViewer line 499, Border line 513, Canvas line 571, etc.) that should simply be removed. ~45 are on interactive controls that should migrate to StrongBox.
+- `Reactor/Core/Reconciler.Update.cs` — ~35 `SetElementTag` calls on Update path, all replaceable with `elementRef.Value = n`
+- `Reactor/Core/ElementPool.cs` — `CleanElement()` clears `fe.Tag = null` — would null the StrongBox instead
 
 ---
 
 ## 5. Native Layout Coalescing: Hook Into LayoutManager's Batch Queue (Tactical)
 
-**Problem:** Duct's `DuctHost.RenderLoop()` reconciles the entire tree in one shot, which can trigger hundreds of `InvalidateMeasure()` / `InvalidateArrange()` calls as individual properties are patched. Each invalidation propagates up the ancestor chain via `PropagateOnMeasureDirtyPath()`.
+**Problem:** Reactor's `ReactorHost.RenderLoop()` reconciles the entire tree in one shot, which can trigger hundreds of `InvalidateMeasure()` / `InvalidateArrange()` calls as individual properties are patched. Each invalidation propagates up the ancestor chain via `PropagateOnMeasureDirtyPath()`.
 
-**Proposal:** Bracket Duct's reconciliation pass with WinUI's layout suppression. Call `LayoutManager::EnterMeasure()` before patching and `ExitMeasure()` after, so all layout invalidations are batched into a single pass. Alternatively, expose a `BeginDeferUpdates()` / `EndDeferUpdates()` API on the WinUI side that suppresses layout until the batch completes.
+**Proposal:** Bracket Reactor's reconciliation pass with WinUI's layout suppression. Call `LayoutManager::EnterMeasure()` before patching and `ExitMeasure()` after, so all layout invalidations are batched into a single pass. Alternatively, expose a `BeginDeferUpdates()` / `EndDeferUpdates()` API on the WinUI side that suppresses layout until the batch completes.
 
 **Impact:** A reconciliation that patches 200 properties currently triggers 200 individual invalidation propagations. Batching would reduce this to a single layout pass.
 
@@ -224,9 +224,9 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/dxaml/xcp/core/layout/LayoutManager.cpp` — Enter/ExitMeasure (line ~83-87 in header)
 - `src/dxaml/xcp/core/core/elements/uielement.cpp` — `InvalidateMeasure()` (lines 3551-3586), `InvalidateArrange()` (lines 3611-3646)
 
-**Duct files:**
-- `Duct/Hosting/DuctHost.cs` — `RenderLoop()` / `Render()`
-- `Duct/Core/Reconciler.Update.cs` — property patching triggers layout invalidation
+**Reactor files:**
+- `Reactor/Hosting/ReactorHost.cs` — `RenderLoop()` / `Render()`
+- `Reactor/Core/Reconciler.Update.cs` — property patching triggers layout invalidation
 
 ---
 
@@ -234,7 +234,7 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 
 **Problem:** `ElementPool.cs` only pools 12 non-interactive control types (TextBlock, Grid, Border, etc.). Interactive controls like Button, TextBox, CheckBox, ToggleSwitch are created fresh on every mount and discarded on unmount — never reused.
 
-**Proposal:** Extend pooling to interactive controls by adding a `ResetEventState()` step. Since Duct's Tag-based event pattern means handlers are generic (they read from Tag at invocation time), the actual event subscriptions don't need to change. The only work needed is: (1) clear the Tag, (2) reset visual state (IsPressed, IsChecked, etc.), (3) return to pool. This is safe because Duct never stores per-instance closures in event handlers.
+**Proposal:** Extend pooling to interactive controls by adding a `ResetEventState()` step. Since Reactor's Tag-based event pattern means handlers are generic (they read from Tag at invocation time), the actual event subscriptions don't need to change. The only work needed is: (1) clear the Tag, (2) reset visual state (IsPressed, IsChecked, etc.), (3) return to pool. This is safe because Reactor never stores per-instance closures in event handlers.
 
 **Impact:** In a virtualized list of 1000 buttons, scrolling currently creates and destroys Button instances. Pooling would amortize allocation to ~32 instances.
 
@@ -242,9 +242,9 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/dxaml/xcp/core/core/elements/Control.cpp` — Control state reset
 - `src/controls/dev/Repeater/ViewManager.h` — WinUI's own element reuse patterns
 
-**Duct files:**
-- `Duct/Core/ElementPool.cs` — `PoolableTypes` set, `CleanElement()` method
-- `Duct/Core/Reconciler.Mount.cs` — event handler wiring (generic Tag-based pattern)
+**Reactor files:**
+- `Reactor/Core/ElementPool.cs` — `PoolableTypes` set, `CleanElement()` method
+- `Reactor/Core/Reconciler.Mount.cs` — event handler wiring (generic Tag-based pattern)
 
 ---
 
@@ -261,15 +261,15 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/controls/dev/RadioButtons/RadioButtons.h` — Items collection
 - `src/dxaml/xcp/core/core/elements/ItemsControl.cpp` — Items collection patterns
 
-**Duct files:**
-- `Duct/Core/Reconciler.Update.cs` — RemountOnUpdate controls
-- `Duct/Core/ChildReconciler.cs` — keyed reconciliation (could be reused)
+**Reactor files:**
+- `Reactor/Core/Reconciler.Update.cs` — RemountOnUpdate controls
+- `Reactor/Core/ChildReconciler.cs` — keyed reconciliation (could be reused)
 
 ---
 
 ## 8. Frame-Budget-Aware Reconciliation (Tactical)
 
-**Problem:** `DuctHost.RenderLoop()` reconciles the entire tree synchronously. If reconciliation takes longer than 16ms (one frame at 60fps), the UI stutters. There's no mechanism to yield mid-reconciliation and continue on the next frame.
+**Problem:** `ReactorHost.RenderLoop()` reconciles the entire tree synchronously. If reconciliation takes longer than 16ms (one frame at 60fps), the UI stutters. There's no mechanism to yield mid-reconciliation and continue on the next frame.
 
 **Proposal:** Implement time-sliced reconciliation inspired by React's Fiber architecture. Break reconciliation into units of work (one component = one unit). After each unit, check elapsed time. If approaching the frame deadline, yield to the dispatcher and resume on the next frame. Priority levels: user input > animations > data updates > off-screen content.
 
@@ -277,21 +277,21 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 
 **WinUI3 files:**
 - `src/dxaml/xcp/core/layout/LayoutManager.cpp` — MaxLayoutIterations=250, layout cycle management
-- WinUI's own layout manager already has iteration limits; Duct could mirror this
+- WinUI's own layout manager already has iteration limits; Reactor could mirror this
 
-**Duct files:**
-- `Duct/Hosting/DuctHost.cs` — `RenderLoop()` / `Render()` — currently synchronous
-- `Duct/Core/Reconciler.cs` — `ReconcileComponent()` — natural unit-of-work boundary
+**Reactor files:**
+- `Reactor/Hosting/ReactorHost.cs` — `RenderLoop()` / `Render()` — currently synchronous
+- `Reactor/Core/Reconciler.cs` — `ReconcileComponent()` — natural unit-of-work boundary
 
 ---
 
 ## 9. Leverage WinUI's Built-In Implicit Style Resolution for Theming (Tactical)
 
-**Problem:** Duct elements specify visual properties (FontSize, Foreground, FontWeight) explicitly via modifiers. There's no participation in WinUI's implicit style system — a Duct TextBlock doesn't pick up the app's implicit TextBlock style. This means Duct apps can't inherit theme customizations.
+**Problem:** Reactor elements specify visual properties (FontSize, Foreground, FontWeight) explicitly via modifiers. There's no participation in WinUI's implicit style system — a Reactor TextBlock doesn't pick up the app's implicit TextBlock style. This means Reactor apps can't inherit theme customizations.
 
-**Proposal:** After mounting a control, allow WinUI's implicit style resolution to run before applying Duct's explicit properties. Duct properties would override implicit styles (specificity: explicit > implicit), but unset properties would inherit from the theme. This is already how WinUI works — the fix is to *not* reset properties that Duct hasn't explicitly set, rather than clearing everything in `CleanElement()`.
+**Proposal:** After mounting a control, allow WinUI's implicit style resolution to run before applying Reactor's explicit properties. Reactor properties would override implicit styles (specificity: explicit > implicit), but unset properties would inherit from the theme. This is already how WinUI works — the fix is to *not* reset properties that Reactor hasn't explicitly set, rather than clearing everything in `CleanElement()`.
 
-**Impact:** Duct apps would automatically respect system themes, accessibility settings (high contrast), and app-level style overrides without any Duct-side changes.
+**Impact:** Reactor apps would automatically respect system themes, accessibility settings (high contrast), and app-level style overrides without any Reactor-side changes.
 
 **Cross-reference — theming conflict:** The theming system (Proposal #22) creates dynamic `Style` objects via `ApplyThemeBindings` and assigns them via `fe.Style = style`, which actively overrides implicit styles. Even with `BasedOn` chaining, the dynamic style takes precedence and can block implicit style resolution. A solution for this proposal must account for theme binding styles coexisting with implicit styles — possibly by applying theme bindings as local value overrides (Proposal #22 Option C) rather than through the Style system, leaving the Style slot free for implicit resolution.
 
@@ -299,10 +299,10 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/dxaml/xcp/core/core/elements/Style.cpp` — Implicit style lookup, BasedOn chain (lines 28-100)
 - `src/dxaml/xcp/core/core/elements/Control.cpp` — `OnApplyTemplate()` and style application
 
-**Duct files:**
-- `Duct/Core/ElementPool.cs` — `CleanElement()` resets all properties
-- `Duct/Core/Reconciler.Mount.cs` — Property application during mount
-- `Duct/Core/Reconciler.cs` — `ApplyThemeBindings` (lines 1751-1809) — the Style-based theme binding that conflicts with implicit styles
+**Reactor files:**
+- `Reactor/Core/ElementPool.cs` — `CleanElement()` resets all properties
+- `Reactor/Core/Reconciler.Mount.cs` — Property application during mount
+- `Reactor/Core/Reconciler.cs` — `ApplyThemeBindings` (lines 1751-1809) — the Style-based theme binding that conflicts with implicit styles
 
 ---
 
@@ -318,9 +318,9 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/dxaml/xcp/core/inc/panel.h` — Children collection management
 - `src/dxaml/xcp/core/core/elements/panel.cpp` — SetValue for children transitions
 
-**Duct files:**
-- `Duct/Core/ChildReconciler.cs` — `ReconcileKeyed()` uses Remove+Insert for moves
-- `Duct/Core/ChildCollection.cs` — Abstraction over Panel.Children
+**Reactor files:**
+- `Reactor/Core/ChildReconciler.cs` — `ReconcileKeyed()` uses Remove+Insert for moves
+- `Reactor/Core/ChildCollection.cs` — Abstraction over Panel.Children
 
 ---
 
@@ -332,10 +332,10 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 
 **Impact:** Eliminates cold-start allocation stutter for the first screenful of virtualized items.
 
-**Duct files:**
-- `Duct/Core/ElementPool.cs` — Pool management, max 32 per type
-- `Duct/Hosting/DuctHost.cs` — Could schedule pre-warming on idle
-- `Duct/Core/DuctElementFactory.cs` — Could analyze view builder output types
+**Reactor files:**
+- `Reactor/Core/ElementPool.cs` — Pool management, max 32 per type
+- `Reactor/Hosting/ReactorHost.cs` — Could schedule pre-warming on idle
+- `Reactor/Core/ElementFactory.cs` — Could analyze view builder output types
 
 ---
 
@@ -347,37 +347,37 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 
 **Impact:** Reduces serialization cost from O(n) to O(changed) per render. For typical UI updates (user types in a text field, counter increments), this could be 100x faster serialization.
 
-**Duct files:**
-- `Duct/Core/TreeSerializer.cs` — `Serialize()` / `SerializeWithMapping()` BFS traversal
-- `Duct/Core/RenderContext.cs` — `UseState` / state change triggers
-- `Duct/Hosting/DuctHost.cs` — `RequestRender()` could carry dirty component info
+**Reactor files:**
+- `Reactor/Core/TreeSerializer.cs` — `Serialize()` / `SerializeWithMapping()` BFS traversal
+- `Reactor/Core/RenderContext.cs` — `UseState` / state change triggers
+- `Reactor/Hosting/ReactorHost.cs` — `RequestRender()` could carry dirty component info
 
 ---
 
 ## 13. Unified Element Recycling with ItemsRepeater's ViewManager (Medium)
 
-**Problem:** Duct has its own `ElementPool` and ItemsRepeater has its own `ViewManager` with separate recycling pools (PinnedPool, UniqueIdResetPool). These two systems don't know about each other. When Duct unmounts a virtualized item, it explicitly does NOT pool (comment in `DuctElementFactory.RecycleElementCore` explains why), losing the recycling opportunity.
+**Problem:** Reactor has its own `ElementPool` and ItemsRepeater has its own `ViewManager` with separate recycling pools (PinnedPool, UniqueIdResetPool). These two systems don't know about each other. When Reactor unmounts a virtualized item, it explicitly does NOT pool (comment in `ElementFactory.RecycleElementCore` explains why), losing the recycling opportunity.
 
-**Proposal:** Integrate Duct's recycling with ItemsRepeater's ViewManager lifecycle. Register Duct's element pool as a custom recycling backend for ViewManager. When ItemsRepeater recycles an element, instead of clearing it to the factory, transition it to Duct's pool with element state preserved. When ItemsRepeater requests a new element, check Duct's pool first. This creates a single unified recycling pipeline.
+**Proposal:** Integrate Reactor's recycling with ItemsRepeater's ViewManager lifecycle. Register Reactor's element pool as a custom recycling backend for ViewManager. When ItemsRepeater recycles an element, instead of clearing it to the factory, transition it to Reactor's pool with element state preserved. When ItemsRepeater requests a new element, check Reactor's pool first. This creates a single unified recycling pipeline.
 
-**Impact:** Eliminates the "recycling gap" where ItemsRepeater recycles a control but Duct can't reuse it, forcing fresh allocation.
+**Impact:** Eliminates the "recycling gap" where ItemsRepeater recycles a control but Reactor can't reuse it, forcing fresh allocation.
 
 **WinUI3 files:**
 - `src/controls/dev/Repeater/ViewManager.h` — `GetElement()` cascade, `ClearElement()` methods
 - `src/controls/dev/Repeater/ViewManager.cpp` — Element lifecycle (lines 22-137)
 - `src/controls/dev/Repeater/VirtualizationInfo.h` — Per-element state machine
 
-**Duct files:**
-- `Duct/Core/DuctElementFactory.cs` — `GetElementCore()` / `RecycleElementCore()`
-- `Duct/Core/ElementPool.cs` — Current standalone pool
+**Reactor files:**
+- `Reactor/Core/ElementFactory.cs` — `GetElementCore()` / `RecycleElementCore()`
+- `Reactor/Core/ElementPool.cs` — Current standalone pool
 
 ---
 
 ## 14. Fine-Grained Component Boundaries via WinUI's ContentPresenter (Medium)
 
-**Problem:** Duct components are opaque to the Rust differ — they appear as "gap nodes" that require imperative C# reconciliation. This means the native diff path can't optimize across component boundaries, falling back to the slower C# path for every component in the tree.
+**Problem:** Reactor components are opaque to the Rust differ — they appear as "gap nodes" that require imperative C# reconciliation. This means the native diff path can't optimize across component boundaries, falling back to the slower C# path for every component in the tree.
 
-**Proposal:** Map Duct components to WinUI `ContentPresenter` instances. ContentPresenter already manages content lifecycle and template instantiation natively. Each Duct component would own a ContentPresenter, and its rendered subtree would be the presenter's content. This gives WinUI native awareness of component boundaries — the presenter's content can be diffed independently, and WinUI's own content transition system provides free animation support.
+**Proposal:** Map Reactor components to WinUI `ContentPresenter` instances. ContentPresenter already manages content lifecycle and template instantiation natively. Each Reactor component would own a ContentPresenter, and its rendered subtree would be the presenter's content. This gives WinUI native awareness of component boundaries — the presenter's content can be diffed independently, and WinUI's own content transition system provides free animation support.
 
 **Impact:** Components would no longer be opaque to the differ. A tree with 20 components would go from 20 imperative reconciliation fallbacks to 20 independently diffable subtrees.
 
@@ -385,28 +385,28 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/dxaml/xcp/core/core/elements/ContentPresenter.cpp` — Content lifecycle (lines 76-145)
 - `src/dxaml/xcp/core/core/elements/ContentControl.cpp` — Content hosting
 
-**Duct files:**
-- `Duct/Core/Reconciler.cs` — `ReconcileComponent()`, gap node handling
-- `Duct/Core/TreeSerializer.cs` — Component serialization (treated as leaf/gap)
+**Reactor files:**
+- `Reactor/Core/Reconciler.cs` — `ReconcileComponent()`, gap node handling
+- `Reactor/Core/TreeSerializer.cs` — Component serialization (treated as leaf/gap)
 
 ---
 
-## 15. Expose WinUI's Composition Animations for Duct Transitions (Medium)
+## 15. Expose WinUI's Composition Animations for Reactor Transitions (Medium)
 
-**Problem:** Duct has no transition/animation system. When elements are inserted, removed, or reordered, changes are instant. WinUI has a full composition animation system (implicit animations, connected animations, layout transitions) that Duct can't access because it bypasses the template/style system.
+**Problem:** Reactor has no transition/animation system. When elements are inserted, removed, or reordered, changes are instant. WinUI has a full composition animation system (implicit animations, connected animations, layout transitions) that Reactor can't access because it bypasses the template/style system.
 
-**Proposal:** Add a `.Transition()` modifier to Duct elements that maps to WinUI's `UIElement.TransitionCollection`. For layout changes, use `RepositionThemeTransition`. For inserts/removes, use `AddDeleteThemeTransition`. For connected animations, expose `ConnectedAnimationService` via a `UseConnectedAnimation()` hook. The reconciler would set these during Mount and they'd animate automatically.
+**Proposal:** Add a `.Transition()` modifier to Reactor elements that maps to WinUI's `UIElement.TransitionCollection`. For layout changes, use `RepositionThemeTransition`. For inserts/removes, use `AddDeleteThemeTransition`. For connected animations, expose `ConnectedAnimationService` via a `UseConnectedAnimation()` hook. The reconciler would set these during Mount and they'd animate automatically.
 
-**Impact:** Duct apps get polished, native-feeling animations with zero custom code. List reorders would animate smoothly instead of snapping.
+**Impact:** Reactor apps get polished, native-feeling animations with zero custom code. List reorders would animate smoothly instead of snapping.
 
 **WinUI3 files:**
 - `src/dxaml/xcp/core/core/elements/panel.cpp` — Panel_ChildrenTransitions property
 - `src/dxaml/xcp/core/hw/` — Composition animation infrastructure
 
-**Duct files:**
-- `Duct/Elements/ElementExtensions.cs` — Would add `.Transition()` modifier
-- `Duct/Core/Element.cs` — ElementModifiers would gain transition fields
-- `Duct/Core/Reconciler.Mount.cs` — Would apply TransitionCollection during mount
+**Reactor files:**
+- `Reactor/Elements/ElementExtensions.cs` — Would add `.Transition()` modifier
+- `Reactor/Core/Element.cs` — ElementModifiers would gain transition fields
+- `Reactor/Core/Reconciler.Mount.cs` — Would apply TransitionCollection during mount
 
 ---
 
@@ -422,18 +422,18 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/dxaml/xcp/core/core/elements/depends.cpp` — `SetValueByKnownIndex()` for direct property access
 - `src/dxaml/xcp/core/inc/KnownPropertyIndex.h` — Property index enum
 
-**Duct files:**
-- `Duct/Native/differ/src/types.rs` — DifferProp, DifferPatch definitions
-- `Duct/Core/Reconciler.Update.cs` — Per-control property switch statements
-- `Duct/Core/PropValueRegistry.cs` — Complex value storage
+**Reactor files:**
+- `Reactor/Native/differ/src/types.rs` — DifferProp, DifferPatch definitions
+- `Reactor/Core/Reconciler.Update.cs` — Per-control property switch statements
+- `Reactor/Core/PropValueRegistry.cs` — Complex value storage
 
 ---
 
 ## 17. Direct Composition Visuals for Layout-Only Elements (Wild)
 
-**Problem:** Duct creates full WinUI FrameworkElement instances for layout-only elements like Border, StackPanel, and Grid. Each one carries the full UIElement allocation overhead: DComp render data (`PrimitiveCompositionPropertyData`), layout storage, automation peer infrastructure, managed peer linking, and property system participation.
+**Problem:** Reactor creates full WinUI FrameworkElement instances for layout-only elements like Border, StackPanel, and Grid. Each one carries the full UIElement allocation overhead: DComp render data (`PrimitiveCompositionPropertyData`), layout storage, automation peer infrastructure, managed peer linking, and property system participation.
 
-**Proposal:** For elements that are purely structural (Border with just margin/padding, StackPanel with orientation/spacing), bypass UIElement creation entirely and create lightweight `Visual` objects directly via the Windows.UI.Composition API. These would participate in the DComp visual tree but skip the entire XAML framework overhead — no DependencyProperty storage, no layout manager participation, no event routing. Duct's reconciler would calculate layout positions itself (it already knows the constraints) and set `Visual.Offset` and `Visual.Size` directly.
+**Proposal:** For elements that are purely structural (Border with just margin/padding, StackPanel with orientation/spacing), bypass UIElement creation entirely and create lightweight `Visual` objects directly via the Windows.UI.Composition API. These would participate in the DComp visual tree but skip the entire XAML framework overhead — no DependencyProperty storage, no layout manager participation, no event routing. Reactor's reconciler would calculate layout positions itself (it already knows the constraints) and set `Visual.Offset` and `Visual.Size` directly.
 
 **Impact:** Could reduce element creation cost by 10-50x for layout-only containers. A deeply nested component tree with 5 levels of VStack/HStack nesting would go from 5 FrameworkElement allocations to 5 lightweight Visual allocations.
 
@@ -442,9 +442,9 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/dxaml/xcp/core/hw/hwwalk.cpp` — DComp visual creation
 - `src/dxaml/xcp/core/hw/CompositorTreeHost.cpp` — Composition tree management
 
-**Duct files:**
-- `Duct/Core/Reconciler.Mount.cs` — MountStack, MountBorder, MountGrid create full FrameworkElements
-- `Duct/Core/Element.cs` — StackElement, BorderElement, GridElement definitions
+**Reactor files:**
+- `Reactor/Core/Reconciler.Mount.cs` — MountStack, MountBorder, MountGrid create full FrameworkElements
+- `Reactor/Core/Element.cs` — StackElement, BorderElement, GridElement definitions
 
 ---
 
@@ -460,10 +460,10 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 - `src/dxaml/xcp/core/hw/CompositorTreeHost.cpp` — DComp tree access
 - `src/dxaml/xcp/core/hw/hwcompnode.cpp` — Composition node management
 
-**Duct files:**
-- `Duct/Native/differ/src/diff.rs` — `diff_subtree()` algorithm
-- `Duct/Native/differ/src/ffi.rs` — FFI boundary
-- `Duct/Core/TreeSerializer.cs` — Serialization for Rust differ
+**Reactor files:**
+- `Reactor/Native/differ/src/diff.rs` — `diff_subtree()` algorithm
+- `Reactor/Native/differ/src/ffi.rs` — FFI boundary
+- `Reactor/Core/TreeSerializer.cs` — Serialization for Rust differ
 
 ---
 
@@ -475,22 +475,22 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 
 **Impact:** Eliminates all FFI marshaling overhead. For a 1000-node tree, this removes ~40KB of array copying per reconciliation pass. The pipelining benefit is larger — it overlaps serialization and diffing.
 
-**Duct files:**
-- `Duct/Native/differ/src/ffi.rs` — Current FFI boundary
-- `Duct/Core/ViewDiffer.cs` — P/Invoke wrappers, pointer management
-- `Duct/Core/TreeSerializer.cs` — Could write directly to shared memory
+**Reactor files:**
+- `Reactor/Native/differ/src/ffi.rs` — Current FFI boundary
+- `Reactor/Core/ViewDiffer.cs` — P/Invoke wrappers, pointer management
+- `Reactor/Core/TreeSerializer.cs` — Could write directly to shared memory
 
 ---
 
-## 20. Duct as WinUI's Official Declarative Layer (Wild)
+## 20. Reactor as WinUI's Official Declarative Layer (Wild)
 
-**Problem:** WinUI's declarative story is XAML + data binding + MVVM. This requires: .xaml files, code-behind, INotifyPropertyChanged boilerplate, DataTemplate definitions, converter classes, and style resources. The cognitive overhead is enormous compared to Duct's `Text("hello").Bold()`.
+**Problem:** WinUI's declarative story is XAML + data binding + MVVM. This requires: .xaml files, code-behind, INotifyPropertyChanged boilerplate, DataTemplate definitions, converter classes, and style resources. The cognitive overhead is enormous compared to Reactor's `Text("hello").Bold()`.
 
-**Proposal:** Ship Duct as a first-party WinUI package (`Microsoft.UI.Xaml.Declarative`). This would involve:
-1. Adding Duct-aware APIs to WinUI controls (e.g., `IReconcilable` interface for incremental updates)
-2. Exposing internal WinUI APIs to Duct (layout suppression, direct property access, composition visuals)
-3. Making Duct's Element types part of the WinUI SDK
-4. Providing migration tooling (XAML → Duct converter)
+**Proposal:** Ship Reactor as a first-party WinUI package (`Microsoft.UI.Xaml.Declarative`). This would involve:
+1. Adding Reactor-aware APIs to WinUI controls (e.g., `IReconcilable` interface for incremental updates)
+2. Exposing internal WinUI APIs to Reactor (layout suppression, direct property access, composition visuals)
+3. Making Reactor's Element types part of the WinUI SDK
+4. Providing migration tooling (XAML → Reactor converter)
 
 **Impact:** Every WinUI developer gets a modern, React-like development experience. Eliminates the XAML/MVVM learning curve. Microsoft ships a competitive declarative UI framework alongside SwiftUI and Jetpack Compose.
 
@@ -509,16 +509,16 @@ The reconciler would store the `StrongBox` alongside the control in its tracking
 
 **Impact:** A complex app with 4 independent panels could reconcile 4x faster on multi-core machines. The constraint is that WinUI controls can only be touched on the UI thread, so only the diff phase parallelizes — patch application remains single-threaded.
 
-**Duct files:**
-- `Duct/Core/Reconciler.cs` — `ReconcileComponent()` as parallelization boundary
-- `Duct/Native/differ/src/arena.rs` — `DiffContext` is already per-instance (not global)
-- `Duct/Hosting/DuctHost.cs` — Would coordinate parallel diff + sequential apply
+**Reactor files:**
+- `Reactor/Core/Reconciler.cs` — `ReconcileComponent()` as parallelization boundary
+- `Reactor/Native/differ/src/arena.rs` — `DiffContext` is already per-instance (not global)
+- `Reactor/Hosting/ReactorHost.cs` — Would coordinate parallel diff + sequential apply
 
 ---
 
 ## 22. Programmatic ThemeResource Setter — Eliminate XamlReader.Load for Theme Bindings (Unblock)
 
-**Problem:** Duct's theming system uses a three-tier theme value model (local concrete > theme token > default) where tier-2 "theme tokens" reference WinUI's semantic theme resources (e.g., `AccentFillColorDefaultBrush`, `TextFillColorPrimaryBrush`). The `ApplyThemeBindings` method in `Reconciler.cs` (lines 1751-1809) applies these by constructing a WinUI `Style` with `{ThemeResource}` setters — but WinUI has **no code-based API** to create a Setter that references a ThemeResource. The only path is to build a XAML string and parse it via `XamlReader.Load()`:
+**Problem:** Reactor's theming system uses a three-tier theme value model (local concrete > theme token > default) where tier-2 "theme tokens" reference WinUI's semantic theme resources (e.g., `AccentFillColorDefaultBrush`, `TextFillColorPrimaryBrush`). The `ApplyThemeBindings` method in `Reconciler.cs` (lines 1751-1809) applies these by constructing a WinUI `Style` with `{ThemeResource}` setters — but WinUI has **no code-based API** to create a Setter that references a ThemeResource. The only path is to build a XAML string and parse it via `XamlReader.Load()`:
 
 ```csharp
 // Current implementation in Reconciler.cs:1751-1809
@@ -579,12 +579,12 @@ Option B is the most impactful — it bypasses the Style system entirely, settin
 - `src/dxaml/xcp/core/core/elements/depends.cpp` — `CDependencyObject::SetValue`, theme-aware property evaluation
 - `src/dxaml/xcp/core/theming/ThemeResource.cpp` — Theme resource tracking and re-evaluation on theme change
 
-**Duct files:**
-- `Duct/Core/Reconciler.cs` — `ApplyThemeBindings` (lines 1751-1809), `GetStyleTargetType` (lines 1786-1800), `GetDependencyPropertyName` (lines 1802-1809) — all three methods would be replaced by direct `SetThemeResourceBinding` calls
-- `Duct/Core/Theme.cs` — `ThemeRef` struct (lines 10-127), `Theme` static class (lines 55-127) — `ThemeRef.Resolve()` would become fallback-only; the struct itself remains as declarative intent
-- `Duct/Elements/ElementExtensions.cs` — `ModifyTheme` (lines 1254-1261), `Background(ThemeRef)` (line 262), `Foreground(ThemeRef)` (line 278), `WithBorder(ThemeRef)` (line 302) — API stays the same, implementation simplifies dramatically
-- `Duct/Core/Element.cs` — `ThemeBindings` property (lines 57-63) — still stores declarative intent, reconciler applies differently
-- `Duct/Hosting/DuctHostControl.cs` — `ActualThemeChanged` listener — with Option B, WinUI handles re-evaluation natively; the full re-render on theme change could become optional
+**Reactor files:**
+- `Reactor/Core/Reconciler.cs` — `ApplyThemeBindings` (lines 1751-1809), `GetStyleTargetType` (lines 1786-1800), `GetDependencyPropertyName` (lines 1802-1809) — all three methods would be replaced by direct `SetThemeResourceBinding` calls
+- `Reactor/Core/Theme.cs` — `ThemeRef` struct (lines 10-127), `Theme` static class (lines 55-127) — `ThemeRef.Resolve()` would become fallback-only; the struct itself remains as declarative intent
+- `Reactor/Elements/ElementExtensions.cs` — `ModifyTheme` (lines 1254-1261), `Background(ThemeRef)` (line 262), `Foreground(ThemeRef)` (line 278), `WithBorder(ThemeRef)` (line 302) — API stays the same, implementation simplifies dramatically
+- `Reactor/Core/Element.cs` — `ThemeBindings` property (lines 57-63) — still stores declarative intent, reconciler applies differently
+- `Reactor/Hosting/ReactorHostControl.cs` — `ActualThemeChanged` listener — with Option B, WinUI handles re-evaluation natively; the full re-render on theme change could become optional
 
 ---
 
@@ -602,7 +602,7 @@ Option B is the most impactful — it bypasses the Style system entirely, settin
 </Button>
 ```
 
-Duct's theming covers Background, Foreground, and BorderBrush in their **resting state only**. A button with `.Background(Theme.Accent)` gets the correct accent color in both Light and Dark themes, but its hover/pressed/disabled colors remain WinUI defaults. When the resting state is customized but visual states aren't, the result is visually jarring — the button snaps from a custom accent color to the default hover color on mouse-over.
+Reactor's theming covers Background, Foreground, and BorderBrush in their **resting state only**. A button with `.Background(Theme.Accent)` gets the correct accent color in both Light and Dark themes, but its hover/pressed/disabled colors remain WinUI defaults. When the resting state is customized but visual states aren't, the result is visually jarring — the button snaps from a custom accent color to the default hover color on mouse-over.
 
 There are three sub-problems:
 
@@ -632,7 +632,7 @@ button.SetLightweightStyle(new LightweightStyle {
 });
 ```
 
-Duct would then expose this as fluent modifiers:
+Reactor would then expose this as fluent modifiers:
 ```csharp
 Button("Click me")
     .Background(Theme.Accent)
@@ -641,7 +641,7 @@ Button("Click me")
     .StateBackground("Disabled", Theme.AccentDisabled)
 ```
 
-**Impact:** Enables full visual state theming from code. Duct could offer per-state theme token bindings that adapt to Light/Dark/HighContrast. Eliminates the visual discontinuity where resting-state colors are themed but hover/pressed/disabled states snap back to defaults. Makes lightweight styling discoverable and type-safe. Combined with Proposal #22 (programmatic ThemeResource), this would give Duct feature parity with CSS pseudo-class styling (`:hover`, `:active`, `:disabled`) and SwiftUI's `buttonStyle` system.
+**Impact:** Enables full visual state theming from code. Reactor could offer per-state theme token bindings that adapt to Light/Dark/HighContrast. Eliminates the visual discontinuity where resting-state colors are themed but hover/pressed/disabled states snap back to defaults. Makes lightweight styling discoverable and type-safe. Combined with Proposal #22 (programmatic ThemeResource), this would give Reactor feature parity with CSS pseudo-class styling (`:hover`, `:active`, `:disabled`) and SwiftUI's `buttonStyle` system.
 
 **WinUI3 files:**
 - `src/controls/dev/CommonStyles/Button_themeresources.xaml` — Button lightweight styling keys (pattern repeated for every control)
@@ -650,17 +650,17 @@ Button("Click me")
 - `src/dxaml/xcp/core/core/elements/ResourceDictionary.cpp` — Per-element Resources dictionary lookup chain
 - `src/dxaml/xcp/core/core/elements/VisualStateManager.cpp` — Visual state transitions and resource application
 
-**Duct files:**
-- `Duct/Elements/ElementExtensions.cs` — Would add state-aware theme modifiers (`.StateBackground()`, `.StateForeground()`, etc.)
-- `Duct/Core/Reconciler.cs` — `ApplyThemeBindings` would expand to handle per-state overrides, or a parallel `ApplyLightweightStyle` method
-- `Duct/Core/Reconciler.Mount.cs` — Would set control `Resources` entries during mount for lightweight styling
-- `Duct/Core/Element.cs` — `ElementModifiers` would gain a `StateOverrides` dictionary: `IReadOnlyDictionary<(string state, string property), ThemeRef>`
+**Reactor files:**
+- `Reactor/Elements/ElementExtensions.cs` — Would add state-aware theme modifiers (`.StateBackground()`, `.StateForeground()`, etc.)
+- `Reactor/Core/Reconciler.cs` — `ApplyThemeBindings` would expand to handle per-state overrides, or a parallel `ApplyLightweightStyle` method
+- `Reactor/Core/Reconciler.Mount.cs` — Would set control `Resources` entries during mount for lightweight styling
+- `Reactor/Core/Element.cs` — `ElementModifiers` would gain a `StateOverrides` dictionary: `IReadOnlyDictionary<(string state, string property), ThemeRef>`
 
 ---
 
 ## 24. Programmatic Custom Theme Resource Definitions (Tactical)
 
-**Problem:** Duct's `Theme` static class (in `Theme.cs`, lines 55-127) provides 60+ semantic tokens mapped to WinUI's built-in theme resources, and `Theme.Ref("key")` can reference any existing resource by name. But there is no Duct-level API — and no streamlined WinUI API — to **define new** theme-aware resources that provide different values for Light, Dark, and HighContrast themes.
+**Problem:** Reactor's `Theme` static class (in `Theme.cs`, lines 55-127) provides 60+ semantic tokens mapped to WinUI's built-in theme resources, and `Theme.Ref("key")` can reference any existing resource by name. But there is no Reactor-level API — and no streamlined WinUI API — to **define new** theme-aware resources that provide different values for Light, Dark, and HighContrast themes.
 
 An app that wants branded colors ("BrandPrimary" = corporate blue in Light, lighter blue in Dark) must manually construct a `ResourceDictionary` with `ThemeDictionaries` in code-behind:
 
@@ -676,17 +676,17 @@ var themeDict = new ResourceDictionary();
 themeDict.ThemeDictionaries["Light"] = lightDict;
 themeDict.ThemeDictionaries["Dark"] = darkDict;
 Application.Current.Resources.MergedDictionaries.Add(themeDict);
-// Theme.Ref("BrandPrimary") now works — but this setup has no Duct integration,
+// Theme.Ref("BrandPrimary") now works — but this setup has no Reactor integration,
 // no validation, and must run before any UI renders
 ```
 
-This defeats Duct's declarative model entirely. The theming design spec (`docs/spec/duct-theming-design.md`) proposed a `DuctThemeResources` class for declarative custom theme definition, but it was never implemented. Without it:
+This defeats Reactor's declarative model entirely. The theming design spec (`docs/spec/duct-theming-design.md`) proposed a `ReactorThemeResources` class for declarative custom theme definition, but it was never implemented. Without it:
 - No branded colors that adapt to Light/Dark (must hard-code or use the verbose workaround above)
 - No app-specific semantic tokens (e.g., "PricingPositive" = green in light, lighter green in dark)
 - No component-level theme scoping (a component can't define theme tokens for its subtree)
 - Every competitor has this: React/Material UI has `createTheme()`, SwiftUI has Color asset catalogs with Light/Dark/HighContrast variants, Compose has `lightColorScheme()`/`darkColorScheme()`
 
-**Proposal:** Two levels — a WinUI API improvement and a Duct-level DSL:
+**Proposal:** Two levels — a WinUI API improvement and a Reactor-level DSL:
 
 **(a) WinUI: Streamlined theme resource registration API:**
 
@@ -706,11 +706,11 @@ ThemeResources.RegisterBatch(new[] {
 });
 ```
 
-**(b) Duct: Declarative theme definition in component model:**
+**(b) Reactor: Declarative theme definition in component model:**
 
 ```csharp
-// In DuctApp configuration — runs before first render
-DuctApp.DefineTheme(theme =>
+// In ReactorApp configuration — runs before first render
+ReactorApp.DefineTheme(theme =>
 {
     theme.Color("BrandPrimary",     light: "#005A9E", dark: "#64B4FF");
     theme.Color("BrandSecondary",   light: "#605E5C", dark: "#A19F9D");
@@ -723,18 +723,18 @@ Text("+$12.50").Foreground(Theme.Ref("PricingPositive"))
 Border(content).Background(Theme.Ref("BrandPrimary"))
 ```
 
-**Impact:** Enables branded and domain-specific theme tokens that work with Duct's existing `ThemeRef` system and `ApplyThemeBindings` pipeline. Developers define colors once and they adapt to Light/Dark/HighContrast automatically. Combined with Proposals #22 and #23, this completes the theming story: #22 makes theme binding fast, #23 extends it to visual states, and #24 lets apps define their own tokens. Puts Duct's theming on par with React's `createTheme()`, SwiftUI's asset catalogs, and Compose's `MaterialTheme` color schemes.
+**Impact:** Enables branded and domain-specific theme tokens that work with Reactor's existing `ThemeRef` system and `ApplyThemeBindings` pipeline. Developers define colors once and they adapt to Light/Dark/HighContrast automatically. Combined with Proposals #22 and #23, this completes the theming story: #22 makes theme binding fast, #23 extends it to visual states, and #24 lets apps define their own tokens. Puts Reactor's theming on par with React's `createTheme()`, SwiftUI's asset catalogs, and Compose's `MaterialTheme` color schemes.
 
 **WinUI3 files:**
 - `src/dxaml/xcp/core/core/elements/ResourceDictionary.cpp` — `ThemeDictionaries` property, merged dictionary resolution, resource lookup chain
 - `src/dxaml/xcp/core/theming/ThemeResource.cpp` — Theme resource tracking — custom resources must participate in the same re-evaluation pipeline as built-in ones
 - `src/dxaml/xcp/core/core/elements/framework.cpp` — Resource lookup chain (element → parent → app → system) — custom resources must be discoverable at the right level
 
-**Duct files:**
-- `Duct/Core/Theme.cs` — `Theme` static class (lines 55-127) — would gain `DefineTheme()` / `RegisterCustom()` APIs, potentially a `ThemeBuilder` class
-- `Duct/Elements/ThemeResource.cs` — `Brush()`, `Double()`, `Get<T>()` lookup helpers — would include custom resource resolution
-- `Duct/Hosting/DuctHost.cs` — Initialization path — custom theme registration must happen before first render
-- `Duct/Hosting/DuctHostControl.cs` — `ActualThemeChanged` listener — already triggers re-render, which re-resolves custom theme resources automatically
+**Reactor files:**
+- `Reactor/Core/Theme.cs` — `Theme` static class (lines 55-127) — would gain `DefineTheme()` / `RegisterCustom()` APIs, potentially a `ThemeBuilder` class
+- `Reactor/Elements/ThemeResource.cs` — `Brush()`, `Double()`, `Get<T>()` lookup helpers — would include custom resource resolution
+- `Reactor/Hosting/ReactorHost.cs` — Initialization path — custom theme registration must happen before first render
+- `Reactor/Hosting/ReactorHostControl.cs` — `ActualThemeChanged` listener — already triggers re-render, which re-resolves custom theme resources automatically
 
 ---
 
@@ -742,15 +742,15 @@ Border(content).Background(Theme.Ref("BrandPrimary"))
 
 **Problem:** WinUI's `FrameworkElement.RequestedTheme` lets a subtree opt into a different theme variant (e.g., a dark sidebar in an otherwise light app). This works perfectly for native XAML controls because their templates use `{ThemeResource}` markup that WinUI re-evaluates when the effective theme changes. However, there is **no code-based equivalent** that works with the same per-element theme scoping.
 
-Duct's theming system applies theme-resource-bound brushes by building `Style` objects at runtime via `XamlReader.Load()` with `{ThemeResource}` setters (see Proposal #22). This approach has a critical interaction failure with `RequestedTheme`:
+Reactor's theming system applies theme-resource-bound brushes by building `Style` objects at runtime via `XamlReader.Load()` with `{ThemeResource}` setters (see Proposal #22). This approach has a critical interaction failure with `RequestedTheme`:
 
-1. **Bottom-up mounting:** Duct's reconciler creates child controls before placing them in the parent's visual tree. A parent with `RequestedTheme = Dark` has its children mounted as standalone controls — at that point, `{ThemeResource}` in children's dynamically-loaded Styles resolves against the **application theme** (Light), not the parent's intended Dark theme.
+1. **Bottom-up mounting:** Reactor's reconciler creates child controls before placing them in the parent's visual tree. A parent with `RequestedTheme = Dark` has its children mounted as standalone controls — at that point, `{ThemeResource}` in children's dynamically-loaded Styles resolves against the **application theme** (Light), not the parent's intended Dark theme.
 
 2. **{ThemeResource} in XamlReader.Load is not live:** Unlike `{ThemeResource}` in XAML-declared templates (which participates in WinUI's theme-change tracking system), `{ThemeResource}` in Styles created via `XamlReader.Load()` appears to resolve once at parse time. When a child element later enters a parent's visual tree with a different `RequestedTheme`, the `{ThemeResource}` values in the dynamically-loaded Style do **not** re-resolve. Native control templates (Button, TextBlock, etc.) DO update correctly because their `{ThemeResource}` references are registered through the XAML parser's theme-tracking infrastructure.
 
 3. **No programmatic alternative:** There is no code-based API to create a theme-reactive property binding that participates in the same per-element theme resolution as XAML's `{ThemeResource}`. Manual resolution via `Application.Current.Resources.ThemeDictionaries` can look up the correct brush for a given theme name, but the result is a static brush — it doesn't re-resolve when the effective theme changes. The only way to get live theme tracking is through XAML markup, which is inaccessible programmatically.
 
-**Current workaround in Duct:** The `.RequestedTheme()` modifier correctly sets `FrameworkElement.RequestedTheme` on the control, which makes **native WinUI controls** (Button, TextBlock, ToggleSwitch, etc.) adopt the correct theme variant through their built-in XAML templates. However, Duct's own `ThemeRef` bindings (`.Background(Theme.Accent)`, `.Foreground(Theme.PrimaryText)`) on child elements do **not** follow the override. Users must avoid `ThemeRef` inside `RequestedTheme` subtrees and instead rely on native WinUI implicit styling, which limits the usefulness of per-element theme overrides in a declarative framework.
+**Current workaround in Reactor:** The `.RequestedTheme()` modifier correctly sets `FrameworkElement.RequestedTheme` on the control, which makes **native WinUI controls** (Button, TextBlock, ToggleSwitch, etc.) adopt the correct theme variant through their built-in XAML templates. However, Reactor's own `ThemeRef` bindings (`.Background(Theme.Accent)`, `.Foreground(Theme.PrimaryText)`) on child elements do **not** follow the override. Users must avoid `ThemeRef` inside `RequestedTheme` subtrees and instead rely on native WinUI implicit styling, which limits the usefulness of per-element theme overrides in a declarative framework.
 
 **What we tried and why it failed:**
 - **Style caching with {ThemeResource}:** Cached the parsed Style and re-applied on update. Even with `fe.Style = null; fe.Style = cachedStyle;` to force re-evaluation, `{ThemeResource}` in the Style did not re-resolve against the element's effective theme.
@@ -780,7 +780,7 @@ var brush = ThemeResources.Resolve("TextFillColorPrimaryBrush", fe);
 
 Option A (extending Proposal #22) is the most complete solution — it eliminates both the `XamlReader.Load` performance issue and the `RequestedTheme` scoping issue in a single API. Option C is the lowest-effort fix on the WinUI side but doesn't address the `XamlReader.Load` performance cost.
 
-**Impact:** Unblocks per-element theme overrides in declarative frameworks. Without this, any C# framework that applies theme resources programmatically (not just Duct) cannot support mixed-theme UIs. This is a common UX pattern: dark sidebars, dark media controls, dark code editors embedded in light apps. Currently only achievable via XAML templates, which declarative/code-first frameworks cannot use.
+**Impact:** Unblocks per-element theme overrides in declarative frameworks. Without this, any C# framework that applies theme resources programmatically (not just Reactor) cannot support mixed-theme UIs. This is a common UX pattern: dark sidebars, dark media controls, dark code editors embedded in light apps. Currently only achievable via XAML templates, which declarative/code-first frameworks cannot use.
 
 **WinUI3 files:**
 - `src/dxaml/xcp/core/theming/ThemeResource.cpp` — Theme resource tracking and re-evaluation; the registration mechanism that XAML-parsed `{ThemeResource}` uses but `XamlReader.Load`-created Styles may not
@@ -788,10 +788,10 @@ Option A (extending Proposal #22) is the most complete solution — it eliminate
 - `src/dxaml/xcp/core/Parser/XamlReader.cpp` — Investigate whether `XamlReader.Load` registers `{ThemeResource}` references with the theme-tracking system identically to the main XAML parser
 - `src/dxaml/xcp/core/core/elements/depends.cpp` — `SetValue` / `GetValue` paths for theme-aware property evaluation; ensure programmatic `SetThemeResourceBinding` (Proposal #22) participates in per-element theme scoping
 
-**Duct files:**
-- `Duct/Core/Reconciler.cs` — `ApplyThemeBindings` would use `SetThemeResourceBinding` (Option A) or `ThemeResources.Resolve(key, fe)` (Option B), eliminating both `XamlReader.Load` and the `RequestedTheme` scoping issue
-- `Duct/Core/Reconciler.Mount.cs` — Would no longer need early `RequestedTheme` application in container MountXxx methods; the API would handle scoping automatically
-- `Duct/Elements/ElementExtensions.cs` — `.RequestedTheme()` modifier would work seamlessly with `.Background(Theme.X)` — no workaround documentation needed
+**Reactor files:**
+- `Reactor/Core/Reconciler.cs` — `ApplyThemeBindings` would use `SetThemeResourceBinding` (Option A) or `ThemeResources.Resolve(key, fe)` (Option B), eliminating both `XamlReader.Load` and the `RequestedTheme` scoping issue
+- `Reactor/Core/Reconciler.Mount.cs` — Would no longer need early `RequestedTheme` application in container MountXxx methods; the API would handle scoping automatically
+- `Reactor/Elements/ElementExtensions.cs` — `.RequestedTheme()` modifier would work seamlessly with `.Background(Theme.X)` — no workaround documentation needed
 
 **Cross-references:** This proposal extends Proposal #22 (programmatic ThemeResource setter) with the additional requirement of per-element theme scoping via `RequestedTheme`. Solving #22 without this scoping requirement still provides major performance benefits but leaves the `RequestedTheme` + `ThemeRef` interaction broken.
 
@@ -820,7 +820,7 @@ Option A (extending Proposal #22) is the most complete solution — it eliminate
 | 17 | Direct Composition visuals for layout | Wild | XL | Very High |
 | 18 | Rust differ at Composition layer | Wild | XL | Very High |
 | 19 | Shared memory ring buffer | Wild | XL | Medium |
-| 20 | Duct as WinUI's declarative layer | Wild | XXL | Transformative |
+| 20 | Reactor as WinUI's declarative layer | Wild | XXL | Transformative |
 | 21 | Parallel subtree reconciliation | Wild | XL | High |
 | 22 | Programmatic ThemeResource setter (no XamlReader for themes) | Unblock | M | Very High |
 | 23 | Lightweight styling API from code | Tactical | M | Medium |

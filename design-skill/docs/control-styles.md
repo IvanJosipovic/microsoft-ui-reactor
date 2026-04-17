@@ -1,8 +1,8 @@
-# Control Styles in Duct
+# Control Styles in Reactor
 
 ## Lightweight Styling
 
-In XAML, you'd override control resources in a `ResourceDictionary.ThemeDictionaries` block. In Duct, use `.Resources()` to inject per-control resource overrides. The control's `VisualStateManager` automatically uses them for hover/pressed/disabled states.
+In XAML, you'd override control resources in a `ResourceDictionary.ThemeDictionaries` block. In Reactor, use `.Resources()` to inject per-control resource overrides. The control's `VisualStateManager` automatically uses them for hover/pressed/disabled states.
 
 ### Subtle Button Pattern
 

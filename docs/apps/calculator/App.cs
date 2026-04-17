@@ -1,9 +1,9 @@
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<CalculatorApp>("Calculator", width: 380, height: 500
+ReactorApp.Run<CalculatorApp>("Calculator", width: 380, height: 500
 #if DEBUG
     , preview: true
 #endif
@@ -80,7 +80,7 @@ class CalculatorApp : Component
 
         return VStack(4,
             // Display
-            Text(display)
+            Factories.Text(display)
                 .FontSize(32).Bold()
                 .HAlign(HorizontalAlignment.Right)
                 .Padding(12, 8),

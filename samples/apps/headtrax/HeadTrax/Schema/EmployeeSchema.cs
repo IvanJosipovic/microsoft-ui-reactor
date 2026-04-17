@@ -1,4 +1,4 @@
-using Duct.Data;
+using Microsoft.UI.Reactor.Data;
 
 namespace HeadTrax.Schema;
 

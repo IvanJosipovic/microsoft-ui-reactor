@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using Duct.Flex;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Layout;
+using static Microsoft.UI.Reactor.Factories;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<FlexLayoutApp>("Flex Layout", width: 700, height: 600
+ReactorApp.Run<FlexLayoutApp>("Flex Layout", width: 700, height: 600
 #if DEBUG
     , preview: true
 #endif
@@ -18,16 +18,16 @@ class FlexDirectionDemo : Component
         return VStack(16,
             SubHeading("Row (default)"),
             FlexRow(
-                Text("A").Padding(12).Background("#e0e0ff"),
-                Text("B").Padding(12).Background("#ffe0e0"),
-                Text("C").Padding(12).Background("#e0ffe0")
+                Factories.Text("A").Padding(12).Background("#e0e0ff"),
+                Factories.Text("B").Padding(12).Background("#ffe0e0"),
+                Factories.Text("C").Padding(12).Background("#e0ffe0")
             ) with { ColumnGap = 8 },
 
             SubHeading("Column"),
             FlexColumn(
-                Text("A").Padding(12).Background("#e0e0ff"),
-                Text("B").Padding(12).Background("#ffe0e0"),
-                Text("C").Padding(12).Background("#e0ffe0")
+                Factories.Text("A").Padding(12).Background("#e0e0ff"),
+                Factories.Text("B").Padding(12).Background("#ffe0e0"),
+                Factories.Text("C").Padding(12).Background("#e0ffe0")
             ) with { RowGap = 8 }
         ).Padding(24);
     }
@@ -42,16 +42,16 @@ class JustifyAlignDemo : Component
         return VStack(16,
             SubHeading("JustifyContent: SpaceBetween"),
             FlexRow(
-                Text("Left").Padding(8).Background("#e0e0ff"),
-                Text("Center").Padding(8).Background("#ffe0e0"),
-                Text("Right").Padding(8).Background("#e0ffe0")
+                Factories.Text("Left").Padding(8).Background("#e0e0ff"),
+                Factories.Text("Center").Padding(8).Background("#ffe0e0"),
+                Factories.Text("Right").Padding(8).Background("#e0ffe0")
             ) with { JustifyContent = FlexJustify.SpaceBetween },
 
             SubHeading("AlignItems: Center"),
             FlexRow(
-                Text("Short").Padding(8).Background("#e0e0ff"),
-                Text("Tall\nItem").Padding(8).Background("#ffe0e0"),
-                Text("Med").Padding(8).Background("#e0ffe0")
+                Factories.Text("Short").Padding(8).Background("#e0e0ff"),
+                Factories.Text("Tall\nItem").Padding(8).Background("#ffe0e0"),
+                Factories.Text("Med").Padding(8).Background("#e0ffe0")
             ) with {
                 AlignItems = FlexAlign.Center,
                 ColumnGap = 8
@@ -67,7 +67,7 @@ class WrapGapDemo : Component
     public override Element Render()
     {
         var tags = new[] {
-            "C#", "WinUI", "Duct", ".NET", "XAML",
+            "C#", "WinUI", "Reactor", ".NET", "XAML",
             "Flex", "Layout", "Desktop", "Native"
         };
 
@@ -75,7 +75,7 @@ class WrapGapDemo : Component
             SubHeading("Wrapping Tags"),
             FlexRow(
                 tags.Select(tag =>
-                    Text(tag)
+                    Factories.Text(tag)
                         .Padding(6, 12)
                         .Background("#e8e8e8")
                         .CornerRadius(12)
@@ -98,19 +98,19 @@ class GrowShrinkDemo : Component
         return VStack(16,
             SubHeading("Grow: sidebar + content"),
             FlexRow(
-                Text("Sidebar")
+                Factories.Text("Sidebar")
                     .Padding(16).Background("#e0e0ff")
                     .Flex(basis: 200, shrink: 0),
-                Text("Main content area")
+                Factories.Text("Main content area")
                     .Padding(16).Background("#f0f0f0")
                     .Flex(grow: 1)
             ) with { ColumnGap = 8 },
 
             SubHeading("Equal columns"),
             FlexRow(
-                Text("Column 1").Padding(16).Background("#ffe0e0").Flex(grow: 1),
-                Text("Column 2").Padding(16).Background("#e0ffe0").Flex(grow: 1),
-                Text("Column 3").Padding(16).Background("#e0e0ff").Flex(grow: 1)
+                Factories.Text("Column 1").Padding(16).Background("#ffe0e0").Flex(grow: 1),
+                Factories.Text("Column 2").Padding(16).Background("#e0ffe0").Flex(grow: 1),
+                Factories.Text("Column 3").Padding(16).Background("#e0e0ff").Flex(grow: 1)
             ) with { ColumnGap = 8 }
         ).Padding(24);
     }
@@ -126,7 +126,7 @@ class ToolbarDemo : Component
 
         return VStack(0,
             FlexRow(
-                Text("MyApp").Bold().Flex(shrink: 0),
+                Factories.Text("MyApp").Bold().Flex(shrink: 0),
                 Empty().Flex(grow: 1),
                 Button("Home", () => setSelected("Home")),
                 Button("Settings", () => setSelected("Settings")),
@@ -136,7 +136,7 @@ class ToolbarDemo : Component
                 ColumnGap = 8,
                 FlexPadding = new Thickness(16, 8, 16, 8)
             },
-            Text($"Current page: {selected}")
+            Factories.Text($"Current page: {selected}")
                 .Padding(24).FontSize(18)
         );
     }

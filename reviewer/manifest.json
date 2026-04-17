@@ -3,15 +3,15 @@
   "generated": "2026-04-11",
   "scope": {
     "included": [
-      "Duct/",
-      "Duct.Cli/",
-      "Duct.Localization.Generator/",
-      "DuctD3/",
+      "Reactor/",
+      "Reactor.Cli/",
+      "Reactor.Localization.Generator/",
+      "Reactor/Charting/",
       "vscode-duct/src/",
-      "tests/Duct.Tests/",
-      "tests/Duct.AppTests/",
-      "tests/Duct.AppTests.Host/",
-      "tests/DuctD3.Tests/",
+      "tests/Reactor.Tests/",
+      "tests/Reactor.AppTests/",
+      "tests/Reactor.AppTests.Host/",
+      "tests/ReactorCharting.Tests/",
       "tests/stress_perf/",
       "tests/perf_bench/",
       "tests/cmd_perf/",
@@ -29,107 +29,113 @@
       "node_modules/",
       ".git/",
       "vscode-duct/out/",
-      "tests/Duct.Tests/YogaGenerated/",
-      "tests/Duct.Tests/Md4cGenerated/",
+      "tests/Reactor.Tests/YogaGenerated/",
+      "tests/Reactor.Tests/Md4cGenerated/",
       "*.json (non-csproj config)"
     ]
   },
-  "agents": ["safety", "lifecycle", "interop", "security", "test-quality", "general"],
+  "agents": [
+    "safety",
+    "lifecycle",
+    "interop",
+    "security",
+    "test-quality",
+    "general"
+  ],
   "batches": [
     {
       "id": "safety-batch-1",
       "agent": "safety",
       "files": [
-        "Duct/Core/Reconciler.cs",
-        "Duct/Core/Reconciler.Mount.cs",
-        "Duct/Core/Reconciler.Update.cs",
-        "Duct/Core/ChildReconciler.cs",
-        "Duct/Core/RenderContext.cs",
-        "Duct/Core/Element.cs",
-        "Duct/Core/Component.cs",
-        "Duct/Core/ElementPool.cs"
+        "Reactor/Core/Reconciler.cs",
+        "Reactor/Core/Reconciler.Mount.cs",
+        "Reactor/Core/Reconciler.Update.cs",
+        "Reactor/Core/ChildReconciler.cs",
+        "Reactor/Core/RenderContext.cs",
+        "Reactor/Core/Element.cs",
+        "Reactor/Core/Component.cs",
+        "Reactor/Core/ElementPool.cs"
       ],
-      "description": "Core reconciler and render loop — shared mutable state, tree diffing, pooling"
+      "description": "Core reconciler and render loop \u2014 shared mutable state, tree diffing, pooling"
     },
     {
       "id": "safety-batch-2",
       "agent": "safety",
       "files": [
-        "Duct/Core/DuctContext.cs",
-        "Duct/Core/ContextScope.cs",
-        "Duct/Core/ContextExtensions.cs",
-        "Duct/Core/ChildCollection.cs",
-        "Duct/Core/DuctElementFactory.cs",
-        "Duct/Core/ObservableTreeTracker.cs",
-        "Duct/Core/PersistedStateCache.cs",
-        "Duct/Core/IDuctLogger.cs"
+        "Reactor/Core/Context.cs",
+        "Reactor/Core/ContextScope.cs",
+        "Reactor/Core/ContextExtensions.cs",
+        "Reactor/Core/ChildCollection.cs",
+        "Reactor/Core/ElementFactory.cs",
+        "Reactor/Core/ObservableTreeTracker.cs",
+        "Reactor/Core/PersistedStateCache.cs"
       ],
-      "description": "Core context, state management, and observable tracking — thread-safety boundaries"
+      "description": "Core context, state management, and observable tracking \u2014 thread-safety boundaries"
     },
     {
       "id": "safety-batch-3",
       "agent": "safety",
       "files": [
-        "Duct/Hosting/DuctHost.cs",
-        "Duct/Hosting/DuctHostControl.cs",
-        "Duct/Hosting/DuctPage.cs",
-        "Duct/Hosting/DuctApp.cs",
-        "Duct/Hosting/RenderStats.cs",
-        "Duct/Hosting/HotReloadService.cs"
+        "Reactor/Hosting/ReactorHost.cs",
+        "Reactor/Hosting/ReactorHostControl.cs",
+        "Reactor/Hosting/PageHelper.cs",
+        "Reactor/Hosting/ReactorApp.cs",
+        "Reactor/Hosting/RenderStats.cs",
+        "Reactor/Hosting/HotReloadService.cs"
       ],
-      "description": "Hosting layer — render dispatch, app lifecycle, hot reload coordination"
+      "description": "Hosting layer \u2014 render dispatch, app lifecycle, hot reload coordination"
     },
     {
       "id": "safety-batch-4",
       "agent": "safety",
       "files": [
-        "Duct/Flex/FlexEnums.cs",
-        "Duct/Flex/FlexPanel.cs",
-        "Duct/Yoga/YogaNode.cs",
-        "Duct/Yoga/YogaAlgorithm.cs",
-        "Duct/Yoga/AlgorithmUtils.cs",
-        "Duct/Yoga/YogaConfig.cs"
+        "Reactor/Yoga/FlexEnums.cs",
+        "Reactor/Yoga/FlexPanel.cs",
+        "Reactor/Yoga/YogaNode.cs",
+        "Reactor/Yoga/YogaAlgorithm.cs",
+        "Reactor/Yoga/AlgorithmUtils.cs",
+        "Reactor/Yoga/YogaConfig.cs"
       ],
-      "description": "Flex layout engine — yoga algorithm, node tree, shared layout state"
+      "description": "Flex layout engine \u2014 yoga algorithm, node tree, shared layout state"
     },
     {
       "id": "safety-batch-5",
       "agent": "safety",
       "files": [
-        "Duct/Yoga/YogaStyle.cs",
-        "Duct/Yoga/YogaValue.cs",
-        "Duct/Yoga/YogaEnums.cs",
-        "Duct/Yoga/LayoutResults.cs",
-        "Duct/Yoga/FlexDirectionHelper.cs"
+        "Reactor/Yoga/YogaStyle.cs",
+        "Reactor/Yoga/YogaValue.cs",
+        "Reactor/Yoga/YogaEnums.cs",
+        "Reactor/Yoga/LayoutResults.cs",
+        "Reactor/Yoga/FlexDirectionHelper.cs"
       ],
-      "description": "Yoga value types, enums, and layout results — data integrity"
+      "description": "Yoga value types, enums, and layout results \u2014 data integrity"
     },
     {
       "id": "lifecycle-batch-1",
       "agent": "lifecycle",
       "files": [
-        "Duct/Core/Reconciler.cs",
-        "Duct/Core/Reconciler.Mount.cs",
-        "Duct/Core/Reconciler.Update.cs",
-        "Duct/Core/ChildReconciler.cs",
-        "Duct/Core/Element.cs",
-        "Duct/Core/Component.cs",
-        "Duct/Core/RenderContext.cs"
+        "Reactor/Core/Reconciler.cs",
+        "Reactor/Core/Reconciler.Mount.cs",
+        "Reactor/Core/Reconciler.Update.cs",
+        "Reactor/Core/ChildReconciler.cs",
+        "Reactor/Core/Element.cs",
+        "Reactor/Core/Component.cs",
+        "Reactor/Core/RenderContext.cs"
       ],
-      "description": "Core reconciler lifecycle — mount, update, unmount paths"
+      "description": "Core reconciler lifecycle \u2014 mount, update, unmount paths"
     },
     {
       "id": "lifecycle-batch-2",
       "agent": "lifecycle",
       "files": [
-        "Duct/Core/DuctContext.cs",
-        "Duct/Core/ContextScope.cs",
-        "Duct/Core/ContextExtensions.cs",
-        "Duct/Core/ChildCollection.cs",
-        "Duct/Core/ElementPool.cs",
-        "Duct/Core/DuctElementFactory.cs",
-        "Duct/Core/ObservableTreeTracker.cs",
-        "Duct/Core/PersistedStateCache.cs"
+        "Reactor/Core/Context.cs",
+        "Reactor/Core/ContextScope.cs",
+        "Reactor/Core/ContextExtensions.cs",
+        "Reactor/Core/ChildCollection.cs",
+        "Reactor/Core/ElementPool.cs",
+        "Reactor/Core/ElementFactory.cs",
+        "Reactor/Core/ObservableTreeTracker.cs",
+        "Reactor/Core/PersistedStateCache.cs"
       ],
       "description": "Context lifecycle, element pooling, observable dispose patterns"
     },
@@ -137,138 +143,137 @@
       "id": "lifecycle-batch-3",
       "agent": "lifecycle",
       "files": [
-        "Duct/Hosting/DuctHost.cs",
-        "Duct/Hosting/DuctHostControl.cs",
-        "Duct/Hosting/DuctPage.cs",
-        "Duct/Hosting/DuctApp.cs",
-        "Duct/Hosting/RenderStats.cs",
-        "Duct/Hosting/HotReloadService.cs"
+        "Reactor/Hosting/ReactorHost.cs",
+        "Reactor/Hosting/ReactorHostControl.cs",
+        "Reactor/Hosting/PageHelper.cs",
+        "Reactor/Hosting/ReactorApp.cs",
+        "Reactor/Hosting/RenderStats.cs",
+        "Reactor/Hosting/HotReloadService.cs"
       ],
-      "description": "Host control lifecycle — startup, shutdown, hot reload"
+      "description": "Host control lifecycle \u2014 startup, shutdown, hot reload"
     },
     {
       "id": "lifecycle-batch-4",
       "agent": "lifecycle",
       "files": [
-        "Duct/Elements/Dsl.cs",
-        "Duct/Elements/ElementExtensions.cs",
-        "Duct/Elements/BrushHelper.cs",
-        "Duct/Elements/ThemeResource.cs",
-        "Duct/Elements/WinRTCache.cs",
-        "Duct/Elements/FlexExtensions.cs",
-        "Duct/Elements/CanvasExtensions.cs",
-        "Duct/Elements/GridExtensions.cs",
-        "Duct/Elements/RelativePanelExtensions.cs"
+        "Reactor/Elements/Dsl.cs",
+        "Reactor/Elements/ElementExtensions.cs",
+        "Reactor/Elements/BrushHelper.cs",
+        "Reactor/Elements/ThemeResource.cs",
+        "Reactor/Elements/WinRTCache.cs",
+        "Reactor/Elements/FlexExtensions.cs",
+        "Reactor/Elements/CanvasExtensions.cs",
+        "Reactor/Elements/GridExtensions.cs",
+        "Reactor/Elements/RelativePanelExtensions.cs"
       ],
-      "description": "Element DSL, extensions, and WinRT caching — event handler attach/detach"
+      "description": "Element DSL, extensions, and WinRT caching \u2014 event handler attach/detach"
     },
     {
       "id": "lifecycle-batch-5",
       "agent": "lifecycle",
       "files": [
-        "Duct/Animation/AnimateProperty.cs",
-        "Duct/Animation/AnimationHelper.cs",
-        "Duct/Animation/AnimationScope.cs",
-        "Duct/Animation/Curve.cs",
-        "Duct/Animation/InteractionStates.cs",
-        "Duct/Animation/KeyframeBuilder.cs",
-        "Duct/Animation/ScrollAnimation.cs",
-        "Duct/Animation/Transition.cs"
+        "Reactor/Animation/AnimateProperty.cs",
+        "Reactor/Animation/AnimationHelper.cs",
+        "Reactor/Animation/AnimationScope.cs",
+        "Reactor/Animation/Curve.cs",
+        "Reactor/Animation/InteractionStates.cs",
+        "Reactor/Animation/KeyframeBuilder.cs",
+        "Reactor/Animation/ScrollAnimation.cs",
+        "Reactor/Animation/Transition.cs"
       ],
-      "description": "Animation system — scope lifecycle, transition cleanup, scroll animation dispose"
+      "description": "Animation system \u2014 scope lifecycle, transition cleanup, scroll animation dispose"
     },
     {
       "id": "lifecycle-batch-6",
       "agent": "lifecycle",
       "files": [
-        "Duct/Markdown/Md4cParser.cs",
-        "Duct/Markdown/Md4cParser.Block.cs",
-        "Duct/Markdown/Md4cParser.Inline.cs",
-        "Duct/Markdown/MarkdownBuilder.cs",
-        "Duct/Markdown/Md4cEnums.cs",
-        "Duct/Markdown/Md4cTypes.cs",
-        "Duct/Markdown/Md4cEntity.cs",
-        "Duct/Markdown/Md4cHtml.cs",
-        "Duct/Markdown/Md4cUnicode.cs"
+        "Reactor/Markdown/Md4cParser.cs",
+        "Reactor/Markdown/Md4cParser.Block.cs",
+        "Reactor/Markdown/Md4cParser.Inline.cs",
+        "Reactor/Markdown/MarkdownBuilder.cs",
+        "Reactor/Markdown/Md4cEnums.cs",
+        "Reactor/Markdown/Md4cTypes.cs",
+        "Reactor/Markdown/Md4cEntity.cs",
+        "Reactor/Markdown/Md4cHtml.cs",
+        "Reactor/Markdown/Md4cUnicode.cs"
       ],
-      "description": "Markdown parser — native interop lifecycle, buffer management"
+      "description": "Markdown parser \u2014 native interop lifecycle, buffer management"
     },
     {
       "id": "lifecycle-batch-7",
       "agent": "lifecycle",
       "files": [
-        "Duct/Monaco/MonacoEditor.cs",
-        "Duct/Monaco/MonacoJsonContext.cs",
-        "Duct/PropertyGrid/PropertyGridComponent.cs",
-        "Duct/PropertyGrid/PropertyGridElement.cs",
-        "Duct/PropertyGrid/PropertyGridDsl.cs",
-        "Duct/PropertyGrid/PropertyGridDefaults.cs"
+        "Reactor/Monaco/MonacoEditor.cs",
+        "Reactor/Monaco/MonacoJsonContext.cs",
+        "Reactor/Controls/PropertyGrid/PropertyGridComponent.cs",
+        "Reactor/Controls/PropertyGrid/PropertyGridElement.cs",
+        "Reactor/Controls/PropertyGrid/PropertyGridDsl.cs",
+        "Reactor/Controls/PropertyGrid/PropertyGridDefaults.cs"
       ],
-      "description": "Monaco editor and PropertyGrid — component lifecycle, event wiring"
+      "description": "Monaco editor and PropertyGrid \u2014 component lifecycle, event wiring"
     },
     {
       "id": "lifecycle-batch-8",
       "agent": "lifecycle",
       "files": [
-        "Duct/PropertyGrid/ArrayOperations.cs",
-        "Duct/PropertyGrid/Attributes.cs",
-        "Duct/PropertyGrid/PropertyDescriptor.cs",
-        "Duct/PropertyGrid/ReflectionTypeMetadataProvider.cs",
-        "Duct/PropertyGrid/TypeMetadata.cs",
-        "Duct/PropertyGrid/TypeRegistry.cs"
+        "Reactor/Controls/PropertyGrid/ArrayOperations.cs",
+        "Reactor/Controls/PropertyGrid/Attributes.cs",
+        "Reactor/Controls/PropertyGrid/PropertyDescriptor.cs",
+        "Reactor/Controls/PropertyGrid/ReflectionTypeMetadataProvider.cs",
+        "Reactor/Controls/PropertyGrid/TypeMetadata.cs",
+        "Reactor/Controls/PropertyGrid/TypeRegistry.cs"
       ],
-      "description": "PropertyGrid reflection, type metadata, and registry — disposal and caching"
+      "description": "PropertyGrid reflection, type metadata, and registry \u2014 disposal and caching"
     },
     {
       "id": "lifecycle-batch-9",
       "agent": "lifecycle",
       "files": [
-        "Duct/Core/Navigation/NavigationContext.cs",
-        "Duct/Core/Navigation/NavigationHandle.cs",
-        "Duct/Core/Navigation/NavigationLifecycle.cs",
-        "Duct/Core/Navigation/NavigationStack.cs",
-        "Duct/Core/Navigation/NavigationCache.cs",
-        "Duct/Core/Navigation/NavigationTransition.cs",
-        "Duct/Core/Navigation/TransitionEngine.cs",
-        "Duct/Core/Navigation/DeepLinkMap.cs"
+        "Reactor/Navigation/NavigationContext.cs",
+        "Reactor/Navigation/NavigationHandle.cs",
+        "Reactor/Navigation/NavigationLifecycle.cs",
+        "Reactor/Navigation/NavigationStack.cs",
+        "Reactor/Navigation/NavigationCache.cs",
+        "Reactor/Navigation/NavigationTransition.cs",
+        "Reactor/Navigation/TransitionEngine.cs",
+        "Reactor/Navigation/DeepLinkMap.cs"
       ],
-      "description": "Navigation system — stack lifecycle, cache eviction, transition cleanup"
+      "description": "Navigation system \u2014 stack lifecycle, cache eviction, transition cleanup"
     },
     {
       "id": "lifecycle-batch-10",
       "agent": "lifecycle",
       "files": [
-        "Duct/Core/Theme.cs",
-        "Duct/Core/CommandInterop.cs",
-        "Duct/Core/DuctCommand.cs",
-        "Duct/Core/StandardCommand.cs",
-        "Duct/Core/IDuctLogger.cs"
+        "Reactor/Core/Theme.cs",
+        "Reactor/Core/CommandInterop.cs",
+        "Reactor/Core/Command.cs",
+        "Reactor/Core/StandardCommand.cs"
       ],
-      "description": "Commands and theming — command lifecycle, dispose patterns"
+      "description": "Commands and theming \u2014 command lifecycle, dispose patterns"
     },
     {
       "id": "lifecycle-batch-11",
       "agent": "lifecycle",
       "files": [
-        "Duct/Core/Localization/LocaleContext.cs",
-        "Duct/Core/Localization/LocaleProviderElement.cs",
-        "Duct/Core/Localization/IntlAccessor.cs",
-        "Duct/Core/Localization/MessageCache.cs",
-        "Duct/Core/Localization/MessageKey.cs",
-        "Duct/Core/Localization/ReswResourceProvider.cs",
-        "Duct/Core/Localization/IStringResourceProvider.cs",
-        "Duct/Core/Localization/PseudoLocalizer.cs",
-        "Duct/Core/Localization/RtlHelper.cs"
+        "Reactor/Localization/LocaleContext.cs",
+        "Reactor/Localization/LocaleProviderElement.cs",
+        "Reactor/Localization/IntlAccessor.cs",
+        "Reactor/Localization/MessageCache.cs",
+        "Reactor/Localization/MessageKey.cs",
+        "Reactor/Localization/ReswResourceProvider.cs",
+        "Reactor/Localization/IStringResourceProvider.cs",
+        "Reactor/Localization/PseudoLocalizer.cs",
+        "Reactor/Localization/RtlHelper.cs"
       ],
-      "description": "Localization runtime — provider lifecycle, message cache invalidation"
+      "description": "Localization runtime \u2014 provider lifecycle, message cache invalidation"
     },
     {
       "id": "lifecycle-batch-12",
       "agent": "lifecycle",
       "files": [
-        "Duct/Core/Localization/DateFormatOptions.cs",
-        "Duct/Core/Localization/ListFormatType.cs",
-        "Duct/Core/Localization/NumberFormatOptions.cs"
+        "Reactor/Localization/DateFormatOptions.cs",
+        "Reactor/Localization/ListFormatType.cs",
+        "Reactor/Localization/NumberFormatOptions.cs"
       ],
       "description": "Localization format option types"
     },
@@ -276,118 +281,118 @@
       "id": "interop-batch-1",
       "agent": "interop",
       "files": [
-        "Duct/Hosting/PreviewCaptureServer.cs",
-        "Duct/Hosting/XamlInterop.cs",
-        "Duct/Elements/WinRTCache.cs",
-        "Duct/Hosting/DuctApp.cs",
-        "Duct/Hosting/DuctHost.cs",
-        "Duct/Hosting/DuctHostControl.cs"
+        "Reactor/Hosting/PreviewCaptureServer.cs",
+        "Reactor/Hosting/XamlInterop.cs",
+        "Reactor/Elements/WinRTCache.cs",
+        "Reactor/Hosting/ReactorApp.cs",
+        "Reactor/Hosting/ReactorHost.cs",
+        "Reactor/Hosting/ReactorHostControl.cs"
       ],
-      "description": "XAML interop, WinRT cache, preview server — P/Invoke and COM boundaries"
+      "description": "XAML interop, WinRT cache, preview server \u2014 P/Invoke and COM boundaries"
     },
     {
       "id": "interop-batch-2",
       "agent": "interop",
       "files": [
-        "Duct/Markdown/Md4cParser.cs",
-        "Duct/Markdown/Md4cParser.Block.cs",
-        "Duct/Markdown/Md4cParser.Inline.cs",
-        "Duct/Markdown/Md4cEnums.cs",
-        "Duct/Markdown/Md4cTypes.cs",
-        "Duct/Markdown/Md4cEntity.cs",
-        "Duct/Markdown/Md4cHtml.cs",
-        "Duct/Markdown/Md4cUnicode.cs"
+        "Reactor/Markdown/Md4cParser.cs",
+        "Reactor/Markdown/Md4cParser.Block.cs",
+        "Reactor/Markdown/Md4cParser.Inline.cs",
+        "Reactor/Markdown/Md4cEnums.cs",
+        "Reactor/Markdown/Md4cTypes.cs",
+        "Reactor/Markdown/Md4cEntity.cs",
+        "Reactor/Markdown/Md4cHtml.cs",
+        "Reactor/Markdown/Md4cUnicode.cs"
       ],
-      "description": "Md4c markdown parser — potential native interop, unsafe code"
+      "description": "Md4c markdown parser \u2014 potential native interop, unsafe code"
     },
     {
       "id": "interop-batch-3",
       "agent": "interop",
       "files": [
-        "Duct/Monaco/MonacoEditor.cs",
-        "Duct/Monaco/MonacoJsonContext.cs",
-        "Duct/Yoga/YogaNode.cs",
-        "Duct/Yoga/YogaAlgorithm.cs",
-        "Duct/Yoga/AlgorithmUtils.cs"
+        "Reactor/Monaco/MonacoEditor.cs",
+        "Reactor/Monaco/MonacoJsonContext.cs",
+        "Reactor/Yoga/YogaNode.cs",
+        "Reactor/Yoga/YogaAlgorithm.cs",
+        "Reactor/Yoga/AlgorithmUtils.cs"
       ],
-      "description": "Monaco WebView2 interop and Yoga layout engine — cross-boundary calls"
+      "description": "Monaco WebView2 interop and Yoga layout engine \u2014 cross-boundary calls"
     },
     {
       "id": "security-batch-1",
       "agent": "security",
       "files": [
-        "Duct/Hosting/PreviewCaptureServer.cs",
-        "Duct/Hosting/DuctApp.cs",
-        "Duct.Cli/Program.cs"
+        "Reactor/Hosting/PreviewCaptureServer.cs",
+        "Reactor/Hosting/ReactorApp.cs",
+        "Reactor.Cli/Program.cs"
       ],
-      "description": "Network-facing preview server, app host, CLI entry — attack surface"
+      "description": "Network-facing preview server, app host, CLI entry \u2014 attack surface"
     },
     {
       "id": "security-batch-2",
       "agent": "security",
       "files": [
-        "Duct.Cli/Loc/AzureOpenAiProvider.cs",
-        "Duct.Cli/Loc/ExtractCommand.cs",
-        "Duct.Cli/Loc/TranslateCommand.cs",
-        "Duct.Cli/Loc/TranslationPrompt.cs",
-        "Duct.Cli/Loc/LocCommand.cs",
-        "Duct.Cli/Loc/ITranslationProvider.cs"
+        "Reactor.Cli/Loc/AzureOpenAiProvider.cs",
+        "Reactor.Cli/Loc/ExtractCommand.cs",
+        "Reactor.Cli/Loc/TranslateCommand.cs",
+        "Reactor.Cli/Loc/TranslationPrompt.cs",
+        "Reactor.Cli/Loc/LocCommand.cs",
+        "Reactor.Cli/Loc/ITranslationProvider.cs"
       ],
-      "description": "CLI localization commands — API keys, network calls, file I/O"
+      "description": "CLI localization commands \u2014 API keys, network calls, file I/O"
     },
     {
       "id": "security-batch-3",
       "agent": "security",
       "files": [
-        "Duct.Cli/Loc/LocalizableStringScanner.cs",
-        "Duct.Cli/Loc/SourceRewriter.cs",
-        "Duct.Cli/Loc/ReswReader.cs",
-        "Duct.Cli/Loc/ReswWriter.cs",
-        "Duct.Cli/Loc/PruneCommand.cs",
-        "Duct.Cli/Loc/StatusCommand.cs",
-        "Duct.Cli/Loc/ValidateCommand.cs"
+        "Reactor.Cli/Loc/LocalizableStringScanner.cs",
+        "Reactor.Cli/Loc/SourceRewriter.cs",
+        "Reactor.Cli/Loc/ReswReader.cs",
+        "Reactor.Cli/Loc/ReswWriter.cs",
+        "Reactor.Cli/Loc/PruneCommand.cs",
+        "Reactor.Cli/Loc/StatusCommand.cs",
+        "Reactor.Cli/Loc/ValidateCommand.cs"
       ],
-      "description": "CLI file I/O — source scanning, resx read/write, validation"
+      "description": "CLI file I/O \u2014 source scanning, resx read/write, validation"
     },
     {
       "id": "security-batch-4",
       "agent": "security",
       "files": [
-        "Duct.Cli/Docs/CompileCommand.cs",
-        "Duct.Cli/Docs/DocAssembler.cs",
-        "Duct.Cli/Docs/DocsCommand.cs",
-        "Duct.Cli/Docs/ImageProcessor.cs",
-        "Duct.Cli/Docs/ManifestParser.cs",
-        "Duct.Cli/Docs/ScreenshotCapture.cs",
-        "Duct.Cli/Docs/SnippetExtractor.cs",
-        "Duct.Cli/Docs/TemplateParser.cs"
+        "Reactor.Cli/Docs/CompileCommand.cs",
+        "Reactor.Cli/Docs/DocAssembler.cs",
+        "Reactor.Cli/Docs/DocsCommand.cs",
+        "Reactor.Cli/Docs/ImageProcessor.cs",
+        "Reactor.Cli/Docs/ManifestParser.cs",
+        "Reactor.Cli/Docs/ScreenshotCapture.cs",
+        "Reactor.Cli/Docs/SnippetExtractor.cs",
+        "Reactor.Cli/Docs/TemplateParser.cs"
       ],
-      "description": "CLI docs toolchain — file I/O, image processing, process invocation"
+      "description": "CLI docs toolchain \u2014 file I/O, image processing, process invocation"
     },
     {
       "id": "test-quality-batch-1",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/ReconcilerCorrectnessTests.cs",
-        "tests/Duct.Tests/ReconcilerMountUpdateTests.cs",
-        "tests/Duct.Tests/ReconcilerRegressionTests.cs",
-        "tests/Duct.Tests/ChildReconcilerTests.cs",
-        "tests/Duct.Tests/ChildReconcilerIntegrationTests.cs",
-        "tests/Duct.Tests/PanelChildReconciliationTests.cs"
+        "tests/Reactor.Tests/ReconcilerCorrectnessTests.cs",
+        "tests/Reactor.Tests/ReconcilerMountUpdateTests.cs",
+        "tests/Reactor.Tests/ReconcilerRegressionTests.cs",
+        "tests/Reactor.Tests/ChildReconcilerTests.cs",
+        "tests/Reactor.Tests/ChildReconcilerIntegrationTests.cs",
+        "tests/Reactor.Tests/PanelChildReconciliationTests.cs"
       ],
-      "description": "Reconciler test suite — correctness, regressions, child reconciliation"
+      "description": "Reconciler test suite \u2014 correctness, regressions, child reconciliation"
     },
     {
       "id": "test-quality-batch-2",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/ElementTests.cs",
-        "tests/Duct.Tests/ElementPoolTests.cs",
-        "tests/Duct.Tests/ComponentPropsTests.cs",
-        "tests/Duct.Tests/ComponentModelIntegrationTests.cs",
-        "tests/Duct.Tests/DynamicChildCountTests.cs",
-        "tests/Duct.Tests/DeclarativeModifierTests.cs",
-        "tests/Duct.Tests/ErrorBoundaryTests.cs"
+        "tests/Reactor.Tests/ElementTests.cs",
+        "tests/Reactor.Tests/ElementPoolTests.cs",
+        "tests/Reactor.Tests/ComponentPropsTests.cs",
+        "tests/Reactor.Tests/ComponentModelIntegrationTests.cs",
+        "tests/Reactor.Tests/DynamicChildCountTests.cs",
+        "tests/Reactor.Tests/DeclarativeModifierTests.cs",
+        "tests/Reactor.Tests/ErrorBoundaryTests.cs"
       ],
       "description": "Element, component, and error boundary tests"
     },
@@ -395,14 +400,14 @@
       "id": "test-quality-batch-3",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/DuctHostControlTests.cs",
-        "tests/Duct.Tests/DuctHostRenderLoopTests.cs",
-        "tests/Duct.Tests/XamlInteropTests.cs",
-        "tests/Duct.Tests/BrushHelperTests.cs",
-        "tests/Duct.Tests/ThreeStateCheckBoxTests.cs",
-        "tests/Duct.Tests/RichEditBoxElementTests.cs",
-        "tests/Duct.Tests/WrapGridElementTests.cs",
-        "tests/Duct.Tests/FlyoutAttachmentTests.cs"
+        "tests/Reactor.Tests/HostControlTests.cs",
+        "tests/Reactor.Tests/HostRenderLoopTests.cs",
+        "tests/Reactor.Tests/XamlInteropTests.cs",
+        "tests/Reactor.Tests/BrushHelperTests.cs",
+        "tests/Reactor.Tests/ThreeStateCheckBoxTests.cs",
+        "tests/Reactor.Tests/RichEditBoxElementTests.cs",
+        "tests/Reactor.Tests/WrapGridElementTests.cs",
+        "tests/Reactor.Tests/FlyoutAttachmentTests.cs"
       ],
       "description": "Host control, XAML interop, and UI element tests"
     },
@@ -410,15 +415,15 @@
       "id": "test-quality-batch-4",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/ContextSystemUnitTests.cs",
-        "tests/Duct.Tests/ContextSystemSelfHostTests.cs",
-        "tests/Duct.Tests/HookStateRefactorTests.cs",
-        "tests/Duct.Tests/ObservableHookTests.cs",
-        "tests/Duct.Tests/ObservableTreeHookTests.cs",
-        "tests/Duct.Tests/MemoizationSelfHostTests.cs",
-        "tests/Duct.Tests/MemoizationPropagationTests.cs",
-        "tests/Duct.Tests/PersistedStateTests.cs",
-        "tests/Duct.Tests/ThreadSafeHookTests.cs"
+        "tests/Reactor.Tests/ContextSystemUnitTests.cs",
+        "tests/Reactor.Tests/ContextSystemSelfHostTests.cs",
+        "tests/Reactor.Tests/HookStateRefactorTests.cs",
+        "tests/Reactor.Tests/ObservableHookTests.cs",
+        "tests/Reactor.Tests/ObservableTreeHookTests.cs",
+        "tests/Reactor.Tests/MemoizationSelfHostTests.cs",
+        "tests/Reactor.Tests/MemoizationPropagationTests.cs",
+        "tests/Reactor.Tests/PersistedStateTests.cs",
+        "tests/Reactor.Tests/ThreadSafeHookTests.cs"
       ],
       "description": "Context, hooks, memoization, observable, and thread-safety tests"
     },
@@ -426,12 +431,12 @@
       "id": "test-quality-batch-5",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/CommandDslTests.cs",
-        "tests/Duct.Tests/CommandInteropTests.cs",
-        "tests/Duct.Tests/DuctCommandTests.cs",
-        "tests/Duct.Tests/StandardCommandTests.cs",
-        "tests/Duct.Tests/UseCommandTests.cs",
-        "tests/Duct.Tests/TransitionExtensionTests.cs"
+        "tests/Reactor.Tests/CommandDslTests.cs",
+        "tests/Reactor.Tests/CommandInteropTests.cs",
+        "tests/Reactor.Tests/CommandTests.cs",
+        "tests/Reactor.Tests/StandardCommandTests.cs",
+        "tests/Reactor.Tests/UseCommandTests.cs",
+        "tests/Reactor.Tests/TransitionExtensionTests.cs"
       ],
       "description": "Command system and transition extension tests"
     },
@@ -439,14 +444,14 @@
       "id": "test-quality-batch-6",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/NavigationStackTests.cs",
-        "tests/Duct.Tests/NavigationHostTests.cs",
-        "tests/Duct.Tests/NavigationLifecycleTests.cs",
-        "tests/Duct.Tests/NavigationCacheTests.cs",
-        "tests/Duct.Tests/NavigationSerializationTests.cs",
-        "tests/Duct.Tests/NavigationViewSyncTests.cs",
-        "tests/Duct.Tests/UseNavigationTests.cs",
-        "tests/Duct.Tests/TransitionEngineTests.cs"
+        "tests/Reactor.Tests/NavigationStackTests.cs",
+        "tests/Reactor.Tests/NavigationHostTests.cs",
+        "tests/Reactor.Tests/NavigationLifecycleTests.cs",
+        "tests/Reactor.Tests/NavigationCacheTests.cs",
+        "tests/Reactor.Tests/NavigationSerializationTests.cs",
+        "tests/Reactor.Tests/NavigationViewSyncTests.cs",
+        "tests/Reactor.Tests/UseNavigationTests.cs",
+        "tests/Reactor.Tests/TransitionEngineTests.cs"
       ],
       "description": "Navigation and transition engine tests"
     },
@@ -454,13 +459,13 @@
       "id": "test-quality-batch-7",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/PropertyGridArrayTests.cs",
-        "tests/Duct.Tests/PropertyGridComponentTests.cs",
-        "tests/Duct.Tests/PropertyGridDecompositionTests.cs",
-        "tests/Duct.Tests/PropertyGridTypeRegistryTests.cs",
-        "tests/Duct.Tests/TypeRegistryTests.cs",
-        "tests/Duct.Tests/TypeRegistryUnmountTests.cs",
-        "tests/Duct.Tests/MarkdownTests.cs"
+        "tests/Reactor.Tests/PropertyGridArrayTests.cs",
+        "tests/Reactor.Tests/PropertyGridComponentTests.cs",
+        "tests/Reactor.Tests/PropertyGridDecompositionTests.cs",
+        "tests/Reactor.Tests/PropertyGridTypeRegistryTests.cs",
+        "tests/Reactor.Tests/TypeRegistryTests.cs",
+        "tests/Reactor.Tests/TypeRegistryUnmountTests.cs",
+        "tests/Reactor.Tests/MarkdownTests.cs"
       ],
       "description": "PropertyGrid, TypeRegistry, and Markdown tests"
     },
@@ -468,219 +473,219 @@
       "id": "test-quality-batch-8",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/Localization/IntlAccessorTests.cs",
-        "tests/Duct.Tests/Localization/MessageCacheTests.cs",
-        "tests/Duct.Tests/Localization/MessageKeyTests.cs",
-        "tests/Duct.Tests/Localization/PseudoLocalizerTests.cs",
-        "tests/Duct.Tests/Localization/RtlHelperTests.cs",
-        "tests/Duct.Tests/Localization/AssetResolutionTests.cs",
-        "tests/Duct.Tests/Localization/ReswParserTests.cs",
-        "tests/Duct.Tests/Localization/ReswWriterTests.cs"
+        "tests/Reactor.Tests/Localization/IntlAccessorTests.cs",
+        "tests/Reactor.Tests/Localization/MessageCacheTests.cs",
+        "tests/Reactor.Tests/Localization/MessageKeyTests.cs",
+        "tests/Reactor.Tests/Localization/PseudoLocalizerTests.cs",
+        "tests/Reactor.Tests/Localization/RtlHelperTests.cs",
+        "tests/Reactor.Tests/Localization/AssetResolutionTests.cs",
+        "tests/Reactor.Tests/Localization/ReswParserTests.cs",
+        "tests/Reactor.Tests/Localization/ReswWriterTests.cs"
       ],
-      "description": "Localization runtime tests — intl, message cache, RTL, resw"
+      "description": "Localization runtime tests \u2014 intl, message cache, RTL, resw"
     },
     {
       "id": "test-quality-batch-9",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/Localization/ExtractIntegrationTests.cs",
-        "tests/Duct.Tests/Localization/InterpolationConverterTests.cs",
-        "tests/Duct.Tests/Localization/KeyNamerTests.cs",
-        "tests/Duct.Tests/Localization/LocSourceGeneratorTests.cs",
-        "tests/Duct.Tests/Localization/LocalizableStringScannerTests.cs",
-        "tests/Duct.Tests/Localization/LogicalModifierTests.cs",
-        "tests/Duct.Tests/Localization/LocaleProviderTests.cs"
+        "tests/Reactor.Tests/Localization/ExtractIntegrationTests.cs",
+        "tests/Reactor.Tests/Localization/InterpolationConverterTests.cs",
+        "tests/Reactor.Tests/Localization/KeyNamerTests.cs",
+        "tests/Reactor.Tests/Localization/LocSourceGeneratorTests.cs",
+        "tests/Reactor.Tests/Localization/LocalizableStringScannerTests.cs",
+        "tests/Reactor.Tests/Localization/LogicalModifierTests.cs",
+        "tests/Reactor.Tests/Localization/LocaleProviderTests.cs"
       ],
-      "description": "Localization tooling tests — extract, scanner, generator, modifiers"
+      "description": "Localization tooling tests \u2014 extract, scanner, generator, modifiers"
     },
     {
       "id": "test-quality-batch-10",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/Localization/PruneCommandTests.cs",
-        "tests/Duct.Tests/Localization/RichMessageTests.cs",
-        "tests/Duct.Tests/Localization/SourceRewriterTests.cs",
-        "tests/Duct.Tests/Localization/StatusCommandTests.cs",
-        "tests/Duct.Tests/Localization/TranslationTests.cs",
-        "tests/Duct.Tests/Localization/ValidateCommandTests.cs",
-        "tests/Duct.Tests/Localization/InMemoryResourceProvider.cs"
+        "tests/Reactor.Tests/Localization/PruneCommandTests.cs",
+        "tests/Reactor.Tests/Localization/RichMessageTests.cs",
+        "tests/Reactor.Tests/Localization/SourceRewriterTests.cs",
+        "tests/Reactor.Tests/Localization/StatusCommandTests.cs",
+        "tests/Reactor.Tests/Localization/TranslationTests.cs",
+        "tests/Reactor.Tests/Localization/ValidateCommandTests.cs",
+        "tests/Reactor.Tests/Localization/InMemoryResourceProvider.cs"
       ],
-      "description": "Localization CLI command tests — prune, rewrite, translate, validate"
+      "description": "Localization CLI command tests \u2014 prune, rewrite, translate, validate"
     },
     {
       "id": "test-quality-batch-11",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.Tests/TestSetup.cs",
-        "tests/Duct.AppTests.Host/Program.cs",
-        "tests/Duct.AppTests.Host/TestHost.cs",
-        "tests/Duct.AppTests.Host/FixtureRegistry.cs",
-        "tests/Duct.AppTests/Infrastructure/WinAppDriverHelper.cs",
-        "tests/Duct.AppTests/Infrastructure/AppTestBase.cs",
-        "tests/Duct.AppTests/Infrastructure/TestSession.cs"
+        "tests/Reactor.Tests/TestSetup.cs",
+        "tests/Reactor.AppTests.Host/Program.cs",
+        "tests/Reactor.AppTests.Host/TestHost.cs",
+        "tests/Reactor.AppTests.Host/FixtureRegistry.cs",
+        "tests/Reactor.AppTests/Infrastructure/WinAppDriverHelper.cs",
+        "tests/Reactor.AppTests/Infrastructure/AppTestBase.cs",
+        "tests/Reactor.AppTests/Infrastructure/TestSession.cs"
       ],
-      "description": "Test infrastructure — setup, host, fixtures, WinAppDriver helpers"
+      "description": "Test infrastructure \u2014 setup, host, fixtures, WinAppDriver helpers"
     },
     {
       "id": "test-quality-batch-12",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.AppTests.Host/Fixtures/CollectionFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/D3Fixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/DemoFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/DynamicFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/ErrorBoundaryFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/FlexLayoutFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/LayoutFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/LocalizationFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/MarkdownFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/MonacoFixtures.cs"
+        "tests/Reactor.AppTests.Host/Fixtures/CollectionFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/D3Fixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/DemoFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/DynamicFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/ErrorBoundaryFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/FlexLayoutFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/LayoutFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/LocalizationFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/MarkdownFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/MonacoFixtures.cs"
       ],
-      "description": "AppTest fixtures — collections, D3, demo, layout, markdown, monaco"
+      "description": "AppTest fixtures \u2014 collections, D3, demo, layout, markdown, monaco"
     },
     {
       "id": "test-quality-batch-13",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.AppTests.Host/Fixtures/ObservableFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/PropertyGridFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/EventHandlerFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/AccessibilityFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/NavigationFixtures.cs",
-        "tests/Duct.AppTests.Host/Fixtures/ReconcilerFixtures.cs"
+        "tests/Reactor.AppTests.Host/Fixtures/ObservableFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/PropertyGridFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/EventHandlerFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/AccessibilityFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/NavigationFixtures.cs",
+        "tests/Reactor.AppTests.Host/Fixtures/ReconcilerFixtures.cs"
       ],
-      "description": "AppTest fixtures — observable, property grid, events, accessibility, navigation"
+      "description": "AppTest fixtures \u2014 observable, property grid, events, accessibility, navigation"
     },
     {
       "id": "test-quality-batch-14",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.AppTests/Tests/AccessibilityTests.cs",
-        "tests/Duct.AppTests/Tests/EventHandlerTests.cs",
-        "tests/Duct.AppTests/Tests/InteractiveTests.cs",
-        "tests/Duct.AppTests/Tests/SelfTestBatch.cs"
+        "tests/Reactor.AppTests/Tests/AccessibilityTests.cs",
+        "tests/Reactor.AppTests/Tests/EventHandlerTests.cs",
+        "tests/Reactor.AppTests/Tests/InteractiveTests.cs",
+        "tests/Reactor.AppTests/Tests/SelfTestBatch.cs"
       ],
-      "description": "AppTest end-to-end tests — accessibility, events, interactive scenarios"
+      "description": "AppTest end-to-end tests \u2014 accessibility, events, interactive scenarios"
     },
     {
       "id": "test-quality-batch-15",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.AppTests.Host/SelfTest/SelfTestFixtureBase.cs",
-        "tests/Duct.AppTests.Host/SelfTest/SelfTestFixtureRegistry.cs",
-        "tests/Duct.AppTests.Host/SelfTest/SelfTestRunner.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Harness.cs"
+        "tests/Reactor.AppTests.Host/SelfTest/SelfTestFixtureBase.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/SelfTestFixtureRegistry.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/SelfTestRunner.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Harness.cs"
       ],
-      "description": "SelfTest framework infrastructure — base class, registry, runner, harness"
+      "description": "SelfTest framework infrastructure \u2014 base class, registry, runner, harness"
     },
     {
       "id": "test-quality-batch-16",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/AnimateModifierTests.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/AnimationAsyncTests.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/AnimationCombinationTests.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/AnimationScopeTests.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/CurveTests.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/InteractionStatesTests.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/KeyframeBuilderTests.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ScrollAnimationTests.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/StaggerTests.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/TransitionTests.cs"
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/AnimateModifierTests.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/AnimationAsyncTests.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/AnimationCombinationTests.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/AnimationScopeTests.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/CurveTests.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/InteractionStatesTests.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/KeyframeBuilderTests.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ScrollAnimationTests.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/StaggerTests.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/TransitionTests.cs"
       ],
-      "description": "SelfTest animation fixtures — curves, keyframes, transitions, stagger"
+      "description": "SelfTest animation fixtures \u2014 curves, keyframes, transitions, stagger"
     },
     {
       "id": "test-quality-batch-17",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/CollectionFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ComponentHookFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ControlCatalogFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ControlUpdateFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ControlUpdateFixtures2.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/DslExtensionFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/DynamicFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ErrorBoundaryFixtures.cs"
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/CollectionFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ComponentHookFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ControlCatalogFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ControlUpdateFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ControlUpdateFixtures2.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/DslExtensionFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/DynamicFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ErrorBoundaryFixtures.cs"
       ],
-      "description": "SelfTest component fixtures — collections, hooks, controls, DSL, errors"
+      "description": "SelfTest component fixtures \u2014 collections, hooks, controls, DSL, errors"
     },
     {
       "id": "test-quality-batch-18",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/FlexLayoutFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/LayoutFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/LayoutAnimationFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/LocalizationFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/MarkdownFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ModifierEventFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/MonacoFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/NavigationFixtures.cs"
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/FlexLayoutFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/LayoutFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/LayoutAnimationFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/LocalizationFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/MarkdownFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ModifierEventFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/MonacoFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/NavigationFixtures.cs"
       ],
-      "description": "SelfTest layout and feature fixtures — flex, markdown, monaco, navigation"
+      "description": "SelfTest layout and feature fixtures \u2014 flex, markdown, monaco, navigation"
     },
     {
       "id": "test-quality-batch-19",
       "agent": "test-quality",
       "files": [
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ObservableFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/PropertyGridFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/RareControlFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ReconcilerFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ReconcilerStressFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/D3Fixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/ThreadSafeHookFixtures.cs",
-        "tests/Duct.AppTests.Host/SelfTest/Fixtures/TypeRegistrationMismatchFixtures.cs"
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ObservableFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/PropertyGridFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/RareControlFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ReconcilerFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ReconcilerStressFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/D3Fixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/ThreadSafeHookFixtures.cs",
+        "tests/Reactor.AppTests.Host/SelfTest/Fixtures/TypeRegistrationMismatchFixtures.cs"
       ],
-      "description": "SelfTest advanced fixtures — reconciler stress, thread safety, type registration"
+      "description": "SelfTest advanced fixtures \u2014 reconciler stress, thread safety, type registration"
     },
     {
       "id": "test-quality-batch-20",
       "agent": "test-quality",
       "files": [
-        "tests/DuctD3.Tests/AreaTests.cs",
-        "tests/DuctD3.Tests/ChordTests.cs",
-        "tests/DuctD3.Tests/ClusterTests.cs",
-        "tests/DuctD3.Tests/CurveTests.cs",
-        "tests/DuctD3.Tests/DelaunayTests.cs",
-        "tests/DuctD3.Tests/EaseTests.cs",
-        "tests/DuctD3.Tests/FormatTests.cs",
-        "tests/DuctD3.Tests/GroupTests.cs",
-        "tests/DuctD3.Tests/InterpolateColorTests.cs",
-        "tests/DuctD3.Tests/LineTests.cs"
+        "tests/ReactorCharting.Tests/AreaTests.cs",
+        "tests/ReactorCharting.Tests/ChordTests.cs",
+        "tests/ReactorCharting.Tests/ClusterTests.cs",
+        "tests/ReactorCharting.Tests/CurveTests.cs",
+        "tests/ReactorCharting.Tests/DelaunayTests.cs",
+        "tests/ReactorCharting.Tests/EaseTests.cs",
+        "tests/ReactorCharting.Tests/FormatTests.cs",
+        "tests/ReactorCharting.Tests/GroupTests.cs",
+        "tests/ReactorCharting.Tests/InterpolateColorTests.cs",
+        "tests/ReactorCharting.Tests/LineTests.cs"
       ],
-      "description": "DuctD3 test suite part 1 — area, chord, cluster, curve, delaunay, ease, format"
+      "description": "Charting test suite part 1 \u2014 area, chord, cluster, curve, delaunay, ease, format"
     },
     {
       "id": "test-quality-batch-21",
       "agent": "test-quality",
       "files": [
-        "tests/DuctD3.Tests/LinearScaleTests.cs",
-        "tests/DuctD3.Tests/PartitionTests.cs",
-        "tests/DuctD3.Tests/PathBuilderTests.cs",
-        "tests/DuctD3.Tests/PieTests.cs",
-        "tests/DuctD3.Tests/PolygonTests.cs",
-        "tests/DuctD3.Tests/RadialTests.cs",
-        "tests/DuctD3.Tests/RandomTests.cs",
-        "tests/DuctD3.Tests/RangeTests.cs",
-        "tests/DuctD3.Tests/SankeyTests.cs",
-        "tests/DuctD3.Tests/ScaleTests.cs"
+        "tests/ReactorCharting.Tests/LinearScaleTests.cs",
+        "tests/ReactorCharting.Tests/PartitionTests.cs",
+        "tests/ReactorCharting.Tests/PathBuilderTests.cs",
+        "tests/ReactorCharting.Tests/PieTests.cs",
+        "tests/ReactorCharting.Tests/PolygonTests.cs",
+        "tests/ReactorCharting.Tests/RadialTests.cs",
+        "tests/ReactorCharting.Tests/RandomTests.cs",
+        "tests/ReactorCharting.Tests/RangeTests.cs",
+        "tests/ReactorCharting.Tests/SankeyTests.cs",
+        "tests/ReactorCharting.Tests/ScaleTests.cs"
       ],
-      "description": "DuctD3 test suite part 2 — scale, partition, path, pie, polygon, sankey"
+      "description": "Charting test suite part 2 \u2014 scale, partition, path, pie, polygon, sankey"
     },
     {
       "id": "test-quality-batch-22",
       "agent": "test-quality",
       "files": [
-        "tests/DuctD3.Tests/StatisticsTests.cs",
-        "tests/DuctD3.Tests/StratifyTests.cs",
-        "tests/DuctD3.Tests/SymbolTests.cs",
-        "tests/DuctD3.Tests/TicksTests.cs",
-        "tests/DuctD3.Tests/TreemapTests.cs",
-        "tests/DuctD3.Tests/ContourTests.cs"
+        "tests/ReactorCharting.Tests/StatisticsTests.cs",
+        "tests/ReactorCharting.Tests/StratifyTests.cs",
+        "tests/ReactorCharting.Tests/SymbolTests.cs",
+        "tests/ReactorCharting.Tests/TicksTests.cs",
+        "tests/ReactorCharting.Tests/TreemapTests.cs",
+        "tests/ReactorCharting.Tests/ContourTests.cs"
       ],
-      "description": "DuctD3 test suite part 3 — statistics, stratify, symbol, ticks, treemap, contour"
+      "description": "Charting test suite part 3 \u2014 statistics, stratify, symbol, ticks, treemap, contour"
     },
     {
       "id": "test-quality-batch-23",
@@ -690,11 +695,11 @@
         "tests/stress_perf/StressPerf.Shared/ConsoleHelper.cs",
         "tests/stress_perf/StressPerf.Shared/StockDataSource.cs",
         "tests/stress_perf/StressPerf.Shared/PerfTracker.cs",
-        "tests/stress_perf/StressPerf.Duct/Program.cs",
+        "tests/stress_perf/StressPerf.Reactor/Program.cs",
         "tests/stress_perf/StressPerf.Direct/App.xaml.cs",
         "tests/stress_perf/StressPerf.Direct/MainWindow.cs"
       ],
-      "description": "Stress perf tests — shared infra, Duct vs Direct comparison"
+      "description": "Stress perf tests \u2014 shared infra, Reactor vs Direct comparison"
     },
     {
       "id": "test-quality-batch-24",
@@ -708,7 +713,7 @@
         "tests/stress_perf/StressPerf.Wpf/App.xaml.cs",
         "tests/stress_perf/StressPerf.Wpf/MainWindow.xaml.cs"
       ],
-      "description": "Stress perf baselines — Bound, DirectX, WPF implementations"
+      "description": "Stress perf baselines \u2014 Bound, DirectX, WPF implementations"
     },
     {
       "id": "test-quality-batch-25",
@@ -717,8 +722,8 @@
         "tests/perf_bench/PerfBench.Shared/BenchCliOptions.cs",
         "tests/perf_bench/PerfBench.Shared/BenchTracker.cs",
         "tests/perf_bench/PerfBench.Shared/ConsoleHelper.cs",
-        "tests/perf_bench/PerfBench.Allocation/Allocation.Duct/AllocationApp.cs",
-        "tests/perf_bench/PerfBench.Allocation/Allocation.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.Allocation/Allocation.Reactor/AllocationApp.cs",
+        "tests/perf_bench/PerfBench.Allocation/Allocation.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.Allocation/Allocation.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.Allocation/Allocation.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.Allocation/Allocation.Bound/AllocationCellViewModel.cs",
@@ -731,120 +736,120 @@
       "id": "test-quality-batch-26",
       "agent": "test-quality",
       "files": [
-        "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Duct/DeferredMountApp.cs",
-        "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Reactor/DeferredMountApp.cs",
+        "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Bound/App.xaml.cs",
         "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Bound/MainWindow.cs",
         "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Bound/TabItemViewModel.cs"
       ],
-      "description": "Perf bench DeferredMount — Duct vs Direct vs Bound"
+      "description": "Perf bench DeferredMount \u2014 Reactor vs Direct vs Bound"
     },
     {
       "id": "test-quality-batch-27",
       "agent": "test-quality",
       "files": [
-        "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Duct/DirtyTrackingApp.cs",
-        "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Reactor/DirtyTrackingApp.cs",
+        "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Bound/App.xaml.cs",
         "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Bound/MainWindow.cs",
         "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Bound/CounterViewModel.cs"
       ],
-      "description": "Perf bench DirtyTracking — Duct vs Direct vs Bound"
+      "description": "Perf bench DirtyTracking \u2014 Reactor vs Direct vs Bound"
     },
     {
       "id": "test-quality-batch-28",
       "agent": "test-quality",
       "files": [
-        "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Duct/PropertyDiffApp.cs",
-        "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Reactor/PropertyDiffApp.cs",
+        "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Bound/App.xaml.cs",
         "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Bound/MainWindow.cs",
         "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Bound/CellViewModel.cs"
       ],
-      "description": "Perf bench PropertyDiff — Duct vs Direct vs Bound"
+      "description": "Perf bench PropertyDiff \u2014 Reactor vs Direct vs Bound"
     },
     {
       "id": "test-quality-batch-29",
       "agent": "test-quality",
       "files": [
-        "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Duct/StructuralSharingApp.cs",
-        "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Reactor/StructuralSharingApp.cs",
+        "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Bound/App.xaml.cs",
         "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Bound/MainWindow.cs",
         "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Bound/PanelItemViewModel.cs"
       ],
-      "description": "Perf bench StructuralSharing — Duct vs Direct vs Bound"
+      "description": "Perf bench StructuralSharing \u2014 Reactor vs Direct vs Bound"
     },
     {
       "id": "test-quality-batch-30",
       "agent": "test-quality",
       "files": [
-        "tests/perf_bench/PerfBench.OffThread/OffThread.Duct/OffThreadApp.cs",
-        "tests/perf_bench/PerfBench.OffThread/OffThread.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.OffThread/OffThread.Reactor/OffThreadApp.cs",
+        "tests/perf_bench/PerfBench.OffThread/OffThread.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.OffThread/OffThread.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.OffThread/OffThread.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.OffThread/OffThread.Bound/App.xaml.cs",
         "tests/perf_bench/PerfBench.OffThread/OffThread.Bound/MainWindow.cs",
         "tests/perf_bench/PerfBench.OffThread/OffThread.Bound/ItemViewModel.cs"
       ],
-      "description": "Perf bench OffThread — Duct vs Direct vs Bound"
+      "description": "Perf bench OffThread \u2014 Reactor vs Direct vs Bound"
     },
     {
       "id": "test-quality-batch-31",
       "agent": "test-quality",
       "files": [
-        "tests/perf_bench/PerfBench.Journal/Journal.Duct/JournalApp.cs",
-        "tests/perf_bench/PerfBench.Journal/Journal.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.Journal/Journal.Reactor/JournalApp.cs",
+        "tests/perf_bench/PerfBench.Journal/Journal.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.Journal/Journal.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.Journal/Journal.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.Journal/Journal.Bound/App.xaml.cs",
         "tests/perf_bench/PerfBench.Journal/Journal.Bound/MainWindow.cs",
         "tests/perf_bench/PerfBench.Journal/Journal.Bound/JournalCellViewModel.cs"
       ],
-      "description": "Perf bench Journal — Duct vs Direct vs Bound"
+      "description": "Perf bench Journal \u2014 Reactor vs Direct vs Bound"
     },
     {
       "id": "test-quality-batch-32",
       "agent": "test-quality",
       "files": [
-        "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Duct/InteractivePoolApp.cs",
-        "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Reactor/InteractivePoolApp.cs",
+        "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Bound/App.xaml.cs",
         "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Bound/MainWindow.cs",
         "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Bound/InteractiveItemViewModel.cs"
       ],
-      "description": "Perf bench InteractivePool — Duct vs Direct vs Bound"
+      "description": "Perf bench InteractivePool \u2014 Reactor vs Direct vs Bound"
     },
     {
       "id": "test-quality-batch-33",
       "agent": "test-quality",
       "files": [
-        "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Duct/TimeSliceApp.cs",
-        "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Reactor/TimeSliceApp.cs",
+        "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Bound/App.xaml.cs",
         "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Bound/MainWindow.cs",
         "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Bound/TimeSliceItemViewModel.cs"
       ],
-      "description": "Perf bench TimeSlice — Duct vs Direct vs Bound"
+      "description": "Perf bench TimeSlice \u2014 Reactor vs Direct vs Bound"
     },
     {
       "id": "test-quality-batch-34",
       "agent": "test-quality",
       "files": [
-        "tests/perf_bench/PerfBench.Priorities/Priorities.Duct/PrioritiesApp.cs",
-        "tests/perf_bench/PerfBench.Priorities/Priorities.Duct/Program.cs",
+        "tests/perf_bench/PerfBench.Priorities/Priorities.Reactor/PrioritiesApp.cs",
+        "tests/perf_bench/PerfBench.Priorities/Priorities.Reactor/Program.cs",
         "tests/perf_bench/PerfBench.Priorities/Priorities.Direct/App.xaml.cs",
         "tests/perf_bench/PerfBench.Priorities/Priorities.Direct/MainWindow.cs",
         "tests/perf_bench/PerfBench.Priorities/Priorities.Bound/App.xaml.cs",
@@ -852,13 +857,13 @@
         "tests/perf_bench/PerfBench.Priorities/Priorities.Bound/SearchItemViewModel.cs",
         "tests/perf_bench/PerfBench.Priorities/Priorities.Bound/SearchViewModel.cs"
       ],
-      "description": "Perf bench Priorities — Duct vs Direct vs Bound"
+      "description": "Perf bench Priorities \u2014 Reactor vs Direct vs Bound"
     },
     {
       "id": "test-quality-batch-35",
       "agent": "test-quality",
       "files": [
-        "tests/cmd_perf/CmdPerf.Duct/Program.cs",
+        "tests/cmd_perf/CmdPerf.Reactor/Program.cs",
         "tests/cmd_perf/CmdPerf.Shared/CmdCliOptions.cs",
         "tests/cmd_perf/CmdPerf.Shared/CmdPerfTracker.cs",
         "tests/cmd_perf/CmdPerf.Shared/CommandSet.cs",
@@ -869,20 +874,20 @@
         "tests/cmd_perf/CmdPerf.XamlCmd/App.xaml.cs",
         "tests/cmd_perf/CmdPerf.XamlCmd/MainWindow.cs"
       ],
-      "description": "Command perf tests — Duct vs WPF vs XAML command comparison"
+      "description": "Command perf tests \u2014 Reactor vs WPF vs XAML command comparison"
     },
     {
       "id": "general-batch-1",
       "agent": "general",
       "files": [
-        "Duct/Core/Reconciler.cs",
-        "Duct/Core/Reconciler.Mount.cs",
-        "Duct/Core/Reconciler.Update.cs",
-        "Duct/Core/ChildReconciler.cs",
-        "Duct/Core/RenderContext.cs",
-        "Duct/Core/Element.cs",
-        "Duct/Core/Component.cs",
-        "Duct/Core/ElementPool.cs"
+        "Reactor/Core/Reconciler.cs",
+        "Reactor/Core/Reconciler.Mount.cs",
+        "Reactor/Core/Reconciler.Update.cs",
+        "Reactor/Core/ChildReconciler.cs",
+        "Reactor/Core/RenderContext.cs",
+        "Reactor/Core/Element.cs",
+        "Reactor/Core/Component.cs",
+        "Reactor/Core/ElementPool.cs"
       ],
       "description": "Core reconciler and element infrastructure"
     },
@@ -890,15 +895,14 @@
       "id": "general-batch-2",
       "agent": "general",
       "files": [
-        "Duct/Core/DuctContext.cs",
-        "Duct/Core/ContextScope.cs",
-        "Duct/Core/ContextExtensions.cs",
-        "Duct/Core/ChildCollection.cs",
-        "Duct/Core/DuctElementFactory.cs",
-        "Duct/Core/ObservableTreeTracker.cs",
-        "Duct/Core/PersistedStateCache.cs",
-        "Duct/Core/IDuctLogger.cs",
-        "Duct/Core/Theme.cs"
+        "Reactor/Core/Context.cs",
+        "Reactor/Core/ContextScope.cs",
+        "Reactor/Core/ContextExtensions.cs",
+        "Reactor/Core/ChildCollection.cs",
+        "Reactor/Core/ElementFactory.cs",
+        "Reactor/Core/ObservableTreeTracker.cs",
+        "Reactor/Core/PersistedStateCache.cs",
+        "Reactor/Core/Theme.cs"
       ],
       "description": "Core context, state, and observable infrastructure"
     },
@@ -906,9 +910,9 @@
       "id": "general-batch-3",
       "agent": "general",
       "files": [
-        "Duct/Core/CommandInterop.cs",
-        "Duct/Core/DuctCommand.cs",
-        "Duct/Core/StandardCommand.cs"
+        "Reactor/Core/CommandInterop.cs",
+        "Reactor/Core/Command.cs",
+        "Reactor/Core/StandardCommand.cs"
       ],
       "description": "Command system"
     },
@@ -916,40 +920,40 @@
       "id": "general-batch-4",
       "agent": "general",
       "files": [
-        "Duct/Core/Navigation/NavigationContext.cs",
-        "Duct/Core/Navigation/NavigationHandle.cs",
-        "Duct/Core/Navigation/NavigationLifecycle.cs",
-        "Duct/Core/Navigation/NavigationStack.cs",
-        "Duct/Core/Navigation/NavigationCache.cs",
-        "Duct/Core/Navigation/NavigationTransition.cs",
-        "Duct/Core/Navigation/TransitionEngine.cs",
-        "Duct/Core/Navigation/DeepLinkMap.cs"
+        "Reactor/Navigation/NavigationContext.cs",
+        "Reactor/Navigation/NavigationHandle.cs",
+        "Reactor/Navigation/NavigationLifecycle.cs",
+        "Reactor/Navigation/NavigationStack.cs",
+        "Reactor/Navigation/NavigationCache.cs",
+        "Reactor/Navigation/NavigationTransition.cs",
+        "Reactor/Navigation/TransitionEngine.cs",
+        "Reactor/Navigation/DeepLinkMap.cs"
       ],
-      "description": "Navigation system — stack, cache, transitions, deep links"
+      "description": "Navigation system \u2014 stack, cache, transitions, deep links"
     },
     {
       "id": "general-batch-5",
       "agent": "general",
       "files": [
-        "Duct/Core/Localization/LocaleContext.cs",
-        "Duct/Core/Localization/LocaleProviderElement.cs",
-        "Duct/Core/Localization/IntlAccessor.cs",
-        "Duct/Core/Localization/MessageCache.cs",
-        "Duct/Core/Localization/MessageKey.cs",
-        "Duct/Core/Localization/ReswResourceProvider.cs",
-        "Duct/Core/Localization/IStringResourceProvider.cs",
-        "Duct/Core/Localization/PseudoLocalizer.cs",
-        "Duct/Core/Localization/RtlHelper.cs"
+        "Reactor/Localization/LocaleContext.cs",
+        "Reactor/Localization/LocaleProviderElement.cs",
+        "Reactor/Localization/IntlAccessor.cs",
+        "Reactor/Localization/MessageCache.cs",
+        "Reactor/Localization/MessageKey.cs",
+        "Reactor/Localization/ReswResourceProvider.cs",
+        "Reactor/Localization/IStringResourceProvider.cs",
+        "Reactor/Localization/PseudoLocalizer.cs",
+        "Reactor/Localization/RtlHelper.cs"
       ],
-      "description": "Localization runtime — providers, cache, RTL, pseudo-loc"
+      "description": "Localization runtime \u2014 providers, cache, RTL, pseudo-loc"
     },
     {
       "id": "general-batch-6",
       "agent": "general",
       "files": [
-        "Duct/Core/Localization/DateFormatOptions.cs",
-        "Duct/Core/Localization/ListFormatType.cs",
-        "Duct/Core/Localization/NumberFormatOptions.cs"
+        "Reactor/Localization/DateFormatOptions.cs",
+        "Reactor/Localization/ListFormatType.cs",
+        "Reactor/Localization/NumberFormatOptions.cs"
       ],
       "description": "Localization format option types"
     },
@@ -957,30 +961,30 @@
       "id": "general-batch-7",
       "agent": "general",
       "files": [
-        "Duct/Hosting/DuctHost.cs",
-        "Duct/Hosting/DuctHostControl.cs",
-        "Duct/Hosting/DuctPage.cs",
-        "Duct/Hosting/DuctApp.cs",
-        "Duct/Hosting/RenderStats.cs",
-        "Duct/Hosting/HotReloadService.cs",
-        "Duct/Hosting/PreviewCaptureServer.cs",
-        "Duct/Hosting/XamlInterop.cs"
+        "Reactor/Hosting/ReactorHost.cs",
+        "Reactor/Hosting/ReactorHostControl.cs",
+        "Reactor/Hosting/PageHelper.cs",
+        "Reactor/Hosting/ReactorApp.cs",
+        "Reactor/Hosting/RenderStats.cs",
+        "Reactor/Hosting/HotReloadService.cs",
+        "Reactor/Hosting/PreviewCaptureServer.cs",
+        "Reactor/Hosting/XamlInterop.cs"
       ],
-      "description": "Hosting layer — app host, render control, preview, XAML interop"
+      "description": "Hosting layer \u2014 app host, render control, preview, XAML interop"
     },
     {
       "id": "general-batch-8",
       "agent": "general",
       "files": [
-        "Duct/Elements/Dsl.cs",
-        "Duct/Elements/ElementExtensions.cs",
-        "Duct/Elements/BrushHelper.cs",
-        "Duct/Elements/ThemeResource.cs",
-        "Duct/Elements/WinRTCache.cs",
-        "Duct/Elements/FlexExtensions.cs",
-        "Duct/Elements/CanvasExtensions.cs",
-        "Duct/Elements/GridExtensions.cs",
-        "Duct/Elements/RelativePanelExtensions.cs"
+        "Reactor/Elements/Dsl.cs",
+        "Reactor/Elements/ElementExtensions.cs",
+        "Reactor/Elements/BrushHelper.cs",
+        "Reactor/Elements/ThemeResource.cs",
+        "Reactor/Elements/WinRTCache.cs",
+        "Reactor/Elements/FlexExtensions.cs",
+        "Reactor/Elements/CanvasExtensions.cs",
+        "Reactor/Elements/GridExtensions.cs",
+        "Reactor/Elements/RelativePanelExtensions.cs"
       ],
       "description": "Element DSL, extensions, brushes, and layout helpers"
     },
@@ -988,31 +992,31 @@
       "id": "general-batch-9",
       "agent": "general",
       "files": [
-        "Duct/Animation/AnimateProperty.cs",
-        "Duct/Animation/AnimationHelper.cs",
-        "Duct/Animation/AnimationScope.cs",
-        "Duct/Animation/Curve.cs",
-        "Duct/Animation/InteractionStates.cs",
-        "Duct/Animation/KeyframeBuilder.cs",
-        "Duct/Animation/ScrollAnimation.cs",
-        "Duct/Animation/Transition.cs"
+        "Reactor/Animation/AnimateProperty.cs",
+        "Reactor/Animation/AnimationHelper.cs",
+        "Reactor/Animation/AnimationScope.cs",
+        "Reactor/Animation/Curve.cs",
+        "Reactor/Animation/InteractionStates.cs",
+        "Reactor/Animation/KeyframeBuilder.cs",
+        "Reactor/Animation/ScrollAnimation.cs",
+        "Reactor/Animation/Transition.cs"
       ],
-      "description": "Animation system — properties, scopes, curves, transitions"
+      "description": "Animation system \u2014 properties, scopes, curves, transitions"
     },
     {
       "id": "general-batch-10",
       "agent": "general",
       "files": [
-        "Duct/Flex/FlexEnums.cs",
-        "Duct/Flex/FlexPanel.cs",
-        "Duct/Yoga/YogaNode.cs",
-        "Duct/Yoga/YogaAlgorithm.cs",
-        "Duct/Yoga/AlgorithmUtils.cs",
-        "Duct/Yoga/YogaConfig.cs",
-        "Duct/Yoga/YogaStyle.cs",
-        "Duct/Yoga/YogaValue.cs",
-        "Duct/Yoga/YogaEnums.cs",
-        "Duct/Yoga/LayoutResults.cs"
+        "Reactor/Yoga/FlexEnums.cs",
+        "Reactor/Yoga/FlexPanel.cs",
+        "Reactor/Yoga/YogaNode.cs",
+        "Reactor/Yoga/YogaAlgorithm.cs",
+        "Reactor/Yoga/AlgorithmUtils.cs",
+        "Reactor/Yoga/YogaConfig.cs",
+        "Reactor/Yoga/YogaStyle.cs",
+        "Reactor/Yoga/YogaValue.cs",
+        "Reactor/Yoga/YogaEnums.cs",
+        "Reactor/Yoga/LayoutResults.cs"
       ],
       "description": "Flex layout and Yoga engine"
     },
@@ -1020,16 +1024,16 @@
       "id": "general-batch-11",
       "agent": "general",
       "files": [
-        "Duct/Yoga/FlexDirectionHelper.cs",
-        "Duct/Markdown/Md4cParser.cs",
-        "Duct/Markdown/Md4cParser.Block.cs",
-        "Duct/Markdown/Md4cParser.Inline.cs",
-        "Duct/Markdown/MarkdownBuilder.cs",
-        "Duct/Markdown/Md4cEnums.cs",
-        "Duct/Markdown/Md4cTypes.cs",
-        "Duct/Markdown/Md4cEntity.cs",
-        "Duct/Markdown/Md4cHtml.cs",
-        "Duct/Markdown/Md4cUnicode.cs"
+        "Reactor/Yoga/FlexDirectionHelper.cs",
+        "Reactor/Markdown/Md4cParser.cs",
+        "Reactor/Markdown/Md4cParser.Block.cs",
+        "Reactor/Markdown/Md4cParser.Inline.cs",
+        "Reactor/Markdown/MarkdownBuilder.cs",
+        "Reactor/Markdown/Md4cEnums.cs",
+        "Reactor/Markdown/Md4cTypes.cs",
+        "Reactor/Markdown/Md4cEntity.cs",
+        "Reactor/Markdown/Md4cHtml.cs",
+        "Reactor/Markdown/Md4cUnicode.cs"
       ],
       "description": "Markdown parser and remaining Yoga helpers"
     },
@@ -1037,14 +1041,14 @@
       "id": "general-batch-12",
       "agent": "general",
       "files": [
-        "Duct/Monaco/MonacoEditor.cs",
-        "Duct/Monaco/MonacoJsonContext.cs",
-        "Duct/PropertyGrid/PropertyGridComponent.cs",
-        "Duct/PropertyGrid/PropertyGridElement.cs",
-        "Duct/PropertyGrid/PropertyGridDsl.cs",
-        "Duct/PropertyGrid/PropertyGridDefaults.cs",
-        "Duct/PropertyGrid/ArrayOperations.cs",
-        "Duct/PropertyGrid/Attributes.cs"
+        "Reactor/Monaco/MonacoEditor.cs",
+        "Reactor/Monaco/MonacoJsonContext.cs",
+        "Reactor/Controls/PropertyGrid/PropertyGridComponent.cs",
+        "Reactor/Controls/PropertyGrid/PropertyGridElement.cs",
+        "Reactor/Controls/PropertyGrid/PropertyGridDsl.cs",
+        "Reactor/Controls/PropertyGrid/PropertyGridDefaults.cs",
+        "Reactor/Controls/PropertyGrid/ArrayOperations.cs",
+        "Reactor/Controls/PropertyGrid/Attributes.cs"
       ],
       "description": "Monaco editor and PropertyGrid components"
     },
@@ -1052,24 +1056,24 @@
       "id": "general-batch-13",
       "agent": "general",
       "files": [
-        "Duct/PropertyGrid/PropertyDescriptor.cs",
-        "Duct/PropertyGrid/ReflectionTypeMetadataProvider.cs",
-        "Duct/PropertyGrid/TypeMetadata.cs",
-        "Duct/PropertyGrid/TypeRegistry.cs"
+        "Reactor/Controls/PropertyGrid/PropertyDescriptor.cs",
+        "Reactor/Controls/PropertyGrid/ReflectionTypeMetadataProvider.cs",
+        "Reactor/Controls/PropertyGrid/TypeMetadata.cs",
+        "Reactor/Controls/PropertyGrid/TypeRegistry.cs"
       ],
-      "description": "PropertyGrid type system — descriptors, reflection, registry"
+      "description": "PropertyGrid type system \u2014 descriptors, reflection, registry"
     },
     {
       "id": "general-batch-14",
       "agent": "general",
       "files": [
-        "Duct.Cli/Program.cs",
-        "Duct.Cli/Loc/LocCommand.cs",
-        "Duct.Cli/Loc/ExtractCommand.cs",
-        "Duct.Cli/Loc/TranslateCommand.cs",
-        "Duct.Cli/Loc/TranslationPrompt.cs",
-        "Duct.Cli/Loc/AzureOpenAiProvider.cs",
-        "Duct.Cli/Loc/ITranslationProvider.cs"
+        "Reactor.Cli/Program.cs",
+        "Reactor.Cli/Loc/LocCommand.cs",
+        "Reactor.Cli/Loc/ExtractCommand.cs",
+        "Reactor.Cli/Loc/TranslateCommand.cs",
+        "Reactor.Cli/Loc/TranslationPrompt.cs",
+        "Reactor.Cli/Loc/AzureOpenAiProvider.cs",
+        "Reactor.Cli/Loc/ITranslationProvider.cs"
       ],
       "description": "CLI entry point and localization commands"
     },
@@ -1077,29 +1081,29 @@
       "id": "general-batch-15",
       "agent": "general",
       "files": [
-        "Duct.Cli/Loc/LocalizableString.cs",
-        "Duct.Cli/Loc/LocalizableStringScanner.cs",
-        "Duct.Cli/Loc/SourceRewriter.cs",
-        "Duct.Cli/Loc/InterpolationConverter.cs",
-        "Duct.Cli/Loc/KeyNamer.cs",
-        "Duct.Cli/Loc/KeyedLocString.cs",
-        "Duct.Cli/Loc/ReswReader.cs",
-        "Duct.Cli/Loc/ReswWriter.cs"
+        "Reactor.Cli/Loc/LocalizableString.cs",
+        "Reactor.Cli/Loc/LocalizableStringScanner.cs",
+        "Reactor.Cli/Loc/SourceRewriter.cs",
+        "Reactor.Cli/Loc/InterpolationConverter.cs",
+        "Reactor.Cli/Loc/KeyNamer.cs",
+        "Reactor.Cli/Loc/KeyedLocString.cs",
+        "Reactor.Cli/Loc/ReswReader.cs",
+        "Reactor.Cli/Loc/ReswWriter.cs"
       ],
-      "description": "CLI localization tooling — scanning, rewriting, resw I/O"
+      "description": "CLI localization tooling \u2014 scanning, rewriting, resw I/O"
     },
     {
       "id": "general-batch-16",
       "agent": "general",
       "files": [
-        "Duct.Cli/Loc/PruneCommand.cs",
-        "Duct.Cli/Loc/StatusCommand.cs",
-        "Duct.Cli/Loc/ValidateCommand.cs",
-        "Duct.Cli/Docs/DocsCommand.cs",
-        "Duct.Cli/Docs/CompileCommand.cs",
-        "Duct.Cli/Docs/DocAssembler.cs",
-        "Duct.Cli/Docs/ImageProcessor.cs",
-        "Duct.Cli/Docs/ManifestParser.cs"
+        "Reactor.Cli/Loc/PruneCommand.cs",
+        "Reactor.Cli/Loc/StatusCommand.cs",
+        "Reactor.Cli/Loc/ValidateCommand.cs",
+        "Reactor.Cli/Docs/DocsCommand.cs",
+        "Reactor.Cli/Docs/CompileCommand.cs",
+        "Reactor.Cli/Docs/DocAssembler.cs",
+        "Reactor.Cli/Docs/ImageProcessor.cs",
+        "Reactor.Cli/Docs/ManifestParser.cs"
       ],
       "description": "CLI prune/status/validate and docs compilation"
     },
@@ -1107,18 +1111,18 @@
       "id": "general-batch-17",
       "agent": "general",
       "files": [
-        "Duct.Cli/Docs/ScreenshotCapture.cs",
-        "Duct.Cli/Docs/SnippetExtractor.cs",
-        "Duct.Cli/Docs/TemplateParser.cs"
+        "Reactor.Cli/Docs/ScreenshotCapture.cs",
+        "Reactor.Cli/Docs/SnippetExtractor.cs",
+        "Reactor.Cli/Docs/TemplateParser.cs"
       ],
-      "description": "CLI docs tooling — screenshots, snippets, templates"
+      "description": "CLI docs tooling \u2014 screenshots, snippets, templates"
     },
     {
       "id": "general-batch-18",
       "agent": "general",
       "files": [
-        "Duct.Localization.Generator/LocSourceGenerator.cs",
-        "Duct.Localization.Generator/ReswParser.cs"
+        "Reactor.Localization.Generator/LocSourceGenerator.cs",
+        "Reactor.Localization.Generator/ReswParser.cs"
       ],
       "description": "Source generator for localization"
     },
@@ -1126,88 +1130,88 @@
       "id": "general-batch-19",
       "agent": "general",
       "files": [
-        "DuctD3/Array/Bin.cs",
-        "DuctD3/Array/Bisect.cs",
-        "DuctD3/Array/Extent.cs",
-        "DuctD3/Array/Group.cs",
-        "DuctD3/Array/Range.cs",
-        "DuctD3/Array/Statistics.cs",
-        "DuctD3/Array/Ticks.cs"
+        "Reactor/Charting/Array/Bin.cs",
+        "Reactor/Charting/Array/Bisect.cs",
+        "Reactor/Charting/Array/Extent.cs",
+        "Reactor/Charting/Array/Group.cs",
+        "Reactor/Charting/Array/Range.cs",
+        "Reactor/Charting/Array/Statistics.cs",
+        "Reactor/Charting/Array/Ticks.cs"
       ],
-      "description": "DuctD3 array utilities — bin, bisect, extent, group, statistics"
+      "description": "Charting array utilities \u2014 bin, bisect, extent, group, statistics"
     },
     {
       "id": "general-batch-20",
       "agent": "general",
       "files": [
-        "DuctD3/Scale/LinearScale.cs",
-        "DuctD3/Scale/LogScale.cs",
-        "DuctD3/Scale/PowScale.cs",
-        "DuctD3/Scale/QuantizeScale.cs",
-        "DuctD3/Scale/BandScale.cs",
-        "DuctD3/Scale/OrdinalScale.cs"
+        "Reactor/Charting/Scale/LinearScale.cs",
+        "Reactor/Charting/Scale/LogScale.cs",
+        "Reactor/Charting/Scale/PowScale.cs",
+        "Reactor/Charting/Scale/QuantizeScale.cs",
+        "Reactor/Charting/Scale/BandScale.cs",
+        "Reactor/Charting/Scale/OrdinalScale.cs"
       ],
-      "description": "DuctD3 scales — linear, log, pow, quantize, band, ordinal"
+      "description": "Charting scales \u2014 linear, log, pow, quantize, band, ordinal"
     },
     {
       "id": "general-batch-21",
       "agent": "general",
       "files": [
-        "DuctD3/Shape/Arc.cs",
-        "DuctD3/Shape/Area.cs",
-        "DuctD3/Shape/Curve.cs",
-        "DuctD3/Shape/Line.cs",
-        "DuctD3/Shape/Link.cs",
-        "DuctD3/Shape/Pie.cs",
-        "DuctD3/Shape/Radial.cs",
-        "DuctD3/Shape/Stack.cs",
-        "DuctD3/Shape/Symbol.cs"
+        "Reactor/Charting/Shape/Arc.cs",
+        "Reactor/Charting/Shape/Area.cs",
+        "Reactor/Charting/Shape/Curve.cs",
+        "Reactor/Charting/Shape/Line.cs",
+        "Reactor/Charting/Shape/Link.cs",
+        "Reactor/Charting/Shape/Pie.cs",
+        "Reactor/Charting/Shape/Radial.cs",
+        "Reactor/Charting/Shape/Stack.cs",
+        "Reactor/Charting/Shape/Symbol.cs"
       ],
-      "description": "DuctD3 shapes — arc, area, curve, line, pie, radial, stack, symbol"
+      "description": "Charting shapes \u2014 arc, area, curve, line, pie, radial, stack, symbol"
     },
     {
       "id": "general-batch-22",
       "agent": "general",
       "files": [
-        "DuctD3/Layout/Cluster.cs",
-        "DuctD3/Layout/ForceSimulation.cs",
-        "DuctD3/Layout/Pack.cs",
-        "DuctD3/Layout/Partition.cs",
-        "DuctD3/Layout/Sankey.cs",
-        "DuctD3/Layout/Stratify.cs",
-        "DuctD3/Layout/TreeLayout.cs",
-        "DuctD3/Layout/Treemap.cs"
+        "Reactor/Charting/Layout/Cluster.cs",
+        "Reactor/Charting/Layout/ForceSimulation.cs",
+        "Reactor/Charting/Layout/Pack.cs",
+        "Reactor/Charting/Layout/Partition.cs",
+        "Reactor/Charting/Layout/Sankey.cs",
+        "Reactor/Charting/Layout/Stratify.cs",
+        "Reactor/Charting/Layout/TreeLayout.cs",
+        "Reactor/Charting/Layout/Treemap.cs"
       ],
-      "description": "DuctD3 layouts — cluster, force, pack, partition, sankey, tree, treemap"
+      "description": "Charting layouts \u2014 cluster, force, pack, partition, sankey, tree, treemap"
     },
     {
       "id": "general-batch-23",
       "agent": "general",
       "files": [
-        "DuctD3/Charts/ChartDsl.cs",
-        "DuctD3/Charts/D3Dsl.cs",
-        "DuctD3/Charts/PathDataParser.cs",
-        "DuctD3/Charts/TreeChartDsl.cs",
-        "DuctD3/Chord/Chord.cs",
-        "DuctD3/Color/D3Color.cs",
-        "DuctD3/Contour/Contour.cs",
-        "DuctD3/Ease/Ease.cs",
-        "DuctD3/Format/Format.cs"
+        "Reactor/Charting/Charts/ChartDsl.cs",
+        "Reactor/Charting/Charts/D3Dsl.cs",
+        "Reactor/Charting/Charts/PathDataParser.cs",
+        "Reactor/Charting/Charts/TreeChartDsl.cs",
+        "Reactor/Charting/Chord/Chord.cs",
+        "Reactor/Charting/Color/D3Color.cs",
+        "Reactor/Charting/Contour/Contour.cs",
+        "Reactor/Charting/Ease/Ease.cs",
+        "Reactor/Charting/Format/Format.cs"
       ],
-      "description": "DuctD3 charts, chord, color, contour, ease, format"
+      "description": "Charting charts, chord, color, contour, ease, format"
     },
     {
       "id": "general-batch-24",
       "agent": "general",
       "files": [
-        "DuctD3/Interpolate/Interpolate.cs",
-        "DuctD3/Interpolate/InterpolateColor.cs",
-        "DuctD3/Path/PathBuilder.cs",
-        "DuctD3/Polygon/Polygon.cs",
-        "DuctD3/Random/Random.cs",
-        "DuctD3/Voronoi/Delaunay.cs"
+        "Reactor/Charting/Interpolate/Interpolate.cs",
+        "Reactor/Charting/Interpolate/InterpolateColor.cs",
+        "Reactor/Charting/Path/PathBuilder.cs",
+        "Reactor/Charting/Polygon/Polygon.cs",
+        "Reactor/Charting/Random/Random.cs",
+        "Reactor/Charting/Voronoi/Delaunay.cs"
       ],
-      "description": "DuctD3 interpolation, path, polygon, random, voronoi"
+      "description": "Charting interpolation, path, polygon, random, voronoi"
     },
     {
       "id": "general-batch-25",
@@ -1215,7 +1219,7 @@
       "files": [
         "vscode-duct/src/extension.ts"
       ],
-      "description": "VS Code extension — language support, preview integration"
+      "description": "VS Code extension \u2014 language support, preview integration"
     },
     {
       "id": "general-batch-26",
@@ -1223,22 +1227,21 @@
       "files": [
         "Directory.Build.props",
         "Directory.Build.targets",
-        "Duct.sln",
-        "Duct/Duct.csproj",
-        "Duct.Cli/Duct.Cli.csproj",
-        "Duct.Localization.Generator/Duct.Localization.Generator.csproj",
-        "DuctD3/DuctD3.csproj"
+        "Reactor.sln",
+        "Reactor/Reactor.csproj",
+        "Reactor.Cli/Reactor.Cli.csproj",
+        "Reactor.Localization.Generator/Reactor.Localization.Generator.csproj"
       ],
-      "description": "Root build config — solution, props, targets, main project files"
+      "description": "Root build config \u2014 solution, props, targets, main project files"
     },
     {
       "id": "general-batch-27",
       "agent": "general",
       "files": [
-        "tests/Duct.Tests/Duct.Tests.csproj",
-        "tests/DuctD3.Tests/DuctD3.Tests.csproj",
-        "tests/Duct.AppTests/Duct.AppTests.csproj",
-        "tests/Duct.AppTests.Host/Duct.AppTests.Host.csproj"
+        "tests/Reactor.Tests/Reactor.Tests.csproj",
+        "tests/ReactorCharting.Tests/ReactorCharting.Tests.csproj",
+        "tests/Reactor.AppTests/Reactor.AppTests.csproj",
+        "tests/Reactor.AppTests.Host/Reactor.AppTests.Host.csproj"
       ],
       "description": "Test project files"
     },
@@ -1249,7 +1252,7 @@
         "tests/stress_perf/StressPerf.Bound/StressPerf.Bound.csproj",
         "tests/stress_perf/StressPerf.Direct/StressPerf.Direct.csproj",
         "tests/stress_perf/StressPerf.DirectX/StressPerf.DirectX.csproj",
-        "tests/stress_perf/StressPerf.Duct/StressPerf.Duct.csproj",
+        "tests/stress_perf/StressPerf.Reactor/StressPerf.Reactor.csproj",
         "tests/stress_perf/StressPerf.Shared/StressPerf.Shared.csproj",
         "tests/stress_perf/StressPerf.Wpf/StressPerf.Wpf.csproj"
       ],
@@ -1262,15 +1265,15 @@
         "tests/perf_bench/PerfBench.Shared/PerfBench.Shared.csproj",
         "tests/perf_bench/PerfBench.Allocation/Allocation.Bound/Allocation.Bound.csproj",
         "tests/perf_bench/PerfBench.Allocation/Allocation.Direct/Allocation.Direct.csproj",
-        "tests/perf_bench/PerfBench.Allocation/Allocation.Duct/Allocation.Duct.csproj",
+        "tests/perf_bench/PerfBench.Allocation/Allocation.Reactor/Allocation.Reactor.csproj",
         "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Bound/DeferredMount.Bound.csproj",
         "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Direct/DeferredMount.Direct.csproj",
-        "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Duct/DeferredMount.Duct.csproj",
+        "tests/perf_bench/PerfBench.DeferredMount/DeferredMount.Reactor/DeferredMount.Reactor.csproj",
         "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Bound/DirtyTracking.Bound.csproj",
         "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Direct/DirtyTracking.Direct.csproj",
-        "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Duct/DirtyTracking.Duct.csproj"
+        "tests/perf_bench/PerfBench.DirtyTracking/DirtyTracking.Reactor/DirtyTracking.Reactor.csproj"
       ],
-      "description": "Perf bench project files — allocation, deferred mount, dirty tracking"
+      "description": "Perf bench project files \u2014 allocation, deferred mount, dirty tracking"
     },
     {
       "id": "general-batch-30",
@@ -1278,15 +1281,15 @@
       "files": [
         "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Bound/InteractivePool.Bound.csproj",
         "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Direct/InteractivePool.Direct.csproj",
-        "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Duct/InteractivePool.Duct.csproj",
+        "tests/perf_bench/PerfBench.InteractivePool/InteractivePool.Reactor/InteractivePool.Reactor.csproj",
         "tests/perf_bench/PerfBench.Journal/Journal.Bound/Journal.Bound.csproj",
         "tests/perf_bench/PerfBench.Journal/Journal.Direct/Journal.Direct.csproj",
-        "tests/perf_bench/PerfBench.Journal/Journal.Duct/Journal.Duct.csproj",
+        "tests/perf_bench/PerfBench.Journal/Journal.Reactor/Journal.Reactor.csproj",
         "tests/perf_bench/PerfBench.OffThread/OffThread.Bound/OffThread.Bound.csproj",
         "tests/perf_bench/PerfBench.OffThread/OffThread.Direct/OffThread.Direct.csproj",
-        "tests/perf_bench/PerfBench.OffThread/OffThread.Duct/OffThread.Duct.csproj"
+        "tests/perf_bench/PerfBench.OffThread/OffThread.Reactor/OffThread.Reactor.csproj"
       ],
-      "description": "Perf bench project files — interactive pool, journal, off-thread"
+      "description": "Perf bench project files \u2014 interactive pool, journal, off-thread"
     },
     {
       "id": "general-batch-31",
@@ -1294,24 +1297,24 @@
       "files": [
         "tests/perf_bench/PerfBench.Priorities/Priorities.Bound/Priorities.Bound.csproj",
         "tests/perf_bench/PerfBench.Priorities/Priorities.Direct/Priorities.Direct.csproj",
-        "tests/perf_bench/PerfBench.Priorities/Priorities.Duct/Priorities.Duct.csproj",
+        "tests/perf_bench/PerfBench.Priorities/Priorities.Reactor/Priorities.Reactor.csproj",
         "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Bound/PropertyDiff.Bound.csproj",
         "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Direct/PropertyDiff.Direct.csproj",
-        "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Duct/PropertyDiff.Duct.csproj",
+        "tests/perf_bench/PerfBench.PropertyDiff/PropertyDiff.Reactor/PropertyDiff.Reactor.csproj",
         "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Bound/StructuralSharing.Bound.csproj",
         "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Direct/StructuralSharing.Direct.csproj",
-        "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Duct/StructuralSharing.Duct.csproj",
+        "tests/perf_bench/PerfBench.StructuralSharing/StructuralSharing.Reactor/StructuralSharing.Reactor.csproj",
         "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Bound/TimeSlice.Bound.csproj"
       ],
-      "description": "Perf bench project files — priorities, property diff, structural sharing, time slice"
+      "description": "Perf bench project files \u2014 priorities, property diff, structural sharing, time slice"
     },
     {
       "id": "general-batch-32",
       "agent": "general",
       "files": [
         "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Direct/TimeSlice.Direct.csproj",
-        "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Duct/TimeSlice.Duct.csproj",
-        "tests/cmd_perf/CmdPerf.Duct/CmdPerf.Duct.csproj",
+        "tests/perf_bench/PerfBench.TimeSlice/TimeSlice.Reactor/TimeSlice.Reactor.csproj",
+        "tests/cmd_perf/CmdPerf.Reactor/CmdPerf.Reactor.csproj",
         "tests/cmd_perf/CmdPerf.Shared/CmdPerf.Shared.csproj",
         "tests/cmd_perf/CmdPerf.Wpf/CmdPerf.Wpf.csproj",
         "tests/cmd_perf/CmdPerf.XamlCmd/CmdPerf.XamlCmd.csproj"

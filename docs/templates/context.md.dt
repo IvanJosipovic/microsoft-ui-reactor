@@ -4,14 +4,14 @@ app: context
 order: 13
 audience: intermediate
 goal: |
-  Teach DuctContext<T>, the .Provide modifier, UseContext hook, nested/overridden
+  Teach ReactorContext<T>, the .Provide modifier, UseContext hook, nested/overridden
   contexts, and a practical theme-switching example.
 ---
 
 # Context
 
 Context lets you pass data through the [component](components.md) tree without
-threading it through every level of props. Define a `DuctContext<T>`, provide
+threading it through every level of props. Define a `ReactorContext<T>`, provide
 a value at any level, and any descendant can read it with `UseContext`.
 
 ## Creating a Context
@@ -77,7 +77,7 @@ context is independent:
 
 ![Component reading two contexts](screenshot://context/multiple-contexts)
 
-Each `DuctContext<T>` is a separate channel. Providing one doesn't affect
+Each `ReactorContext<T>` is a separate channel. Providing one doesn't affect
 another. A component can call `UseContext` as many times as it needs.
 
 ## Tips

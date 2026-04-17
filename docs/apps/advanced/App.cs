@@ -1,12 +1,12 @@
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 using Microsoft.UI.Xaml;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using Component = Duct.Core.Component;
+using Component = Microsoft.UI.Reactor.Core.Component;
 
-DuctApp.Run<AdvancedApp>("Advanced Patterns", width: 650, height: 700
+ReactorApp.Run<AdvancedApp>("Advanced Patterns", width: 650, height: 700
 #if DEBUG
     , preview: true
 #endif
@@ -22,9 +22,9 @@ class ErrorBoundaryDemo : Component
             ErrorBoundary(
                 Component<BuggyComponent>(),
                 (Exception ex) => VStack(8,
-                    Text("Something went wrong").Bold()
+                    Factories.Text("Something went wrong").Bold()
                         .Foreground("#d13438"),
-                    Text(ex.Message).FontSize(12).Opacity(0.7)
+                    Factories.Text(ex.Message).FontSize(12).Opacity(0.7)
                 ).Padding(12)
                  .Background("#fde7e9")
                  .CornerRadius(8)
@@ -54,15 +54,15 @@ class MemoSubtreeDemo : Component
 
         return VStack(12,
             SubHeading("Memo"),
-            Text($"Parent renders: click count = {count}"),
+            Factories.Text($"Parent renders: click count = {count}"),
             Button("Increment", () => setCount(count + 1)),
             Memo(ctx =>
             {
                 // This subtree only re-renders when label changes
                 return Border(
                     VStack(4,
-                        Text($"Memoized: {label}").Bold(),
-                        Text("Skips re-render when deps unchanged")
+                        Factories.Text($"Memoized: {label}").Bold(),
+                        Factories.Text("Skips re-render when deps unchanged")
                             .FontSize(12).Opacity(0.6)
                     ).Padding(12)
                 ).Background("#f0f0f0").CornerRadius(8);
@@ -86,7 +86,7 @@ class SetEscapeHatchDemo : Component
                         .SetToolTip(btn, "This is a native tooltip");
                     btn.Padding = new Thickness(20, 10, 20, 10);
                 }),
-            Text("Styled via .Set()")
+            Factories.Text("Styled via .Set()")
                 .Set(tb =>
                 {
                     tb.TextWrapping = TextWrapping.WrapWholeWords;
@@ -143,7 +143,7 @@ class ObservableTreeDemo : Component
             ToggleSwitch(vm.DarkMode, v => vm.DarkMode = v,
                 header: "Dark Mode"),
             Slider(vm.FontSize, 10, 32, v => vm.FontSize = (int)v),
-            Text($"Preview: {vm.UserName}")
+            Factories.Text($"Preview: {vm.UserName}")
                 .FontSize(vm.FontSize).Bold()
         ).Padding(24);
     }
@@ -171,10 +171,10 @@ class ObservableCollectionDemo : Component
                     { _tasks.Add(input.Trim()); setInput(""); }
                 })
             ),
-            Text($"{tasks.Count} tasks:").SemiBold(),
+            Factories.Text($"{tasks.Count} tasks:").SemiBold(),
             VStack(4, tasks.Select((task, i) =>
                 HStack(8,
-                    Text($"{i + 1}. {task}"),
+                    Factories.Text($"{i + 1}. {task}"),
                     Button("Remove", () => _tasks.RemoveAt(i))
                 ).WithKey($"task-{i}-{task}")
             ).ToArray())

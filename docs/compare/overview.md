@@ -19,7 +19,7 @@ relative to the industry.
 | Microsoft | WinForms | Windows | 2002 |
 | Microsoft | WPF | Windows | 2006 |
 | Microsoft | WinUI 3 | Windows | 2021 |
-| Microsoft | Duct | Windows (on WinUI 3) | Pre-release |
+| Microsoft | Reactor | Windows (on WinUI 3) | Pre-release |
 
 ---
 
@@ -31,15 +31,15 @@ application needs, not relative to each other — an "A" means the framework
 handles this area comprehensively with minimal gaps; a "D" means critical
 functionality is missing.
 
-The Microsoft frameworks (WinForms, WPF, WinUI 3, Duct) are rated using the
+The Microsoft frameworks (WinForms, WPF, WinUI 3, Reactor) are rated using the
 same scale, then compared against the competitor median to identify where
-they lead, match, or lag. Duct grades come from the existing
-[duct-critical-review.md](../duct-critical-review.md).
+they lead, match, or lag. Reactor grades come from the existing
+[critical-review.md](../critical-review.md).
 
 **Important context:** The competitors are cross-platform or single-vendor-
 platform frameworks with billions of dollars of investment and millions of
 developers. WinForms and WPF are 20+ year old frameworks in maintenance mode.
-WinUI 3 is actively developed but Windows-only. Duct is a pre-release
+WinUI 3 is actively developed but Windows-only. Reactor is a pre-release
 experimental framework. The comparison is intentionally unfair — the goal is
 to understand the gap, not to declare winners.
 
@@ -99,7 +99,7 @@ to understand the gap, not to declare winners.
 
 ### Microsoft Frameworks
 
-| Category | WinForms | WPF | WinUI 3 | Duct |
+| Category | WinForms | WPF | WinUI 3 | Reactor |
 |---|---|---|---|---|
 | **Declarative Syntax** | F | C+ | C+ | B |
 | **Component Architecture** | D | B- | B- | B+ |
@@ -144,14 +144,14 @@ constructors are the weakest of the four but still declarative.
 - **WinUI 3 (C+):** Same XAML model as WPF/UWP with minor improvements.
   `x:Bind` is compile-time checked (unlike WPF's runtime binding), which
   is a genuine advantage, but the syntax is equally verbose
-- **Duct (B):** C# method calls with `params` arrays. Closer to Flutter's
+- **Reactor (B):** C# method calls with `params` arrays. Closer to Flutter's
   constructor style than SwiftUI/Compose's block syntax. Modifier chains
   (`.Bold().FontSize(24)`) are ergonomic. The main weakness is bracket-
   counting in deeply nested UIs — C# lacks trailing closures or result
   builders. Still, it's the most readable declarative option on Windows
 
 **Gap:** WPF/WinUI3's XAML is ~15 years behind modern declarative syntax.
-Duct closes roughly half the gap to competitors.
+Reactor closes roughly half the gap to competitors.
 
 ---
 
@@ -172,12 +172,12 @@ Flutter's StatefulWidget two-class pattern is the most verbose.
   but architecturally sound
 - **WinUI 3 (B-):** Same model as WPF with `x:Bind` improvements. Community
   Toolkit MVVM source generators reduce boilerplate significantly
-- **Duct (B+):** React-style function components with hooks. Context system,
+- **Reactor (B+):** React-style function components with hooks. Context system,
   memoization. The mental model transfers from React cleanly. No slots
   pattern (unlike Compose's named slot APIs), but children via params work
 
 **Gap:** WPF/WinUI3 are a generation behind (class-based vs function-based).
-Duct is competitive with React/Compose's component model.
+Reactor is competitive with React/Compose's component model.
 
 ---
 
@@ -197,14 +197,14 @@ libraries. Flutter provides only `setState()`.
 - **WinUI 3 (B):** `x:Bind` (compiled) is faster and safer than WPF's
   reflection-based binding. CommunityToolkit.Mvvm source generators
   (`[ObservableProperty]`) dramatically reduce boilerplate
-- **Duct (B+):** React-style hooks (UseState, UseReducer, UseEffect, UseMemo,
-  UseContext). DuctContext for shared state. UseObservable bridges to MVVM.
+- **Reactor (B+):** React-style hooks (UseState, UseReducer, UseEffect, UseMemo,
+  UseContext). Context for shared state. UseObservable bridges to MVVM.
   No fine-grained property tracking (unlike SwiftUI's @Observable), but the
   hook model is proven and well-understood
 
 **Gap:** No Microsoft framework has automatic fine-grained state tracking.
 WPF/WinUI3's INotifyPropertyChanged is functionally equivalent to Flutter's
-approach (manual notification). Duct's hooks match React's model. None match
+approach (manual notification). Reactor's hooks match React's model. None match
 SwiftUI/Compose's automatic observation.
 
 ---
@@ -227,7 +227,7 @@ concurrent rendering with priority scheduling. SwiftUI's AttributeGraph.
 - **WinUI 3 (B+):** Composition layer provides independent animation thread
   at 60fps even when UI thread is blocked. Better than WPF for modern
   scenarios. `x:Phase` for incremental list loading
-- **Duct (B-):** Single-threaded reconciler. No concurrent rendering. Known
+- **Reactor (B-):** Single-threaded reconciler. No concurrent rendering. Known
   GC pressure from modifier chain allocations. No profiling tools. However,
   reconciler correctness is solid and perf experiments are underway
 
@@ -256,12 +256,12 @@ system). Flutter's constraint model is powerful but has a steep learning curve.
   modern frameworks
 - **WinUI 3 (A-):** Inherits WPF's panel model plus RelativePanel (constraint-
   based) and AdaptiveTrigger for responsive layouts. Strong
-- **Duct (B+):** FlexPanel (full Flexbox implementation) is ambitious and
+- **Reactor (B+):** FlexPanel (full Flexbox implementation) is ambitious and
   useful — provides layout capabilities WinUI itself doesn't have. Grid is
   stringly-typed (`["*", "Auto", "200"]`). No custom layout protocol
 
 **Gap:** WPF and WinUI 3 have **no gap** in layout — they're competitive with
-or ahead of most declarative frameworks. Duct's FlexPanel is a genuine
+or ahead of most declarative frameworks. Reactor's FlexPanel is a genuine
 addition. The only missing piece is WPF/WinUI3's lack of a single-line
 responsive layout primitive (SwiftUI's ViewThatFits, Compose's
 adaptive Scenes).
@@ -289,7 +289,7 @@ Material-centric.
 - **WinUI 3 (A):** Fluent Design with Mica/Acrylic materials. Lightweight
   styling (override resources without re-templating). ThemeResource for
   automatic light/dark/high-contrast. This is a genuine strength
-- **Duct (B-):** 37 semantic theme tokens (accent, text, surface, control,
+- **Reactor (B-):** 37 semantic theme tokens (accent, text, surface, control,
   stroke, signal colors) with `Theme.Ref(key)` for custom resources.
   ResourceBuilder supports 5 resource types (color string, Brush, ThemeRef,
   double, CornerRadius) with full WinUI visual state support (hover, pressed,
@@ -302,7 +302,7 @@ Material-centric.
   no global stylesheets, no style inheritance or composition
 
 **Gap:** WPF's styling power exceeds every competitor. WinUI 3's Fluent Design
-with lightweight styling is competitive with SwiftUI/Compose. Duct's theming
+with lightweight styling is competitive with SwiftUI/Compose. Reactor's theming
 has improved substantially (from C+ to B-) with 37 theme tokens, resource
 overrides, caching, and analyzers, but remains behind its own platform —
 resource key overrides cannot match WinUI 3's ControlTemplate power for
@@ -326,7 +326,7 @@ notoriously complex.
   use MVVM navigation via ContentControl + DataTemplate
 - **WinUI 3 (C+):** NavigationView + Frame.Navigate(typeof(Page)). Functional
   but imperative and not type-safe for parameters
-- **Duct (B+):** Type-safe routes via C# records, developer-owned back stack,
+- **Reactor (B+):** Type-safe routes via C# records, developer-owned back stack,
   GPU-powered composition-layer transitions, lifecycle guards, LRU caching,
   serialization, deep linking with `DeepLinkMap<TRoute>` supporting URI
   pattern matching (typed parameters `{id:int}`, optional segments `{name?}`,
@@ -338,7 +338,7 @@ notoriously complex.
   and deep link edge cases. Architecturally competitive with Compose Nav 3.
   ConnectedTransition is stub, no adaptive multi-pane
 
-**Gap:** Duct's navigation is its strongest competitive position — architecturally
+**Gap:** Reactor's navigation is its strongest competitive position — architecturally
 on par with Compose Nav 3 and ahead of SwiftUI's type-erased NavigationPath.
 The deep linking system is now comprehensive (typed params, optionals, wildcards,
 query strings) and competitive with web-grade routers. WPF and WinUI 3's
@@ -364,7 +364,7 @@ has no built-in animation.
   implicit animations, connected animations, expression animations, spring
   animations. **Best animation system of any Microsoft framework and
   competitive with the best competitors.** This is WinUI 3's crown jewel
-- **Duct (C+):** Spring, ease, and linear curves on compositor properties
+- **Reactor (C+):** Spring, ease, and linear curves on compositor properties
   (Opacity, Offset, Scale, Rotation, CenterPoint). Enter **and exit**
   transitions now work — the ChildReconciler defers removal until exit
   animations complete, with proper index tracking. KeyframeBuilder provides
@@ -378,7 +378,7 @@ has no built-in animation.
 
 **Gap:** WinUI 3's Composition API is genuinely world-class — competitive with
 SwiftUI's animation ergonomics while offering more low-level control. WPF is
-solid. Duct's animation has improved (exit transitions fixed, keyframes and
+solid. Reactor's animation has improved (exit transitions fixed, keyframes and
 scroll animations added) but remains its weakest category relative to its
 own platform — most real UI animations (height changes, layout transitions)
 can't be expressed in 5 compositor properties.
@@ -403,7 +403,7 @@ gaps on web.
 - **WinUI 3 (A):** Full UIA support, same as UWP. All standard controls
   accessible. High contrast mode via theme resources. Narrator integration
   is strong. Competitive with SwiftUI
-- **Duct (B):** 16+ accessibility modifiers covering automation name, help
+- **Reactor (B):** 16+ accessibility modifiers covering automation name, help
   text, landmarks, heading levels, live regions (Polite/Assertive), required
   fields, position-in-set, hierarchy level, tab navigation, and accessibility
   view. Smart lazy allocation (tier 1 inline, tier 2/3 on-demand). 12 E2E
@@ -422,14 +422,14 @@ gaps on web.
   text, unlabeled form fields, headings without HeadingLevel, concrete brushes
   on interactive controls, missing Main landmark, non-sequential TabIndex gaps,
   unresolved LabeledBy references) with structured JSON export. Three **Roslyn
-  analyzers** (DUCT_A11Y_001–003) catch accessibility issues at compile time
+  analyzers** (REACTOR_A11Y_001–003) catch accessibility issues at compile time
   with code fix providers. Still limited: SemanticPanel is a workaround (not
   true per-component AutomationPeer), `LabeledBy()` is still a no-op,
   UseFocusTrap doesn't cycle focus, and AccessibilityScanner only runs in
   DEBUG builds
 
 **Gap:** WPF and WinUI 3 have **no gap** in accessibility — UIA is the most
-comprehensive accessibility API on any platform. Duct has improved (from B-
+comprehensive accessibility API on any platform. Reactor has improved (from B-
 to B) with SemanticPanel for custom UIA semantics, UseAnnounce/UseFocusTrap
 hooks, and compile-time + runtime a11y scanning. The AccessibilityScanner
 with WCAG-mapped diagnostics is developer tooling that no competitor provides
@@ -456,12 +456,12 @@ capable. React has no built-in gesture system.
   UIElement.Focus() for focus management
 - **WinUI 3 (B+):** Same as WPF with improved touch/pen support. Composition
   interaction for smooth gesture-driven animations
-- **Duct (C):** Semantic events (OnClick, OnToggle) are good. Commanding
+- **Reactor (C):** Semantic events (OnClick, OnToggle) are good. Commanding
   system provides focus-scoped keyboard accelerators. But no gesture system,
   no pointer enter/exit, no right-click/double-click without `.Set()`. Most
   input still requires the escape hatch
 
-**Gap:** WPF and WinUI 3 are competitive. Duct's commanding system is a genuine
+**Gap:** WPF and WinUI 3 are competitive. Reactor's commanding system is a genuine
 differentiator (no competitor has it built-in), but the lack of a gesture
 system is a significant gap.
 
@@ -486,13 +486,13 @@ and Preview are excellent.
 - **WinUI 3 (B-):** XAML Hot Reload, Live Visual Tree. But packaging complexity,
   deployment issues, smaller community for troubleshooting. Documentation
   has gaps for advanced scenarios
-- **Duct (C+):** Hot reload works (via WinUI 3 XAML Hot Reload). Preview is
+- **Reactor (C+):** Hot reload works (via WinUI 3 XAML Hot Reload). Preview is
   screenshot-only. No DevTools for component inspection. No recomposition
   count tracking. No profiling tools
 
 **Gap:** All Microsoft options lag significantly in developer experience. No
 equivalent to React DevTools, Flutter Widget Inspector, or Compose Layout
-Inspector. Duct's lack of tooling is its most significant DX gap.
+Inspector. Reactor's lack of tooling is its most significant DX gap.
 
 ---
 
@@ -508,7 +508,7 @@ SwiftUI covers all Apple platforms.
 
 **Microsoft assessment:**
 - **All Microsoft frameworks (D):** Windows only. Full stop. WPF and WinForms
-  have no cross-platform story. WinUI 3 is Windows-only by design. Duct
+  have no cross-platform story. WinUI 3 is Windows-only by design. Reactor
   inherits WinUI 3's limitation
 
 **Avalonia note:** Avalonia is the .NET ecosystem's answer to this gap,
@@ -543,7 +543,7 @@ is fast and comprehensive. SwiftUI has the weakest testing story.
   WinAppDriver/FlaUI. Binding errors are silent at runtime (a testing gap)
 - **WinUI 3 (B-):** MVVM + `x:Bind` compile-time checking catches binding
   errors. UI testing via WinAppDriver. Test infrastructure still evolving
-- **Duct (B-):** Pure C# function components are unit-testable. ErrorBoundary
+- **Reactor (B-):** Pure C# function components are unit-testable. ErrorBoundary
   exists. Navigation has 146+ unit tests (including 29 stress tests covering
   concurrency, serialization, and deep linking). DataGrid has 1,600+ state
   unit tests. Accessibility has ~34 tests (scanner + analyzer). E2E Appium
@@ -552,7 +552,7 @@ is fast and comprehensive. SwiftUI has the weakest testing story.
 
 **Gap:** WPF's MVVM testability is on par with competitors. The main gap is
 the lack of component-level testing frameworks (equivalent to ComposeTestRule
-or React Testing Library). Duct's ErrorBoundary is a genuine advantage over
+or React Testing Library). Reactor's ErrorBoundary is a genuine advantage over
 SwiftUI, Compose, and Flutter.
 
 ---
@@ -572,11 +572,11 @@ view errors.
   blessing). No error boundary concept
 - **WinUI 3 (C):** Application.UnhandledException. `x:Bind` compile-time
   checking prevents binding errors. No error boundary
-- **Duct (B):** ErrorBoundary component exists — this is a **genuine
+- **Reactor (B):** ErrorBoundary component exists — this is a **genuine
   differentiator.** Neither SwiftUI nor Compose has this. Only React provides
-  equivalent functionality. Duct is ahead of every competitor except React
+  equivalent functionality. Reactor is ahead of every competitor except React
 
-**Gap:** Duct is competitive or ahead. This is one of only two categories
+**Gap:** Reactor is competitive or ahead. This is one of only two categories
 (alongside commanding) where a Microsoft framework leads the industry.
 
 ---
@@ -602,14 +602,14 @@ runtime. Flutter's `FutureBuilder` is built-in but considered low-level.
 - **WinUI 3 (B):** Same async/await + MVVM pattern as WPF with
   `DispatcherQueue` instead of `Dispatcher`. `ISupportIncrementalLoading`
   for automatic pagination in lists. No built-in async loading framework
-- **Duct (B+):** `UseEffect` provides lifecycle-scoped side effects matching
+- **Reactor (B+):** `UseEffect` provides lifecycle-scoped side effects matching
   React's model. `UseState` for loading/error management. `UseObservable`
   bridges async ViewModel patterns. No built-in Suspense equivalent, but
   ErrorBoundary can catch render errors
 
 **Gap:** Declarative frameworks have lifecycle-scoped async (`.task`,
 `LaunchedEffect`, Suspense). Microsoft frameworks use imperative MVVM async
-patterns. Duct's `UseEffect` matches React's model but lacks Suspense-style
+patterns. Reactor's `UseEffect` matches React's model but lacks Suspense-style
 declarative loading boundaries.
 
 ---
@@ -636,7 +636,7 @@ React has **no built-in virtualization** — a genuine gap.
   `GridView` with container recycling. `x:Phase` for incremental loading.
   `ContainerContentChanging` for efficient recycling. `ISupportIncrementalLoading`
   for automatic pagination
-- **Duct (B+):** Typed `ListView<T>`/`GridView<T>` with `viewBuilder` pattern
+- **Reactor (B+):** Typed `ListView<T>`/`GridView<T>` with `viewBuilder` pattern
   and `ContainerContentChanging` recycling. `LazyVStack<T>`/`LazyHStack<T>`
   via `ItemsRepeater`. `ElementPool` for interactive control recycling (capped
   at 32 per type). **VirtualListComponent** provides count-based virtualization
@@ -656,10 +656,10 @@ React has **no built-in virtualization** — a genuine gap.
 
 **Gap:** WPF and WinUI 3 have **no gap** — their virtualization is on par with
 or ahead of competitors. WPF's `ICollectionView` for sorting/filtering/grouping
-has no equivalent in any declarative framework. Duct's DataGrid now provides
+has no equivalent in any declarative framework. Reactor's DataGrid now provides
 server-side sort/filter with paged caching and inline editing — a substantial
 LOB capability — but still lacks grouping (WPF's ICollectionView) and built-in
-pagination UI. React's lack of built-in virtualization means WPF/WinUI 3/Duct
+pagination UI. React's lack of built-in virtualization means WPF/WinUI 3/Reactor
 are all ahead of React here.
 
 ---
@@ -685,14 +685,14 @@ has no built-in i18n.
   XAML resource binding. `ResourceLoader` for code access. No plural/gender
   built-in. `ApplicationLanguages.PrimaryLanguageOverride` for per-app language.
   RTL via `FlowDirection`
-- **Duct (B+):** ICU MessageFormat on top of WinUI's `.resw` system.
-  `DuctContext<IntlAccessor?>` provides context-based locale propagation.
+- **Reactor (B+):** ICU MessageFormat on top of WinUI's `.resw` system.
+  `Context<IntlAccessor?>` provides context-based locale propagation.
   CLDR plural/gender/select support — **addresses WinUI 3's biggest i18n gap**.
   Runtime locale switching via context rerender
 
 **Gap:** The biggest gap across all Microsoft frameworks is **no built-in
 plural/gender rules** in the resource system (WinForms, WPF, WinUI 3 all lack
-this). Duct closes this gap with ICU MessageFormat. SwiftUI and Flutter have
+this). Reactor closes this gap with ICU MessageFormat. SwiftUI and Flutter have
 the most complete i18n. Dynamic locale switching is smoother in declarative
 frameworks than in XAML frameworks.
 
@@ -717,28 +717,28 @@ is mature. Flutter's add-to-app works but platform views are costly.
 - **WinUI 3 (B+):** XAML Islands for WPF/WinForms hosting. WebView2 for web
   content. `AppWindow` for Win32 access. Migration from UWP is non-trivial
   (sandbox removal, API changes)
-- **Duct (A-):** **Best interop story in the Microsoft ecosystem.**
-  `DuctHostControl` drops into any WinUI XAML layout — no `DuctApp` required.
-  `XamlHostElement`/`XamlPageElement` embed existing XAML in Duct trees.
+- **Reactor (A-):** **Best interop story in the Microsoft ecosystem.**
+  `ReactorHostControl` drops into any WinUI XAML layout — no `ReactorApp` required.
+  `XamlHostElement`/`XamlPageElement` embed existing XAML in Reactor trees.
   `UseObservable`/`UseObservableTree`/`UseObservableProperty`/`UseCollection`
   bridge unmodified MVVM ViewModels. `.Set()` provides direct WinUI control
   access. Same-project coexistence with no rewrite required.
-  **NEW: WinForms interop** via `Duct.Interop.WinForms` library:
-  `XamlIslandControl` hosts Duct/WinUI content inside WinForms layouts with
+  **NEW: WinForms interop** via `Reactor.Interop.WinForms` library:
+  `XamlIslandControl` hosts Reactor/WinUI content inside WinForms layouts with
   WinForms designer support (ComponentType property with dropdown), proper
   Tab/Shift+Tab focus bridging across the WinForms↔WinUI boundary, per-monitor
   DPI awareness, and `XamlIslandBootstrap` for WinForms-primary apps (WinForms
   owns the message loop). 13 E2E tests covering rendering, keyboard navigation,
-  and accessibility across the island boundary. Duct can now be incrementally
+  and accessibility across the island boundary. Reactor can now be incrementally
   adopted from both WinUI 3 and WinForms — the two largest Windows desktop
   frameworks
 
-**Gap:** Duct's interop is a **genuine strength** — the best incremental
-adoption story across all frameworks analyzed. Three adoption paths: WinUI→Duct
-(`DuctHostControl`), WinForms→Duct (`XamlIslandControl`), and XAML-in-Duct
+**Gap:** Reactor's interop is a **genuine strength** — the best incremental
+adoption story across all frameworks analyzed. Three adoption paths: WinUI→Reactor
+(`ReactorHostControl`), WinForms→Reactor (`XamlIslandControl`), and XAML-in-Reactor
 (`XamlHostElement`). The ability to bridge existing MVVM ViewModels with a
-single hook call (`UseObservable(viewModel)`) and to embed Duct alongside
-XAML in the same window, plus WinForms designer support, means Duct can be
+single hook call (`UseObservable(viewModel)`) and to embed Reactor alongside
+XAML in the same window, plus WinForms designer support, means Reactor can be
 adopted from the vast majority of existing Windows desktop apps.
 
 ---
@@ -768,7 +768,7 @@ built-in validation.
   min/max/increment validation. No built-in validation framework (unlike WPF).
   CommunityToolkit.Mvvm's `ObservableValidator` fills the gap. `XYFocus` for
   directional navigation (gamepad/Xbox)
-- **Duct (B):** Full validation system with `ValidationContext` (thread-safe,
+- **Reactor (B):** Full validation system with `ValidationContext` (thread-safe,
   multi-error, multi-severity, touched/dirty state tracking, internal vs.
   external messages). 10+ built-in validators (Required, MinLength, MaxLength,
   Range, Match, Email, Url, Must, MustAsync, MustBeTrue, EqualTo) plus async
@@ -781,7 +781,7 @@ built-in validation.
   InfoBar, and Custom display modes with severity filtering and ShowWhen
   gating. ErrorBubbling is fully wired. Error styling via
   `.WithErrorStyling()` applies border changes from theme resources.
-  `UseValidationContext` hook propagates context via DuctContext. 330+ tests
+  `UseValidationContext` hook propagates context via Context. 330+ tests
   cover the full pipeline. Still behind WPF: no transactional editing
   (BindingGroup), no custom error templates (one fixed FormField layout),
   no schema-driven or model-level validation, no conditional validation
@@ -791,7 +791,7 @@ built-in validation.
 **Gap:** WPF's form/validation system is **ahead of every competitor** — no
 declarative framework has equivalent depth (transactional edits, multiple
 errors per field, binding-level validation rules, custom error templates).
-This is WPF's most underappreciated strength. Duct has closed significant
+This is WPF's most underappreciated strength. Reactor has closed significant
 ground here (from C+ to B) with automatic validation, FormField rendering,
 and a comprehensive validator library. It's now comparable to Compose's
 approach (good primitives, explicit wiring) and approaching Flutter's
@@ -804,24 +804,24 @@ customization and binding-level validation integration.
 
 | Category | Competitor Median | Best MS | MS Grade | Gap |
 |---|---|---|---|---|
-| Declarative Syntax | A- | Duct (B) | B | **1 grade behind** |
-| Component Architecture | A- | Duct (B+) | B+ | **Half grade behind** |
-| State & Reactivity | B+ | Duct (B+) | B+ | **Matched** |
+| Declarative Syntax | A- | Reactor (B) | B | **1 grade behind** |
+| Component Architecture | A- | Reactor (B+) | B+ | **Half grade behind** |
+| State & Reactivity | B+ | Reactor (B+) | B+ | **Matched** |
 | Rendering & Performance | B+ | WinUI 3 (B+) | B+ | **Matched** |
 | Layout | A- | WPF/WinUI 3 (A-) | A- | **Matched** |
 | Styling & Theming | A- | WinUI 3 (A) | A | **Matched or ahead** |
-| Navigation | B+ | Duct (B+) | B+ | **Matched** |
+| Navigation | B+ | Reactor (B+) | B+ | **Matched** |
 | Animation | B+ | WinUI 3 (A) | A | **Ahead** |
 | Accessibility | B+ | WinUI 3 (A) | A | **Ahead** |
 | Input & Gestures | B+ | WPF/WinUI 3 (B+) | B+ | **Matched** |
 | Developer Experience | A- | WinForms (B) | B | **1 grade behind** |
 | Platform Reach | A- | All (D) | D | **3+ grades behind** |
 | Testing | B+ | WPF (B) | B | **Half grade behind** |
-| Error Handling | C+ | Duct (B) | B | **Ahead** |
-| Data Loading & Async | A- | Duct (B+) | B+ | **Half grade behind** |
+| Error Handling | C+ | Reactor (B) | B | **Ahead** |
+| Data Loading & Async | A- | Reactor (B+) | B+ | **Half grade behind** |
 | Lists & Virtualization | B+ | WPF/WinUI 3 (A-) | A- | **Ahead** |
-| Internationalization | B+ | Duct (B+) | B+ | **Matched** |
-| Interop & Adoption | A- | Duct (A-) | A- | **Matched** |
+| Internationalization | B+ | Reactor (B+) | B+ | **Matched** |
+| Interop & Adoption | A- | Reactor (A-) | A- | **Matched** |
 | Forms & Data Entry | B | WPF (A) | A | **Ahead** |
 
 ### Where Microsoft leads or matches:
@@ -837,21 +837,21 @@ customization and binding-level validation integration.
 5. **Styling & Theming** (WPF/WinUI 3) — WPF's ControlTemplate is unmatched;
    WinUI 3's Fluent Design is competitive. Matched or ahead of median (A-)
 6. **Layout** (WPF/WinUI 3) — Panel system matches the best competitors
-7. **Error Handling** (Duct) — ErrorBoundary is ahead of all but React
-8. **Interop & Adoption** (Duct) — UseObservable bridges unmodified MVVM
-   ViewModels; DuctHostControl drops into existing WinUI windows;
+7. **Error Handling** (Reactor) — ErrorBoundary is ahead of all but React
+8. **Interop & Adoption** (Reactor) — UseObservable bridges unmodified MVVM
+   ViewModels; ReactorHostControl drops into existing WinUI windows;
    XamlIslandControl drops into WinForms with designer support
 9. **Rendering** (WinUI 3) — Composition layer's independent animation thread
    is competitive
-10. **Navigation** (Duct) — Architecturally competitive with Compose Nav 3
-11. **Commanding** (Duct) — No competitor has this. Unique differentiator
+10. **Navigation** (Reactor) — Architecturally competitive with Compose Nav 3
+11. **Commanding** (Reactor) — No competitor has this. Unique differentiator
 
 ### Where Microsoft lags significantly:
 1. **Platform Reach** — Windows-only vs 2-7 platforms. Unbridgeable without
    Avalonia/Uno. Avalonia now covers 7 platforms from .NET
 2. **Developer Experience** — No equivalent to React DevTools, Flutter hot
    reload, or Compose Layout Inspector
-3. **Declarative Syntax** — XAML is a generation behind; Duct narrows the gap
+3. **Declarative Syntax** — XAML is a generation behind; Reactor narrows the gap
    but C# lacks the language features of Swift/Kotlin. Note: Avalonia
    modernizes XAML (compiled bindings, CSS-like styling) but the syntax
    remains fundamentally XAML
@@ -919,7 +919,7 @@ and styling. The gaps are in the declarative programming model (still XAML
 competitors), and platform reach. The Windows App SDK is active but
 adoption has been slower than hoped.
 
-### Duct — "The Declarative Experiment"
+### Reactor — "The Declarative Experiment"
 
 **Best for:** Teams wanting React-style declarative UI on WinUI 3 with
 type safety and no XAML.
@@ -930,7 +930,7 @@ commanding. 94% of WinUI controls wrapped. Navigation is architecturally
 competitive with comprehensive deep linking (typed params, wildcards, query
 strings) and runtime diagnostics. Commanding is a genuine industry-first.
 ErrorBoundary exists (rare). Interop with existing WinUI/MVVM code is
-excellent (`DuctHostControl`, `UseObservable`, `XamlHostElement`) and now
+excellent (`ReactorHostControl`, `UseObservable`, `XamlHostElement`) and now
 extends to WinForms via `XamlIslandControl` with designer support and focus
 bridging. ICU localization closes WinUI 3's plural/gender gap. Form
 validation system with automatic validation pipeline, 10+ built-in
@@ -949,7 +949,7 @@ is a no-op, SemanticPanel is a workaround not true per-component
 AutomationPeer, `.Set()` escape hatch is still load-bearing for many
 scenarios, no DevTools or component inspector.
 
-**Competitive position:** Duct is the most interesting Microsoft option from
+**Competitive position:** Reactor is the most interesting Microsoft option from
 a declarative-framework perspective. It's the only one that competes on
 the same playing field as SwiftUI, Compose, and React. Its component model,
 navigation, commanding, and interop are competitive. Accessibility now
@@ -978,7 +978,7 @@ first with native Linux accessibility (AT-SPI2). For teams that need cross-
 platform .NET, Avalonia is a credible choice — though its mobile/web
 platforms are less mature than desktop, and its self-rendering model means
 apps don't look platform-native. Teams committed to Windows-only still
-benefit from WPF/WinUI 3/Duct's deeper platform integration.
+benefit from WPF/WinUI 3/Reactor's deeper platform integration.
 
 ### 2. WinUI 3 is stronger than its reputation
 
@@ -989,9 +989,9 @@ the most powerful animation system across all frameworks analyzed. The gap
 is in developer experience and the declarative programming model, not in
 the underlying platform.
 
-### 3. Duct addresses the right gaps
+### 3. Reactor addresses the right gaps
 
-Duct's declarative model, navigation, and commanding are not random feature
+Reactor's declarative model, navigation, and commanding are not random feature
 additions — they directly address the areas where WPF/WinUI 3 are weakest
 relative to competitors (declarative syntax, component model, navigation
 type safety). The commanding system is genuinely novel. Recent work has
@@ -1010,7 +1010,7 @@ tooling (no inspector or profiler), and `LabeledBy()` no-op.
 
 React's ErrorBoundary is the only production-quality error containment
 mechanism in any major declarative UI framework. SwiftUI, Compose, and
-Flutter all crash the app on view-level errors. Duct's ErrorBoundary
+Flutter all crash the app on view-level errors. Reactor's ErrorBoundary
 is a genuine differentiator that should be more prominently marketed.
 
 ### 5. State management is converging on automatic observation
@@ -1020,7 +1020,7 @@ frameworks (SolidJS, Angular Signals, Vue's reactivity) all converge on
 the same idea: **the framework should automatically track which state each
 view reads and only re-render when that specific state changes.** React
 is moving in this direction with the React Compiler. Neither WPF, WinUI 3,
-Avalonia, nor Duct have this — all require manual INotifyPropertyChanged or
+Avalonia, nor Reactor have this — all require manual INotifyPropertyChanged or
 explicit dependency arrays. Avalonia's `IObservable<T>` stream bindings and
 ReactiveUI integration are the most ergonomic reactive patterns in the .NET
 ecosystem, but they still require explicit subscription rather than automatic
@@ -1032,25 +1032,25 @@ entire .NET UI landscape.
 WPF's two-way binding engine with `INotifyDataErrorInfo`, `ValidationRule`,
 `ErrorTemplate`, `BindingGroup`, and `IValueConverter`/`IMultiValueConverter`
 is the most comprehensive form validation system of any framework in this
-analysis. No declarative framework comes close. Duct has closed significant
+analysis. No declarative framework comes close. Reactor has closed significant
 ground with automatic validation, FormField rendering, 10+ validators, and
 ValidationVisualizer — now comparable to Compose/Flutter's approach. But
 WPF's transactional editing (BindingGroup), custom error templates
 (ErrorTemplate), and binding-level validation rules remain unmatched. For
 LOB applications — which are the core use case for Windows desktop — WPF's
-depth here is a critical competitive advantage that Duct should continue
+depth here is a critical competitive advantage that Reactor should continue
 to learn from.
 
-### 7. Interop is Duct's strongest selling point for adoption
+### 7. Interop is Reactor's strongest selling point for adoption
 
-Duct's `DuctHostControl` (drop into existing WinUI XAML), `UseObservable`
+Reactor's `ReactorHostControl` (drop into existing WinUI XAML), `UseObservable`
 (bridge unmodified MVVM ViewModels with one line), `XamlHostElement`
-(embed existing XAML pages in Duct trees), and now `XamlIslandControl`
-(host Duct in WinForms with designer support and focus bridging) provide the
+(embed existing XAML pages in Reactor trees), and now `XamlIslandControl`
+(host Reactor in WinForms with designer support and focus bridging) provide the
 smoothest incremental adoption story across all frameworks analyzed. This
-matters because the realistic path for Duct adoption is not greenfield apps
+matters because the realistic path for Reactor adoption is not greenfield apps
 — it's existing WinUI 3 and WinForms apps that want to go declarative
-without a rewrite. With WinForms interop, Duct now covers the two largest
+without a rewrite. With WinForms interop, Reactor now covers the two largest
 Windows desktop frameworks as adoption entry points.
 
 ### 8. Avalonia validates the self-rendering cross-platform approach for .NET
@@ -1065,7 +1065,7 @@ tooling tiers, smaller ecosystem than WPF/React/Flutter, RTL issues, class-
 based component model — are real but not disqualifying. For the Microsoft
 ecosystem, Avalonia's most important role is as proof that cross-platform
 .NET desktop/mobile is viable, and as a migration path for WPF apps that
-need macOS/Linux (via XPF). It does not compete with Duct's declarative
+need macOS/Linux (via XPF). It does not compete with Reactor's declarative
 model — Avalonia is still MVVM/class-based — but it competes directly with
 WPF for new desktop development where cross-platform is a requirement.
 
@@ -1086,7 +1086,7 @@ Every framework has embarrassing gaps:
   no lifecycle-scoped async
 - **WinUI 3:** Packaging complexity, small community, Windows-only, no
   plural/gender i18n
-- **Duct:** Animation limited to 5 compositor properties, no DevTools or
+- **Reactor:** Animation limited to 5 compositor properties, no DevTools or
   component inspector, `LabeledBy()` no-op, SemanticPanel is a workaround
   not true per-component AutomationPeer, `.Set()` escape hatch still
   load-bearing for many scenarios, DataGrid has no grouping
@@ -1106,8 +1106,8 @@ most for your specific application.
 - [Avalonia Analysis](avalonia.md) — Cross-platform .NET XAML framework
 
 ### Microsoft frameworks
-- [Duct Critical Review](../duct-critical-review.md) — Detailed Duct analysis
-- [WinUI 3 Gap Analysis](../spec/duct-winui3-gap-analysis.md) — Duct vs WinUI 3 coverage
+- [Reactor Critical Review](../critical-review.md) — Detailed Reactor analysis
+- [WinUI 3 Gap Analysis](../spec/duct-winui3-gap-analysis.md) — Reactor vs WinUI 3 coverage
 - [Microsoft Learn: WinForms Overview](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/overview)
 - [Microsoft Learn: WPF Architecture](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/wpf-architecture)
 - [Microsoft Learn: Windows App SDK](https://learn.microsoft.com/en-us/windows/apps/windows-app-sdk/)

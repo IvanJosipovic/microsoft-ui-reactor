@@ -203,4 +203,4 @@ health/
 selfhost/
 
 # Rust build artifacts
-Duct/Native/differ/target/
+Reactor/Native/differ/target/

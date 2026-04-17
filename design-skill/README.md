@@ -1,12 +1,12 @@
-# Windows 11 Design Skill for Duct
+# Windows 11 Design Skill for Reactor
 
-AI-assisted guidance for building Windows 11-compliant UI with the Duct framework.
+AI-assisted guidance for building Windows 11-compliant UI with the Reactor framework.
 
 ## What's Included
 
 | File | Purpose |
 |------|---------|
-| `SKILL.md` | Main skill — rules, patterns, checklist, all with Duct C# examples |
+| `SKILL.md` | Main skill — rules, patterns, checklist, all with Reactor C# examples |
 | `docs/theme-aware-resources.md` | Theme token reference, acrylic pairings, HC rules |
 | `docs/typography-and-colors.md` | Type ramp, approved brush list, color usage |
 | `docs/layout-and-scaling.md` | 4px grid, container choice, sizing, shadows |
@@ -29,4 +29,4 @@ Reference `SKILL.md` from your `CLAUDE.md` or `.claude/skills/` directory.
 
 ## Origin
 
-Adapted from the Windows UXE team's XAML design guidance for the Duct C# projection. All Windows 11 design rules (theming, High Contrast, typography, layout grid, accessibility) are preserved — XAML syntax has been translated to Duct's fluent C# API, and Shell-specific content has been removed.
+Adapted from the Windows UXE team's XAML design guidance for the Reactor C# projection. All Windows 11 design rules (theming, High Contrast, typography, layout grid, accessibility) are preserved — XAML syntax has been translated to Reactor's fluent C# API, and Shell-specific content has been removed.

@@ -1,7 +1,7 @@
 
 # Commanding
 
-A `DuctCommand` bundles an action with its label, icon, keyboard accelerator,
+A `Command` bundles an action with its label, icon, keyboard accelerator,
 and enabled state into a single object. Define it once and use it across
 buttons, menus, and toolbars — the metadata stays consistent everywhere.
 
@@ -17,7 +17,7 @@ class BasicCommandExample : Component
         var (text, setText) = UseState("Hello, World!");
         var (saved, setSaved) = UseState(false);
 
-        var saveCmd = new DuctCommand
+        var saveCmd = new Command
         {
             Label = "Save",
             Execute = () => setSaved(true),
@@ -40,7 +40,7 @@ class BasicCommandExample : Component
 
 ![Editor with save command](images/commanding/basic-command.png)
 
-Pass a `DuctCommand` to `Button()`, `MenuItem()`, or `AppBarButton()` and the
+Pass a `Command` to `Button()`, `MenuItem()`, or `AppBarButton()` and the
 label, icon, accelerator, and enabled state are all wired automatically. See
 [Components](components.md) for the full set of controls that accept commands.
 You don't set them individually on each control.
@@ -94,7 +94,7 @@ class AsyncCommandExample : Component
     {
         var (status, setStatus) = UseState("Ready");
 
-        var saveCmd = UseCommand(new DuctCommand
+        var saveCmd = UseCommand(new Command
         {
             Label = "Save to Cloud",
             ExecuteAsync = async () =>
@@ -127,7 +127,7 @@ sets `IsExecuting = true` during execution so you can show progress indicators.
 ## Command Bar Integration
 
 Use `CommandBar` with `AppBarButton` to build a toolbar. Each button can be
-driven by a `DuctCommand`:
+driven by a `Command`:
 
 ```csharp
 class CommandBarExample : Component

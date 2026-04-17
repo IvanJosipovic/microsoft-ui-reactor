@@ -1,4 +1,4 @@
-# Layout and Scaling in Duct
+# Layout and Scaling in Reactor
 
 ## The 4px Grid
 

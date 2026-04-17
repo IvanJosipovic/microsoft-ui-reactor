@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using DuctOutlook.Models;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorOutlook.Models;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Calendar;
+namespace ReactorOutlook.Components.Calendar;
 
 internal sealed class CalendarViewComponent : Component
 {
@@ -108,7 +108,7 @@ internal sealed class CalendarViewComponent : Component
             var date = weekStart.AddDays(d).Date;
             var isToday = date == today;
 
-            var dayNum = Text(date.Day.ToString())
+            var dayNum = Factories.Text(date.Day.ToString())
                 .SemiBold()
                 .FontSize(20);
 
@@ -116,7 +116,7 @@ internal sealed class CalendarViewComponent : Component
                 dayNum = dayNum.Foreground(AccentText);
 
             var header = VStack(0,
-                Text(dayNames[d]).FontSize(12).Foreground(TertiaryText),
+                Factories.Text(dayNames[d]).FontSize(12).Foreground(TertiaryText),
                 dayNum
             ).HAlign(Microsoft.UI.Xaml.HorizontalAlignment.Center)
              .Padding(4);
@@ -128,7 +128,7 @@ internal sealed class CalendarViewComponent : Component
             .Set(g =>
             {
                 g.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 224, 224, 224));
+                    global::Windows.UI.Color.FromArgb(255, 224, 224, 224));
                 g.BorderThickness = new Microsoft.UI.Xaml.Thickness(0, 0, 0, 1);
             });
     }

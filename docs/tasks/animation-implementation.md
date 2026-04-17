@@ -1,4 +1,4 @@
-# Duct Animation System — Implementation Plan
+# Reactor Animation System — Implementation Plan
 
 Execution plan for the 8 compositor-layer animation features defined in
 [`docs/spec/duct-animation-design.md`](../spec/duct-animation-design.md).
@@ -11,7 +11,7 @@ so work can pause and resume at any point.
 ## Phase 0: Shared Foundation
 
 ### 0.1 — Curve & Easing type hierarchy
-- [x] Create `Duct\Animation\Curve.cs` with the `Curve` abstract record and
+- [x] Create `Reactor\Animation\Curve.cs` with the `Curve` abstract record and
       subclasses: `SpringCurve`, `EaseCurve`, `LinearCurve`
 - [x] Add `Easing` readonly record struct with preset constants (`Linear`,
       `EaseIn`, `EaseOut`, `EaseInOut`, `Accelerate`, `Decelerate`, `Standard`)
@@ -20,7 +20,7 @@ so work can pause and resume at any point.
       factory methods produce correct types
 
 ### 0.2 — AnimationHelper compositor bridge
-- [x] Create `Duct\Animation\AnimationHelper.cs` with `SetOrAnimate()` method
+- [x] Create `Reactor\Animation\AnimationHelper.cs` with `SetOrAnimate()` method
       that routes a property change through `UIElement.StartAnimation()` when an
       ambient curve is present, or falls back to direct property assignment
 - [x] Support creating `KeyFrameAnimation` (for `EaseCurve`/`LinearCurve`) and
@@ -33,7 +33,7 @@ so work can pause and resume at any point.
 ## Phase 1: Core Animation Features
 
 ### 1.1 — `WithAnimation` scoped context (Feature 1)
-- [x] Create `Duct\Animation\AnimationScope.cs` with `[ThreadStatic]` fields
+- [x] Create `Reactor\Animation\AnimationScope.cs` with `[ThreadStatic]` fields
       (`_current`, `_hasScope`) and `WithAnimation(Curve?, Action)` method
 - [x] Verify nesting: inner `WithAnimation` scopes override outer ones, restore
       correctly in `finally` block
@@ -52,10 +52,10 @@ so work can pause and resume at any point.
       started on the element's Visual
 
 ### 1.2 — `.Animate()` compositor property modifier (Feature 3)
-- [x] Create `Duct\Animation\AnimateProperty.cs` — `[Flags] enum` with
+- [x] Create `Reactor\Animation\AnimateProperty.cs` — `[Flags] enum` with
       `Opacity`, `Offset`, `Scale`, `Rotation`, `CenterPoint`, `All`
 - [x] Add `AnimationConfig?` property to `Element` base record
-      (`Duct\Core\Element.cs`, alongside existing `LayoutAnimationConfig`)
+      (`Reactor\Core\Element.cs`, alongside existing `LayoutAnimationConfig`)
 - [x] Implement `ApplyPropertyAnimation()` in `Reconciler.cs` — creates
       `ImplicitAnimationCollection` entries on the element's composition Visual
       for the targeted properties using the specified Curve
@@ -75,7 +75,7 @@ so work can pause and resume at any point.
       change Opacity, verify implicit animation present on Visual
 
 ### 1.3 — InteractionStates — zero-reconcile hover/press (Feature 8)
-- [x] Create `Duct\Animation\InteractionStates.cs` with:
+- [x] Create `Reactor\Animation\InteractionStates.cs` with:
   - [x] `InteractionStateValues` record (Opacity, Scale, ScaleV, Translation,
         Rotation, Background, Foreground, BorderBrush — no layout properties)
   - [x] `InteractionStatesConfig` record (PointerOver, Pressed, Focused states
@@ -117,7 +117,7 @@ so work can pause and resume at any point.
 ## Phase 2: Lifecycle & Sequencing
 
 ### 2.1 — Enter/Exit transitions (Feature 2)
-- [x] Create `Duct\Animation\Transition.cs` with the type hierarchy:
+- [x] Create `Reactor\Animation\Transition.cs` with the type hierarchy:
   - [x] `Transition` abstract record with `Fade`, `Slide(Edge)`, `Scale(float)`
         presets
   - [x] `CombinedTransition` — `operator +` for parallel composition
@@ -184,7 +184,7 @@ so work can pause and resume at any point.
       each child's animation has incrementing `DelayTime`
 
 ### 3.2 — Keyframe animation builder (Feature 5)
-- [x] Create `Duct\Animation\KeyframeBuilder.cs` with:
+- [x] Create `Reactor\Animation\KeyframeBuilder.cs` with:
   - [x] `KeyframeAnimationDef` record (Duration, Loop, Keyframes array)
   - [x] `KeyframeDef` record (Progress, optional Opacity/Scale/Translation/
         Rotation/Easing)
@@ -208,7 +208,7 @@ so work can pause and resume at any point.
       started on Visual
 
 ### 3.3 — Scroll-linked expression animation (Feature 6)
-- [x] Create `Duct\Animation\ScrollAnimation.cs` with:
+- [x] Create `Reactor\Animation\ScrollAnimation.cs` with:
   - [x] Builder API: `.Parallax(factor)`, `.FadeOut(start, end)`,
         `.FadeIn(start, end)`, `.ScaleRange(start, end, from, to)`,
         `.Expression(property, expressionString)`
@@ -243,7 +243,7 @@ so work can pause and resume at any point.
       can be visually verified
 
 ### D.2 — Test app updates
-- [x] Add sections to `samples\Duct.TestApp\App.cs` transitions page
+- [x] Add sections to `samples\Reactor.TestApp\App.cs` transitions page
       (~line 1370+) for manual verification of each feature
 
 ### D.3 — Existing animation backward compatibility
@@ -276,21 +276,21 @@ so work can pause and resume at any point.
 **New files** (8):
 | File | Phase |
 |------|-------|
-| `Duct\Animation\Curve.cs` | 0.1 |
-| `Duct\Animation\AnimationHelper.cs` | 0.2 |
-| `Duct\Animation\AnimationScope.cs` | 1.1 |
-| `Duct\Animation\AnimateProperty.cs` | 1.2 |
-| `Duct\Animation\InteractionStates.cs` | 1.3 |
-| `Duct\Animation\Transition.cs` | 2.1 |
-| `Duct\Animation\KeyframeBuilder.cs` | 3.2 |
-| `Duct\Animation\ScrollAnimation.cs` | 3.3 |
+| `Reactor\Animation\Curve.cs` | 0.1 |
+| `Reactor\Animation\AnimationHelper.cs` | 0.2 |
+| `Reactor\Animation\AnimationScope.cs` | 1.1 |
+| `Reactor\Animation\AnimateProperty.cs` | 1.2 |
+| `Reactor\Animation\InteractionStates.cs` | 1.3 |
+| `Reactor\Animation\Transition.cs` | 2.1 |
+| `Reactor\Animation\KeyframeBuilder.cs` | 3.2 |
+| `Reactor\Animation\ScrollAnimation.cs` | 3.3 |
 
 **Modified files** (3 — touched in every phase):
 | File | Phases |
 |------|--------|
-| `Duct\Core\Element.cs` | 1.2, 1.3, 2.1, 3.1, 3.2, 3.3 |
-| `Duct\Core\Reconciler.cs` | 1.1, 1.2, 1.3, 2.1, 3.1, 3.2, 3.3 |
-| `Duct\Elements\ElementExtensions.cs` | 1.2, 1.3, 2.1, 3.1, 3.2, 3.3 |
+| `Reactor\Core\Element.cs` | 1.2, 1.3, 2.1, 3.1, 3.2, 3.3 |
+| `Reactor\Core\Reconciler.cs` | 1.1, 1.2, 1.3, 2.1, 3.1, 3.2, 3.3 |
+| `Reactor\Elements\ElementExtensions.cs` | 1.2, 1.3, 2.1, 3.1, 3.2, 3.3 |
 
 **New test files** (one per feature + foundation):
 | File | Phase |

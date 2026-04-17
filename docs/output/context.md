@@ -2,7 +2,7 @@
 # Context
 
 Context lets you pass data through the [component](components.md) tree without
-threading it through every level of props. Define a `DuctContext<T>`, provide
+threading it through every level of props. Define a `Context<T>`, provide
 a value at any level, and any descendant can read it with `UseContext`.
 
 ## Creating a Context
@@ -12,9 +12,9 @@ A context is a static field with a default value:
 ```csharp
 static class Contexts
 {
-    public static DuctContext<string> ThemeMode = new("light");
-    public static DuctContext<string> UserName = new("Guest");
-    public static DuctContext<int> FontScale = new(16);
+    public static Context<string> ThemeMode = new("light");
+    public static Context<string> UserName = new("Guest");
+    public static Context<int> FontScale = new(16);
 }
 ```
 
@@ -178,7 +178,7 @@ class ProfileCard : Component
 
 ![Component reading two contexts](images/context/multiple-contexts.png)
 
-Each `DuctContext<T>` is a separate channel. Providing one doesn't affect
+Each `Context<T>` is a separate channel. Providing one doesn't affect
 another. A component can call `UseContext` as many times as it needs.
 
 ## Tips

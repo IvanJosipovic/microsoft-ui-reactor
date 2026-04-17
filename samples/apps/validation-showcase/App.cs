@@ -1,24 +1,24 @@
-// Validation Showcase — Demonstrates the Duct forms & validation system.
+// Validation Showcase — Demonstrates the Reactor forms & validation system.
 // Shows: ValidationContext, built-in validators, error styling,
 // MaskedTextBox, InputFormatters, FocusManager, cross-field rules,
 // window-level InfoBar validation summary.
 
-using Duct;
-using Duct.Core;
-using Duct.Hooks;
-using Duct.Validation;
-using Duct.Validation.Validators;
-using Duct.Controls.Formatting;
-using Duct.Controls.MaskedTextBox;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Hooks;
+using Microsoft.UI.Reactor.Controls.Validation;
+using Microsoft.UI.Reactor.Controls.Validation;
+using Microsoft.UI.Reactor.Controls;
+using Microsoft.UI.Reactor.Controls;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using static Duct.UI;
-using static Duct.Validation.FormFieldDsl;
-using static Duct.Validation.ValidationRuleDsl;
-using static Duct.Validation.ValidationVisualizerDsl;
-using Duct.Animation;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Controls.Validation.FormFieldDsl;
+using static Microsoft.UI.Reactor.Controls.Validation.ValidationRuleDsl;
+using static Microsoft.UI.Reactor.Controls.Validation.ValidationVisualizerDsl;
+using Microsoft.UI.Reactor.Animation;
 
-DuctApp.Run<ShowcaseApp>("Validation Showcase", width: 720, height: 900
+ReactorApp.Run<ShowcaseApp>("Validation Showcase", width: 720, height: 900
 #if DEBUG
     , preview: true
 #endif
@@ -195,7 +195,7 @@ class PasswordFormDemo : Component
                     ctx.MarkAllTouched();
                 }),
                 When(submitted && ctx.IsValid(), () =>
-                    Text("Password set!").Foreground("#107c10").FontSize(13)
+                    Factories.Text("Password set!").Foreground("#107c10").FontSize(13)
                         .VAlign(VerticalAlignment.Center))
             ).Margin(0, 8, 0, 0)
         ).Padding(24)
@@ -234,47 +234,47 @@ class MaskedInputDemo : Component
             Caption("Input masks enforce structured formats. Formatters transform text live."),
 
             VStack(8,
-                Text("Phone (US) — digits only").FontSize(13).Opacity(0.7),
+                Factories.Text("Phone (US) — digits only").FontSize(13).Opacity(0.7),
                 TextField(phone, v => setPhone(new string(v.Where(char.IsDigit).ToArray())),
                     placeholder: "5551234567"),
                 When(phone.Length > 0, () =>
                     HStack(8,
-                        Text($"Formatted: {phoneFormatted}").FontSize(12).Opacity(0.6),
-                        Text($"Raw: {phoneMask.GetRawValue(phoneFormatted)}").FontSize(12).Opacity(0.6),
-                        Text(phoneMask.IsComplete(phoneFormatted) ? "Complete" : "Incomplete")
+                        Factories.Text($"Formatted: {phoneFormatted}").FontSize(12).Opacity(0.6),
+                        Factories.Text($"Raw: {phoneMask.GetRawValue(phoneFormatted)}").FontSize(12).Opacity(0.6),
+                        Factories.Text(phoneMask.IsComplete(phoneFormatted) ? "Complete" : "Incomplete")
                             .FontSize(12)
                             .Foreground(phoneMask.IsComplete(phoneFormatted) ? "#107c10" : "#d13438")
                     ))
             ),
 
             VStack(8,
-                Text("SSN — digits only").FontSize(13).Opacity(0.7),
+                Factories.Text("SSN — digits only").FontSize(13).Opacity(0.7),
                 TextField(ssn, v => setSsn(new string(v.Where(char.IsDigit).ToArray())),
                     placeholder: "123456789"),
                 When(ssn.Length > 0, () =>
-                    Text($"Formatted: {ssnFormatted}").FontSize(12).Opacity(0.6))
+                    Factories.Text($"Formatted: {ssnFormatted}").FontSize(12).Opacity(0.6))
             ),
 
             VStack(8,
-                Text("ZIP Code — digits only").FontSize(13).Opacity(0.7),
+                Factories.Text("ZIP Code — digits only").FontSize(13).Opacity(0.7),
                 TextField(zip, v => setZip(new string(v.Where(char.IsDigit).ToArray())),
                     placeholder: "90210"),
                 When(zip.Length > 0, () =>
-                    Text($"Formatted: {zipFormatted}").FontSize(12).Opacity(0.6))
+                    Factories.Text($"Formatted: {zipFormatted}").FontSize(12).Opacity(0.6))
             ),
 
             VStack(8,
-                Text("Currency (InputFormatter)").FontSize(13).Opacity(0.7),
+                Factories.Text("Currency (InputFormatter)").FontSize(13).Opacity(0.7),
                 TextField(amount,
                     v => setAmount(new string(v.Where(c => char.IsDigit(c) || c == '.').ToArray())),
                     placeholder: "1234.56"),
                 When(amount.Length > 0, () =>
-                    Text($"Display: {currencyResult.Output}  |  Raw: {currencyFmt.Parse(currencyResult.Output)}")
+                    Factories.Text($"Display: {currencyResult.Output}  |  Raw: {currencyFmt.Parse(currencyResult.Output)}")
                         .FontSize(12).Opacity(0.6))
             ),
 
             VStack(8,
-                Text("Uppercase Formatter").FontSize(13).Opacity(0.7),
+                Factories.Text("Uppercase Formatter").FontSize(13).Opacity(0.7),
                 TextField(shout, v => setShout(v.ToUpperInvariant()),
                     placeholder: "auto uppercased")
                     .Set(tb => tb.CharacterCasing = CharacterCasing.Upper)
@@ -312,25 +312,25 @@ class DirtyResetDemo : Component
             Caption("Tracks whether fields changed from initial values or were interacted with."),
 
             VStack(4,
-                Text("Name").FontSize(13)
+                Factories.Text("Name").FontSize(13)
                     .Set(t => t.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold),
                 TextField(name, v => { setName(v); ctx.MarkTouched("name"); }),
-                Text("Initial: \"John Doe\"").FontSize(12).Foreground("#888888")
+                Factories.Text("Initial: \"John Doe\"").FontSize(12).Foreground("#888888")
             ),
 
             VStack(4,
-                Text("Favorite Color").FontSize(13)
+                Factories.Text("Favorite Color").FontSize(13)
                     .Set(t => t.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold),
                 ComboBox(colors, color, v => { setColor(v); ctx.MarkTouched("color"); }),
-                Text("Initial: Red").FontSize(12).Foreground("#888888")
+                Factories.Text("Initial: Red").FontSize(12).Foreground("#888888")
             ),
 
             VStack(4,
-                Text($"name — touched: {ctx.IsTouched("name")}, dirty: {ctx.IsDirty("name")}")
+                Factories.Text($"name — touched: {ctx.IsTouched("name")}, dirty: {ctx.IsDirty("name")}")
                     .FontSize(12).Opacity(0.6),
-                Text($"color — touched: {ctx.IsTouched("color")}, dirty: {ctx.IsDirty("color")}")
+                Factories.Text($"color — touched: {ctx.IsTouched("color")}, dirty: {ctx.IsDirty("color")}")
                     .FontSize(12).Opacity(0.6),
-                Text($"Form dirty: {ctx.IsDirty()}").FontSize(12).Opacity(0.6)
+                Factories.Text($"Form dirty: {ctx.IsDirty()}").FontSize(12).Opacity(0.6)
             ),
 
             HStack(12,
@@ -386,7 +386,7 @@ class FocusDemo : Component
             ),
 
             When(log.Length > 0, () =>
-                Text(log).FontSize(12).Opacity(0.6).Margin(0, 4, 0, 0))
+                Factories.Text(log).FontSize(12).Opacity(0.6).Margin(0, 4, 0, 0))
         ).Padding(24);
     }
 }
@@ -403,7 +403,7 @@ class ShowcaseApp : Component
             ["*"], ["Auto", "*"],
 
             TitleBar("Validation Showcase")
-                .Subtitle("Duct Forms & Data Entry")
+                .Subtitle("Reactor Forms & Data Entry")
                 .Grid(row: 0),
 
             ScrollView(

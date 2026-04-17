@@ -1,10 +1,10 @@
-# Theme-Aware Resources in Duct
+# Theme-Aware Resources in Reactor
 
-This document covers how to apply Windows 11 theme resources correctly in Duct's C# projection.
+This document covers how to apply Windows 11 theme resources correctly in Reactor's C# projection.
 
-## How Theme Resolution Works in Duct
+## How Theme Resolution Works in Reactor
 
-WinUI provides 200+ semantic theme resources organized by theme variant (Light, Dark, HighContrast). In XAML you'd use `{ThemeResource}` markup — in Duct, you use `Theme.*` tokens or `Theme.Ref("ResourceKey")`.
+WinUI provides 200+ semantic theme resources organized by theme variant (Light, Dark, HighContrast). In XAML you'd use `{ThemeResource}` markup — in Reactor, you use `Theme.*` tokens or `Theme.Ref("ResourceKey")`.
 
 When the reconciler mounts or updates an element with a `ThemeRef`, it resolves the resource by walking `Application.Current.Resources.ThemeDictionaries` to find the brush matching the element's effective theme. When the system theme changes, elements using `ThemeRef` automatically update.
 
@@ -12,7 +12,7 @@ When the reconciler mounts or updates an element with a `ThemeRef`, it resolves 
 
 ### Text Fill
 
-| Duct Token | WinUI Resource Key | Purpose |
+| Reactor Token | WinUI Resource Key | Purpose |
 |------------|-------------------|---------|
 | `Theme.PrimaryText` | `TextFillColorPrimaryBrush` | Primary text (default) |
 | `Theme.SecondaryText` | `TextFillColorSecondaryBrush` | Secondary text |
@@ -34,7 +34,7 @@ Use via `Theme.Ref("TextOnAccentFillColorPrimaryBrush")`.
 
 ### Accent Fill
 
-| Duct Token | WinUI Resource Key | Purpose |
+| Reactor Token | WinUI Resource Key | Purpose |
 |------------|-------------------|---------|
 | `Theme.Accent` | `AccentFillColorDefaultBrush` | Default accent |
 | `Theme.AccentSecondary` | `AccentFillColorSecondaryBrush` | Hover state |
@@ -43,7 +43,7 @@ Use via `Theme.Ref("TextOnAccentFillColorPrimaryBrush")`.
 
 ### Control Fill
 
-| Duct Token | WinUI Resource Key | Purpose |
+| Reactor Token | WinUI Resource Key | Purpose |
 |------------|-------------------|---------|
 | `Theme.ControlFill` | `ControlFillColorDefaultBrush` | Control background |
 | `Theme.ControlFillSecondary` | `ControlFillColorSecondaryBrush` | Hover background |
@@ -53,7 +53,7 @@ Use via `Theme.Ref("TextOnAccentFillColorPrimaryBrush")`.
 
 ### Subtle Fill
 
-| Duct Token | WinUI Resource Key | Purpose |
+| Reactor Token | WinUI Resource Key | Purpose |
 |------------|-------------------|---------|
 | `Theme.SubtleFill` | `SubtleFillColorTransparentBrush` | Transparent resting state |
 | — | `SubtleFillColorSecondaryBrush` | Subtle hover |
@@ -61,7 +61,7 @@ Use via `Theme.Ref("TextOnAccentFillColorPrimaryBrush")`.
 
 ### Surface and Card
 
-| Duct Token | WinUI Resource Key | Purpose |
+| Reactor Token | WinUI Resource Key | Purpose |
 |------------|-------------------|---------|
 | `Theme.CardBackground` | `CardBackgroundFillColorDefaultBrush` | Card background |
 | `Theme.LayerFill` | `LayerFillColorDefaultBrush` | Layer background |
@@ -70,7 +70,7 @@ Use via `Theme.Ref("TextOnAccentFillColorPrimaryBrush")`.
 
 ### Stroke / Border
 
-| Duct Token | WinUI Resource Key | Purpose |
+| Reactor Token | WinUI Resource Key | Purpose |
 |------------|-------------------|---------|
 | `Theme.CardStroke` | `CardStrokeColorDefaultBrush` | Card border |
 | `Theme.SurfaceStroke` | `SurfaceStrokeColorDefaultBrush` | Surface border |
@@ -80,7 +80,7 @@ Use via `Theme.Ref("TextOnAccentFillColorPrimaryBrush")`.
 
 ### Signal / Status
 
-| Duct Token | WinUI Resource Key | Purpose |
+| Reactor Token | WinUI Resource Key | Purpose |
 |------------|-------------------|---------|
 | `Theme.SystemSuccess` | `SystemFillColorSuccessBrush` | Success |
 | `Theme.SystemCaution` | `SystemFillColorCautionBrush` | Warning |

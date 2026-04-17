@@ -1,8 +1,8 @@
 using System.Text;
-using DuctRegedit.Models;
+using ReactorRegedit.Models;
 using Microsoft.Win32;
 
-namespace DuctRegedit.Services;
+namespace ReactorRegedit.Services;
 
 /// <summary>
 /// Handles .reg file import and export.
@@ -243,7 +243,7 @@ internal static class RegFileService
         // DWORD: dword:xxxxxxxx
         if (valueStr.StartsWith("dword:", StringComparison.OrdinalIgnoreCase))
         {
-            if (int.TryParse(valueStr[6..], System.Globalization.NumberStyles.HexNumber, null, out var dword))
+            if (int.TryParse(valueStr[6..], global::System.Globalization.NumberStyles.HexNumber, null, out var dword))
                 return (dword, RegistryValueKind.DWord);
             return (null, RegistryValueKind.None);
         }
@@ -259,7 +259,7 @@ internal static class RegFileService
             if (prefix.Contains('(') && prefix.Contains(')'))
             {
                 var typeStr = prefix[(prefix.IndexOf('(') + 1)..prefix.IndexOf(')')];
-                typeId = int.Parse(typeStr, System.Globalization.NumberStyles.HexNumber);
+                typeId = int.Parse(typeStr, global::System.Globalization.NumberStyles.HexNumber);
             }
 
             var hexStr = valueStr[(colonIdx + 1)..].Trim();
@@ -284,7 +284,7 @@ internal static class RegFileService
         if (string.IsNullOrWhiteSpace(hex)) return [];
         return hex.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(s => s.Length > 0)
-            .Select(s => byte.Parse(s, System.Globalization.NumberStyles.HexNumber))
+            .Select(s => byte.Parse(s, global::System.Globalization.NumberStyles.HexNumber))
             .ToArray();
     }
 

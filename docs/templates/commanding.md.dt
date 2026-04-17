@@ -4,14 +4,14 @@ app: commanding
 order: 12
 audience: intermediate
 goal: |
-  Teach DuctCommand, DuctCommand<T>, StandardCommand, UseCommand hook,
+  Teach ReactorCommand, ReactorCommand<T>, StandardCommand, UseCommand hook,
   keyboard accelerators, async commands with IsExecuting tracking, and
   integration with Button, MenuItem, CommandBar.
 ---
 
 # Commanding
 
-A `DuctCommand` bundles an action with its label, icon, keyboard accelerator,
+A `ReactorCommand` bundles an action with its label, icon, keyboard accelerator,
 and enabled state into a single object. Define it once and use it across
 buttons, menus, and toolbars — the metadata stays consistent everywhere.
 
@@ -24,7 +24,7 @@ Create a command with the properties you need:
 
 ![Editor with save command](screenshot://commanding/basic-command)
 
-Pass a `DuctCommand` to `Button()`, `MenuItem()`, or `AppBarButton()` and the
+Pass a `ReactorCommand` to `Button()`, `MenuItem()`, or `AppBarButton()` and the
 label, icon, accelerator, and enabled state are all wired automatically. See
 [Components](components.md) for the full set of controls that accept commands.
 You don't set them individually on each control.
@@ -61,7 +61,7 @@ sets `IsExecuting = true` during execution so you can show progress indicators.
 ## Command Bar Integration
 
 Use `CommandBar` with `AppBarButton` to build a toolbar. Each button can be
-driven by a `DuctCommand`:
+driven by a `ReactorCommand`:
 
 ```csharp snippet="commanding/command-bar"
 ```

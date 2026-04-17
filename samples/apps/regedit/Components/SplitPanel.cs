@@ -1,11 +1,11 @@
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctRegedit.Components;
+namespace ReactorRegedit.Components;
 
 // ─── Custom element + control: CursorBorder ─────────────────────────────────
 

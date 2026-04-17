@@ -1,14 +1,14 @@
-# Windows 11 Design for Duct
+# Windows 11 Design for Reactor
 
-Author, review, and fix Duct UI code following Windows 11 design system rules.
+Author, review, and fix Reactor UI code following Windows 11 design system rules.
 
-Duct is a functional UI framework for WinUI 3 that builds UI entirely in C# — no XAML, no data binding, no ViewModels. UI is described with immutable Element records, composed via factory methods (`UI.Text()`, `UI.VStack()`, etc.), and updated through a React-style reconciler with hooks (`UseState`, `UseEffect`, etc.).
+Reactor is a functional UI framework for WinUI 3 that builds UI entirely in C# — no XAML, no data binding, no ViewModels. UI is described with immutable Element records, composed via factory methods (`UI.Text()`, `UI.VStack()`, etc.), and updated through a React-style reconciler with hooks (`UseState`, `UseEffect`, etc.).
 
-This skill translates the Windows 11 design language into Duct's C# projection so that apps built with Duct look, feel, and behave like first-class Windows 11 applications.
+This skill translates the Windows 11 design language into Reactor's C# projection so that apps built with Reactor look, feel, and behave like first-class Windows 11 applications.
 
 ## Workflow
 
-1. Author new Duct UI using the rules below.
+1. Author new Reactor UI using the rules below.
 2. Review a PR using the checklist at the end of this file.
 3. Fix feedback by mapping issues to the specific rule and applying the correct pattern.
 4. Verify changes using the testing guidance.
@@ -160,7 +160,7 @@ Using `Theme.*` tokens correctly means HC usually "just works" because WinUI res
 
 Use the predefined text factories or WinUI style tokens. Never set `FontSize` and `FontWeight` directly for standard UI text.
 
-**Duct text factories:**
+**Reactor text factories:**
 
 | Factory | Size | Weight | Use Case |
 |---------|------|--------|----------|
@@ -189,7 +189,7 @@ For sizes not covered by the factories, apply a WinUI style:
 Text("Prominent text").Set(tb => tb.Style =
     (Style)Application.Current.Resources["BodyLargeTextBlockStyle"])
 
-// Also correct: use the Duct factories for common sizes
+// Also correct: use the Reactor factories for common sizes
 Heading("Page Title")
 SubHeading("Section")
 Caption("Fine print")
@@ -350,7 +350,7 @@ See [layout-and-scaling.md](docs/layout-and-scaling.md) for full layout rules.
 
 ### 6. Data Flow and State
 
-Duct uses hooks, not MVVM data binding. Follow these patterns:
+Reactor uses hooks, not MVVM data binding. Follow these patterns:
 
 #### State-Driven UI (Preferred)
 
@@ -599,19 +599,19 @@ VStack(
 
 #### Use `.Set()` Sparingly
 
-`.Set()` is an escape hatch to raw WinUI. It's valid but bypasses the virtual element model — use it for properties Duct doesn't expose, not as a general pattern.
+`.Set()` is an escape hatch to raw WinUI. It's valid but bypasses the virtual element model — use it for properties Reactor doesn't expose, not as a general pattern.
 
 ```csharp
-// Good: property not exposed by Duct
+// Good: property not exposed by Reactor
 Text("Clock").Set(tb => tb.Typography.NumeralAlignment = FontNumeralAlignment.Tabular)
 
-// Bad: property that Duct exposes as a modifier
+// Bad: property that Reactor exposes as a modifier
 Text("Hello").Set(tb => tb.Margin = new Thickness(16))  // Use .Margin(16) instead
 ```
 
 ### 11. Formatting Conventions
 
-- Use `using static Duct.UI;` to access the DSL without prefix.
+- Use `using static Microsoft.UI.Reactor.Factories;` to access the DSL without prefix.
 - One element per line when nesting gets deep.
 - Group modifiers logically: layout first, then appearance, then behavior.
 - Use trailing `.WithKey()` as the last modifier.
@@ -675,7 +675,7 @@ Defaults you should not set:
 
 ## Code Review Checklist
 
-When reviewing Duct UI code, verify:
+When reviewing Reactor UI code, verify:
 
 **Theming:**
 - [ ] Uses `Theme.*` tokens for colors/brushes — no hardcoded hex on themed surfaces

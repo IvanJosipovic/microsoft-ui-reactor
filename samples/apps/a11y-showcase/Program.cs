@@ -1,3 +1,3 @@
-using Duct;
+using Microsoft.UI.Reactor;
 
-DuctApp.Run<A11yShowcase.App>("Task Tracker", width: 1100, height: 750);
+ReactorApp.Run<A11yShowcase.App>("Task Tracker", width: 1100, height: 750);

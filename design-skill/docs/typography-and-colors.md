@@ -1,12 +1,12 @@
-# Typography and Colors in Duct
+# Typography and Colors in Reactor
 
 ## Typography
 
 ### The Windows 11 Type Ramp
 
-Windows 11 defines a type ramp of semantic text styles. In Duct, use the built-in text factories for common sizes, or apply WinUI styles for the full ramp.
+Windows 11 defines a type ramp of semantic text styles. In Reactor, use the built-in text factories for common sizes, or apply WinUI styles for the full ramp.
 
-#### Duct Text Factories
+#### Reactor Text Factories
 
 | Factory | Size | Weight | Use Case |
 |---------|------|--------|----------|
@@ -19,7 +19,7 @@ Windows 11 defines a type ramp of semantic text styles. In Duct, use the built-i
 
 For sizes not covered by the factories, apply a WinUI style:
 
-| WinUI Style | Size | Weight | Duct Equivalent |
+| WinUI Style | Size | Weight | Reactor Equivalent |
 |-------------|------|--------|-----------------|
 | `CaptionTextBlockStyle` | 12px | Regular | `Caption()` |
 | `BodyTextBlockStyle` | 14px | Regular | `Text()` (default) |
@@ -30,7 +30,7 @@ For sizes not covered by the factories, apply a WinUI style:
 | `TitleLargeTextBlockStyle` | 40px | SemiBold | Apply via `.Set()` |
 | `DisplayTextBlockStyle` | 68px | SemiBold | Apply via `.Set()` |
 
-**Applying WinUI styles in Duct:**
+**Applying WinUI styles in Reactor:**
 
 ```csharp
 // For styles not covered by factories
@@ -139,7 +139,7 @@ Text("Prominent text").Set(tb =>
 
 ## Colors
 
-### Color Application in Duct
+### Color Application in Reactor
 
 Colors are applied via three mechanisms:
 

@@ -1,4 +1,4 @@
-using Duct.Flex;
+using Microsoft.UI.Reactor.Layout;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 

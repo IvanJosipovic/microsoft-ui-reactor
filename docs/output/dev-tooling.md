@@ -1,17 +1,17 @@
 
 # Dev Tooling
 
-Duct's development workflow centers on `dotnet watch` and preview mode. You
+Reactor's development workflow centers on `dotnet watch` and preview mode. You
 edit code, save, and see changes in a running window — no manual restart.
 
 ## Preview Mode
 
-Pass `preview: true` to `DuctApp.Run` to enable preview mode. This connects
-your app to the Duct hot reload pipeline:
+Pass `preview: true` to `ReactorApp.Run` to enable preview mode. This connects
+your app to the Reactor hot reload pipeline:
 
 ```csharp
 // Program entry point — this is the entire App.cs file:
-// DuctApp.Run<DevToolingApp>("Dev Tooling Demo",
+// ReactorApp.Run<DevToolingApp>("Dev Tooling Demo",
 //     width: 600, height: 450
 // #if DEBUG
 //     , preview: true
@@ -36,7 +36,7 @@ dotnet watch run
 <!-- /ai:lock -->
 
 This launches the app and watches your `.cs` files for changes. When you save,
-`dotnet watch` recompiles and Duct reloads the component tree. Your app state
+`dotnet watch` recompiles and Reactor reloads the component tree. Your app state
 resets, but the window stays open.
 
 Here's what the preview app looks like running:
@@ -71,11 +71,11 @@ watch the window update.
 ## Function Component Entry Point
 
 For quick experiments, skip the class entirely. Pass a lambda to
-[`DuctApp.Run`](components.md):
+[`ReactorApp.Run`](components.md):
 
 ```csharp
 // Alternative: inline function component, no class needed
-// DuctApp.Run("Quick Test", ctx =>
+// ReactorApp.Run("Quick Test", ctx =>
 // {
 //     var (n, setN) = ctx.UseState(0);
 //     return VStack(12,
@@ -137,10 +137,10 @@ class IterationDemo : Component
 
 ## VS Code Integration
 
-Duct has no special VS Code extension requirement. The standard C# Dev Kit
+Reactor has no special VS Code extension requirement. The standard C# Dev Kit
 works well:
 
-- **IntelliSense** — `using static Duct.UI` brings all element factories
+- **IntelliSense** — `using static Reactor.UI` brings all element factories
   (`Text`, `VStack`, `Button`, etc.) into scope. You get autocomplete on every
   element and modifier.
 - **Terminal** — run `dotnet watch run` in the VS Code integrated terminal.
@@ -171,7 +171,7 @@ tree needs to be rebuilt. Extract pieces early.
 **Check the terminal.** When hot reload fails (usually a syntax error),
 `dotnet watch` prints the error. Fix it and save — it retries.
 
-**Use [function components](components.md) for experiments.** `DuctApp.Run("Test", ctx => ...)`
+**Use [function components](components.md) for experiments.** `ReactorApp.Run("Test", ctx => ...)`
 is the fastest way to try an idea. No class boilerplate.
 
 **ARM64 builds for benchmarks.** If you're on ARM64 hardware, build with

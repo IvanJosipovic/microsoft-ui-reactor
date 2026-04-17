@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using DuctOutlook.Models;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorOutlook.Models;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Calendar;
+namespace ReactorOutlook.Components.Calendar;
 
 internal sealed record EventBlockProps(
     CalendarEvent Event,
@@ -21,13 +21,13 @@ internal sealed class EventBlock : Component<EventBlockProps>
         var content = VStack(1,
             lines.Select((line, i) =>
                 (Element)(i == 0
-                    ? Text(line).SemiBold().FontSize(11)
+                    ? Factories.Text(line).SemiBold().FontSize(11)
                         .Set(t =>
                         {
                             t.TextTrimming = Microsoft.UI.Xaml.TextTrimming.CharacterEllipsis;
                             t.MaxLines = 1;
                         })
-                    : Text(line).FontSize(11)
+                    : Factories.Text(line).FontSize(11)
                         .Set(t =>
                         {
                             t.TextTrimming = Microsoft.UI.Xaml.TextTrimming.CharacterEllipsis;
@@ -36,7 +36,7 @@ internal sealed class EventBlock : Component<EventBlockProps>
                 )
             ).Concat(
                 evt.Location is not null
-                    ? [Text(evt.Location).FontSize(10).Foreground(SecondaryText)
+                    ? [Factories.Text(evt.Location).FontSize(10).Foreground(SecondaryText)
                         .Set(t =>
                         {
                             t.TextTrimming = Microsoft.UI.Xaml.TextTrimming.CharacterEllipsis;

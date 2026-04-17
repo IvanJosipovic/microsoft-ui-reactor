@@ -1,19 +1,19 @@
-# Flux.UI Comparative Analysis — Lessons for Duct
+# Flux.UI Comparative Analysis — Lessons for Reactor
 
-A comprehensive analysis of what Flux.UI does better than Duct, where Flux.UI has
-solved problems identified in Duct's critical review, and specific technical
-approaches Duct should consider adopting.
+A comprehensive analysis of what Flux.UI does better than Reactor, where Flux.UI has
+solved problems identified in Reactor's critical review, and specific technical
+approaches Reactor should consider adopting.
 
 ---
 
 ## Executive Summary
 
 Flux.UI is a compile-time declarative UI framework for .NET that takes a
-fundamentally different approach than Duct. Where Duct follows React's model
+fundamentally different approach than Reactor. Where Reactor follows React's model
 (virtual tree + reconciliation), Flux follows a reactive subscription model
-(build once, subscribe to changes). Where Duct uses CsWinRT managed objects for
+(build once, subscribe to changes). Where Reactor uses CsWinRT managed objects for
 WinUI interop, Flux bypasses the managed layer entirely with a custom C++/WinRT
-P/Invoke DLL (DirectXaml). Where Duct transforms UI at runtime (render → diff →
+P/Invoke DLL (DirectXaml). Where Reactor transforms UI at runtime (render → diff →
 patch), Flux transforms UI at compile time (MSBuild code generation).
 
 **Key findings:**
@@ -26,22 +26,22 @@ patch), Flux transforms UI at compile time (MSBuild code generation).
 2. **No reconciliation by design** — Flux eliminates tree diffing entirely via
    subscription-based reactivity. State changes fire directly to subscribed
    property handlers. This solves many of the reconciler issues identified in
-   Duct's critical review.
+   Reactor's critical review.
 
 3. **Compile-time DSL transformation** — Flux's MSBuild code generator transforms
    declarative C# into optimized element construction at build time, preserving
-   exact line mapping for debugging. Duct's DSL is pure runtime.
+   exact line mapping for debugging. Reactor's DSL is pure runtime.
 
 4. **Fine-grained reactivity** — Flux's `IState<T>` system updates individual
-   properties at O(subscribers) cost, vs Duct's O(subtree) re-render on state
-   change. This directly addresses Duct's "performance concerns accumulate" finding.
+   properties at O(subscribers) cost, vs Reactor's O(subtree) re-render on state
+   change. This directly addresses Reactor's "performance concerns accumulate" finding.
 
 5. **Animation via mutation-site scoping** — Flux's `Animation.Animate()` wraps
-   any state change in an animation context, solving Duct's "animate any value"
+   any state change in an animation context, solving Reactor's "animate any value"
    gap without requiring per-property transition declarations.
 
 6. **Cross-platform via partial classes** — Flux supports WinUI, UWP, and Mock
-   targets from a single source, while Duct is WinUI-only.
+   targets from a single source, while Reactor is WinUI-only.
 
 ---
 
@@ -59,15 +59,15 @@ patch), Flux transforms UI at compile time (MSBuild code generation).
 10. [Ambient/Context System](#10-ambientcontext-system)
 11. [Event Handling](#11-event-handling)
 12. [Cross-Platform Story](#12-cross-platform-story)
-13. [Problems from Duct's Critical Review That Flux Solves](#13-problems-from-ducts-critical-review-that-flux-solves)
-14. [Where Duct Is Still Better](#14-where-duct-is-still-better)
-15. [Recommendations: What Duct Should Adopt](#15-recommendations-what-duct-should-adopt)
+13. [Problems from Reactor's Critical Review That Flux Solves](#13-problems-from-ducts-critical-review-that-flux-solves)
+14. [Where Reactor Is Still Better](#14-where-duct-is-still-better)
+15. [Recommendations: What Reactor Should Adopt](#15-recommendations-what-duct-should-adopt)
 
 ---
 
 ## 1. The DirectXaml Native Interop Layer
 
-**This is the most significant technical difference between Flux and Duct.**
+**This is the most significant technical difference between Flux and Reactor.**
 
 ### The Problem Flux Solves
 
@@ -77,7 +77,7 @@ call through the COM interop layer. For individual calls, this overhead is
 negligible. At scale — mounting hundreds of elements, setting dozens of properties
 each — the overhead compounds dramatically.
 
-Duct uses standard CsWinRT managed objects throughout. Every `new Button()`,
+Reactor uses standard CsWinRT managed objects throughout. Every `new Button()`,
 every property set, every event subscription goes through the RCW layer.
 
 ### How Flux Solves It
@@ -88,7 +88,7 @@ access via P/Invoke, bypassing RCW entirely.
 **Architecture:**
 
 ```
-Duct:    C# code → CsWinRT RCW → COM interop → WinUI property
+Reactor:    C# code → CsWinRT RCW → COM interop → WinUI property
 Flux:    C# code → P/Invoke → C++ direct call → WinUI property
 ```
 
@@ -160,7 +160,7 @@ cross the boundary as `(float x, float y)`.
 
 ### Measured Performance Impact
 
-| Metric | CsWinRT (Duct-style) | DirectXaml (Flux) | Ratio |
+| Metric | CsWinRT (Reactor-style) | DirectXaml (Flux) | Ratio |
 |--------|---------------------|-------------------|-------|
 | Element creation ×1000 | 8,709 ms | ~2,500 ms (near-native) | **3.4× faster** |
 | Memory (1000 elements) | 54 MB | ~5 MB | **11× less** |
@@ -169,24 +169,24 @@ cross the boundary as `(float x, float y)`.
 The mount phase improvement is staggering — this is the phase where elements are
 created and properties are set, which is exactly what DirectXaml optimizes.
 
-### What This Means for Duct
+### What This Means for Reactor
 
-Duct's reconciler creates WinUI controls via `new Button()`, `new TextBlock()`
+Reactor's reconciler creates WinUI controls via `new Button()`, `new TextBlock()`
 etc., sets properties directly, and wires events through managed delegates. For
-the typical render cycle where most elements are unchanged, this is fine — Duct's
+the typical render cycle where most elements are unchanged, this is fine — Reactor's
 ShallowEquals skips them. But for initial mount, large list renders, navigation
 transitions (destroy old page, mount new page), and any scenario with many
-element creations, Duct pays the full CsWinRT overhead.
+element creations, Reactor pays the full CsWinRT overhead.
 
 **Flux's element pool is effectively the entire WinUI layer** — elements persist
-and only properties change via P/Invoke. Duct's element pool (32 controls per
+and only properties change via P/Invoke. Reactor's element pool (32 controls per
 type, non-interactive only) is a band-aid on a fundamentally slower interop model.
 
 ---
 
 ## 2. No Reconciliation: Subscription-Based Reactivity
 
-### Duct's Approach (React Model)
+### Reactor's Approach (React Model)
 
 ```
 State change → Component.Render() rebuilds element tree →
@@ -234,9 +234,9 @@ state are updated. No tree rebuilding, no diffing.
   When items change, removed items are destroyed, added items are created. No
   list reconciliation algorithm needed.
 
-### What Problems This Solves (from Duct's Critical Review)
+### What Problems This Solves (from Reactor's Critical Review)
 
-| Duct Problem | How Flux Avoids It |
+| Reactor Problem | How Flux Avoids It |
 |---|---|
 | "Massive switch/dispatch for every element type" in reconciler | No reconciler exists. Elements update themselves via subscriptions. |
 | "ShallowEquals is conservative to the point of being useless" | No ShallowEquals needed. Only changed properties update. |
@@ -254,9 +254,9 @@ Flux's model eliminates entire categories of performance problems, but at a cost
 - **Compile-time tooling required** — the DSL transformation is a build step,
   not pure C#. Build errors are harder to diagnose.
 - **Less flexible control flow** — `IfElement` destroys and recreates branches.
-  Duct's reconciler can diff structurally different trees (though it usually
+  Reactor's reconciler can diff structurally different trees (though it usually
   doesn't need to).
-- **No incremental migration** — you can't gradually adopt Flux's model. Duct's
+- **No incremental migration** — you can't gradually adopt Flux's model. Reactor's
   React-style model is more familiar to web developers.
 
 ---
@@ -314,7 +314,7 @@ A post-generation validation (FLUX900) ensures line counts match.
 
 **Analyzers (FLUX001-FLUX600):**
 Flux ships Roslyn analyzers that catch DSL errors at compile time — invalid
-state usage, incorrect prop declarations, missing attributes, etc. Duct has
+state usage, incorrect prop declarations, missing attributes, etc. Reactor has
 no compile-time DSL validation.
 
 ### DSL Language Transformations: Complete Catalog
@@ -478,9 +478,9 @@ compile-time constants are hoisted into a static `Immutables` inner class with
 FNV-1a hashing for deduplication. Transitively immutable `.Map()` results (where
 all source states are compile-time constants) are also cached.
 
-### What This Means for Duct
+### What This Means for Reactor
 
-Duct's DSL is pure runtime C# — method calls that create element records. This
+Reactor's DSL is pure runtime C# — method calls that create element records. This
 means:
 
 - **Every render allocates element records** — even for unchanged UI. Flux
@@ -491,7 +491,7 @@ means:
   `MappedState` with zero-allocation transform).
 - **No static analysis** — DSL misuse is a runtime error. Flux catches it
   at compile time with analyzers.
-- **Debugging is straightforward** — Duct's DSL is plain C#, so debugging
+- **Debugging is straightforward** — Reactor's DSL is plain C#, so debugging
   works naturally. Flux needs the Emit API to preserve line mapping (a complex
   requirement they've solved).
 
@@ -515,13 +515,13 @@ Flux has a type hierarchy of reactive state primitives:
 **Key insight: Static values have zero cost.** When Flux encounters a static
 string like `Text("Hello")`, the code generator wraps it in `ImmutableState<string>`
 which has no subscription mechanism — zero overhead, zero allocations for
-observing. Duct creates a `TextElement` record on every render, even for static
+observing. Reactor creates a `TextElement` record on every render, even for static
 text.
 
 **Smart transform selection:** String interpolation with state is automatically
 optimized:
 
-| Expression | Flux Transform | Duct Equivalent |
+| Expression | Flux Transform | Reactor Equivalent |
 |---|---|---|
 | `"Hello"` | `ImmutableState<string>` (zero cost) | `TextElement` record (allocated every render) |
 | `$"Count: {Count}"` | `CountState.Map(...)` (1 subscription) | Render rebuilds entire component |
@@ -536,13 +536,13 @@ optimized:
 | `[State]` | Internal mutable state | `MutableState<T>` |
 | `[Computed]` | Derived from other state | `ComputedState<T>` |
 
-This makes data flow explicit and analyzable at compile time. Duct's hooks
+This makes data flow explicit and analyzable at compile time. Reactor's hooks
 (`UseState`, `UseReducer`, `UseMemo`) declare the same concepts but at runtime
 with no compile-time visibility.
 
-### Comparison to Duct's Hooks
+### Comparison to Reactor's Hooks
 
-| Aspect | Flux | Duct |
+| Aspect | Flux | Reactor |
 |---|---|---|
 | State declaration | Compile-time attributes | Runtime hooks |
 | Change propagation | Direct subscription to specific state | Full component re-render |
@@ -552,7 +552,7 @@ with no compile-time visibility.
 | Computed values | `ComputedState<T>` — only recomputes when dependencies change | `UseMemo` — recomputes when component re-renders with changed deps |
 | List changes | `MutableListState<T>` with fine-grained notifications | Full list rebuild on any change |
 
-### What Duct's Critical Review Says
+### What Reactor's Critical Review Says
 
 > "Dependency comparison still uses `object.Equals` on `object[]`" — deps are
 > boxed into `object[]` and compared with `Equals()`.
@@ -561,7 +561,7 @@ Flux avoids this entirely. There are no dependency arrays. State dependencies
 are tracked by subscriptions established at build time.
 
 > "Context values are boxed in the scope stack" — `ContextScope` stores
-> `List<(DuctContextBase, object?)>`.
+> `List<(ContextBase, object?)>`.
 
 Flux's Ambient system uses typed `Ambient<T>` objects with generic
 `WatchAmbient<T>()` handlers. No boxing, no type erasure.
@@ -570,7 +570,7 @@ Flux's Ambient system uses typed `Ambient<T>` objects with generic
 
 ## 5. Animation: Mutation-Site Scoping vs 5-Property Transitions
 
-### Duct's Animation Problem (from Critical Review)
+### Reactor's Animation Problem (from Critical Review)
 
 > "Implicit transitions are still limited to 5 properties... You can't implicitly
 > animate width, height, corner radius, margin, padding, font size, color..."
@@ -581,7 +581,7 @@ Flux's Ambient system uses typed `Ambient<T>` objects with generic
 > "No UseAnimation hook... no bridge between the hooks system and the animation
 > system"
 
-Duct scored **C** on animation. The fundamental issue: Duct can only animate what
+Reactor scored **C** on animation. The fundamental issue: Reactor can only animate what
 WinUI exposes transition properties for (5 properties), and there's no way to
 wrap arbitrary state changes in animation.
 
@@ -606,7 +606,7 @@ This is architecturally identical to SwiftUI's `withAnimation { state = newValue
 
 **Animation types:**
 
-| Type | Description | Duct Equivalent |
+| Type | Description | Reactor Equivalent |
 |---|---|---|
 | `SpringAnimation` | Physics-based (damping + period) | Only for layout animations |
 | `EaseAnimation` | Timed curve with cubic bezier easing | Not available |
@@ -625,7 +625,7 @@ Switcher(navStack, () => { ... })
 ```
 
 Transitions are composable with `+` operator. Enter/exit effects combine
-naturally. Duct has separate `NavigationTransition` types that can't compose.
+naturally. Reactor has separate `NavigationTransition` types that can't compose.
 
 **Native composition animation via DirectXaml:**
 
@@ -644,13 +644,13 @@ FLUXAPI void FluxAnimateFloat(void* handle, int32_t handleKind,
     const wchar_t* propertyName, float target, FluxCurve curve);
 ```
 
-Animation runs entirely on the composition thread. Duct's layout animations
+Animation runs entirely on the composition thread. Reactor's layout animations
 do the same thing for Offset/Size, but Flux generalizes it to any visual
 property with full curve control.
 
 ### What This Solves
 
-| Duct Animation Gap | Flux Solution |
+| Reactor Animation Gap | Flux Solution |
 |---|---|
 | "Only 5 implicit transition properties" | `Animation.Animate()` wraps any state change |
 | "No value-driven animation" | Spring/Ease/Linear animation types on any state |
@@ -701,9 +701,9 @@ View.Measure(Constraints)
   → Add Margin back
 ```
 
-### Comparison to Duct
+### Comparison to Reactor
 
-| Aspect | Flux | Duct |
+| Aspect | Flux | Reactor |
 |---|---|---|
 | Layout ownership | Flux owns measurement + arrangement | Delegates to WinUI panels |
 | Flex layout | Built-in Column/Row with Weight | FlexPanel via Yoga port (dual layout system) |
@@ -711,11 +711,11 @@ View.Measure(Constraints)
 | Grid | Not provided (Column/Row with Weight covers most cases) | String-typed: `Grid(["*", "Auto"])` |
 | Spacer | Weight-based: `Box().Weight(1)` | No equivalent (SwiftUI gap noted in review) |
 
-Duct's critical review notes: "FlexPanel is impressive but duplicates WinUI's
+Reactor's critical review notes: "FlexPanel is impressive but duplicates WinUI's
 layout system" and "Two layout systems with different mental models." Flux avoids
 this by owning layout from the start — there's one layout system, not two.
 
-However, Duct's approach of using WinUI's native Grid, StackPanel, etc. means
+However, Reactor's approach of using WinUI's native Grid, StackPanel, etc. means
 it inherits all the platform's layout optimizations and existing developer
 knowledge. Flux's custom layout is more flexible but requires re-implementing
 layout algorithms that WinUI already has.
@@ -745,9 +745,9 @@ The code generator transforms `if`, `foreach`, `switch` into reactive elements:
 - `foreach (var item in items)` → `__ctx.ForEach(itemsState, ...)`
 - `switch (value)` → `__ctx.Switch(valueState).Case(...)`
 
-### Comparison to Duct's DSL
+### Comparison to Reactor's DSL
 
-| Aspect | Flux | Duct |
+| Aspect | Flux | Reactor |
 |---|---|---|
 | Children syntax | Lambda blocks: `Column(() => { ... })` | Params arrays: `VStack(child1, child2)` |
 | Control flow | Real `if`/`foreach` (transformed at compile time) | Ternary: `cond ? elem : null`, `ForEach()` |
@@ -755,7 +755,7 @@ The code generator transforms `if`, `foreach`, `switch` into reactive elements:
 | String interpolation | `$"Count: {Count}"` → reactive `MappedState` | `$"Count: {count}"` → new string every render |
 | Type safety | Compile-time analyzers (FLUX001-FLUX600) | Runtime errors only |
 
-**Flux addresses Duct's DSL weaknesses from the critical review:**
+**Flux addresses Reactor's DSL weaknesses from the critical review:**
 
 > "No block syntax for children" — Flux uses lambda blocks for children, providing
 > clear visual nesting:
@@ -778,7 +778,7 @@ The code generator transforms `if`, `foreach`, `switch` into reactive elements:
 
 ## 8. Theming and Styling
 
-### Duct's Theming Problem (from Critical Review, C+ grade)
+### Reactor's Theming Problem (from Critical Review, C+ grade)
 
 > "XamlReader.Load on every theme-bound element, every render"
 > "Only 3 brush properties support ThemeRef bindings"
@@ -808,7 +808,7 @@ protected override void ConfigureAmbients()
 Box(() => { Content(); }).Background(Ambients.Foreground.Use())
 ```
 
-**Key differences from Duct:**
+**Key differences from Reactor:**
 - No `XamlReader.Load` — theme values are direct state subscriptions
 - No XAML string construction or parsing per element per render
 - Typography, colors, and content alpha are all first-class ambients
@@ -817,7 +817,7 @@ Box(() => { Content(); }).Background(Ambients.Foreground.Use())
 
 **Content alpha system:** Flux has a sophisticated text hierarchy system via
 `ContentAlpha` ambient — primary text (1.0), secondary (0.74), tertiary (0.38).
-This cascades through the tree automatically. Duct has no equivalent.
+This cascades through the tree automatically. Reactor has no equivalent.
 
 ---
 
@@ -844,7 +844,7 @@ etc. don't create WinUI elements. They're transparent in the visual tree. This
 means control flow adds ZERO layout cost — no hidden Borders, Grids, or other
 wrapper elements.
 
-**Duct comparison:** Every `Component` and `FuncElement` in Duct creates a
+**Reactor comparison:** Every `Component` and `FuncElement` in Reactor creates a
 hidden `Border` wrapper. `NavigationHost` creates a `Grid`. `CommandHost`
 creates another `Grid`. Flux has none of this overhead.
 
@@ -861,7 +861,7 @@ OnDestroy()        // permanent destruction
 called during `OnAttaching()` and automatically disposed during `OnDetaching()`.
 There's no possibility of leaked subscriptions or stale callbacks.
 
-**Duct comparison:** Duct's hooks (`UseEffect` with cleanup, `UseCallback`) can
+**Reactor comparison:** Reactor's hooks (`UseEffect` with cleanup, `UseCallback`) can
 leak if cleanup functions are incorrect. Effect cleanup timing was a bug that had
 to be fixed (now post-render, matching React). Flux's lifecycle is simpler and
 more deterministic.
@@ -872,7 +872,7 @@ more deterministic.
 
 ### Comparison
 
-| Aspect | Flux Ambients | Duct DuctContext |
+| Aspect | Flux Ambients | Reactor Context |
 |---|---|---|
 | Value storage | Typed `Ambient<T>` | Type-erased `object?` in scope stack |
 | Value boxing | Never (generic throughout) | Yes (value types boxed) |
@@ -883,11 +883,11 @@ more deterministic.
 
 **Flux's ambient system is significantly richer.** Typography, colors, content
 opacity, enabled state, focus handling, and more are all first-class ambients
-that cascade through the tree. Duct's context system is a general mechanism
+that cascade through the tree. Reactor's context system is a general mechanism
 but has minimal built-in usage beyond locale.
 
 **Performance:** Flux's WatchAmbient is a direct subscription — when the ambient
-value changes, only elements that watch it update. Duct's UseContext triggers a
+value changes, only elements that watch it update. Reactor's UseContext triggers a
 re-render of the entire component, which then diffs its children.
 
 ---
@@ -906,7 +906,7 @@ Flux has a sophisticated gesture system built on top of DirectXaml pointer event
 All gestures use the unified callback signature — no COM event args objects
 cross the interop boundary.
 
-### Duct's Event Problem (from Critical Review)
+### Reactor's Event Problem (from Critical Review)
 
 > "The Tag-based event dispatch is a fragile workaround"
 > "Event handlers wired in .Set() accumulate without lifecycle cleanup"
@@ -917,7 +917,7 @@ function pointers stored via GCHandle. The element's identity is tracked by a
 pinned GCHandle, not a WinUI control property that could be clobbered.
 
 Flux also avoids `.Set()` entirely — all pointer events, keyboard events, focus
-events, and gestures are first-class. Duct's critical review notes that
+events, and gestures are first-class. Reactor's critical review notes that
 "30-40% of WinUI features still require .Set()." Flux has no escape hatch
 because it doesn't need one — the DirectXaml layer exposes everything the
 framework uses.
@@ -949,18 +949,18 @@ global using PlatVisualCollection = Windows.UI.Xaml.Controls.UIElementCollection
 Adding a new platform requires only the two aliases and platform-specific partial
 class files. No virtual dispatch overhead, no runtime polymorphism.
 
-Duct is WinUI 3-only with no cross-platform story.
+Reactor is WinUI 3-only with no cross-platform story.
 
 ---
 
-## 13. Problems from Duct's Critical Review That Flux Solves
+## 13. Problems from Reactor's Critical Review That Flux Solves
 
-This section maps every major criticism from Duct's critical review to Flux's
+This section maps every major criticism from Reactor's critical review to Flux's
 approach:
 
 ### Reconciler Issues
 
-| # | Duct Problem | Flux Solution |
+| # | Reactor Problem | Flux Solution |
 |---|---|---|
 | 1 | "Massive switch/dispatch for every element type" — monolithic reconciler | No reconciler. Elements self-update via subscriptions. |
 | 2 | "Tag-based event dispatch is fragile" — WinUI Tag property repurposed | GCHandle-based ownership. No WinUI property dependency. |
@@ -972,7 +972,7 @@ approach:
 
 ### State Management Issues
 
-| # | Duct Problem | Flux Solution |
+| # | Reactor Problem | Flux Solution |
 |---|---|---|
 | 8 | "Context values are boxed" | Generic `Ambient<T>` throughout. No boxing. |
 | 9 | "ShouldUpdateWithProps uses reflection" | No memo checks. Subscriptions handle all updates. |
@@ -981,7 +981,7 @@ approach:
 
 ### DSL Issues
 
-| # | Duct Problem | Flux Solution |
+| # | Reactor Problem | Flux Solution |
 |---|---|---|
 | 12 | "No block syntax for children" | Lambda blocks: `Column(() => { ... })` |
 | 13 | "Modifier chains allocate every render" | Modifiers set once, subscriptions handle updates. |
@@ -990,7 +990,7 @@ approach:
 
 ### Performance Issues
 
-| # | Duct Problem | Flux Solution |
+| # | Reactor Problem | Flux Solution |
 |---|---|---|
 | 16 | "XamlReader.Load on every themed element" | Ambient subscriptions. No XAML parsing. |
 | 17 | "Accelerator rebuild per render" | No re-render. Gestures are persistent subscriptions. |
@@ -1000,7 +1000,7 @@ approach:
 
 ### Animation Issues
 
-| # | Duct Problem | Flux Solution |
+| # | Reactor Problem | Flux Solution |
 |---|---|---|
 | 21 | "Only 5 implicit transition properties" | `Animation.Animate()` wraps any state change. |
 | 22 | "No value-driven animation" | Spring/Ease/Linear types on any property. |
@@ -1010,7 +1010,7 @@ approach:
 
 ### Other Issues
 
-| # | Duct Problem | Flux Solution |
+| # | Reactor Problem | Flux Solution |
 |---|---|---|
 | 26 | "No Spacer equivalent" | `Box().Weight(1)` — weight-based flexible sizing. |
 | 27 | "Responsive hooks force full re-render" | Ambients only update subscribers, not entire component. |
@@ -1019,65 +1019,65 @@ approach:
 
 ---
 
-## 14. Where Duct Is Still Better
+## 14. Where Reactor Is Still Better
 
-Flux isn't uniformly superior. Duct has genuine advantages:
+Flux isn't uniformly superior. Reactor has genuine advantages:
 
-### 1. Control Coverage (Duct: 94% of WinUI, Flux: ~15 element types)
+### 1. Control Coverage (Reactor: 94% of WinUI, Flux: ~15 element types)
 
-Duct wraps 81/86 WinUI controls with 200+ factory methods. Flux has a small set
+Reactor wraps 81/86 WinUI controls with 200+ factory methods. Flux has a small set
 of primitives (Box, Column, Row, Text, Scrollable) and builds everything from
 those + custom controls. For apps that need WinUI's rich control library
-(NavigationView, TreeView, ListView, ComboBox, etc.), Duct provides them
+(NavigationView, TreeView, ListView, ComboBox, etc.), Reactor provides them
 out-of-box while Flux requires building equivalents from scratch.
 
-### 2. Commanding (Duct has it, Flux doesn't)
+### 2. Commanding (Reactor has it, Flux doesn't)
 
-Duct's DuctCommand system is a genuine differentiator — no competing framework
+Reactor's Command system is a genuine differentiator — no competing framework
 provides define-once commands with metadata bundling, standard commands, async
 lifecycle, and focus-scoped accelerators. Flux has no commanding abstraction.
 
-### 3. Navigation (Duct has a full system, Flux has basic routing)
+### 3. Navigation (Reactor has a full system, Flux has basic routing)
 
-Duct's type-safe navigation with developer-owned back stack, GPU transitions,
+Reactor's type-safe navigation with developer-owned back stack, GPU transitions,
 lifecycle guards, LRU caching, and deep linking is comprehensive. Flux has
 `Route<T>` and `Switcher` with basic transitions but lacks the full application
 architecture layer.
 
 ### 4. Familiarity (React model vs novel reactive model)
 
-Duct's React-style model transfers mental models from the web ecosystem. Millions
+Reactor's React-style model transfers mental models from the web ecosystem. Millions
 of developers understand hooks, reconciliation, and virtual trees. Flux's
 compile-time reactive model is novel — powerful, but unfamiliar. Migration from
-existing React knowledge to Duct is easier than to Flux.
+existing React knowledge to Reactor is easier than to Flux.
 
 ### 5. No Build Tooling Required
 
-Duct's DSL is plain C# — no code generators, no build steps, no MSBuild tasks.
+Reactor's DSL is plain C# — no code generators, no build steps, no MSBuild tasks.
 The framework is a NuGet package that just works. Flux requires the code generator
 to run before compilation, which adds build complexity and potential failure modes.
 
 ### 6. Observable/MVVM Interop
 
-Duct has rich hooks for bridging with existing MVVM codebases:
+Reactor has rich hooks for bridging with existing MVVM codebases:
 `UseObservable<T>`, `UseObservableTree<T>`, `UseCollection<T>`, and ICommand
 interop. Flux has no MVVM bridge — it expects adoption of its own state system.
 
 ### 7. Lists and Virtualization
 
-Duct wraps ListView, GridView, and LazyVStack/LazyHStack with virtualization.
+Reactor wraps ListView, GridView, and LazyVStack/LazyHStack with virtualization.
 Flux has ForEachElement but no virtualization story for large lists.
 
-### 8. Accessibility (Duct has 16 modifiers + UIA tests)
+### 8. Accessibility (Reactor has 16 modifiers + UIA tests)
 
-Duct has 16 first-class accessibility modifiers with tiered storage and 12 E2E
+Reactor has 16 first-class accessibility modifiers with tiered storage and 12 E2E
 UIA tests. Flux has basic accessibility via AutomationProperties (3 properties
 exposed through DirectXaml: A11yName, A11yHint, A11yHidden) but no comparable
 accessibility story.
 
 ---
 
-## 15. Recommendations: What Duct Should Adopt
+## 15. Recommendations: What Reactor Should Adopt
 
 ### Priority 1: Investigate DirectXaml-Style Native Interop
 
@@ -1088,20 +1088,20 @@ improvement in mount phase is not a micro-optimization — it's a fundamental
 architecture advantage.
 
 **What to investigate:**
-- Profile Duct's actual mount overhead per CsWinRT interop call
+- Profile Reactor's actual mount overhead per CsWinRT interop call
 - Measure the real cost of `new Button()` + property sets vs P/Invoke equivalent
 - Consider a hybrid approach: DirectXaml for hot paths (element creation, property
   sets during reconciliation), standard CsWinRT for cold paths (one-time setup)
-- Evaluate whether Duct's element pool improvements could narrow the gap enough
+- Evaluate whether Reactor's element pool improvements could narrow the gap enough
   that the DirectXaml complexity isn't justified
 
 **Key learning from Flux:**
 The X-macro pattern (`FluxIds.def` as single source of truth → C++ dispatch +
-C# enum generation) is elegant. If Duct adopts native interop, this pattern
+C# enum generation) is elegant. If Reactor adopts native interop, this pattern
 should be studied.
 
 **Risk factors:**
-- Adds C++/WinRT build dependency (currently Duct is pure C#)
+- Adds C++/WinRT build dependency (currently Reactor is pure C#)
 - Requires maintaining native DLL across architectures (x64, arm64)
 - Testing burden increases (native + managed interop)
 - Platform-specific code paths multiply
@@ -1110,13 +1110,13 @@ should be studied.
 
 **Impact: High | Effort: Medium | Risk: Low**
 
-Even without adopting Flux's full reactive model, Duct can learn from Flux's
+Even without adopting Flux's full reactive model, Reactor can learn from Flux's
 "only update what changed" principle:
 
 **Concrete improvements:**
 1. **Cache ShouldUpdateWithProps MethodInfo** — the reflection lookup on every
    memo check is an obvious fix. Flux doesn't need this because it has no memo
-   checks, but if Duct keeps hooks, cache the method.
+   checks, but if Reactor keeps hooks, cache the method.
 2. **Make ShallowEquals useful for interactive elements** — the current
    "conservative: return false for unknown types" defeats the optimization for
    the majority of elements. Consider comparing delegate targets (not just
@@ -1127,7 +1127,7 @@ Even without adopting Flux's full reactive model, Duct can learn from Flux's
    identity via a side map instead of Border wrappers.
 4. **Cache XamlReader.Load results for theming** — key by (targetType, binding
    set). If the same theme tokens are used on the same control type, reuse the
-   Style object. Flux avoids this entirely via ambient subscriptions, but Duct
+   Style object. Flux avoids this entirely via ambient subscriptions, but Reactor
    can still significantly reduce the overhead.
 
 ### Priority 3: Adopt Animation Scoping Pattern
@@ -1135,12 +1135,12 @@ Even without adopting Flux's full reactive model, Duct can learn from Flux's
 **Impact: High | Effort: Medium | Risk: Low**
 
 Flux's `Animation.Animate(() => { state = newValue; })` pattern is a direct
-solution to Duct's biggest animation gap ("animate any state change").
+solution to Reactor's biggest animation gap ("animate any state change").
 
-**How to adapt for Duct:**
+**How to adapt for Reactor:**
 ```csharp
 // Proposed API
-DuctAnimation.WithAnimation(TimingCurve.Spring(0.8, 0.05), () =>
+ReactorAnimation.WithAnimation(TimingCurve.Spring(0.8, 0.05), () =>
 {
     setExpanded(true);    // This state change animates
     setOffset(100);       // This one too
@@ -1149,7 +1149,7 @@ DuctAnimation.WithAnimation(TimingCurve.Spring(0.8, 0.05), () =>
 
 Implementation approach:
 - Store animation context in `[ThreadStatic]` during the scope
-- In `DuctHost.RequestRender()`, detect if animation context is active
+- In `ReactorHost.RequestRender()`, detect if animation context is active
 - During reconciliation, for elements with changed properties where an animation
   context exists, apply composition-layer implicit animations instead of instant
   property sets
@@ -1160,7 +1160,7 @@ Implementation approach:
 **Impact: Medium | Effort: High | Risk: Medium**
 
 Flux's code generator can distinguish static values from reactive ones and
-optimize accordingly. Duct could benefit from a simpler version:
+optimize accordingly. Reactor could benefit from a simpler version:
 
 **Source Generator for element records:**
 - Detect which fields in element records are always the same (static text, fixed
@@ -1176,17 +1176,17 @@ would suffice for analysis-only optimizations.
 
 **Impact: Medium | Effort: Medium | Risk: Low**
 
-Flux's ambient system for theming is cleaner than Duct's XamlReader.Load approach:
+Flux's ambient system for theming is cleaner than Reactor's XamlReader.Load approach:
 
 **What to adopt:**
-- Use `DuctContext<ThemeBrush>` to propagate theme values instead of generating
+- Use `Context<ThemeBrush>` to propagate theme values instead of generating
   XAML Style objects
 - Components that need theme colors consume them via `UseContext` — already exists
 - Apply brushes directly to controls during reconciliation, not via Style injection
 - This eliminates all XamlReader.Load overhead
 
 **Trade-off:** Loses WinUI's native `{ThemeResource}` resolution for
-Light/Dark/HighContrast. Would need to implement theme switching logic in Duct
+Light/Dark/HighContrast. Would need to implement theme switching logic in Reactor
 rather than delegating to WinUI. May not be worth it if the perf impact of
 XamlReader.Load isn't measured to be significant.
 
@@ -1194,22 +1194,22 @@ XamlReader.Load isn't measured to be significant.
 
 **Impact: Medium | Effort: Low | Risk: Low**
 
-Even within Duct's React model, some ideas from Flux's lifecycle are adoptable:
+Even within Reactor's React model, some ideas from Flux's lifecycle are adoptable:
 
-- **Directive-style non-visual elements** — Duct's `ErrorBoundary`, conditional
+- **Directive-style non-visual elements** — Reactor's `ErrorBoundary`, conditional
   elements, and `ForEach` could be non-visual (no Border/Grid wrapper) if
   component identity is tracked separately
 - **Lifecycle-managed subscriptions** — a `UseSubscription` hook that
   automatically cleans up on unmount would be cleaner than `UseEffect` with
   manual cleanup for observable subscriptions
 - **Typed ambient propagation** — migrate `ContextScope` from
-  `List<(DuctContextBase, object?)>` to a typed store to eliminate boxing
+  `List<(ContextBase, object?)>` to a typed store to eliminate boxing
 
 ---
 
 ## Appendix A: Architecture Comparison Summary
 
-| Aspect | Duct | Flux |
+| Aspect | Reactor | Flux |
 |---|---|---|
 | **Core model** | Virtual tree + reconciliation (React) | Reactive subscriptions (build once) |
 | **WinUI interop** | CsWinRT managed objects | C++/WinRT P/Invoke (DirectXaml) |
@@ -1223,7 +1223,7 @@ Even within Duct's React model, some ideas from Flux's lifecycle are adoptable:
 | **Control coverage** | 94% of WinUI (81/86 controls) | ~15 primitives (build from scratch) |
 | **Platform support** | WinUI 3 only | WinUI 3, UWP, Mock |
 | **Build requirements** | NuGet package only | NuGet + code generator + native DLL |
-| **Commanding** | Full system (DuctCommand, StandardCommand) | None |
+| **Commanding** | Full system (Command, StandardCommand) | None |
 | **Navigation** | Full system (type-safe, GPU transitions) | Basic routing (Route<T> + Switcher) |
 | **Accessibility** | 16 modifiers + UIA tests | 3 AutomationProperties |
 | **MVVM interop** | Rich (Observable, Collection, ICommand) | None |

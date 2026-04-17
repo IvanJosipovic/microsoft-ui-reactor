@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using DuctRegedit.Models;
-using DuctRegedit.Services;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorRegedit.Models;
+using ReactorRegedit.Services;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctRegedit.Components;
+namespace ReactorRegedit.Components;
 
 internal sealed record RegistryTreeProps(
     HashSet<string> ExpandedPaths,

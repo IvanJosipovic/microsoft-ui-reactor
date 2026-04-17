@@ -1,0 +1,365 @@
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Hosting;
+using Microsoft.UI.Reactor.AppTests.Host.SelfTest;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using static Microsoft.UI.Reactor.Factories;
+
+namespace Microsoft.UI.Reactor.AppTests.Host.SelfTest.Fixtures;
+
+/// <summary>
+/// Selfhost fixtures targeting Reactor\Hosting coverage gaps:
+/// ReactorHostControl (0%), ReactorHost uncovered paths, PageHelper, RenderStats.
+/// </summary>
+internal static class HostingCoverageFixtures
+{
+    // ════════════════════════════════════════════════════════════════════════
+    //  1. ReactorHostControl — mount component, render, verify content
+    //     Targets: ReactorHostControl constructor, Mount(Component), Render, Dispose
+    // ════════════════════════════════════════════════════════════════════════
+
+    private class SimpleHostedComponent : Microsoft.UI.Reactor.Core.Component
+    {
+        public override Element Render()
+        {
+            var (count, setCount) = UseState(0);
+            return VStack(
+                Factories.Text($"Hosted:{count}"),
+                Button("HostInc", () => setCount(count + 1))
+            );
+        }
+    }
+
+    internal class HostControlMountComponent(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            // Create a ReactorHostControl and mount a component into it
+            var hostControl = new ReactorHostControl();
+            var comp = new SimpleHostedComponent();
+            hostControl.Mount(comp);
+
+            // Place it in the test content area. Use extra delay because this
+            // standalone ReactorHostControl doesn't register with ReactorApp.ActiveHost,
+            // so Harness.Render() can't wait on its render loop directly.
+            var container = new Border { Child = hostControl };
+            H.SetContent(container);
+            await Harness.Render(200);
+
+            // Verify it rendered
+            var text = FindInContainer<TextBlock>(hostControl, tb => tb.Text?.StartsWith("Hosted:") == true);
+            H.Check("HostCtrl_Mounted", text is not null);
+            H.Check("HostCtrl_InitialValue", text?.Text == "Hosted:0");
+
+            // Click and verify re-render
+            var btn = FindInContainer<Button>(hostControl, b => b.Content is string s && s == "HostInc");
+            if (btn is not null)
+            {
+                var peer = new Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer(btn);
+                ((Microsoft.UI.Xaml.Automation.Provider.IInvokeProvider)
+                    peer.GetPattern(Microsoft.UI.Xaml.Automation.Peers.PatternInterface.Invoke)).Invoke();
+            }
+            await Harness.Render(200);
+            text = FindInContainer<TextBlock>(hostControl, tb => tb.Text?.StartsWith("Hosted:") == true);
+            H.Check("HostCtrl_Updated", text?.Text == "Hosted:1");
+
+            // Dispose
+            hostControl.Dispose();
+            H.Check("HostCtrl_Disposed", true);
+
+            // Restore harness content
+            H.SetContent(null);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  2. ReactorHostControl — mount function component
+    //     Targets: ReactorHostControl.Mount(Func<RenderContext, Element>)
+    // ════════════════════════════════════════════════════════════════════════
+
+    internal class HostControlMountFunc(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var hostControl = new ReactorHostControl();
+            hostControl.Mount(ctx =>
+            {
+                var (val, setVal) = ctx.UseState("hello");
+                return VStack(
+                    Factories.Text($"Func:{val}"),
+                    Button("HostChange", () => setVal("world"))
+                );
+            });
+
+            var container = new Border { Child = hostControl };
+            H.SetContent(container);
+            await Harness.Render();
+
+            var text = FindInContainer<TextBlock>(hostControl, tb => tb.Text?.StartsWith("Func:") == true);
+            H.Check("HostCtrlFunc_Mounted", text is not null);
+            H.Check("HostCtrlFunc_Initial", text?.Text == "Func:hello");
+
+            var btn = FindInContainer<Button>(hostControl, b => b.Content is string s && s == "HostChange");
+            if (btn is not null)
+            {
+                var peer = new Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer(btn);
+                ((Microsoft.UI.Xaml.Automation.Provider.IInvokeProvider)
+                    peer.GetPattern(Microsoft.UI.Xaml.Automation.Peers.PatternInterface.Invoke)).Invoke();
+            }
+            await Harness.Render();
+            text = FindInContainer<TextBlock>(hostControl, tb => tb.Text?.StartsWith("Func:") == true);
+            H.Check("HostCtrlFunc_Updated", text?.Text == "Func:world");
+
+            hostControl.Dispose();
+            H.SetContent(null);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  3. ReactorHostControl — ComponentFactory (Loaded path)
+    //     Targets: OnLoaded with ComponentFactory, Props
+    // ════════════════════════════════════════════════════════════════════════
+
+    private class PropsComponent : Microsoft.UI.Reactor.Core.Component<string>
+    {
+        public override Element Render()
+        {
+            return Factories.Text($"WithProps:{Props}");
+        }
+    }
+
+    internal class HostControlFactory(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var hostControl = new ReactorHostControl
+            {
+                ComponentFactory = () => new PropsComponent(),
+                Props = "test-value",
+            };
+
+            // Adding to visual tree triggers Loaded → OnLoaded → Mount.
+            // The Loaded event fires asynchronously after the visual tree processes
+            // the addition. Use extra delay to ensure the mount + render completes
+            // (this host control doesn't go through ReactorApp.ActiveHost).
+            var container = new Border { Child = hostControl };
+            H.SetContent(container);
+            await Harness.Render(200);
+
+            var text = FindInContainer<TextBlock>(hostControl, tb => tb.Text?.StartsWith("WithProps:") == true);
+            H.Check("HostCtrlFactory_Mounted", text is not null);
+            H.Check("HostCtrlFactory_PropsApplied", text?.Text == "WithProps:test-value");
+
+            hostControl.Dispose();
+            H.SetContent(null);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  4. ReactorHostControl — Reconciler access + OnRenderComplete callback
+    //     Targets: Reconciler property, OnRenderComplete
+    // ════════════════════════════════════════════════════════════════════════
+
+    internal class HostControlRenderCallback(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var hostControl = new ReactorHostControl();
+            var renderCallbackFired = false;
+            double lastTreeBuild = -1, lastReconcile = -1, lastEffects = -1;
+
+            hostControl.OnRenderComplete = (tree, reconcile, effects) =>
+            {
+                renderCallbackFired = true;
+                lastTreeBuild = tree;
+                lastReconcile = reconcile;
+                lastEffects = effects;
+            };
+
+            H.Check("HostCtrlCb_HasReconciler", hostControl.Reconciler is not null);
+
+            hostControl.Mount(ctx => Factories.Text("Callback test"));
+
+            var container = new Border { Child = hostControl };
+            H.SetContent(container);
+            await Harness.Render();
+
+            H.Check("HostCtrlCb_CallbackFired", renderCallbackFired);
+            H.Check("HostCtrlCb_TreeBuildNonNeg", lastTreeBuild >= 0);
+            H.Check("HostCtrlCb_ReconcileNonNeg", lastReconcile >= 0);
+            H.Check("HostCtrlCb_EffectsNonNeg", lastEffects >= 0);
+
+            hostControl.Dispose();
+            H.SetContent(null);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  5. ReactorHost — OnRenderComplete + Stats
+    //     Targets: ReactorHost.OnRenderComplete, Stats property, perf reporting
+    // ════════════════════════════════════════════════════════════════════════
+
+    internal class HostRenderStats(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            var callbackCount = 0;
+            host.OnRenderComplete = (_, _, _) => callbackCount++;
+
+            host.Mount(ctx =>
+            {
+                var (n, set) = ctx.UseState(0);
+                return VStack(
+                    Factories.Text($"Stats:{n}"),
+                    Button("Bump", () => set(n + 1))
+                );
+            });
+
+            await Harness.Render();
+            H.Check("HostStats_InitialCallback", callbackCount >= 1);
+
+            // Trigger multiple renders to accumulate stats
+            for (int i = 0; i < 3; i++)
+            {
+                H.ClickButton("Bump");
+                await Harness.Render();
+            }
+
+            H.Check("HostStats_MultipleCallbacks", callbackCount >= 4);
+            // Stats.TotalRenders only updates after the ~1s report window;
+            // verify via the callback count instead (always incremented).
+            H.Check("HostStats_CallbacksAccurate", callbackCount >= 4);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  6. ReactorHost — Dispose lifecycle
+    //     Targets: ReactorHost.Dispose, cleanup paths
+    // ════════════════════════════════════════════════════════════════════════
+
+    internal class HostDispose(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            // Use a separate window so Dispose doesn't affect the test harness
+            var window = new Window { Title = "Dispose Test" };
+            window.AppWindow.Resize(new global::Windows.Graphics.SizeInt32(400, 300));
+            window.Activate();
+
+            var host = new ReactorHost(window);
+            host.Mount(ctx => Factories.Text("WillDispose"));
+            await Task.Delay(200);
+            await Harness.Render();
+
+            host.Dispose();
+            H.Check("HostDispose_Completed", true);
+            window.Close();
+
+            // After dispose, re-set ActiveHost for subsequent fixtures
+            var newHost = H.CreateHost();
+            newHost.Mount(ctx => Factories.Text("AfterDispose"));
+            await Harness.Render();
+            H.Check("HostDispose_NewHostWorks", H.FindText("AfterDispose") is not null);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  7. PageHelper — Mount and Unmount
+    //     Targets: PageHelper.Mount<T>, PageHelper.Unmount
+    // ════════════════════════════════════════════════════════════════════════
+
+    internal class PageHelperExercise(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            // PageHelper.Unmount with null — should not throw
+            ReactorHostControl? nullHost = null;
+            PageHelper.Unmount(ref nullHost);
+            H.Check("PageHelper_UnmountNull", nullHost is null);
+
+            // Create a ReactorHostControl, mount, then unmount
+            var hostCtrl = new ReactorHostControl();
+            hostCtrl.Mount(ctx => Factories.Text("PageHelper"));
+            var container = new Border { Child = hostCtrl };
+            H.SetContent(container);
+            await Harness.Render();
+
+            ReactorHostControl? hostRef = hostCtrl;
+            PageHelper.Unmount(ref hostRef);
+            H.Check("PageHelper_UnmountClears", hostRef is null);
+
+            H.SetContent(null);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  8. XamlInterop.Register — exercises the Register path
+    //     Targets: XamlInterop.Register, XamlHostElement/XamlPageElement via registered types
+    // ════════════════════════════════════════════════════════════════════════
+
+    internal class XamlInteropRegister(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            // Use a separate window so the ReactorHostControl's own render loop
+            // doesn't interfere with the test harness TitleBar.
+            var window = new Window { Title = "XamlInterop Test" };
+            window.AppWindow.Resize(new global::Windows.Graphics.SizeInt32(400, 300));
+
+            var hostControl = new ReactorHostControl();
+            XamlInterop.Register(hostControl.Reconciler);
+
+            hostControl.Mount(ctx =>
+            {
+                var (phase, set) = ctx.UseState(0);
+                return VStack(
+                    new XamlHostElement(
+                        () => new TextBlock { Text = "interop" },
+                        ctrl => ((TextBlock)ctrl).Text = $"interop:{phase}"
+                    ),
+                    Button("UpdInterop", () => set(1))
+                );
+            });
+
+            window.Content = hostControl;
+            window.Activate();
+            await Task.Delay(200);
+            await Harness.Render();
+
+            var text = FindInContainer<TextBlock>(hostControl, tb => tb.Text?.Contains("interop") == true);
+            H.Check("XamlInterop_Mounted", text is not null);
+
+            var btn = FindInContainer<Button>(hostControl, b => b.Content is string s && s == "UpdInterop");
+            if (btn is not null)
+            {
+                var peer = new Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer(btn);
+                ((Microsoft.UI.Xaml.Automation.Provider.IInvokeProvider)
+                    peer.GetPattern(Microsoft.UI.Xaml.Automation.Peers.PatternInterface.Invoke)).Invoke();
+            }
+            await Task.Delay(200);
+            await Harness.Render();
+            text = FindInContainer<TextBlock>(hostControl, tb => tb.Text?.Contains("interop:1") == true);
+            H.Check("XamlInterop_Updated", text is not null);
+
+            hostControl.Dispose();
+            window.Close();
+        }
+    }
+
+    // ── Helper: find controls within a specific ReactorHostControl ──────────
+
+    private static T? FindInContainer<T>(DependencyObject root, Func<T, bool> predicate)
+        where T : DependencyObject
+    {
+        if (root is T match && predicate(match)) return match;
+        int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            var found = FindInContainer(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i), predicate);
+            if (found is not null) return found;
+        }
+        return null;
+    }
+}

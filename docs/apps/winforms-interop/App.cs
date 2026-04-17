@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using Duct.Interop.WinForms;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Interop.WinForms;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 using SWF = System.Windows.Forms;
 
 // <snippet:bootstrap>
@@ -12,7 +12,7 @@ XamlIslandBootstrap.Run(() =>
 {
     var form = new SWF.Form
     {
-        Text = "My WinForms + Duct App",
+        Text = "My WinForms + Reactor App",
         Width = 800,
         Height = 500
     };
@@ -37,8 +37,8 @@ class WinFormsHostDemo : Component
         var (count, setCount) = UseState(0);
 
         return VStack(12,
-            Heading("Duct in WinForms"),
-            Text($"Count: {count}").FontSize(24),
+            Heading("Reactor in WinForms"),
+            Factories.Text($"Count: {count}").FontSize(24),
             Button("+1", () => setCount(count + 1))
         ).Padding(24).Background(SolidBackground);
     }
@@ -48,10 +48,10 @@ class WinFormsHostDemo : Component
 // <snippet:designer>
 // In the form's Designer.cs file:
 //
-// this.ductIsland = new XamlIslandControl();
-// this.ductIsland.ComponentType = typeof(DashboardComponent);
-// this.ductIsland.Dock = DockStyle.Fill;
-// this.panel1.Controls.Add(this.ductIsland);
+// this.reactorIsland = new XamlIslandControl();
+// this.reactorIsland.ComponentType = typeof(DashboardComponent);
+// this.reactorIsland.Dock = DockStyle.Fill;
+// this.panel1.Controls.Add(this.reactorIsland);
 //
 // The Properties grid shows a dropdown of all Component subclasses
 // with parameterless constructors. Select your component and the
@@ -65,9 +65,9 @@ class KeyboardDemo : Component
     {
         var (text, setText) = UseState("");
 
-        // Tab moves focus into this Duct tree from WinForms controls.
-        // Tab/Shift+Tab cycles through Duct controls normally.
-        // Tab out of the last Duct control returns focus to WinForms.
+        // Tab moves focus into this Reactor tree from WinForms controls.
+        // Tab/Shift+Tab cycles through Reactor controls normally.
+        // Tab out of the last Reactor control returns focus to WinForms.
         return VStack(12,
             TextField(text, setText, placeholder: "Type here...")
                 .TabIndex(0),
@@ -115,8 +115,8 @@ class BackgroundDemo : Component
         // XAML Islands have no default background — without this,
         // content renders on a transparent surface.
         return VStack(12,
-            Text("Theme-aware background").Bold(),
-            Text($"Count: {count}"),
+            Factories.Text("Theme-aware background").Bold(),
+            Factories.Text($"Count: {count}"),
             Button("Increment", () => setCount(count + 1))
         ).Padding(24).Background(SolidBackground);
     }
@@ -130,7 +130,7 @@ class BackgroundDemo : Component
 // {
 //     ContentFactory = () =>
 //     {
-//         var host = new DuctHostControl();
+//         var host = new ReactorHostControl();
 //         host.SetComponent<ConfigurableComponent>();
 //         return host;
 //     }
@@ -143,7 +143,7 @@ class ConfigurableComponent : Component
         var (count, setCount) = UseState(0);
         return VStack(12,
             Heading("Dashboard"),
-            Text($"Value: {count}"),
+            Factories.Text($"Value: {count}"),
             Button("+1", () => setCount(count + 1))
         ).Padding(24).Background(SolidBackground);
     }

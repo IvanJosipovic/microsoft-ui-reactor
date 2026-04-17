@@ -1,7 +1,7 @@
 
 # Collections
 
-When you need to render a list of data, Duct provides three typed collection
+When you need to render a list of data, Reactor provides three typed collection
 elements and a simple `ForEach` helper. Each takes your data, a key selector,
 and a view builder function that returns an [element](components.md).
 
@@ -54,8 +54,8 @@ class ListViewDemo : Component
 
 ![ListView with contacts](images/collections/listview.png)
 
-The `keySelector` parameter (`c => c.Id`) tells Duct how to identify each
-item. When your data changes, Duct uses keys to match old items to new ones
+The `keySelector` parameter (`c => c.Id`) tells Reactor how to identify each
+item. When your data changes, Reactor uses keys to match old items to new ones
 and update only what changed — no full-list rebuild.
 
 ## LazyVStack (Virtualized)
@@ -259,7 +259,7 @@ of items inside a larger [layout](layout.md).
 ## Stable Identity with WithKey
 
 When rendering dynamic lists, always give each item a stable key with
-`.WithKey()`. Without keys, Duct matches items by position — adding or
+`.WithKey()`. Without keys, Reactor matches items by position — adding or
 removing an item causes every subsequent item to be rebuilt:
 
 ```csharp

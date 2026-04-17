@@ -1,11 +1,11 @@
-using Duct;
-using Duct.Core;
-using DuctRegedit.Models;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorRegedit.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctRegedit.Components;
+namespace ReactorRegedit.Components;
 
 internal sealed record ValueListProps(
     RegistryValueEntry[] Values,
@@ -31,9 +31,9 @@ internal sealed class ValueList : Component<ValueListProps>
         var header = Grid(
             ["2*", "*", "3*"],
             ["32"],
-            Text(Strings.ColumnName).SemiBold().VAlign(VerticalAlignment.Center).Grid(row: 0, column: 0),
-            Text(Strings.ColumnType).SemiBold().VAlign(VerticalAlignment.Center).Grid(row: 0, column: 1),
-            Text(Strings.ColumnData).SemiBold().VAlign(VerticalAlignment.Center).Grid(row: 0, column: 2)
+            Factories.Text(Strings.ColumnName).SemiBold().VAlign(VerticalAlignment.Center).Grid(row: 0, column: 0),
+            Factories.Text(Strings.ColumnType).SemiBold().VAlign(VerticalAlignment.Center).Grid(row: 0, column: 1),
+            Factories.Text(Strings.ColumnData).SemiBold().VAlign(VerticalAlignment.Center).Grid(row: 0, column: 2)
         ).Set(g =>
         {
             g.Padding = new Thickness(8, 0, 8, 0);
@@ -57,7 +57,7 @@ internal sealed class ValueList : Component<ValueListProps>
 
     private Element RenderValueRow(RegistryValueEntry value, int index)
     {
-        var icon = Text(GetValueIcon(value.Kind))
+        var icon = Factories.Text(GetValueIcon(value.Kind))
             .Set(tb =>
             {
                 tb.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets");
@@ -69,12 +69,12 @@ internal sealed class ValueList : Component<ValueListProps>
             ["28"],
             HStack(6,
                 icon.VAlign(VerticalAlignment.Center),
-                Text(value.DisplayName).VAlign(VerticalAlignment.Center)
+                Factories.Text(value.DisplayName).VAlign(VerticalAlignment.Center)
             ).Grid(row: 0, column: 0),
-            Text(value.TypeName)
+            Factories.Text(value.TypeName)
                 .VAlign(VerticalAlignment.Center)
                 .Grid(row: 0, column: 1),
-            Text(value.DisplayData)
+            Factories.Text(value.DisplayData)
                 .Set(tb =>
                 {
                     tb.TextTrimming = TextTrimming.CharacterEllipsis;

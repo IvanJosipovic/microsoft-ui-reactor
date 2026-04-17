@@ -4,7 +4,7 @@
 This page covers escape hatches and performance tools for when the standard
 declarative API is not enough: error boundaries for resilience, `Memo` for
 render skipping, `.Set()` for raw WinUI access, and observable
-[hooks](hooks.md) for bridging to MVVM view models. For hosting Duct
+[hooks](hooks.md) for bridging to MVVM view models. For hosting Reactor
 components inside WinForms applications, see
 [WinForms Interop](winforms-interop.md). For data grids with sort, filter,
 and editing, see [Data System](data-system.md).
@@ -101,7 +101,7 @@ depend on frequently changing state.
 ## .Set() Escape Hatch
 
 `.Set()` gives you direct access to the underlying WinUI control. Use it
-when Duct does not expose a property you need:
+when Reactor does not expose a property you need:
 
 ```csharp
 class SetEscapeHatchDemo : Component
@@ -202,7 +202,7 @@ class ObservableTreeDemo : Component
 ![Observable view model](images/advanced/observable-viewmodel.png)
 
 The view model is a plain C# class with `INotifyPropertyChanged`. You mutate
-it directly (`vm.UserName = v`) and Duct re-renders. This is the bridge for
+it directly (`vm.UserName = v`) and Reactor re-renders. This is the bridge for
 teams migrating from MVVM — existing view models work without modification.
 
 `UseObservable(source)` is the shallow variant: it only subscribes to the
@@ -249,7 +249,7 @@ class ObservableCollectionDemo : Component
 ![Observable collection](images/advanced/observable-collection.png)
 
 The hook returns `IReadOnlyList<T>` — you read from it in render, and
-mutate the original `ObservableCollection` in event handlers. Duct
+mutate the original `ObservableCollection` in event handlers. Reactor
 subscribes to `CollectionChanged` and triggers a re-render on any
 modification.
 
@@ -264,8 +264,8 @@ have measured a re-render bottleneck. Most subtrees are fast enough without
 it.
 
 **Prefer declarative modifiers over `.Set()`.** Every `.Set()` call is an
-escape hatch that bypasses Duct's diffing. Use it only for properties that
-Duct does not expose. If you find yourself using `.Set()` frequently,
+escape hatch that bypasses Reactor's diffing. Use it only for properties that
+Reactor does not expose. If you find yourself using `.Set()` frequently,
 consider filing an issue to add first-class support.
 
 **Keep view models outside the component.** Store them as `static` fields or
@@ -279,8 +279,8 @@ INPC objects, `UseObservable` is cheaper.
 ## Next Steps
 
 - **[Data System](data-system.md)** — next topic: DataGrid with sort, filter, and inline editing
-- **[WinForms Interop](winforms-interop.md)** — host Duct components inside WinForms applications
+- **[WinForms Interop](winforms-interop.md)** — host Reactor components inside WinForms applications
 - **[Charting](charting.md)** — previous topic: data visualization with line, bar, area, and pie charts
-- **[Duct](readme.md)** — back to the index: overview of the framework and full topic list
+- **[Reactor](readme.md)** — back to the index: overview of the framework and full topic list
 - **[Hooks](hooks.md)** — review the hook system that `UseObservableTree` and `UseCollection` build on
 - **[Effects and Lifecycle](effects.md)** — manage side effects alongside observable data binding

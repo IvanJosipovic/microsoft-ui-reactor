@@ -1,7 +1,7 @@
 
 # Layout
 
-Duct provides a small set of layout primitives that compose together to build
+Reactor provides a small set of layout primitives that compose together to build
 any screen structure. Every layout element accepts children and optional
 spacing. Once you know the basics here, see [Flex Layout](flex-layout.md) for
 more adaptive arrangements.

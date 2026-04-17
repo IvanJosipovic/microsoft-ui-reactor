@@ -1,11 +1,11 @@
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Email;
+namespace ReactorOutlook.Components.Email;
 
 internal sealed class EmailToolbar : Component
 {
@@ -32,23 +32,23 @@ internal sealed class EmailToolbar : Component
     {
         var btn = Button(
             (FlexRow(
-                Text(icon).FontSize(16).Foreground(SecondaryText)
+                Factories.Text(icon).FontSize(16).Foreground(SecondaryText)
                     .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets"))
                     .AccessibilityHidden(),
-                Text(label).FontSize(13).Foreground(PrimaryText)
+                Factories.Text(label).FontSize(13).Foreground(PrimaryText)
             ) with { ColumnGap = 6 }),
             null
         ).AutomationName(label)
          .Set(b =>
         {
-            b.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+            b.Background = new SolidColorBrush(global::Windows.UI.Color.FromArgb(0, 0, 0, 0));
             b.BorderThickness = new Thickness(0);
             b.Padding = new Thickness(10, 6, 10, 6);
             b.CornerRadius = new CornerRadius(3);
             b.Resources["ButtonBackgroundPointerOver"] = new SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 243, 243, 243));
+                global::Windows.UI.Color.FromArgb(255, 243, 243, 243));
             b.Resources["ButtonBorderBrushPointerOver"] = new SolidColorBrush(
-                Windows.UI.Color.FromArgb(0, 0, 0, 0));
+                global::Windows.UI.Color.FromArgb(0, 0, 0, 0));
         });
         if (accessKey is not null) btn = btn.AccessKey(accessKey);
         return btn;

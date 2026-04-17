@@ -1,16 +1,16 @@
 
 # Charting
 
-DuctD3 brings data visualization to Duct. The chart DSL provides high-level
+ReactorCharting brings data visualization to Reactor. The chart DSL provides high-level
 `LineChart`, `BarChart`, `AreaChart`, and `PieChart` factories that produce
-standard Duct elements. You bind data, configure appearance with a fluent
+standard Reactor elements. You bind data, configure appearance with a fluent
 API, and the chart renders as native WinUI shapes on a Canvas.
 
-Add a reference to `DuctD3.csproj` and import the DSL:
+Add a reference to `ReactorCharting.csproj` and import the DSL:
 
 ```csharp
-using Duct.D3.Charts;
-using static Duct.D3.Charts.ChartDsl;
+using Microsoft.UI.Reactor.Charting;
+using static Microsoft.UI.Reactor.Charting.ChartDsl;
 ```
 
 ## Line Chart
@@ -169,7 +169,7 @@ named colors like `steelblue`.
 
 ## Binding Data to State
 
-Charts are standard Duct elements. When state changes, the chart re-renders
+Charts are standard Reactor elements. When state changes, the chart re-renders
 with the new data:
 
 ```csharp
@@ -215,7 +215,7 @@ smooth interaction.
 ## Dynamic Data Updates
 
 For frequent updates (live dashboards, real-time feeds), use `OnReady` to
-get a `ChartHandle` that redraws the canvas without a Duct re-render:
+get a `ChartHandle` that redraws the canvas without a Reactor re-render:
 
 ```csharp
 class DynamicDataDemo : Component
@@ -250,8 +250,8 @@ maximum throughput.
 
 ## Low-Level Drawing
 
-For custom visualizations, DuctD3 provides shape generators and a Canvas
-DSL. Import `using static Duct.D3.Charts.D3` for:
+For custom visualizations, ReactorCharting provides shape generators and a Canvas
+DSL. Import `using static Microsoft.UI.Reactor.Charting.D3` for:
 
 - **`D3Canvas(w, h, children)`** — create a drawing surface
 - **`D3Rect`, `D3Circle`, `D3Line`, `D3Path`** — primitive shapes

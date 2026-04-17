@@ -1,9 +1,9 @@
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctRegedit.Components.Dialogs;
+namespace ReactorRegedit.Components.Dialogs;
 
 internal sealed record EditStringDialogProps(
     bool IsOpen,
@@ -23,12 +23,12 @@ internal sealed class EditStringDialog : Component<EditStringDialogProps>
             Props.Title,
             VStack(12,
                 VStack(4,
-                    Text(Strings.ValueName),
+                    Factories.Text(Strings.ValueName),
                     TextField(Props.ValueName, _ => { })
                         .ReadOnly()
                 ),
                 VStack(4,
-                    Text(Strings.ValueData),
+                    Factories.Text(Strings.ValueData),
                     TextField(Props.ValueData, Props.OnValueDataChanged)
                 )
             ).Width(400),

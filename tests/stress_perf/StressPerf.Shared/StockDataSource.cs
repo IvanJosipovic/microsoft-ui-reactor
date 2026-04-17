@@ -60,7 +60,7 @@ public sealed class StockDataSource
     }
 
     /// <summary>
-    /// Returns a snapshot copy of the current items array (used by Duct variant).
+    /// Returns a snapshot copy of the current items array (used by Reactor variant).
     /// </summary>
     public StockItem[] Snapshot()
     {

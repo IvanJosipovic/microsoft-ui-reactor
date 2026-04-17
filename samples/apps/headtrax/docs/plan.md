@@ -2,7 +2,7 @@
 
 ## Goal
 
-A sample app that showcases the Duct DataGrid with data virtualization against a
+A sample app that showcases the Reactor DataGrid with data virtualization against a
 fake 150–250K employee database. Two data paths demonstrate the provider model:
 
 1. **SQLite Direct** – C# `IDataSource<Dictionary<string, object?>>` that
@@ -21,7 +21,7 @@ behavior can be compared side-by-side.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  HeadTrax  (Duct WinUI app)                     │
+│  HeadTrax  (Reactor WinUI app)                     │
 │                                                  │
 │  ┌──────────┐   ┌──────────────┐                │
 │  │ Toolbar   │   │ EmployeeGrid │  ← DataGrid<> │
@@ -69,7 +69,7 @@ samples/apps/headtrax/
 │   ├── generate-data.js        ← Faker-based data seeder
 │   └── server.js               ← Express + Apollo Server 4
 │
-└── HeadTrax/                   ← C# Duct app
+└── HeadTrax/                   ← C# Reactor app
     ├── HeadTrax.csproj
     ├── Program.cs              ← Entry point, CLI arg parsing
     ├── AppConfig.cs            ← Runtime config (db path, graphql url)
@@ -149,7 +149,7 @@ variance in the data itself from random title/dept/location assignment).
 | `service/generate-data.js` | **Done** | `@faker-js/faker`, batched insert (5K per txn), progress output |
 | `service/server.js` | **Done** | Apollo Server 4, parameterized query builder, column whitelist, camelCase mapping, prepared statements for lookups |
 | `service/.gitignore` | **Done** | Ignores `node_modules/`, `*.db` |
-| `HeadTrax/HeadTrax.csproj` | **Done** | References Duct + Microsoft.Data.Sqlite |
+| `HeadTrax/HeadTrax.csproj` | **Done** | References Reactor + Microsoft.Data.Sqlite |
 | `HeadTrax/Program.cs` | **Done** | Parses `--db` and `--graphql-url` CLI args |
 | `HeadTrax/AppConfig.cs` | **Done** | Static config with defaults |
 | `HeadTrax/App.cs` | **Done** | FlexColumn layout, UseRef-based IDisposable cleanup for data source swaps, UseEffect unmount cleanup |
@@ -161,7 +161,7 @@ variance in the data itself from random title/dept/location assignment).
 
 ### Phase 1 complete
 
-- HeadTrax **added** to `Duct.sln`.
+- HeadTrax **added** to `Reactor.sln`.
 - `npm install` run in `service/`.
 - 500-row dev dataset generated (`headtrax.db` exists).
 - C# app compiles cleanly (0 errors, 1 harmless nullable warning).
@@ -182,7 +182,7 @@ All compile issues from the original draft have been fixed:
 3. **VStack vs FlexColumn** – Replaced `VStack` with `FlexColumn` where children need flex grow.
 4. **IDisposable leak** – `App.cs` now uses `UseRef` to track the current data source
    and disposes the old instance in `UseMemo` on mode change, plus `UseEffect` cleanup on unmount.
-5. **Missing `using Duct;`** – All files needed `using Duct;` for extension methods
+5. **Missing `using Microsoft.UI.Reactor;`** – All files needed `using Microsoft.UI.Reactor;` for extension methods
    (`.Flex()`, `.Opacity()`, `.FontSize()`, `.VAlign()`, `.Width()`, etc.).
 6. **`args` name conflict** – Renamed to `cliArgs` in `Program.cs` (top-level statements
    already define `args`).
@@ -221,7 +221,7 @@ a 500-row dev dataset exists, and the GraphQL server starts cleanly.
 12. **Error handling** – GraphQL connection failures, missing database file,
     schema mismatch. Show user-friendly error states.
 13. **Loading states** – Skeleton rows or shimmer while pages load.
-14. **Theming** – Dark/light mode support using Duct's theme system.
+14. **Theming** – Dark/light mode support using Reactor's theme system.
 15. **Performance measurement** – Add timing instrumentation to compare
     SQLite direct vs GraphQL latency at various dataset sizes.
 
@@ -285,7 +285,7 @@ dotnet run
 
 ## Framework APIs Used
 
-| Duct API | Where |
+| Reactor API | Where |
 |---|---|
 | `IDataSource<T>` | Both data sources implement this |
 | `IKeyedDataSource<T>` | SqliteDataSource (for future detail pane) |

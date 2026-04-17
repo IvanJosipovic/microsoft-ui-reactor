@@ -1,7 +1,7 @@
 
 # Navigation
 
-Duct uses a stack-based navigation model with type-safe routes. You define
+Reactor uses a stack-based navigation model with type-safe routes. You define
 your routes as an enum, create a navigation handle with
 [`UseNavigation`](hooks.md), and render the current page with `NavigationHost`.
 

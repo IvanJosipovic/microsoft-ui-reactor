@@ -13,7 +13,7 @@ goal: |
 
 # Data System
 
-Duct's data system provides a virtualized `DataGrid<T>` backed by a
+Reactor's data system provides a virtualized `DataGrid<T>` backed by a
 pluggable data source abstraction. You define columns (or auto-generate
 them), connect a data source, and the grid handles sorting, filtering,
 searching, selection, and inline editing.
@@ -57,8 +57,8 @@ The `ColumnBuilder<T>` supports chaining:
 | `.NotSortable()` | Disable sort for this column |
 | `.Build()` | Finalize the `FieldDescriptor` |
 
-Import both DSLs: `using static Duct.DataGrid.DataGridDsl;` and
-`using static Duct.DataGrid.ColumnDsl;`
+Import both DSLs: `using static Reactor.DataGrid.DataGridDsl;` and
+`using static Reactor.DataGrid.ColumnDsl;`
 
 ## Auto-Generated Columns
 
@@ -195,7 +195,7 @@ offset calculation. Omit it only when rows genuinely vary in height.
 
 ## Next Steps
 
-- **[WinForms Interop](winforms-interop.md)** — next topic: host Duct components inside WinForms apps
+- **[WinForms Interop](winforms-interop.md)** — next topic: host Reactor components inside WinForms apps
 - **[Collections](collections.md)** — simpler list and grid elements for non-tabular data
 - **[Forms and Input](forms.md)** — controlled inputs and validation patterns used in grid editing
 - **[Advanced Patterns](advanced.md)** — performance tuning, error boundaries, and observable data binding

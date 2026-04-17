@@ -1,6 +1,6 @@
-# Duct Data System — Implementation Tasks
+# Reactor Data System — Implementation Tasks
 
-Derived from: `docs/spec/017-duct-data-system-design.md`
+Derived from: `docs/spec/017-data-system-design.md`
 
 ---
 
@@ -9,7 +9,7 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 ### 0A. FieldDescriptor Definition
 
 #### 0A.1 FieldDescriptor Record
-- [x] Create `Duct/Data/FieldDescriptor.cs`
+- [x] Create `Reactor/Data/FieldDescriptor.cs`
 - [x] Define core identity properties: `Name` (required), `DisplayName`, `FieldType` (required)
 - [x] Define access properties: `GetValue` (required `Func<object, object?>`), `SetValue` (`Func<object, object?, object>?`), `IsReadOnly`
 - [x] Define metadata properties: `Category`, `Description`, `Order`
@@ -97,7 +97,7 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 - [x] **Regression test**: run all existing PropertyGrid tests — complete suite must pass
 
 #### 0B.7 Remove PropertyDescriptor
-- [x] Delete `Duct/PropertyGrid/PropertyDescriptor.cs`
+- [x] Delete `Reactor/PropertyGrid/PropertyDescriptor.cs`
 - [x] Remove all remaining references to `PropertyDescriptor` in the codebase
 - [x] Verify no compilation errors across the entire solution
 - [x] **Regression test**: run full test suite — all tests must pass
@@ -133,7 +133,7 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 ### 0C. Core Data Access Types
 
 #### 0C.1 RowKey
-- [x] Create `Duct/Data/RowKey.cs`
+- [x] Create `Reactor/Data/RowKey.cs`
 - [x] Define `readonly record struct RowKey(string Value)`
 - [x] Implement implicit conversions from `string`, `int`, `Guid`
 - [x] Override `ToString()` to return `Value`
@@ -142,25 +142,25 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 - [x] Unit tests: implicit conversion operators
 
 #### 0C.2 DataPage<T>
-- [x] Create `Duct/Data/DataPage.cs`
+- [x] Create `Reactor/Data/DataPage.cs`
 - [x] Define `DataPage<T>` record with `Items` (required), `ContinuationToken`, `TotalCount`
 - [x] Unit tests: construction, `with` expressions, null continuation means last page
 
 #### 0C.3 Sort and Filter Descriptors
-- [x] Create `Duct/Data/SortDescriptor.cs` — record with `Field`, `Direction`
-- [x] Create `Duct/Data/FilterDescriptor.cs` — record with `Field`, `Operator`, `Value`, `ValueTo`
+- [x] Create `Reactor/Data/SortDescriptor.cs` — record with `Field`, `Direction`
+- [x] Create `Reactor/Data/FilterDescriptor.cs` — record with `Field`, `Operator`, `Value`, `ValueTo`
 - [x] Define `SortDirection` enum: `Ascending`, `Descending`
 - [x] Define `FilterOperator` enum: `Equals`, `NotEquals`, `Contains`, `StartsWith`, `EndsWith`, `GreaterThan`, `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `Between`, `In`, `IsNull`, `IsNotNull`
 - [x] Unit tests: descriptor construction and equality
 - [x] Unit tests: `FilterDescriptor` with `Between` uses `ValueTo`
 
 #### 0C.4 DataRequest
-- [x] Create `Duct/Data/DataRequest.cs`
+- [x] Create `Reactor/Data/DataRequest.cs`
 - [x] Define `DataRequest` record with `PageSize` (default 50), `ContinuationToken`, `Sort`, `Filters`, `SearchQuery`, `Select`
 - [x] Unit tests: default values, `with` expressions for building requests
 
 #### 0C.5 IDataSource<T> and Capabilities
-- [x] Create `Duct/Data/IDataSource.cs`
+- [x] Create `Reactor/Data/IDataSource.cs`
 - [x] Define `IDataSource<T>` interface: `GetPageAsync`, `GetRowKey`, `Capabilities`
 - [x] Define `DataSourceCapabilities` flags enum: `None`, `ServerSort`, `ServerFilter`, `ServerSearch`, `ServerCount`, `ServerSelect`, `Mutate`, `Refresh`
 - [x] Unit tests: capabilities flags composition and checking
@@ -176,7 +176,7 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 ### 0D. In-Memory Data Providers
 
 #### 0D.1 ListDataSource<T>
-- [x] Create `Duct/Data/Providers/ListDataSource.cs`
+- [x] Create `Reactor/Data/Providers/ListDataSource.cs`
 - [x] Implement `IDataSource<T>` and `IMutableDataSource<T>`
 - [x] Declare capabilities: `ServerSort | ServerFilter | ServerSearch | ServerCount | Mutate`
 - [x] Implement `GetPageAsync`: apply filters, apply sorts, compute offset from continuation token, return page
@@ -205,7 +205,7 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 - [ ] Performance test: 100k items — sort + filter completes in <200ms
 
 #### 0D.2 ObservableListDataSource<T>
-- [x] Create `Duct/Data/Providers/ObservableListDataSource.cs`
+- [x] Create `Reactor/Data/Providers/ObservableListDataSource.cs`
 - [x] Implement `IObservableDataSource<T>` extending `ListDataSource<T>`
 - [x] Subscribe to `ObservableCollection<T>.CollectionChanged`
 - [x] Fire `DataChanged` on add, remove, move, reset
@@ -258,17 +258,17 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 ### 1A. VirtualList Core
 
 #### 1A.1 VirtualListElement<T>
-- [x] Create `Duct/Virtualization/VirtualListElement.cs`
+- [x] Create `Reactor/Virtualization/VirtualListElement.cs`
 - [x] Define `VirtualListElement<T>` record: `ItemCount` (required), `RenderItem` (required `Func<int, Element>`), `GetItemKey`, `ItemHeight`, `EstimatedItemHeight` (default 40)
 - [x] Create DSL factory: `VirtualList(int itemCount, Func<int, Element> renderItem, ...)`
 - [x] Unit tests: element construction with required properties
 
 #### 1A.2 VirtualListComponent — ItemsRepeater Integration (D12)
-- [x] Create `Duct/Virtualization/VirtualListComponent.cs`
-- [x] Compose with WinUI `ItemsRepeater` via existing `DuctElementFactory` reconciler bridge
+- [x] Create `Reactor/Virtualization/VirtualListComponent.cs`
+- [x] Compose with WinUI `ItemsRepeater` via existing `ElementFactory` reconciler bridge
 - [x] Configure `StackLayout` (vertical) on ItemsRepeater
 - [x] Wire `ItemCount` to ItemsRepeater item source
-- [x] Wire `RenderItem` through `DuctElementFactory` element generation
+- [x] Wire `RenderItem` through `ElementFactory` element generation
 - [x] Wire `GetItemKey` for reconciler stable identity
 - [x] Unit tests: component creates ItemsRepeater with correct item count
 - [x] Unit tests: RenderItem called for visible items only
@@ -308,13 +308,13 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 ### 2A. DataGrid Core
 
 #### 2A.1 DataGridState — Headless Core
-- [x] Create `Duct/DataGrid/DataGridState.cs` — headless state machine (D6.1 TanStack pattern)
+- [x] Create `Reactor/DataGrid/DataGridState.cs` — headless state machine (D6.1 TanStack pattern)
 - [x] Manage sort state, filter state, selection, editing, column order/sizing/visibility, scroll position
 - [x] Pure logic, no UI dependencies — fully testable without rendering
 - [x] Unit tests: state transitions for sort, filter, selection
 
 #### 2A.2 DataGridElement
-- [x] Create `Duct/DataGrid/DataGridElement.cs`
+- [x] Create `Reactor/DataGrid/DataGridElement.cs`
 - [x] Define `DataGridElement<T>` record per spec §6.3: `Source`, `Columns`, `Registry`, `ColumnOverrides`
 - [x] Define selection props: `SelectionMode` (None/Single/Multiple), `OnSelectionChanged`
 - [x] Define editing props: `OnRowChanged`, `EditMode` (Cell/Row), `Editable`
@@ -326,7 +326,7 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 - [x] Unit tests: element construction with all property combinations
 
 #### 2A.3 Column DSL
-- [x] Create `Duct/DataGrid/ColumnDsl.cs` — `Column<T>(name, accessor, ...)` helper (spec Appendix A)
+- [x] Create `Reactor/DataGrid/ColumnDsl.cs` — `Column<T>(name, accessor, ...)` helper (spec Appendix A)
 - [x] Support `editable`, `displayName`, `format`, `width`, `pin` parameters
 - [x] Support `.Validate(...)` chaining for per-column validators
 - [x] Auto-generate columns from `TypeRegistry` + reflection when `Columns` is null
@@ -334,7 +334,7 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 - [x] Unit tests: reflection auto-column generation
 
 #### 2A.4 DataGridComponent
-- [x] Create `Duct/DataGrid/DataGridComponent.cs`
+- [x] Create `Reactor/DataGrid/DataGridComponent.cs`
 - [x] Compose `VirtualList` for the row area
 - [x] Header row with sort indicators (fixed, above the virtualizing area)
 - [x] Row rendering as FlexRow of cells, keyed by RowKey
@@ -413,7 +413,7 @@ Derived from: `docs/spec/017-duct-data-system-design.md`
 ## Phase 4: Server-Side Data Sources (3-4 weeks)
 
 ### 4A. Block Cache
-- [x] Create `Duct/Data/DataPageCache.cs` — `DataPageCache<T>` with block-based caching
+- [x] Create `Reactor/Data/DataPageCache.cs` — `DataPageCache<T>` with block-based caching
 - [x] LRU eviction when cache exceeds configured block limit
 - [x] Transparent re-fetch on cache miss during scroll
 - [x] Invalidation on sort/filter change (clear cache, re-fetch from page 0)

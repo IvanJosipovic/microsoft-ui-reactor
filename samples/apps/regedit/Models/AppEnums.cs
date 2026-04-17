@@ -1,4 +1,4 @@
-namespace DuctRegedit.Models;
+namespace ReactorRegedit.Models;
 
 public enum ActiveDialog
 {

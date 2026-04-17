@@ -8,7 +8,7 @@
 ---
 
 ## F001
-- **File**: DuctD3/Scale/LogScale.cs:37-42
+- **File**: ReactorCharting/Scale/LogScale.cs:37-42
 - **Severity**: critical
 - **Priority**: P0
 - **Domain**: general
@@ -24,7 +24,7 @@
 ---
 
 ## F002
-- **File**: Duct/Core/Reconciler.cs:470-534
+- **File**: Reactor/Core/Reconciler.cs:470-534
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: memory-lifecycle
@@ -40,7 +40,7 @@
 ---
 
 ## F003
-- **File**: Duct/Core/Reconciler.cs:1121
+- **File**: Reactor/Core/Reconciler.cs:1121
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: memory-lifecycle
@@ -56,7 +56,7 @@
 ---
 
 ## F004
-- **File**: Duct/Core/Reconciler.cs:374-380
+- **File**: Reactor/Core/Reconciler.cs:374-380
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: concurrency
@@ -72,7 +72,7 @@
 ---
 
 ## F005
-- **File**: Duct/Core/Reconciler.cs:402-422
+- **File**: Reactor/Core/Reconciler.cs:402-422
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: performance
@@ -88,7 +88,7 @@
 ---
 
 ## F006
-- **File**: Duct/Core/Reconciler.cs:2138-2149
+- **File**: Reactor/Core/Reconciler.cs:2138-2149
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: api-design
@@ -104,7 +104,7 @@
 ---
 
 ## F007
-- **File**: Duct/Core/RenderContext.cs:670-686
+- **File**: Reactor/Core/RenderContext.cs:670-686
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: error-handling
@@ -120,7 +120,7 @@
 ---
 
 ## F008
-- **File**: Duct/Core/RenderContext.cs:675-688
+- **File**: Reactor/Core/RenderContext.cs:675-688
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: concurrency
@@ -136,7 +136,7 @@
 ---
 
 ## F009
-- **File**: Duct/Core/ObservableTreeTracker.cs:101-132
+- **File**: Reactor/Core/ObservableTreeTracker.cs:101-132
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: concurrency
@@ -152,7 +152,7 @@
 ---
 
 ## F010
-- **File**: Duct/Hosting/PreviewCaptureServer.cs:62
+- **File**: Reactor/Hosting/PreviewCaptureServer.cs:62
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: concurrency
@@ -168,7 +168,7 @@
 ---
 
 ## F011
-- **File**: Duct/Yoga/YogaAlgorithm.cs:24-36
+- **File**: Reactor/Yoga/YogaAlgorithm.cs:24-36
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: concurrency
@@ -184,7 +184,7 @@
 ---
 
 ## F012
-- **File**: Duct/Monaco/MonacoEditor.cs:255
+- **File**: Reactor/Monaco/MonacoEditor.cs:255
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: error-handling
@@ -200,7 +200,7 @@
 ---
 
 ## F013
-- **File**: Duct/Monaco/MonacoEditor.cs:125-167
+- **File**: Reactor/Monaco/MonacoEditor.cs:125-167
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: memory-lifecycle
@@ -216,7 +216,7 @@
 ---
 
 ## F014
-- **File**: Duct/PropertyGrid/ReflectionTypeMetadataProvider.cs:205-221
+- **File**: Reactor/PropertyGrid/ReflectionTypeMetadataProvider.cs:205-221
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: error-handling
@@ -232,7 +232,7 @@
 ---
 
 ## F015
-- **File**: Duct.Cli/Loc/TranslateCommand.cs:118-137
+- **File**: Reactor.Cli/Loc/TranslateCommand.cs:118-137
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: general
@@ -248,7 +248,7 @@
 ---
 
 ## F016
-- **File**: Duct.LocGenerator/LocSourceGenerator.cs:162
+- **File**: Reactor.LocGenerator/LocSourceGenerator.cs:162
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: error-handling
@@ -264,7 +264,7 @@
 ---
 
 ## F017
-- **File**: Duct/Animation/TransitionEngine.cs:27-34, 155-174
+- **File**: Reactor/Animation/TransitionEngine.cs:27-34, 155-174
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: general
@@ -280,7 +280,7 @@
 ---
 
 ## F018
-- **File**: Duct/Animation/ScrollAnimation.cs:27-57
+- **File**: Reactor/Animation/ScrollAnimation.cs:27-57
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: error-handling
@@ -296,15 +296,15 @@
 ---
 
 ## F019
-- **File**: Duct/Hosting/DuctHost.cs:16-355
+- **File**: Reactor/Hosting/ReactorHost.cs:16-355
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: memory-lifecycle
 - **Pattern**: ML-DISP-01
 - **Agent**: lifecycle
 - **Status**: :black_square_button: PENDING
-- **Finding**: `DuctHost` holds `Reconciler` (IDisposable) but doesn't implement `IDisposable`. Window close handler only sets `_disposed = true` — never calls cleanup. `DuctApp.ActiveHost` (static) never cleared.
-- **Evidence**: Line 94: `_window.Closed += (_, _) => _disposed = true;`. Compare with `DuctHostControl.Dispose()` lines 392-409 which correctly runs all cleanups.
+- **Finding**: `ReactorHost` holds `Reconciler` (IDisposable) but doesn't implement `IDisposable`. Window close handler only sets `_disposed = true` — never calls cleanup. `ReactorApp.ActiveHost` (static) never cleared.
+- **Evidence**: Line 94: `_window.Closed += (_, _) => _disposed = true;`. Compare with `ReactorHostControl.Dispose()` lines 392-409 which correctly runs all cleanups.
 - **Fix**: Implement `IDisposable`. In `Dispose()`: run cleanups, dispose reconciler, null references, clear `ActiveHost`. Change `Closed` handler to call `Dispose()`.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
@@ -312,7 +312,7 @@
 ---
 
 ## F020
-- **File**: Duct/Navigation/NavigationStack.cs:81
+- **File**: Reactor/Navigation/NavigationStack.cs:81
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: memory-lifecycle
@@ -328,7 +328,7 @@
 ---
 
 ## F021
-- **File**: DuctD3/Scale/BandScale.cs:172-179
+- **File**: ReactorCharting/Scale/BandScale.cs:172-179
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: general
@@ -344,7 +344,7 @@
 ---
 
 ## F022
-- **File**: DuctD3/Shape/Curve.cs:338-340
+- **File**: ReactorCharting/Shape/Curve.cs:338-340
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: general
@@ -360,7 +360,7 @@
 ---
 
 ## F023
-- **File**: DuctD3/Layout/Treemap.cs:142-174
+- **File**: ReactorCharting/Layout/Treemap.cs:142-174
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: general
@@ -376,7 +376,7 @@
 ---
 
 ## F024
-- **File**: DuctD3/Voronoi/Delaunay.cs:97-121
+- **File**: ReactorCharting/Voronoi/Delaunay.cs:97-121
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: general
@@ -392,7 +392,7 @@
 ---
 
 ## F025
-- **File**: vscode-duct/src/extension.ts:309
+- **File**: vscode-reactor/src/extension.ts:309
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: security
@@ -408,7 +408,7 @@
 ---
 
 ## F026
-- **File**: vscode-duct/src/extension.ts:418-422
+- **File**: vscode-reactor/src/extension.ts:418-422
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: security
@@ -424,7 +424,7 @@
 ---
 
 ## F027
-- **File**: Duct/Hosting/DuctApp.cs:176-201
+- **File**: Reactor/Hosting/ReactorApp.cs:176-201
 - **Severity**: high
 - **Priority**: P2
 - **Domain**: memory-lifecycle
@@ -440,7 +440,7 @@
 ---
 
 ## F028
-- **File**: Duct/Monaco/MonacoEditor.cs:32-37
+- **File**: Reactor/Monaco/MonacoEditor.cs:32-37
 - **Severity**: high
 - **Priority**: P2
 - **Domain**: memory-lifecycle
@@ -456,7 +456,7 @@
 ---
 
 ## F029
-- **File**: Duct/Animation/TransitionEngine.cs:40-76
+- **File**: Reactor/Animation/TransitionEngine.cs:40-76
 - **Severity**: high
 - **Priority**: P2
 - **Domain**: memory-lifecycle
@@ -472,7 +472,7 @@
 ---
 
 ## F030
-- **File**: Duct/Core/Reconciler.cs:342-346
+- **File**: Reactor/Core/Reconciler.cs:342-346
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -488,7 +488,7 @@
 ---
 
 ## F031
-- **File**: Duct/Core/Reconciler.cs:476-481, 630-638
+- **File**: Reactor/Core/Reconciler.cs:476-481, 630-638
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -504,7 +504,7 @@
 ---
 
 ## F032
-- **File**: Duct/Core/Reconciler.cs:89
+- **File**: Reactor/Core/Reconciler.cs:89
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -520,7 +520,7 @@
 ---
 
 ## F033
-- **File**: Duct/Core/Reconciler.cs:2335-2352
+- **File**: Reactor/Core/Reconciler.cs:2335-2352
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: memory-lifecycle
@@ -536,7 +536,7 @@
 ---
 
 ## F034
-- **File**: Duct/Core/Reconciler.cs:2335-2352
+- **File**: Reactor/Core/Reconciler.cs:2335-2352
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: memory-lifecycle
@@ -552,7 +552,7 @@
 ---
 
 ## F035
-- **File**: Duct/Core/ElementPool.cs:220-224
+- **File**: Reactor/Core/ElementPool.cs:220-224
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: memory-lifecycle
@@ -568,7 +568,7 @@
 ---
 
 ## F036
-- **File**: Duct/Core/ChildReconciler.cs:456-461
+- **File**: Reactor/Core/ChildReconciler.cs:456-461
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: general
@@ -584,7 +584,7 @@
 ---
 
 ## F037
-- **File**: Duct/Core/ObservableTreeTracker.cs:135-142
+- **File**: Reactor/Core/ObservableTreeTracker.cs:135-142
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -600,7 +600,7 @@
 ---
 
 ## F038
-- **File**: Duct/Core/ObservableTreeTracker.cs:86-95
+- **File**: Reactor/Core/ObservableTreeTracker.cs:86-95
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -608,7 +608,7 @@
 - **Agent**: general
 - **Status**: :black_square_button: PENDING
 - **Finding**: Bare `catch` in `Walk` and `OnNestedPropertyChanged` silently swallows all exceptions from `prop.GetValue(node)`, including fatal ones.
-- **Evidence**: Lines 86-95 and 113-132: bare catch blocks with no logging. `IDuctLogger` exists but is not used.
+- **Evidence**: Lines 86-95 and 113-132: bare catch blocks with no logging. `ILogger` exists but is not used.
 - **Fix**: Narrow to non-fatal: `catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)` and log.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
@@ -616,7 +616,7 @@
 ---
 
 ## F039
-- **File**: Duct/Core/PersistedStateCache.cs:11-19
+- **File**: Reactor/Core/PersistedStateCache.cs:11-19
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -632,7 +632,7 @@
 ---
 
 ## F040
-- **File**: Duct/Core/PersistedStateCache.cs:9
+- **File**: Reactor/Core/PersistedStateCache.cs:9
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: concurrency
@@ -648,23 +648,23 @@
 ---
 
 ## F041
-- **File**: Duct/Hosting/DuctHost.cs:303-306
+- **File**: Reactor/Hosting/ReactorHost.cs:303-306
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
 - **Pattern**: CS-ERR-01
 - **Agent**: general
 - **Status**: :black_square_button: PENDING
-- **Finding**: `DuctHost.Render()` rethrows outer exceptions (crashes app), while `DuctHostControl.Render()` calls `ShowErrorFallback(ex)` (shows error UI). Behavioral divergence for the same reconciliation bug.
-- **Evidence**: DuctHost line 306: `throw;`. DuctHostControl line 346: `ShowErrorFallback(ex);`. Both have identical `ShowErrorFallback` methods.
-- **Fix**: Replace `throw;` with `ShowErrorFallback(ex);` in DuctHost.
+- **Finding**: `ReactorHost.Render()` rethrows outer exceptions (crashes app), while `ReactorHostControl.Render()` calls `ShowErrorFallback(ex)` (shows error UI). Behavioral divergence for the same reconciliation bug.
+- **Evidence**: ReactorHost line 306: `throw;`. ReactorHostControl line 346: `ShowErrorFallback(ex);`. Both have identical `ShowErrorFallback` methods.
+- **Fix**: Replace `throw;` with `ShowErrorFallback(ex);` in ReactorHost.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
 
 ---
 
 ## F042
-- **File**: Duct/Hosting/DuctHost.cs:128-136
+- **File**: Reactor/Hosting/ReactorHost.cs:128-136
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: concurrency
@@ -680,7 +680,7 @@
 ---
 
 ## F043
-- **File**: Duct/Hosting/DuctHost.cs:30-31
+- **File**: Reactor/Hosting/ReactorHost.cs:30-31
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: concurrency
@@ -689,14 +689,14 @@
 - **Status**: :black_square_button: PENDING
 - **Finding**: `_isRendering` and `_needsRerender` are plain `bool` fields accessed cross-thread without `volatile`. On ARM64, writes may not be visible.
 - **Evidence**: Lines 30-31: plain `bool`. `RequestRender()` is called from background threads via `UseState(threadSafe: true)`.
-- **Fix**: Declare both as `volatile bool`. Apply same in DuctHostControl.cs:55-56.
+- **Fix**: Declare both as `volatile bool`. Apply same in ReactorHostControl.cs:55-56.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
 
 ---
 
 ## F044
-- **File**: Duct/Hosting/DuctHost.cs:321-331
+- **File**: Reactor/Hosting/ReactorHost.cs:321-331
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: general
@@ -712,7 +712,7 @@
 ---
 
 ## F045
-- **File**: Duct/Hosting/DuctApp.cs:33
+- **File**: Reactor/Hosting/ReactorApp.cs:33
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: concurrency
@@ -728,7 +728,7 @@
 ---
 
 ## F046
-- **File**: Duct/Hosting/PreviewCaptureServer.cs:122-127
+- **File**: Reactor/Hosting/PreviewCaptureServer.cs:122-127
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -744,7 +744,7 @@
 ---
 
 ## F047
-- **File**: Duct/Hosting/PreviewCaptureServer.cs:152-154
+- **File**: Reactor/Hosting/PreviewCaptureServer.cs:152-154
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: security
@@ -760,7 +760,7 @@
 ---
 
 ## F048
-- **File**: Duct/Animation/AnimationScope.cs:61-79
+- **File**: Reactor/Animation/AnimationScope.cs:61-79
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: memory-lifecycle
@@ -776,7 +776,7 @@
 ---
 
 ## F049
-- **File**: Duct/Monaco/MonacoEditor.cs:331-341
+- **File**: Reactor/Monaco/MonacoEditor.cs:331-341
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -785,14 +785,14 @@
 - **Status**: :black_square_button: PENDING
 - **Finding**: `ExecuteWithErrorHandling` catches all `Exception` types and writes to `Debug.WriteLine` (no-op in Release). Four locations silently swallow all exceptions.
 - **Evidence**: Lines 331-341: `catch (Exception ex) { Debug.WriteLine(...); }`. In Release builds, every error is invisible.
-- **Fix**: Replace `Debug.WriteLine` with `Trace.TraceWarning` or `IDuctLogger`. Catch only expected types (`InvalidOperationException`, `COMException`).
+- **Fix**: Replace `Debug.WriteLine` with `Trace.TraceWarning` or `ILogger`. Catch only expected types (`InvalidOperationException`, `COMException`).
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
 
 ---
 
 ## F050
-- **File**: Duct/Monaco/MonacoEditor.cs:368-369
+- **File**: Reactor/Monaco/MonacoEditor.cs:368-369
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: security
@@ -808,7 +808,7 @@
 ---
 
 ## F051
-- **File**: Duct/Navigation/NavigationStack.cs:76, 241-244
+- **File**: Reactor/Navigation/NavigationStack.cs:76, 241-244
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -824,7 +824,7 @@
 ---
 
 ## F052
-- **File**: Duct/Navigation/NavigationHandle.cs:247-257
+- **File**: Reactor/Navigation/NavigationHandle.cs:247-257
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -840,7 +840,7 @@
 ---
 
 ## F053
-- **File**: Duct/Navigation/NavigationHandle.cs:123-148
+- **File**: Reactor/Navigation/NavigationHandle.cs:123-148
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: general
@@ -856,7 +856,7 @@
 ---
 
 ## F054
-- **File**: Duct/Core/Localization/IntlAccessor.cs:148-163
+- **File**: Reactor/Core/Localization/IntlAccessor.cs:148-163
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -872,7 +872,7 @@
 ---
 
 ## F055
-- **File**: Duct/Core/Localization/IntlAccessor.cs:266-280
+- **File**: Reactor/Core/Localization/IntlAccessor.cs:266-280
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -888,7 +888,7 @@
 ---
 
 ## F056
-- **File**: Duct/Core/Localization/MessageCache.cs:27-34
+- **File**: Reactor/Core/Localization/MessageCache.cs:27-34
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -904,7 +904,7 @@
 ---
 
 ## F057
-- **File**: Duct/Core/Localization/ReswResourceProvider.cs:107-130
+- **File**: Reactor/Core/Localization/ReswResourceProvider.cs:107-130
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -920,7 +920,7 @@
 ---
 
 ## F058
-- **File**: Duct/Core/Localization/IntlAccessor.cs:117-143
+- **File**: Reactor/Core/Localization/IntlAccessor.cs:117-143
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -936,7 +936,7 @@
 ---
 
 ## F059
-- **File**: Duct/Core/Localization/NumberFormatOptions.cs:16
+- **File**: Reactor/Core/Localization/NumberFormatOptions.cs:16
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -952,7 +952,7 @@
 ---
 
 ## F060
-- **File**: Duct/Core/CommandInterop.cs:40-56
+- **File**: Reactor/Core/CommandInterop.cs:40-56
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -961,14 +961,14 @@
 - **Status**: :black_square_button: PENDING
 - **Finding**: `FromCommand<T>` hardcodes `CanExecute = true`, discarding `ICommand.CanExecute` semantics. Comments claim per-call evaluation that doesn't exist.
 - **Evidence**: Line 51: `CanExecute = true` literal. XML doc claims CanExecute is called on ICommand but it isn't.
-- **Fix**: Fix misleading comments, or add `Func<T, bool>? CanExecutePredicate` to `DuctCommand<T>`.
+- **Fix**: Fix misleading comments, or add `Func<T, bool>? CanExecutePredicate` to `Command<T>`.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
 
 ---
 
 ## F061
-- **File**: Duct/Elements/Dsl.cs:755
+- **File**: Reactor/Elements/Dsl.cs:755
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -984,7 +984,7 @@
 ---
 
 ## F062
-- **File**: Duct/Elements/Dsl.cs:234-263
+- **File**: Reactor/Elements/Dsl.cs:234-263
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1000,7 +1000,7 @@
 ---
 
 ## F063
-- **File**: Duct/Elements/ElementExtensions.cs:269-270, 285-286, 309-310
+- **File**: Reactor/Elements/ElementExtensions.cs:269-270, 285-286, 309-310
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1016,7 +1016,7 @@
 ---
 
 ## F064
-- **File**: Duct/Animation/Transition.cs:70
+- **File**: Reactor/Animation/Transition.cs:70
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1032,7 +1032,7 @@
 ---
 
 ## F065
-- **File**: Duct/Animation/KeyframeBuilder.cs:48-62
+- **File**: Reactor/Animation/KeyframeBuilder.cs:48-62
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1048,7 +1048,7 @@
 ---
 
 ## F066
-- **File**: Duct/Flex/FlexPanel.cs:425-443
+- **File**: Reactor/Flex/FlexPanel.cs:425-443
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1064,7 +1064,7 @@
 ---
 
 ## F067
-- **File**: Duct/Yoga/YogaNode.cs:405-419
+- **File**: Reactor/Yoga/YogaNode.cs:405-419
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1080,7 +1080,7 @@
 ---
 
 ## F068
-- **File**: Duct/Yoga/AlgorithmUtils.cs:382-395
+- **File**: Reactor/Yoga/AlgorithmUtils.cs:382-395
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1096,7 +1096,7 @@
 ---
 
 ## F069
-- **File**: Duct/Yoga/YogaConfig.cs:20-22
+- **File**: Reactor/Yoga/YogaConfig.cs:20-22
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1112,7 +1112,7 @@
 ---
 
 ## F070
-- **File**: Duct/Markdown/MarkdownBuilder.cs:122-134
+- **File**: Reactor/Markdown/MarkdownBuilder.cs:122-134
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1128,7 +1128,7 @@
 ---
 
 ## F071
-- **File**: Duct/Markdown/Md4cHtml.cs:162-185
+- **File**: Reactor/Markdown/Md4cHtml.cs:162-185
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1144,7 +1144,7 @@
 ---
 
 ## F072
-- **File**: Duct/Markdown/Md4cHtml.cs:135, 147
+- **File**: Reactor/Markdown/Md4cHtml.cs:135, 147
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1160,7 +1160,7 @@
 ---
 
 ## F073
-- **File**: Duct/PropertyGrid/ReflectionTypeMetadataProvider.cs:145
+- **File**: Reactor/PropertyGrid/ReflectionTypeMetadataProvider.cs:145
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1176,7 +1176,7 @@
 ---
 
 ## F074
-- **File**: Duct/PropertyGrid/ReflectionTypeMetadataProvider.cs:91-101
+- **File**: Reactor/PropertyGrid/ReflectionTypeMetadataProvider.cs:91-101
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1192,7 +1192,7 @@
 ---
 
 ## F075
-- **File**: Duct/PropertyGrid/TypeRegistry.cs:65-67, 162-164
+- **File**: Reactor/PropertyGrid/TypeRegistry.cs:65-67, 162-164
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1208,7 +1208,7 @@
 ---
 
 ## F076
-- **File**: Duct.Cli/Loc/ExtractCommand.cs:21-24 (and 4 other commands)
+- **File**: Reactor.Cli/Loc/ExtractCommand.cs:21-24 (and 4 other commands)
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1224,7 +1224,7 @@
 ---
 
 ## F077
-- **File**: Duct.Cli/Loc/AzureOpenAiProvider.cs:66-82
+- **File**: Reactor.Cli/Loc/AzureOpenAiProvider.cs:66-82
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1240,7 +1240,7 @@
 ---
 
 ## F078
-- **File**: Duct.Cli/Loc/InterpolationConverter.cs:221-228
+- **File**: Reactor.Cli/Loc/InterpolationConverter.cs:221-228
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1256,7 +1256,7 @@
 ---
 
 ## F079
-- **File**: Duct.Cli/Loc/ReswWriter.cs:54-55
+- **File**: Reactor.Cli/Loc/ReswWriter.cs:54-55
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1272,7 +1272,7 @@
 ---
 
 ## F080
-- **File**: Duct.Cli/Loc/ReswReader.cs:116-119
+- **File**: Reactor.Cli/Loc/ReswReader.cs:116-119
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1288,7 +1288,7 @@
 ---
 
 ## F081
-- **File**: Duct.Cli/Loc/ReswWriter.cs:40-44
+- **File**: Reactor.Cli/Loc/ReswWriter.cs:40-44
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1304,7 +1304,7 @@
 ---
 
 ## F082
-- **File**: Duct.Cli/Loc/PruneCommand.cs:196-199
+- **File**: Reactor.Cli/Loc/PruneCommand.cs:196-199
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1320,7 +1320,7 @@
 ---
 
 ## F083
-- **File**: Duct.Cli/Loc/PruneCommand.cs:137-141
+- **File**: Reactor.Cli/Loc/PruneCommand.cs:137-141
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1336,7 +1336,7 @@
 ---
 
 ## F084
-- **File**: Duct.Cli/Loc/ValidateCommand.cs:55-68
+- **File**: Reactor.Cli/Loc/ValidateCommand.cs:55-68
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1352,7 +1352,7 @@
 ---
 
 ## F085
-- **File**: Duct.Cli/Docs/ScreenshotCapture.cs:28-35
+- **File**: Reactor.Cli/Docs/ScreenshotCapture.cs:28-35
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1368,7 +1368,7 @@
 ---
 
 ## F086
-- **File**: Duct.Cli/Docs/ScreenshotCapture.cs:93-96
+- **File**: Reactor.Cli/Docs/ScreenshotCapture.cs:93-96
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1384,7 +1384,7 @@
 ---
 
 ## F087
-- **File**: Duct.Cli/Docs/ScreenshotCapture.cs:87-89
+- **File**: Reactor.Cli/Docs/ScreenshotCapture.cs:87-89
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: security
@@ -1400,7 +1400,7 @@
 ---
 
 ## F088
-- **File**: Duct.LocGenerator/LocSourceGenerator.cs:157-161
+- **File**: Reactor.LocGenerator/LocSourceGenerator.cs:157-161
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1416,7 +1416,7 @@
 ---
 
 ## F089
-- **File**: DuctD3/Array/Bin.cs:92-95
+- **File**: ReactorCharting/Array/Bin.cs:92-95
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1432,7 +1432,7 @@
 ---
 
 ## F090
-- **File**: DuctD3/Scale/QuantizeScale.cs:88-94
+- **File**: ReactorCharting/Scale/QuantizeScale.cs:88-94
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1448,7 +1448,7 @@
 ---
 
 ## F091
-- **File**: DuctD3/Scale/BandScale.cs:164
+- **File**: ReactorCharting/Scale/BandScale.cs:164
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1464,7 +1464,7 @@
 ---
 
 ## F092
-- **File**: DuctD3/Shape/Arc.cs:91-101
+- **File**: ReactorCharting/Shape/Arc.cs:91-101
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1480,7 +1480,7 @@
 ---
 
 ## F093
-- **File**: DuctD3/Layout/Sankey.cs:103
+- **File**: ReactorCharting/Layout/Sankey.cs:103
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1496,7 +1496,7 @@
 ---
 
 ## F094
-- **File**: DuctD3/Format/Format.cs:146-161
+- **File**: ReactorCharting/Format/Format.cs:146-161
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1512,7 +1512,7 @@
 ---
 
 ## F095
-- **File**: DuctD3/Contour/Contour.cs:115-158
+- **File**: ReactorCharting/Contour/Contour.cs:115-158
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1528,7 +1528,7 @@
 ---
 
 ## F096
-- **File**: DuctD3/Color/D3Color.cs:149-160
+- **File**: ReactorCharting/Color/D3Color.cs:149-160
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1544,7 +1544,7 @@
 ---
 
 ## F097
-- **File**: DuctD3/Random/Random.cs:62-63, 105-118, 145-148
+- **File**: ReactorCharting/Random/Random.cs:62-63, 105-118, 145-148
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1560,7 +1560,7 @@
 ---
 
 ## F098
-- **File**: DuctD3/Voronoi/Delaunay.cs:320-330
+- **File**: ReactorCharting/Voronoi/Delaunay.cs:320-330
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: general
@@ -1576,7 +1576,7 @@
 ---
 
 ## F099
-- **File**: vscode-duct/src/extension.ts:672-691
+- **File**: vscode-reactor/src/extension.ts:672-691
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1592,7 +1592,7 @@
 ---
 
 ## F100
-- **File**: vscode-duct/src/extension.ts:190-195
+- **File**: vscode-reactor/src/extension.ts:190-195
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: general
@@ -1608,7 +1608,7 @@
 ---
 
 ## F101
-- **File**: Duct/Hosting/XamlInterop.cs:21-32
+- **File**: Reactor/Hosting/XamlInterop.cs:21-32
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1624,7 +1624,7 @@
 ---
 
 ## F102
-- **File**: Duct/PropertyGrid/PropertyGridComponent.cs:86
+- **File**: Reactor/PropertyGrid/PropertyGridComponent.cs:86
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1640,7 +1640,7 @@
 ---
 
 ## F103
-- **File**: Duct/PropertyGrid/PropertyGridDefaults.cs:38
+- **File**: Reactor/PropertyGrid/PropertyGridDefaults.cs:38
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1656,7 +1656,7 @@
 ---
 
 ## F104
-- **File**: Duct/PropertyGrid/ArrayOperations.cs:47
+- **File**: Reactor/PropertyGrid/ArrayOperations.cs:47
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1672,7 +1672,7 @@
 ---
 
 ## F105
-- **File**: Duct/Markdown/Md4cEntity.cs:15-25
+- **File**: Reactor/Markdown/Md4cEntity.cs:15-25
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1688,7 +1688,7 @@
 ---
 
 ## F106
-- **File**: Duct/Markdown/Md4cTypes.cs:10-30
+- **File**: Reactor/Markdown/Md4cTypes.cs:10-30
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1704,7 +1704,7 @@
 ---
 
 ## F107
-- **File**: DuctD3/Shape/Pie.cs:86-94
+- **File**: ReactorCharting/Shape/Pie.cs:86-94
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1720,7 +1720,7 @@
 ---
 
 ## F108
-- **File**: DuctD3/Chord/Chord.cs:137-163
+- **File**: ReactorCharting/Chord/Chord.cs:137-163
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1736,7 +1736,7 @@
 ---
 
 ## F109
-- **File**: DuctD3/Charts/ChartDsl.cs:75, 179
+- **File**: ReactorCharting/Charts/ChartDsl.cs:75, 179
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: error-handling
@@ -1752,7 +1752,7 @@
 ---
 
 ## F110
-- **File**: DuctD3/Format/Format.cs:28-31
+- **File**: ReactorCharting/Format/Format.cs:28-31
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -1768,7 +1768,7 @@
 ---
 
 ## F111
-- **File**: DuctD3/Layout/Sankey.cs:310-312
+- **File**: ReactorCharting/Layout/Sankey.cs:310-312
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -1784,15 +1784,15 @@
 ---
 
 ## F112
-- **File**: Duct.csproj:11 vs Directory.Build.props:10
+- **File**: Reactor.csproj:11 vs Directory.Build.props:10
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: general
 - **Pattern**: general-quality
 - **Agent**: general
 - **Status**: :black_square_button: PENDING
-- **Finding**: `Duct.csproj` overrides `WindowsAppSDKSelfContained` to `false`, contradicting `Directory.Build.props` `true`. Undocumented inconsistency.
-- **Evidence**: Duct.csproj:11 `false`. Directory.Build.props:10 `true`. DuctD3 inherits as intended.
+- **Finding**: `Reactor.csproj` overrides `WindowsAppSDKSelfContained` to `false`, contradicting `Directory.Build.props` `true`. Undocumented inconsistency.
+- **Evidence**: Reactor.csproj:11 `false`. Directory.Build.props:10 `true`. ReactorCharting inherits as intended.
 - **Fix**: If intentional, add comment. If stale, remove override.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
@@ -1800,15 +1800,15 @@
 ---
 
 ## F113
-- **File**: Duct.csproj:20 vs Duct.Cli.csproj:22
+- **File**: Reactor.csproj:20 vs Reactor.Cli.csproj:22
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: general
 - **Pattern**: general-quality
 - **Agent**: general
 - **Status**: :black_square_button: PENDING
-- **Finding**: `System.Drawing.Common` version 9.0.0 in Duct vs 9.0.4 in Duct.Cli. Version drift across shared dependency.
-- **Evidence**: Duct.csproj:20: `9.0.0`. Duct.Cli.csproj:22: `9.0.4`.
+- **Finding**: `System.Drawing.Common` version 9.0.0 in Reactor vs 9.0.4 in Reactor.Cli. Version drift across shared dependency.
+- **Evidence**: Reactor.csproj:20: `9.0.0`. Reactor.Cli.csproj:22: `9.0.4`.
 - **Fix**: Align to latest patch version or adopt NuGet Central Package Management.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
@@ -1816,7 +1816,7 @@
 ---
 
 ## F114
-- **File**: tests/Duct.Tests/Duct.Tests.csproj vs tests/DuctD3.Tests/DuctD3.Tests.csproj
+- **File**: tests/Reactor.Tests/Reactor.Tests.csproj vs tests/ReactorCharting.Tests/ReactorCharting.Tests.csproj
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: general
@@ -1824,7 +1824,7 @@
 - **Agent**: general
 - **Status**: :black_square_button: PENDING
 - **Finding**: xUnit test projects use different versions including major version gap on runner (2.5.7 vs 3.0.2). Different runner versions produce inconsistent behavior.
-- **Evidence**: Duct.Tests: xunit 2.7.0, runner 2.5.7. DuctD3.Tests: xunit 2.9.3, runner 3.0.2.
+- **Evidence**: Reactor.Tests: xunit 2.7.0, runner 2.5.7. ReactorCharting.Tests: xunit 2.9.3, runner 3.0.2.
 - **Fix**: Standardize all test projects to same versions. Consider Central Package Management.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
@@ -1848,7 +1848,7 @@
 ---
 
 ## F116
-- **File**: Duct/Elements/ElementExtensions.cs:139-140, 236-237
+- **File**: Reactor/Elements/ElementExtensions.cs:139-140, 236-237
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: memory-lifecycle
@@ -1864,7 +1864,7 @@
 ---
 
 ## F117
-- **File**: Duct/Core/DuctElementFactory.cs:64-76
+- **File**: Reactor/Core/ElementFactory.cs:64-76
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: general
@@ -1880,7 +1880,7 @@
 ---
 
 ## F118
-- **File**: Duct/Core/PersistedStateCache.cs:9
+- **File**: Reactor/Core/PersistedStateCache.cs:9
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: memory-lifecycle
@@ -1896,7 +1896,7 @@
 ---
 
 ## F119
-- **File**: Duct/Yoga/YogaNode.cs:153-167
+- **File**: Reactor/Yoga/YogaNode.cs:153-167
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: performance
@@ -1912,7 +1912,7 @@
 ---
 
 ## F120
-- **File**: Duct.Cli/Loc/SourceRewriter.cs:63-65
+- **File**: Reactor.Cli/Loc/SourceRewriter.cs:63-65
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: general
@@ -1928,7 +1928,7 @@
 ---
 
 ## F121
-- **File**: Duct.Cli/Loc/StatusCommand.cs:48-56
+- **File**: Reactor.Cli/Loc/StatusCommand.cs:48-56
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: error-handling
@@ -1944,7 +1944,7 @@
 ---
 
 ## F122
-- **File**: Duct.Cli/Loc/ValidateCommand.cs:58
+- **File**: Reactor.Cli/Loc/ValidateCommand.cs:58
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: general
@@ -1960,7 +1960,7 @@
 ---
 
 ## F123
-- **File**: Duct.Cli/Docs/SnippetExtractor.cs:18
+- **File**: Reactor.Cli/Docs/SnippetExtractor.cs:18
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: general
@@ -1976,7 +1976,7 @@
 ---
 
 ## F124
-- **File**: Duct.LocGenerator/ReswParser.cs:27-39
+- **File**: Reactor.LocGenerator/ReswParser.cs:27-39
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: general
@@ -1992,7 +1992,7 @@
 ---
 
 ## F125
-- **File**: Duct/Navigation/DeepLinkMap.cs:27-34
+- **File**: Reactor/Navigation/DeepLinkMap.cs:27-34
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: error-handling
@@ -2008,7 +2008,7 @@
 ---
 
 ## F126
-- **File**: Duct/Hosting/RenderStats.cs:8-44
+- **File**: Reactor/Hosting/RenderStats.cs:8-44
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: api-design
@@ -2024,7 +2024,7 @@
 ---
 
 ## F127
-- **File**: Duct/Hosting/PreviewCaptureServer.cs:288-290
+- **File**: Reactor/Hosting/PreviewCaptureServer.cs:288-290
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: security
@@ -2040,7 +2040,7 @@
 ---
 
 ## F128
-- **File**: Duct/Hosting/PreviewCaptureServer.cs:321-339
+- **File**: Reactor/Hosting/PreviewCaptureServer.cs:321-339
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: memory-lifecycle
@@ -2048,7 +2048,7 @@
 - **Agent**: interop
 - **Status**: :black_square_button: PENDING
 - **Finding**: Five P/Invoke declarations omit `SetLastError = true`. `GetClientRect`/`GetWindowRect` MSDN docs say to call `GetLastError`.
-- **Evidence**: Lines 321-339: no `SetLastError`. DuctApp.cs:39 correctly specifies it.
+- **Evidence**: Lines 321-339: no `SetLastError`. ReactorApp.cs:39 correctly specifies it.
 - **Fix**: Add `SetLastError = true` to all five declarations.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
@@ -2072,7 +2072,7 @@
 ---
 
 ## F130
-- **File**: Duct.Cli/Duct.Cli.csproj:20
+- **File**: Reactor.Cli/Reactor.Cli.csproj:20
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: api-design
@@ -2088,15 +2088,15 @@
 ---
 
 ## F131
-- **File**: tests/DuctD3.Tests/DuctD3.Tests.csproj
+- **File**: tests/ReactorCharting.Tests/ReactorCharting.Tests.csproj
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: general
 - **Pattern**: general-quality
 - **Agent**: general
 - **Status**: :black_square_button: PENDING
-- **Finding**: Missing `coverlet.collector` package — DuctD3 library (6000+ lines) is a code coverage blind spot. `Duct.Tests` includes it.
-- **Evidence**: Duct.Tests.csproj:23-26: has coverlet. DuctD3.Tests: missing.
+- **Finding**: Missing `coverlet.collector` package — ReactorCharting library (6000+ lines) is a code coverage blind spot. `Reactor.Tests` includes it.
+- **Evidence**: Reactor.Tests.csproj:23-26: has coverlet. ReactorCharting.Tests: missing.
 - **Fix**: Add `coverlet.collector` 6.0.0 package reference.
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
@@ -2120,7 +2120,7 @@
 ---
 
 ## F133
-- **File**: Duct/Elements/Dsl.cs:725-738
+- **File**: Reactor/Elements/Dsl.cs:725-738
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: api-design
@@ -2136,7 +2136,7 @@
 ---
 
 ## F134
-- **File**: Duct/Core/ContextExtensions.cs:14-18
+- **File**: Reactor/Core/ContextExtensions.cs:14-18
 - **Severity**: low
 - **Priority**: P3
 - **Domain**: performance
@@ -2152,7 +2152,7 @@
 ---
 
 ## F135
-- **File**: Duct/Markdown/Md4cEntity.cs:2172
+- **File**: Reactor/Markdown/Md4cEntity.cs:2172
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance
@@ -2168,7 +2168,7 @@
 ---
 
 ## F136
-- **File**: Duct/Core/Reconciler.cs:2335-2352 (ElementPool)
+- **File**: Reactor/Core/Reconciler.cs:2335-2352 (ElementPool)
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: memory-lifecycle
@@ -2184,30 +2184,30 @@
 ---
 
 ## F137
-- **File**: Duct/Hosting/DuctHost.cs (also DuctHostControl.cs)
+- **File**: Reactor/Hosting/ReactorHost.cs (also ReactorHostControl.cs)
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: concurrency
 - **Pattern**: CONC-RACE-06
 - **Agent**: safety
 - **Status**: :black_square_button: PENDING
-- **Finding**: DuctHostControl.cs:55-56 has the same non-volatile `_isRendering`/`_needsRerender` issue as DuctHost (F043).
+- **Finding**: ReactorHostControl.cs:55-56 has the same non-volatile `_isRendering`/`_needsRerender` issue as ReactorHost (F043).
 - **Evidence**: Same pattern duplicated in both classes.
-- **Fix**: Apply same volatile fix to DuctHostControl. Also flagged by: safety (safety-batch-3)
+- **Fix**: Apply same volatile fix to ReactorHostControl. Also flagged by: safety (safety-batch-3)
 - **Manager Decision**: APPROVED
 - **Implementation**: :white_check_mark: Complete (2026-04-11)
 
 ---
 
 ## F138
-- **File**: Duct/Hosting/DuctHostControl.cs:172-180
+- **File**: Reactor/Hosting/ReactorHostControl.cs:172-180
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: concurrency
 - **Pattern**: CONC-RACE-04
 - **Agent**: safety
 - **Status**: :black_square_button: PENDING
-- **Finding**: DuctHostControl has the same TOCTOU RequestRender race as DuctHost (F042).
+- **Finding**: ReactorHostControl has the same TOCTOU RequestRender race as ReactorHost (F042).
 - **Evidence**: Identical code at lines 172-180.
 - **Fix**: Apply same fix as F042. Also flagged by: safety (safety-batch-3)
 - **Manager Decision**: APPROVED
@@ -2216,7 +2216,7 @@
 ---
 
 ## F139
-- **File**: Duct/Core/Localization/IntlAccessor.cs:117-143
+- **File**: Reactor/Core/Localization/IntlAccessor.cs:117-143
 - **Severity**: medium
 - **Priority**: P2
 - **Domain**: performance

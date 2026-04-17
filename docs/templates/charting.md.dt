@@ -4,23 +4,23 @@ app: charting
 order: 17
 audience: advanced
 goal: |
-  Cover the DuctD3 charting library: LineChart, BarChart, AreaChart, PieChart
+  Cover the ReactorD3 charting library: LineChart, BarChart, AreaChart, PieChart
   high-level DSL; chart configuration (axes, grids, colors); data binding with
   state; dynamic data updates; and the low-level D3 drawing primitives.
 ---
 
 # Charting
 
-DuctD3 brings data visualization to Duct. The chart DSL provides high-level
+ReactorD3 brings data visualization to Reactor. The chart DSL provides high-level
 `LineChart`, `BarChart`, `AreaChart`, and `PieChart` factories that produce
-standard Duct elements. You bind data, configure appearance with a fluent
+standard Reactor elements. You bind data, configure appearance with a fluent
 API, and the chart renders as native WinUI shapes on a Canvas.
 
-Add a reference to `DuctD3.csproj` and import the DSL:
+Add a reference to `ReactorD3.csproj` and import the DSL:
 
 ```csharp
-using Duct.D3.Charts;
-using static Duct.D3.Charts.ChartDsl;
+using Reactor.D3.Charts;
+using static Reactor.D3.Charts.ChartDsl;
 ```
 
 ## Line Chart
@@ -97,7 +97,7 @@ named colors like `steelblue`.
 
 ## Binding Data to State
 
-Charts are standard Duct elements. When state changes, the chart re-renders
+Charts are standard Reactor elements. When state changes, the chart re-renders
 with the new data:
 
 ```csharp snippet="charting/combined-chart"
@@ -111,7 +111,7 @@ smooth interaction.
 
 ## Dynamic Data Updates
 
-Charts are native Duct elements, so changing state is all you need. Use
+Charts are native Reactor elements, so changing state is all you need. Use
 `UseState`, `UseReducer`, or any hook to update the data — the reconciler
 diffs the old and new element trees and patches only what changed:
 
@@ -125,8 +125,8 @@ handle that exposes the underlying `Canvas` for direct manipulation.
 
 ## Low-Level Drawing
 
-For custom visualizations, DuctD3 provides shape generators and a Canvas
-DSL. Import `using static Duct.D3.Charts.D3` for:
+For custom visualizations, ReactorD3 provides shape generators and a Canvas
+DSL. Import `using static Reactor.D3.Charts.D3` for:
 
 - **`D3Canvas(w, h, children)`** — create a drawing surface
 - **`D3Rect`, `D3Circle`, `D3Line`, `D3Path`** — primitive shapes

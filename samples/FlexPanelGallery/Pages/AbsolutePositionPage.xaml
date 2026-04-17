@@ -2,7 +2,7 @@
     x:Class="FlexPanelGallery.Pages.AbsolutePositionPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:flex="using:Duct.Flex">
+    xmlns:layout="using:Microsoft.UI.Reactor.Layout">
 
     <ScrollViewer>
         <StackPanel Spacing="16" Padding="24">
@@ -17,12 +17,12 @@
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8" Padding="16">
                 <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1"
                         Height="200">
-                    <flex:FlexPanel Direction="Column">
+                    <layout:FlexPanel Direction="Column">
                         <Border Height="40" Background="CornflowerBlue" CornerRadius="4" Margin="4">
                             <TextBlock Text="Flow child 1" Foreground="White" VerticalAlignment="Center" Margin="8,0" />
                         </Border>
-                        <Border flex:FlexPanel.Position="Absolute"
-                                flex:FlexPanel.Left="20" flex:FlexPanel.Top="20"
+                        <Border layout:FlexPanel.Position="Absolute"
+                                layout:FlexPanel.Left="20" layout:FlexPanel.Top="20"
                                 Width="120" Height="80"
                                 Background="#CC4CAF50" CornerRadius="4">
                             <TextBlock Text="Absolute&#x0a;Left=20, Top=20" Foreground="White"
@@ -31,7 +31,7 @@
                         <Border Height="40" Background="Coral" CornerRadius="4" Margin="4">
                             <TextBlock Text="Flow child 2 (not pushed down)" Foreground="White" VerticalAlignment="Center" Margin="8,0" />
                         </Border>
-                    </flex:FlexPanel>
+                    </layout:FlexPanel>
                 </Border>
             </Border>
 
@@ -42,16 +42,16 @@
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8" Padding="16">
                 <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1"
                         Height="200">
-                    <flex:FlexPanel Direction="Column">
-                        <Border flex:FlexPanel.Position="Absolute"
-                                flex:FlexPanel.Left="10" flex:FlexPanel.Right="10"
-                                flex:FlexPanel.Top="10" flex:FlexPanel.Bottom="10"
+                    <layout:FlexPanel Direction="Column">
+                        <Border layout:FlexPanel.Position="Absolute"
+                                layout:FlexPanel.Left="10" layout:FlexPanel.Right="10"
+                                layout:FlexPanel.Top="10" layout:FlexPanel.Bottom="10"
                                 Background="#33007ACC" CornerRadius="4"
                                 BorderBrush="DodgerBlue" BorderThickness="2">
                             <TextBlock Text="Stretched: all insets = 10" Foreground="DodgerBlue"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
-                    </flex:FlexPanel>
+                    </layout:FlexPanel>
                 </Border>
             </Border>
 
@@ -62,37 +62,37 @@
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8" Padding="16">
                 <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1"
                         Height="200">
-                    <flex:FlexPanel Direction="Row" JustifyContent="Center" AlignItems="Center">
+                    <layout:FlexPanel Direction="Row" JustifyContent="Center" AlignItems="Center">
                         <!-- Center content -->
                         <Border Width="160" Height="100" Background="MediumPurple" CornerRadius="8">
                             <TextBlock Text="Card Content" Foreground="White"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <!-- Top-left badge -->
-                        <Border flex:FlexPanel.Position="Absolute"
-                                flex:FlexPanel.Left="8" flex:FlexPanel.Top="8"
+                        <Border layout:FlexPanel.Position="Absolute"
+                                layout:FlexPanel.Left="8" layout:FlexPanel.Top="8"
                                 Width="24" Height="24" CornerRadius="12"
                                 Background="Red">
                             <TextBlock Text="1" Foreground="White" FontSize="11" FontWeight="Bold"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <!-- Top-right badge -->
-                        <Border flex:FlexPanel.Position="Absolute"
-                                flex:FlexPanel.Right="8" flex:FlexPanel.Top="8"
+                        <Border layout:FlexPanel.Position="Absolute"
+                                layout:FlexPanel.Right="8" layout:FlexPanel.Top="8"
                                 Width="24" Height="24" CornerRadius="12"
                                 Background="DarkOrange">
                             <TextBlock Text="!" Foreground="White" FontSize="11" FontWeight="Bold"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <!-- Bottom-right tag -->
-                        <Border flex:FlexPanel.Position="Absolute"
-                                flex:FlexPanel.Right="8" flex:FlexPanel.Bottom="8"
+                        <Border layout:FlexPanel.Position="Absolute"
+                                layout:FlexPanel.Right="8" layout:FlexPanel.Bottom="8"
                                 Height="24" CornerRadius="4" Padding="8,0"
                                 Background="MediumSeaGreen">
                             <TextBlock Text="NEW" Foreground="White" FontSize="11" FontWeight="Bold"
                                        VerticalAlignment="Center" />
                         </Border>
-                    </flex:FlexPanel>
+                    </layout:FlexPanel>
                 </Border>
             </Border>
 
@@ -107,16 +107,16 @@
 
                     <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1"
                             Height="200">
-                        <flex:FlexPanel x:Name="InteractivePanel" Direction="Row">
-                            <Border flex:FlexPanel.Position="Absolute"
+                        <layout:FlexPanel x:Name="InteractivePanel" Direction="Row">
+                            <Border layout:FlexPanel.Position="Absolute"
                                     x:Name="MovableBox"
-                                    flex:FlexPanel.Left="50" flex:FlexPanel.Top="50"
+                                    layout:FlexPanel.Left="50" layout:FlexPanel.Top="50"
                                     Width="60" Height="60"
                                     Background="SteelBlue" CornerRadius="4">
                                 <TextBlock Text="Drag me" Foreground="White" FontSize="11"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
-                        </flex:FlexPanel>
+                        </layout:FlexPanel>
                     </Border>
                 </StackPanel>
             </Border>

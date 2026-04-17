@@ -1,9 +1,9 @@
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctRegedit.Components.Dialogs;
+namespace ReactorRegedit.Components.Dialogs;
 
 // ─── Add Favorite ────────────────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ internal sealed class AddFavoriteDialog : Component<AddFavoriteDialogProps>
         return ContentDialog(
             Strings.AddFavoriteTitle,
             VStack(8,
-                Text(Strings.FavoriteName),
+                Factories.Text(Strings.FavoriteName),
                 TextField(Props.FavoriteName, Props.OnNameChanged)
             ).Width(350),
             Strings.OK
@@ -54,7 +54,7 @@ internal sealed class RemoveFavoriteDialog : Component<RemoveFavoriteDialogProps
         return ContentDialog(
             Strings.RemoveFavoriteTitle,
             VStack(8,
-                Text(Strings.SelectFavorite),
+                Factories.Text(Strings.SelectFavorite),
                 ListBox(
                     Props.FavoriteNames,
                     Props.SelectedIndex,

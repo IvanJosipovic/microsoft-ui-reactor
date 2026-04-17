@@ -11,14 +11,14 @@ goal: |
 
 # Forms and Input
 
-Every form control in Duct follows the controlled-input pattern: you own the
+Every form control in Reactor follows the controlled-input pattern: you own the
 value, you provide the change handler, and the control reflects your state.
 There is no two-way binding. The data always flows one direction.
 
 ## The Controlled-Input Pattern
 
 Pass the current value and a setter. When the user types, `onChange` fires
-with the new value. You call the setter, Duct re-renders, and the control
+with the new value. You call the setter, Reactor re-renders, and the control
 shows the updated text:
 
 ```csharp snippet="forms/controlled-input"
@@ -32,7 +32,7 @@ is the single source of truth.
 
 ## Input Control Types
 
-Duct provides controls for every common input type. Each follows the same
+Reactor provides controls for every common input type. Each follows the same
 pattern: current value in, change handler out.
 
 ```csharp snippet="forms/input-types"

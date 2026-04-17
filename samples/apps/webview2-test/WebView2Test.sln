@@ -5,7 +5,7 @@ VisualStudioVersion = 18.4.11612.150
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebView2Test", "WebView2Test.csproj", "{2CD0E18C-C3C5-92FE-8644-5CD0D5E91AA8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duct", "..\..\..\Duct\Duct.csproj", "{4527EE62-BC76-7504-289C-AA5468909C82}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reactor", "..\..\..\Reactor\Reactor.csproj", "{4527EE62-BC76-7504-289C-AA5468909C82}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

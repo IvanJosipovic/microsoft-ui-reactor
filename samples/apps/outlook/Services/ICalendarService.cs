@@ -1,6 +1,6 @@
-using DuctOutlook.Models;
+using ReactorOutlook.Models;
 
-namespace DuctOutlook.Services;
+namespace ReactorOutlook.Services;
 
 public interface ICalendarService
 {

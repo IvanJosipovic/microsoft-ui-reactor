@@ -1,6 +1,6 @@
-# Code Review Checklist for Duct
+# Code Review Checklist for Reactor
 
-Use this checklist when reviewing Duct UI code for Windows 11 design compliance.
+Use this checklist when reviewing Reactor UI code for Windows 11 design compliance.
 
 ## Theming
 

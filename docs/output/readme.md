@@ -1,30 +1,30 @@
 
-# Duct
+# Reactor
 
-Duct is a declarative UI framework for building native Windows desktop apps in
+Reactor is a declarative UI framework for building native Windows desktop apps in
 pure C#. No XAML. No data binding. No view models. You describe your UI as a
-function of state, and Duct keeps the screen in sync.
+function of state, and Reactor keeps the screen in sync.
 
-## Why Duct?
+## Why Reactor?
 
 **Pure C# from top to bottom.** Your entire app — layout, styling, state,
 logic — lives in `.cs` files. No markup languages, no code-behind split, no
 designer files.
 
 **Declarative rendering.** You write a `Render()` method that returns your UI.
-When state changes, Duct diffs the old and new element trees and patches only
+When state changes, Reactor diffs the old and new element trees and patches only
 what changed in the native WinUI controls.
 
 **Hooks for state management.** `UseState`, `UseReducer`, `UseEffect`, and
 friends give you React-style state management without the JavaScript.
 
-**Native performance.** Duct renders to real WinUI 3 controls. Your app is a
+**Native performance.** Reactor renders to real WinUI 3 controls. Your app is a
 standard Windows desktop app — no web views, no Electron, no interpretation
 layer.
 
 ## Quick Look
 
-A complete Duct app in one file:
+A complete Reactor app in one file:
 
 ```csharp
 class HelloWorld : Component
@@ -32,7 +32,7 @@ class HelloWorld : Component
     public override Element Render()
     {
         return VStack(12,
-            Text("Hello from Duct!").FontSize(24).Bold(),
+            Text("Hello from Reactor!").FontSize(24).Bold(),
             Text("No XAML. No data binding. Just C#.")
         ).Padding(24);
     }
@@ -88,7 +88,7 @@ class StyledText : Component
    an element tree.
 2. You manage state with [**hooks**](hooks.md) — `UseState`, `UseReducer`, `UseEffect`,
    and more — called inside `Render()`.
-3. When state changes, Duct calls `Render()` again, diffs the result, and
+3. When state changes, Reactor calls `Render()` again, diffs the result, and
    updates only the WinUI controls that changed.
 
 That's it. No event subscriptions to manage, no property-changed notifications
@@ -120,10 +120,10 @@ to wire up, no dispatcher threading to worry about.
 - **[Accessibility](accessibility.md)** — Screen readers, keyboard navigation, focus trapping, runtime scanning
 - **[Localization](localization.md)** — Multi-language support, resource strings, RTL layouts
 - **[Animation](animation.md)** — Transitions, keyframes, interaction states, choreography
-- **[Charting](charting.md)** — Line, bar, area, and pie charts with the DuctD3 library
+- **[Charting](charting.md)** — Line, bar, area, and pie charts with the ReactorCharting library
 - **[Advanced Patterns](advanced.md)** — Performance tuning, custom hooks, large-scale architecture
 - **[Data System](data-system.md)** — DataGrid with sort, filter, search, inline editing, paging
-- **[WinForms Interop](winforms-interop.md)** — Host Duct components inside WinForms apps via XAML Islands
+- **[WinForms Interop](winforms-interop.md)** — Host Reactor components inside WinForms apps via XAML Islands
 
 ## Minimal Project Setup
 
@@ -140,21 +140,21 @@ Create a console project, then edit the `.csproj`:
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.*" />
-    <ProjectReference Include="..\Duct\Duct.csproj" />
+    <ProjectReference Include="..\Reactor\Reactor.csproj" />
   </ItemGroup>
 </Project>
 ```
 <!-- /ai:lock -->
 
-Replace `App.cs` with a component and a `DuctApp.Run<T>()` call, and run with
-`dotnet run`. That's your first Duct app.
+Replace `App.cs` with a component and a `ReactorApp.Run<T>()` call, and run with
+`dotnet run`. That's your first Reactor app.
 
 ## Tips
 
 **Start with function components.** For quick experiments, use
-`DuctApp.Run("Title", ctx => { ... })` — no class needed.
+`ReactorApp.Run("Title", ctx => { ... })` — no class needed.
 
-**Read the [hooks page](hooks.md).** Hooks are the core of Duct. Understanding `UseState`
+**Read the [hooks page](hooks.md).** Hooks are the core of Reactor. Understanding `UseState`
 and `UseEffect` unlocks everything else.
 
 **Keep components small.** Extract pieces into their own components early.

@@ -1,6 +1,6 @@
 # HeadTrax – Missing Framework Features
 
-Features needed by this sample app that don't yet exist in the Duct DSL.
+Features needed by this sample app that don't yet exist in the Reactor DSL.
 
 ---
 

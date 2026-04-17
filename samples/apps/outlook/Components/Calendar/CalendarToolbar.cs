@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Calendar;
+namespace ReactorOutlook.Components.Calendar;
 
 internal sealed record CalendarToolbarProps(
     string ViewMode,
@@ -31,15 +31,15 @@ internal sealed class CalendarToolbar : Component<CalendarToolbarProps>
             Button(
                 HStack(4,
                     MdlIcon("\uE710", 14),
-                    Text("New event").FontSize(13)
+                    Factories.Text("New event").FontSize(13)
                 ),
                 null
             ).Set(b =>
             {
                 b.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 0, 120, 212));
+                    global::Windows.UI.Color.FromArgb(255, 0, 120, 212));
                 b.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 255, 255, 255));
+                    global::Windows.UI.Color.FromArgb(255, 255, 255, 255));
             }),
 
             // Separator
@@ -68,13 +68,13 @@ internal sealed class CalendarToolbar : Component<CalendarToolbarProps>
                 .Set(b => { b.BorderThickness = new Thickness(0); b.Padding = new Thickness(6); }),
 
             // Date range title
-            Text(title).SemiBold().FontSize(16).VAlign(VerticalAlignment.Center)
+            Factories.Text(title).SemiBold().FontSize(16).VAlign(VerticalAlignment.Center)
                 .HeadingLevel(Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level1)
         ).Padding(8, 6, 8, 6);
     }
 
     static Element MdlIcon(string glyph, double size = 14) =>
-        Text(glyph).FontSize(size)
+        Factories.Text(glyph).FontSize(size)
             .Set(t => t.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets"));
 
     static string FormatRange(DateTimeOffset start, DateTimeOffset end)

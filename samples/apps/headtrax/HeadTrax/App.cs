@@ -1,11 +1,11 @@
-using Duct;
-using Duct.Core;
-using Duct.Data;
-using Duct.Flex;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Data;
+using Microsoft.UI.Reactor.Layout;
 using HeadTrax.Components;
 using HeadTrax.DataSources;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
 namespace HeadTrax;
 
@@ -55,7 +55,7 @@ internal class App : Component
                     .AutomationName("GraphQL API data source")
             ),
 
-            RightHeader = Text($"{rowsLoaded:N0} rows fetched").FontSize(12).Opacity(0.6)
+            RightHeader = Factories.Text($"{rowsLoaded:N0} rows fetched").FontSize(12).Opacity(0.6)
                 .LiveRegion(Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite)
                 .Set(t => t.IsHitTestVisible = false),
         }).Flex(shrink: 0);

@@ -1,4 +1,4 @@
-# Duct Core State & Component Model — Implementation Tasks
+# Reactor Core State & Component Model — Implementation Tasks
 
 Reference: [docs/spec/duct-state-and-components-design.md](../spec/duct-state-and-components-design.md)
 
@@ -8,19 +8,19 @@ Tests are classified by the infrastructure they require:
 
 | Level | Project | What it needs | Speed | When to use |
 |---|---|---|---|---|
-| **Unit** | `Duct.Tests` (xUnit) | `RenderContext`, element records, pure logic. No reconciler, no WinUI control tree. | Fast | Hook behavior, cache logic, record equality, scope algorithms |
-| **Self-host** | `Duct.Tests` (xUnit) | Reconciler + WinUI controls instantiated in-process. No visible window, no event loop. | Medium | Component mount/update/unmount, context propagation through tree, memo skip verification |
-| **E2E UIA** | `Duct.AppTests` (MSTest + Appium) | Full app launched, WinAppDriver out-of-process automation. | **Slow** | Only for real UIA properties visible to screen readers, or user interaction flows |
+| **Unit** | `Reactor.Tests` (xUnit) | `RenderContext`, element records, pure logic. No reconciler, no WinUI control tree. | Fast | Hook behavior, cache logic, record equality, scope algorithms |
+| **Self-host** | `Reactor.Tests` (xUnit) | Reconciler + WinUI controls instantiated in-process. No visible window, no event loop. | Medium | Component mount/update/unmount, context propagation through tree, memo skip verification |
+| **E2E UIA** | `Reactor.AppTests` (MSTest + Appium) | Full app launched, WinAppDriver out-of-process automation. | **Slow** | Only for real UIA properties visible to screen readers, or user interaction flows |
 
 **None of the features in this spec require E2E UIA tests.** Context, memo, hooks, and
 persistence are internal framework plumbing invisible to accessibility tools. The
-existing `Duct.AppTests` suite should be run for regression only (Phase 5).
+existing `Reactor.AppTests` suite should be run for regression only (Phase 5).
 
 ---
 
 ## Phase 1: Hooks Improvements (Local State B+ → A-)
 
-Scope: `Duct/Core/RenderContext.cs` only. No reconciler changes. Lowest risk.
+Scope: `Reactor/Core/RenderContext.cs` only. No reconciler changes. Lowest risk.
 
 ### 1.1 Refactor HookState to generic type hierarchy
 - [x] Create abstract base `HookState` class (no `Value` property)
@@ -61,7 +61,7 @@ Scope: `Duct/Core/RenderContext.cs` only. No reconciler changes. Lowest risk.
 
 ### 1.7 Phase 1 tests
 
-All Phase 1 tests are **unit tests** (`Duct.Tests`). They exercise `RenderContext`
+All Phase 1 tests are **unit tests** (`Reactor.Tests`). They exercise `RenderContext`
 directly — no reconciler, no WinUI controls, no UI thread. Instantiate a
 `RenderContext`, call `BeginRender()`, invoke hooks, call `FlushEffects()`, assert
 values and ordering.
@@ -87,7 +87,7 @@ values and ordering.
 - [x] Test: Unmount cleanup (RunCleanups) still runs immediately (not deferred)
 
 **Regression:**
-- [x] Verify all existing `Duct.Tests` pass after refactor (no public API change)
+- [x] Verify all existing `Reactor.Tests` pass after refactor (no public API change)
 
 ---
 
@@ -95,23 +95,23 @@ values and ordering.
 
 Depends on: Phase 1 (for ContextHookState type in generic hierarchy).
 
-### 2.1 DuctContext\<T\> type
-- [x] Create `Duct/Core/DuctContext.cs`
-- [x] Define `DuctContextBase` abstract class with `internal abstract object? DefaultValueBoxed { get; }`
-- [x] Define `DuctContext<T> : DuctContextBase` with:
+### 2.1 Context\<T\> type
+- [x] Create `Reactor/Core/Context.cs`
+- [x] Define `ContextBase` abstract class with `internal abstract object? DefaultValueBoxed { get; }`
+- [x] Define `Context<T> : ContextBase` with:
   - `T DefaultValue { get; }` property
-  - Constructor: `DuctContext(T defaultValue, [CallerMemberName] string? name = null)`
+  - Constructor: `Context(T defaultValue, [CallerMemberName] string? name = null)`
   - `string? DebugName { get; }` for diagnostics
   - Override `DefaultValueBoxed => DefaultValue`
 
 ### 2.2 ContextValues on Element
-- [x] Add `IReadOnlyDictionary<DuctContextBase, object?>? ContextValues { get; init; }` to `Element` base record
+- [x] Add `IReadOnlyDictionary<ContextBase, object?>? ContextValues { get; init; }` to `Element` base record
 - [x] Update `ShallowEquals` in `Element.cs` to handle `ContextValues` comparison (dictionary content equality by reference on keys, Equals on values)
 - [x] Verify record equality includes `ContextValues` (compiler-generated Equals will include it)
 
 ### 2.3 .Provide() modifier
-- [x] Create `Duct/Core/ContextExtensions.cs`
-- [x] Implement `Provide<T, TValue>(this T element, DuctContext<TValue> context, TValue value) where T : Element`
+- [x] Create `Reactor/Core/ContextExtensions.cs`
+- [x] Implement `Provide<T, TValue>(this T element, Context<TValue> context, TValue value) where T : Element`
   - Merge into existing `ContextValues` dictionary if present, or create new
   - Return `element with { ContextValues = dict }`
 - [x] Handle multiple `.Provide()` calls on same element (merge into single dictionary)
@@ -119,10 +119,10 @@ Depends on: Phase 1 (for ContextHookState type in generic hierarchy).
 
 ### 2.4 ContextScope in Reconciler
 - [x] Create `ContextScope` internal class in `Reconciler.cs` (or separate file)
-  - `List<(DuctContextBase Context, object? Value)> _stack`
-  - `Push(IReadOnlyDictionary<DuctContextBase, object?> values)` — add all entries
+  - `List<(ContextBase Context, object? Value)> _stack`
+  - `Push(IReadOnlyDictionary<ContextBase, object?> values)` — add all entries
   - `Pop(int count)` — remove last N entries
-  - `Read<T>(DuctContext<T> context)` — walk backward for shadowing, return default if not found
+  - `Read<T>(Context<T> context)` — walk backward for shadowing, return default if not found
   - `long Version` — incremented on push/pop for cheap change detection
 - [x] Add `private readonly ContextScope _contextScope = new()` field to `Reconciler`
 - [x] Wire push/pop into reconciler Mount path:
@@ -134,8 +134,8 @@ Depends on: Phase 1 (for ContextHookState type in generic hierarchy).
 - [x] Pass `ContextScope` reference to `RenderContext.BeginRender()` so hooks can read from it
 
 ### 2.5 UseContext\<T\> hook
-- [x] Create `ContextHookState : HookState` with `DuctContextBase Context` and `object? LastValue` fields
-- [x] Implement `UseContext<T>(DuctContext<T> context)` on `RenderContext`:
+- [x] Create `ContextHookState : HookState` with `ContextBase Context` and `object? LastValue` fields
+- [x] Implement `UseContext<T>(Context<T> context)` on `RenderContext`:
   - On first render: create `ContextHookState`, store context reference
   - Read current value from `_reconcilerScope.Read(context)`
   - Store value in `hook.LastValue` for memo comparison (see Phase 3)
@@ -146,10 +146,10 @@ Depends on: Phase 1 (for ContextHookState type in generic hierarchy).
 - [x] Update all `BeginRender` call sites in `Reconciler.cs`, `Reconciler.Mount.cs`, `Reconciler.Update.cs`
 
 ### 2.6 UseContext convenience method on Component
-- [x] Add `protected T UseContext<T>(DuctContext<T> context) => Context.UseContext(context)` to `Component` base class
+- [x] Add `protected T UseContext<T>(Context<T> context) => Context.UseContext(context)` to `Component` base class
 
-### 2.7 Migrate LocaleContext to DuctContext
-- [x] Define `public static readonly DuctContext<IntlAccessor?> IntlContexts.Locale` (in Localization namespace)
+### 2.7 Migrate LocaleContext to Context
+- [x] Define `public static readonly Context<IntlAccessor?> IntlContexts.Locale` (in Localization namespace)
 - [x] Update `LocaleProviderComponent` to use `.Provide(IntlContexts.Locale, accessor)` on child element
 - [x] Update `UseIntl()` to use `UseContext(IntlContexts.Locale)` internally with fallback to OS default
 - [x] Legacy `LocaleContext.cs` kept for backward compat, marked with deprecation comment
@@ -161,7 +161,7 @@ Depends on: Phase 1 (for ContextHookState type in generic hierarchy).
 Tests split across two levels. No E2E UIA tests needed — context is purely internal
 state plumbing invisible to accessibility tools.
 
-**Unit tests** (`Duct.Tests`) — exercise ContextScope, DuctContext, .Provide() modifier,
+**Unit tests** (`Reactor.Tests`) — exercise ContextScope, Context, .Provide() modifier,
 and UseContext hook in isolation. No reconciler, no WinUI controls.
 
 - [x] Test: `ContextScope.Read()` returns default when stack is empty
@@ -173,10 +173,10 @@ and UseContext hook in isolation. No reconciler, no WinUI controls.
 - [x] Test: Chained `.Provide().Provide()` merges into single dictionary
 - [x] Test: Same context provided twice on same element — last-write-wins
 - [x] Test: `UseContext` on RenderContext with mock ContextScope — returns scope value
-- [x] Test: `UseContext` with no provider in scope — returns DuctContext default value
+- [x] Test: `UseContext` with no provider in scope — returns Context default value
 - [x] Test: `UseContext` follows hook rules — calling in different order throws
 
-**Self-host tests** (`Duct.Tests`) — exercise full reconciler tree traversal with
+**Self-host tests** (`Reactor.Tests`) — exercise full reconciler tree traversal with
 context push/pop. Instantiate Reconciler, mount element trees with `.Provide()`,
 render components that call `UseContext()`. Same pattern as existing
 `ReconcilerCorrectnessTests` / `ComponentPropsTests`.
@@ -188,7 +188,7 @@ render components that call `UseContext()`. Same pattern as existing
 - [x] Test: Context value change triggers consumer re-render (provider component changes state → consumer re-renders with new value)
 - [x] Test: Deep nesting — context passes through 5+ intermediate components that don't consume it
 - [x] Test: Two components sharing a context, both update when provider changes
-- [x] Test: LocaleContext migration — UseIntl() works via DuctContext internally (7 localization tests passing)
+- [x] Test: LocaleContext migration — UseIntl() works via Context internally (7 localization tests passing)
 
 ---
 
@@ -242,7 +242,7 @@ Depends on: Phase 2 (memo must detect context changes to bypass skip).
 
 ### 3.5 Phase 3 tests
 
-All memo tests are **self-host tests** (`Duct.Tests`) — they require the reconciler
+All memo tests are **self-host tests** (`Reactor.Tests`) — they require the reconciler
 to mount components, trigger parent re-renders, and verify whether child components
 actually re-rendered. Use a render-count tracking pattern: test components increment
 a counter in Render() so the test can assert skip vs re-render. No E2E UIA tests
@@ -287,7 +287,7 @@ needed — memoization is invisible to the user.
 Depends on: Phase 1 (for generic hook hierarchy — PersistedHookState extends ValueHookState).
 
 ### 4.1 PersistedStateCache
-- [x] Create `Duct/Core/PersistedStateCache.cs` — internal static class
+- [x] Create `Reactor/Core/PersistedStateCache.cs` — internal static class
 - [x] Implement `Dictionary<string, object?> _cache` (static, process-lifetime)
 - [x] Implement `bool TryGet<T>(string key, out T value)`
 - [x] Implement `void Set<T>(string key, T value)`
@@ -318,19 +318,19 @@ Depends on: Phase 1 (for generic hook hierarchy — PersistedHookState extends V
 
 No E2E UIA tests needed — persisted state is invisible to accessibility tools.
 
-**PersistedStateCache (unit — `Duct.Tests`):** Pure dictionary logic, no WinUI.
+**PersistedStateCache (unit — `Reactor.Tests`):** Pure dictionary logic, no WinUI.
 - [x] Test: `TryGet` returns false when key not present
 - [x] Test: `Set` then `TryGet` returns stored value
 - [x] Test: `Clear()` removes all entries
 - [x] Test: `Set` with same key overwrites previous value
 
-**UsePersisted hook (unit — `Duct.Tests`):** Exercise RenderContext directly.
+**UsePersisted hook (unit — `Reactor.Tests`):** Exercise RenderContext directly.
 - [x] Test: UsePersisted returns initial value on first mount (no cached value)
 - [x] Test: UsePersisted setter updates value and triggers re-render callback
 - [x] Test: Value type (int) persisted without boxing issues (uses PersistedHookState\<int\>)
 - [x] Test: Multiple UsePersisted hooks in same RenderContext — each keyed independently
 
-**UsePersisted lifecycle (self-host — `Duct.Tests`):** Requires reconciler to mount,
+**UsePersisted lifecycle (self-host — `Reactor.Tests`):** Requires reconciler to mount,
 unmount, and remount components.
 - [x] Test: After unmount + remount, UsePersisted returns cached value (not initial)
 - [x] Test: UsePersisted with same key in different components — shares cached state
@@ -354,7 +354,7 @@ unmount, and remount components.
 - [ ] Document `Lazy<Element>` as future work for deferred slot evaluation (TabView use case)
 
 ### 4.7 Sample app updates
-- [x] Update D3 Gallery or create new sample page demonstrating DuctContext (provide + consume)
+- [x] Update D3 Gallery or create new sample page demonstrating Context (provide + consume)
 - [x] Update or create sample demonstrating memoized components (before/after render count)
 - [x] Update or create sample demonstrating UsePersisted (tab switch preserving scroll position or form state)
 - [x] Update or create sample demonstrating slots pattern (Dialog or Card with named content areas)
@@ -365,19 +365,19 @@ unmount, and remount components.
 ## Phase 5: Validation & Critical Review Update
 
 ### 5.1 Full test suite
-- [x] Run all `Duct.Tests` (unit + self-host) — verify zero regressions (2403 passed, 0 failed)
-- [ ] Run all `Duct.AppTests` (E2E/Appium) — verify zero regressions from internal changes (no new E2E tests needed for these features)
+- [x] Run all `Reactor.Tests` (unit + self-host) — verify zero regressions (2403 passed, 0 failed)
+- [ ] Run all `Reactor.AppTests` (E2E/Appium) — verify zero regressions from internal changes (no new E2E tests needed for these features)
 - [ ] Run stress/perf tests if applicable — verify no performance regression from hook refactor
 
 ### 5.2 Update critical review scorecard
-- [ ] Update `docs/duct-critical-review.md` §2 (Component Model): document memoization, note remaining gaps (FuncElement auto-memo, typed props at element level)
-- [ ] Update `docs/duct-critical-review.md` §3 (State Management): document boxing fix, post-render cleanup, UsePersisted, UseContext
-- [ ] Update `docs/duct-critical-review.md` §14 scorecard table:
+- [ ] Update `docs/critical-review.md` §2 (Component Model): document memoization, note remaining gaps (FuncElement auto-memo, typed props at element level)
+- [ ] Update `docs/critical-review.md` §3 (State Management): document boxing fix, post-render cleanup, UsePersisted, UseContext
+- [ ] Update `docs/critical-review.md` §14 scorecard table:
   - Global State: F → A
   - Component Model: C → A-
   - Local State: B+ → A
 - [ ] Update Executive Summary to reflect new capabilities
-- [ ] Update Conclusion "What prevents Duct from being production-ready" — remove global state, update component model language
+- [ ] Update Conclusion "What prevents Reactor from being production-ready" — remove global state, update component model language
 
 ### 5.3 Update spec status
 - [x] Change spec status from "Proposal — pending review" to "Implemented" with date

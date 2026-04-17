@@ -1,11 +1,11 @@
-using Duct;
-using Duct.Core;
-using Duct.Virtualization;
-using static Duct.UI;
-using static Duct.Virtualization.VirtualListDsl;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Controls;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Controls.VirtualListDsl;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<CollectionsApp>("Collections", width: 700, height: 600
+ReactorApp.Run<CollectionsApp>("Collections", width: 700, height: 600
 #if DEBUG
     , preview: true
 #endif
@@ -38,8 +38,8 @@ class ListViewDemo : Component
                 c => c.Id,
                 (contact, index) =>
                     HStack(12,
-                        Text(contact.Name).Bold(),
-                        Text(contact.Email).Opacity(0.6)
+                        Factories.Text(contact.Name).Bold(),
+                        Factories.Text(contact.Email).Opacity(0.6)
                     ).Padding(8)
             ).Height(300)
         ).Padding(24);
@@ -61,9 +61,9 @@ class LazyVStackDemo : Component
                 c => c.Id,
                 (contact, index) =>
                     HStack(12,
-                        Text($"{index + 1}.").Width(30),
-                        Text(contact.Name).Bold(),
-                        Text(contact.Email).Opacity(0.6)
+                        Factories.Text($"{index + 1}.").Width(30),
+                        Factories.Text(contact.Name).Bold(),
+                        Factories.Text(contact.Email).Opacity(0.6)
                     ).Padding(8)
             ).Height(300)
         ).Padding(24);
@@ -85,8 +85,8 @@ class GridViewDemo : Component
                 c => c.Id,
                 (contact, index) =>
                     VStack(4,
-                        Text(contact.Name).Bold(),
-                        Text(contact.Email).FontSize(12).Opacity(0.6)
+                        Factories.Text(contact.Name).Bold(),
+                        Factories.Text(contact.Email).FontSize(12).Opacity(0.6)
                     ).Padding(12)
                      .Background("#f5f5f5")
                      .CornerRadius(8)
@@ -108,9 +108,9 @@ class VirtualListDemo : Component
                 itemCount: 10_000,
                 renderItem: index =>
                     HStack(12,
-                        Text($"{index + 1}.").Width(50),
-                        Text($"Item {index + 1}").Bold(),
-                        Text($"data-{index}@example.com").Opacity(0.6)
+                        Factories.Text($"{index + 1}.").Width(50),
+                        Factories.Text($"Item {index + 1}").Bold(),
+                        Factories.Text($"data-{index}@example.com").Opacity(0.6)
                     ).Padding(8),
                 getItemKey: index => $"item-{index}",
                 itemHeight: 40
@@ -142,7 +142,7 @@ class VirtualListRefDemo : Component
             VirtualList(
                 itemCount: 10_000,
                 renderItem: index =>
-                    Text($"Row {index + 1}").Padding(8),
+                    Factories.Text($"Row {index + 1}").Padding(8),
                 getItemKey: index => $"row-{index}",
                 itemHeight: 36,
                 @ref: r => listRef.Current = r
@@ -167,7 +167,7 @@ class ForEachDemo : Component
             SubHeading("ForEach (non-virtualized)"),
             HStack(8,
                 ForEach(colors, ((string Name, string Hex) color) =>
-                    Text(color.Name)
+                    Factories.Text(color.Name)
                         .Padding(8, 16)
                         .Background(color.Hex)
                         .CornerRadius(4)
@@ -201,7 +201,7 @@ class WithKeyDemo : Component
             ),
             VStack(4, items.Select((item, i) =>
                 HStack(8,
-                    Text(item),
+                    Factories.Text(item),
                     Button("Remove", () => updateItems(
                         l => l.Where((_, idx) => idx != i).ToList()))
                 ).WithKey($"item-{item}-{i}")

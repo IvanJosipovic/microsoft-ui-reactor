@@ -1,13 +1,13 @@
-// Duct Word Puzzle — A sliding tile puzzle, ported from the .NET MAUI sample.
-// No XAML. No data binding. Just C# with Duct's declarative component model.
+// Reactor Word Puzzle — A sliding tile puzzle, ported from the .NET MAUI sample.
+// No XAML. No data binding. Just C# with Reactor's declarative component model.
 
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Text;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-DuctApp.Run<WordPuzzleApp>("Duct Word Puzzle", width: 520, height: 620);
+ReactorApp.Run<WordPuzzleApp>("Reactor Word Puzzle", width: 520, height: 620);
 
 // ─── Main game component ───────────────────────────────────────────────────────
 
@@ -171,14 +171,14 @@ class WordPuzzleApp : Component
             ? elapsed.ToString(@"mm\:ss")
             : hasWon ? "You win! 🎉" : "";
 
-        var randomizeCmd = new DuctCommand { Label = "Randomize", Execute = OnRandomize };
+        var randomizeCmd = new Command { Label = "Randomize", Execute = OnRandomize };
 
         return VStack(12,
             // Header
             VStack(8,
                 Button(randomizeCmd)
                     .HAlign(HorizontalAlignment.Center),
-                Text(timeDisplay).FontSize(26).Bold()
+                Factories.Text(timeDisplay).FontSize(26).Bold()
                     .HAlign(HorizontalAlignment.Center)
             ).Margin(0, 12, 0, 4),
 

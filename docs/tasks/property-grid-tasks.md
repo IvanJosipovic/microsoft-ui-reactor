@@ -4,7 +4,7 @@ Derived from: `docs/spec/duct-property-grid.md`
 
 ---
 
-## Phase 1: INPC Foundation — UseObservableTree (General Duct Infrastructure)
+## Phase 1: INPC Foundation — UseObservableTree (General Reactor Infrastructure)
 
 ### 1.1 ObservableTreeTracker Core
 - [x] Create `ObservableTreeTracker` class with `IDisposable`
@@ -67,7 +67,7 @@ Derived from: `docs/spec/duct-property-grid.md`
   - [x] Array/IList<T> → array editor (delegate to ArrayTypeMetadata)
   - [x] Record/class/struct → reflection-based decomposition fallback
 
-### 2.3 Duct-Specific Attributes
+### 2.3 Reactor-Specific Attributes
 - [x] `PropertyCategoryAttribute(string name)`
 - [x] `PropertyDescriptionAttribute(string text)`
 - [x] `PropertyDisplayNameAttribute(string name)`
@@ -84,7 +84,7 @@ Derived from: `docs/spec/duct-property-grid.md`
   - [x] Cache results per type
 - [x] Implement `CreateDescriptor(PropertyInfo, int defaultOrder)` — read all recognized attributes
 - [x] Support `System.ComponentModel` fallback: `[Category]`, `[Description]`, `[DisplayName]`, `[Browsable]`, `[ReadOnly]`
-- [x] Duct attributes take precedence over System.ComponentModel when both present
+- [x] Reactor attributes take precedence over System.ComponentModel when both present
 
 ### 2.5 Mutability Detection & Compose Generation
 - [x] Detect property mutability: public set = mutable, init-only/no set = immutable
@@ -99,7 +99,7 @@ Derived from: `docs/spec/duct-property-grid.md`
 - [x] Test: enum types resolve to ComboBox editor with correct values
 - [x] Test: unregistered class falls back to reflection decomposition
 - [x] Test: `[PropertyHidden]` / `[Browsable(false)]` properties excluded
-- [x] Test: attribute precedence (Duct attrs override System.ComponentModel)
+- [x] Test: attribute precedence (Reactor attrs override System.ComponentModel)
 - [x] Test: Compose generation for immutable record type
 - [x] Test: mixed mutability (some properties mutable, some immutable)
 

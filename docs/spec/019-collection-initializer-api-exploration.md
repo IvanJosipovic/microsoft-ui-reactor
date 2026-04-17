@@ -8,7 +8,7 @@
 
 ## Motivation
 
-Duct's current API is built on **fluent method chaining**: factory methods return immutable records, and
+Reactor's current API is built on **fluent method chaining**: factory methods return immutable records, and
 extension methods return modified copies via `el with { ... }`. This model is clean for simple
 cases but introduces friction at scale:
 
@@ -20,7 +20,7 @@ cases but introduces friction at scale:
 3. **Every new property requires a new extension method** — the API surface (1400+ lines in
    `ElementExtensions.cs`) grows linearly with the platform it wraps.
 
-This spec explores what the Duct API would look like if it leaned into **C# object/collection
+This spec explores what the Reactor API would look like if it leaned into **C# object/collection
 initializers and properties** instead of (or alongside) fluent methods. It does not propose
 replacing the current API wholesale — it explores the design space to understand trade-offs.
 
@@ -726,7 +726,7 @@ return VStack(0,
 - **Eliminates `.Set()` for known properties** — `FontWeight`, `TextTrimming`, `PlaceholderText`
   become init properties, so `with { Weight = FontWeights.Light }` replaces
   `.Set(t => t.FontWeight = FontWeights.Light)`.
-- **Familiar** — existing Duct developers don't need to relearn anything.
+- **Familiar** — existing Reactor developers don't need to relearn anything.
 
 **What's worse:**
 - **Still two syntax modes** — fluent for modifiers, `with { }` for type-specific. Better than
@@ -752,20 +752,20 @@ as an incremental improvement but doesn't address the fundamental API shape ques
 Use `new` + object/collection initializers (Option A) but add `using` aliases to hide the noise:
 
 ```csharp
-using V = Duct.Core.StackElement;   // or: using VStack = Duct.Core.StackElement;
-using H = Duct.Core.HStackElement;
-using T = Duct.Core.TextElement;
+using V = Reactor.Core.StackElement;   // or: using VStack = Reactor.Core.StackElement;
+using H = Reactor.Core.HStackElement;
+using T = Reactor.Core.TextElement;
 ```
 
 Or, more practically, leverage C# 12's **`using` type aliases** and provide short names that
 look identical to the current factory methods:
 
 ```csharp
-// Duct provides these as global usings or a well-known import
-global using VStack = Duct.Core.VStackElement;
-global using HStack = Duct.Core.HStackElement;
-global using Text = Duct.Core.TextElement;
-global using Button = Duct.Core.ButtonElement;
+// Reactor provides these as global usings or a well-known import
+global using VStack = Reactor.Core.VStackElement;
+global using HStack = Reactor.Core.HStackElement;
+global using Text = Reactor.Core.TextElement;
+global using Button = Reactor.Core.ButtonElement;
 ```
 
 ### Problem: Name Collisions
@@ -1021,7 +1021,7 @@ static Element TodoRow(TodoItem item, Action<TodoAction> dispatch) =>
 
 ## Part 7B: Stress Tests — Complex Real-World Patterns
 
-The TodoApp examples in Parts 2–6 are deliberately simple. Real Duct components use LINQ
+The TodoApp examples in Parts 2–6 are deliberately simple. Real Reactor components use LINQ
 pipelines, switch expressions, nested conditionals, collection concatenation, and imperative
 `List<Element>` building. These patterns expose the true strengths and weaknesses of each
 option in ways that simple examples do not.
@@ -1296,7 +1296,7 @@ tab buttons.
 **Current (fluent) — from `samples/CommandingDemo/App.cs`:**
 ```csharp
 return VStack(
-    Text("Duct Demo").FontSize(24).Bold().Margin(16, 16, 16, 8),
+    Text("Reactor Demo").FontSize(24).Bold().Margin(16, 16, 16, 8),
     HStack(8,
         tabs.Select((tab, i) =>
             Button(tab, () => setSelectedTab(i))
@@ -1318,7 +1318,7 @@ return VStack(
 **Option A (`new` + initializers):**
 ```csharp
 return new VStack {
-    new Text("Duct Demo") { FontSize = 24, Bold = true, Margin = Thick(16, 16, 16, 8) },
+    new Text("Reactor Demo") { FontSize = 24, Bold = true, Margin = Thick(16, 16, 16, 8) },
 
     // PROBLEM: Can't put .Select().ToArray() inline as children.
     // Must assign to Children property, losing the inline feel.
@@ -1350,7 +1350,7 @@ return new VStack {
 ```csharp
 return new VStack {
     Children = [
-        new Text("Duct Demo") { FontSize = 24, Bold = true, Margin = Thick(16, 16, 16, 8) },
+        new Text("Reactor Demo") { FontSize = 24, Bold = true, Margin = Thick(16, 16, 16, 8) },
 
         // Spread handles LINQ inline — same as current ergonomics
         new HStack {
@@ -1382,7 +1382,7 @@ return new VStack {
 **Option B (factory + `with { }`):**
 ```csharp
 return VStack(
-    Text("Duct Demo") with { FontSize = 24, Bold = true, Margin = Thick(16, 16, 16, 8) },
+    Text("Reactor Demo") with { FontSize = 24, Bold = true, Margin = Thick(16, 16, 16, 8) },
 
     // LINQ inline in params — works perfectly, same as current
     HStack(8,
@@ -1419,7 +1419,7 @@ dynamic children.
 Deep conditional nesting where checkbox state controls which subtrees exist, and a switch
 expression picks between completely different view modes.
 
-**Current (fluent) — from `samples/Duct.TestApp/Demos/ConditionalDemo.cs`:**
+**Current (fluent) — from `samples/Reactor.TestApp/Demos/ConditionalDemo.cs`:**
 ```csharp
 return ScrollView(VStack(16,
     Heading("Conditional UI"),
@@ -1984,7 +1984,7 @@ The D3 chart samples use C# 12 spread operators `[..]` and `.SelectMany()` to bu
 element arrays from nested data structures. This is the most aggressive LINQ pattern in
 the codebase.
 
-**Current (fluent) — from `samples/DuctD3.Gallery/Samples/StackedBarChart.cs`:**
+**Current (fluent) — from `samples/ReactorCharting.Gallery/Samples/StackedBarChart.cs`:**
 ```csharp
 return D3Canvas(W, H,
     [.. D3Grid(ys, left, plotW),
@@ -2084,7 +2084,7 @@ Option B's direction.
 Grouping items by category, mapping each group to a section with a header, and wrapping
 grouped items in a flex panel.
 
-**Current (fluent) — from `samples/DuctD3.Gallery/Program.cs`:**
+**Current (fluent) — from `samples/ReactorCharting.Gallery/Program.cs`:**
 ```csharp
 var categories = SampleRegistry.All
     .GroupBy(s => s.Category)
@@ -2326,7 +2326,7 @@ TextTrimming, Padding/MinWidth on Button, and resource dictionary access.
 
 ### 8.2 The Immutability Problem (Option A Only — Solved by A')
 
-Collection initializers require `Add()`, which is a mutating operation. Duct elements are immutable
+Collection initializers require `Add()`, which is a mutating operation. Reactor elements are immutable
 records. These are fundamentally at odds.
 
 **Approach 1: Internal mutable builder, freeze on read.** The record has a private `List<Element>`
@@ -2356,7 +2356,7 @@ needed if you insist on bare children in `{ }` without the `Children = [` prefix
 
 ### 8.3 The Conditional Children Problem
 
-Duct's current `params Element?[]` + `FilterChildren()` elegantly handles conditional rendering:
+Reactor's current `params Element?[]` + `FilterChildren()` elegantly handles conditional rendering:
 
 ```csharp
 VStack(
@@ -2486,7 +2486,7 @@ performance characteristic.
 
 ### Medium Term (Consider Carefully)
 
-**Evaluate Option B** as the primary API style for Duct v2:
+**Evaluate Option B** as the primary API style for Reactor v2:
 
 1. Move all `ElementModifiers` properties to init properties on the `Element` base record.
 2. Make `with { }` the standard way to configure elements beyond positional factory parameters.
@@ -2506,7 +2506,7 @@ practice or just tolerable in a spec.
 
 **Watch for factory method initializers** ([csharplang #6602](https://github.com/dotnet/csharplang/discussions/6602)):
 If C# ever allows `VStack(16) { child1, child2 }` syntax (collection initializer after factory
-method calls), this unlocks the best possible Duct syntax — no `new`, `{ }` for children,
+method calls), this unlocks the best possible Reactor syntax — no `new`, `{ }` for children,
 properties inline. This is the "Option A without the `new`" future that Spec 008 §5 describes.
 A' would transition cleanly to this future — replace `new VStack { Children = [...] }` with
 `VStack() { children }` — since the property-setting side is identical.
@@ -2590,17 +2590,17 @@ equivalents.
 | **Avalonia.Markup.Declarative** | Factory methods | Fluent `.Prop(value)` chain | `.Content(child)` / `.Items(...)` |
 | **MAUI (C# Markup)** | `new Label()` | Object initializer `{ }` | `.Content()` / `.Children()` |
 | **Fabulous (F#)** | View functions | Fluent modifiers | Computation expression `{ }` |
-| **Duct (current)** | Factory methods | Fluent + `.Set()` + `with { }` | `params Element?[]` |
-| **Duct (Option A')** | `new` constructors | Object initializer `{ }` | `Children = [...]` collection expr |
-| **Duct (Option B)** | Factory methods | `with { }` record copy | `params Element?[]` |
+| **Reactor (current)** | Factory methods | Fluent + `.Set()` + `with { }` | `params Element?[]` |
+| **Reactor (Option A')** | `new` constructors | Object initializer `{ }` | `Children = [...]` collection expr |
+| **Reactor (Option B)** | Factory methods | `with { }` record copy | `params Element?[]` |
 
 **Key observation:** Every successful declarative UI framework lands on one of two models:
-1. **Function + modifier chain** (SwiftUI, Compose, Duct current) — construction is a function call,
+1. **Function + modifier chain** (SwiftUI, Compose, Reactor current) — construction is a function call,
    configuration is chained modifiers.
-2. **Constructor + properties** (Flutter, MAUI, Duct A') — construction is `new`, configuration is named
+2. **Constructor + properties** (Flutter, MAUI, Reactor A') — construction is `new`, configuration is named
    params or object initializer.
 
-No framework successfully mixes both as equals. Duct's `with { }` usage on FlexElement is already
+No framework successfully mixes both as equals. Reactor's `with { }` usage on FlexElement is already
 a sign of model #2 leaking into model #1. Option A' commits fully to model #2 while Option B
 commits fully to model #1 (with `with { }` replacing fluent chains). The question is whether to
 commit to one or deliberately operate in the hybrid space.
@@ -2608,7 +2608,7 @@ commit to one or deliberately operate in the hybrid space.
 **Flutter parallel:** Option A' is structurally closest to Flutter's model — `new Widget(...)` with
 named constructor params and `children: [...]`. The difference is that Flutter uses constructor
 parameters while A' uses init properties, and Flutter doesn't have collection expression spread
-(`..`). Duct A' with C# 12 spread is arguably more powerful than Flutter's child-passing model.
+(`..`). Reactor A' with C# 12 spread is arguably more powerful than Flutter's child-passing model.
 
 ## Appendix B: Detailed C# Syntax Limitations
 

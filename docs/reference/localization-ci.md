@@ -16,21 +16,21 @@ structural issues (missing keys → `DUCT_LOC001` warnings/errors).
   displayName: 'Loc: check for unextracted strings'
   inputs:
     command: 'run'
-    projects: 'Duct.Cli/Duct.Cli.csproj'
+    projects: 'Reactor.Cli/Reactor.Cli.csproj'
     arguments: '-- loc extract --source $(Build.SourcesDirectory)/src --dry-run'
 
 - task: DotNetCoreCLI@2
   displayName: 'Loc: validate ICU syntax & parameter consistency'
   inputs:
     command: 'run'
-    projects: 'Duct.Cli/Duct.Cli.csproj'
+    projects: 'Reactor.Cli/Reactor.Cli.csproj'
     arguments: '-- loc validate --resources $(Build.SourcesDirectory)/src/Strings'
 
 - task: DotNetCoreCLI@2
   displayName: 'Loc: check for unused keys'
   inputs:
     command: 'run'
-    projects: 'Duct.Cli/Duct.Cli.csproj'
+    projects: 'Reactor.Cli/Reactor.Cli.csproj'
     arguments: '-- loc prune --source $(Build.SourcesDirectory)/src --resources $(Build.SourcesDirectory)/src/Strings --dry-run'
 ```
 
@@ -53,7 +53,7 @@ coverage visibility in CI logs:
   displayName: 'Loc: translation coverage report'
   inputs:
     command: 'run'
-    projects: 'Duct.Cli/Duct.Cli.csproj'
+    projects: 'Reactor.Cli/Reactor.Cli.csproj'
     arguments: '-- loc status --resources $(Build.SourcesDirectory)/src/Strings'
   continueOnError: true
 ```
@@ -67,7 +67,7 @@ build-breaking:
 ```xml
 <!-- In your .csproj or Directory.Build.props -->
 <PropertyGroup>
-  <DuctLocMissingKeySeverity>Error</DuctLocMissingKeySeverity>
+  <ReactorLocMissingKeySeverity>Error</ReactorLocMissingKeySeverity>
 </PropertyGroup>
 ```
 

@@ -1,11 +1,11 @@
-using Duct;
-using Duct.Core;
-using DuctOutlook.Models;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorOutlook.Models;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Calendar;
+namespace ReactorOutlook.Components.Calendar;
 
 internal sealed record CalendarSidebarProps(
     CalendarSource[] Sources,
@@ -30,7 +30,7 @@ internal sealed class CalendarSidebar : Component<CalendarSidebarProps>
             // My calendars header
             HStack(4,
                 MdlIcon("\uE70D", 12),
-                Text("My calendars").SemiBold().FontSize(13)
+                Factories.Text("My calendars").SemiBold().FontSize(13)
             ).Padding(12, 8, 12, 4),
 
             // Calendar sources with checkboxes
@@ -44,25 +44,25 @@ internal sealed class CalendarSidebar : Component<CalendarSidebarProps>
                             .Size(12, 12)
                             .CornerRadius(2)
                             .Background(s.ColorHex),
-                        Text(s.Name).FontSize(13)
+                        Factories.Text(s.Name).FontSize(13)
                     ).Padding(12, 2, 12, 2);
                 }).ToArray()
             ),
 
             // Show all link
             Button(
-                Text("Show all").FontSize(12).Foreground(AccentText),
+                Factories.Text("Show all").FontSize(12).Foreground(AccentText),
                 null
             ).Set(b =>
             {
                 b.BorderThickness = new Thickness(0);
                 b.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Windows.UI.Color.FromArgb(0, 0, 0, 0));
+                    global::Windows.UI.Color.FromArgb(0, 0, 0, 0));
             }).Margin(12, 4, 0, 0)
         ).Background(LayerFill);
     }
 
     static Element MdlIcon(string glyph, double size = 14) =>
-        Text(glyph).FontSize(size)
+        Factories.Text(glyph).FontSize(size)
             .Set(t => t.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets"));
 }

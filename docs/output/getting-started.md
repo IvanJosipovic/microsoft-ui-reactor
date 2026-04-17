@@ -1,13 +1,13 @@
 
-# Getting Started with Duct
+# Getting Started with Reactor
 
 <!-- ai:lock -->
 > **Prerequisites:** .NET 9+ and the Windows App SDK.
 <!-- /ai:lock -->
 
-Duct is a declarative UI framework for building native Windows apps in pure C#.
+Reactor is a declarative UI framework for building native Windows apps in pure C#.
 No XAML, no data binding, no view models. You describe your UI as a function of
-state and Duct keeps the screen in sync.
+state and Reactor keeps the screen in sync.
 
 ## Creating a Project
 
@@ -31,7 +31,7 @@ Edit your `.csproj` to target WinUI:
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.*" />
-    <ProjectReference Include="..\Duct\Duct.csproj" />
+    <ProjectReference Include="..\Reactor\Reactor.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -62,9 +62,9 @@ Run it with `dotnet run` and you'll see this:
 
 Here's what's happening:
 
-- **`DuctApp.Run<T>`** launches a window and mounts your root component.
+- **`ReactorApp.Run<T>`** launches a window and mounts your root component.
 - **[`UseState`](hooks.md)** returns the current value and a setter. When you call the
-  setter, Duct re-renders the component with the new value.
+  setter, Reactor re-renders the component with the new value.
 - **[`VStack`](layout.md)** stacks children vertically. The number `16` is the pixel spacing.
 - **`Text(...).FontSize(24).Bold()`** is the fluent modifier pattern — every
   element supports chainable modifiers for styling and layout.
@@ -74,7 +74,7 @@ wiring or property notification — just state in, UI out.
 
 ## Understanding State
 
-Every interactive UI needs state. In Duct, `UseState` is the primary hook for
+Every interactive UI needs state. In Reactor, `UseState` is the primary hook for
 managing values that change over time.
 
 ### Counter Example
@@ -102,7 +102,7 @@ class CounterExample : Component
 
 ![Counter with buttons](images/getting-started/counter.png)
 
-Each call to `setCount` triggers a re-render. Duct diffs the old and new
+Each call to `setCount` triggers a re-render. Reactor diffs the old and new
 element trees and updates only the WinUI controls that actually changed.
 
 ### Multiple State Values
@@ -138,12 +138,12 @@ class MultipleStateExample : Component
 ```
 
 The `fullName` variable is derived from `firstName` and `lastName` on every
-render. In Duct, you don't need computed properties or bindings — plain C#
+render. In Reactor, you don't need computed properties or bindings — plain C#
 expressions work because `Render()` runs every time state changes.
 
 ## Layout Basics
 
-Duct provides a small set of layout primitives that compose together:
+Reactor provides a small set of layout primitives that compose together:
 
 ```csharp
 class LayoutBasicsExample : Component
@@ -211,7 +211,7 @@ class TodoApp : Component
     {
         var (items, updateItems) = UseReducer(new List<TodoItem>
         {
-            new("Learn Duct basics", true),
+            new("Learn Reactor basics", true),
             new("Build a todo app", false),
             new("Explore hooks", false),
         });
@@ -281,9 +281,9 @@ Key patterns to notice:
   `Func<T, T>` — you transform the previous value into the next value. This
   is the right tool when your new state depends on the old state (like
   appending to a list).
-- **`items.Select(...).ToArray()`** maps data into elements. Duct reconciles
+- **`items.Select(...).ToArray()`** maps data into elements. Reactor reconciles
   the list efficiently using keys.
-- **`WithKey`** gives each item a stable identity so Duct can reorder, add,
+- **`WithKey`** gives each item a stable identity so Reactor can reorder, add,
   and remove items without rebuilding the entire list.
 - **`When(condition, () => element)`** conditionally renders content without
   an if/else cluttering the tree.
@@ -398,10 +398,10 @@ class CalculatorApp : Component
 ![Calculator](images/calculator/calculator.png)
 
 This demonstrates how plain C# control flow (methods, switch expressions,
-local functions) works naturally inside Duct components. There's no special
+local functions) works naturally inside Reactor components. There's no special
 command pattern needed — just call `setDisplay(...)` and the UI updates.
 
-## Tips for New Duct Developers
+## Tips for New Reactor Developers
 
 **Think in functions, not objects.** Your `Render()` method is a pure function
 from state to UI. Every time state changes, it runs again from the top. Don't
@@ -412,7 +412,7 @@ uses a value, `UseState` in that component. If siblings need to share state,
 lift it to their parent.
 
 **Use records for data.** C# records give you immutable data with value
-equality for free. Duct uses this for efficient memoization — if your props
+equality for free. Reactor uses this for efficient memoization — if your props
 haven't changed structurally, the component skips re-rendering.
 
 **Prefer composition over inheritance.** Build small components that each do

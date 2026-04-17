@@ -61,7 +61,7 @@ public sealed partial class MainWindow : Window
             var hwnd = WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
             var appWindow = AppWindow.GetFromWindowId(windowId);
-            appWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, w, h));
+            appWindow.MoveAndResize(new global::Windows.Graphics.RectInt32(x, y, w, h));
         }
         catch { }
     }
@@ -130,8 +130,8 @@ public sealed partial class MainWindow : Window
 
         // File
         var fileMenu = new MenuBarItem { Title = Strings.MenuFile };
-        fileMenu.Items.Add(MenuItem(Strings.MenuImport, OnImport, Windows.System.VirtualKey.I, Windows.System.VirtualKeyModifiers.Control));
-        fileMenu.Items.Add(MenuItem(Strings.MenuExport, OnExport, Windows.System.VirtualKey.E, Windows.System.VirtualKeyModifiers.Control));
+        fileMenu.Items.Add(MenuItem(Strings.MenuImport, OnImport, global::Windows.System.VirtualKey.I, global::Windows.System.VirtualKeyModifiers.Control));
+        fileMenu.Items.Add(MenuItem(Strings.MenuExport, OnExport, global::Windows.System.VirtualKey.E, global::Windows.System.VirtualKeyModifiers.Control));
         fileMenu.Items.Add(new MenuFlyoutSeparator());
         fileMenu.Items.Add(MenuItem(Strings.MenuLoadHive, OnStub));
         fileMenu.Items.Add(MenuItem(Strings.MenuUnloadHive, OnStub));
@@ -139,7 +139,7 @@ public sealed partial class MainWindow : Window
         fileMenu.Items.Add(MenuItem(Strings.MenuConnectNetworkRegistry, OnStub));
         fileMenu.Items.Add(MenuItem(Strings.MenuDisconnectNetworkRegistry, OnStub));
         fileMenu.Items.Add(new MenuFlyoutSeparator());
-        fileMenu.Items.Add(MenuItem(Strings.MenuPrint, OnStub, Windows.System.VirtualKey.P, Windows.System.VirtualKeyModifiers.Control));
+        fileMenu.Items.Add(MenuItem(Strings.MenuPrint, OnStub, global::Windows.System.VirtualKey.P, global::Windows.System.VirtualKeyModifiers.Control));
         fileMenu.Items.Add(new MenuFlyoutSeparator());
         fileMenu.Items.Add(MenuItem(Strings.MenuExit, (s, e) => Close()));
         menuBar.Items.Add(fileMenu);
@@ -160,13 +160,13 @@ public sealed partial class MainWindow : Window
         newSub.Items.Add(MenuItem(Strings.MenuNewExpandStringValue, (s, e) => OnNewValue(RegistryValueKind.ExpandString)));
         editMenu.Items.Add(newSub);
         editMenu.Items.Add(new MenuFlyoutSeparator());
-        editMenu.Items.Add(MenuItem(Strings.MenuDelete, OnDelete, Windows.System.VirtualKey.Delete));
-        editMenu.Items.Add(MenuItem(Strings.MenuRename, OnRename, Windows.System.VirtualKey.F2));
+        editMenu.Items.Add(MenuItem(Strings.MenuDelete, OnDelete, global::Windows.System.VirtualKey.Delete));
+        editMenu.Items.Add(MenuItem(Strings.MenuRename, OnRename, global::Windows.System.VirtualKey.F2));
         editMenu.Items.Add(new MenuFlyoutSeparator());
         editMenu.Items.Add(MenuItem(Strings.MenuCopyKeyName, OnCopyKeyName));
         editMenu.Items.Add(new MenuFlyoutSeparator());
-        editMenu.Items.Add(MenuItem(Strings.MenuFind, OnFind, Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control));
-        editMenu.Items.Add(MenuItem(Strings.MenuFindNext, OnFindNext, Windows.System.VirtualKey.F3));
+        editMenu.Items.Add(MenuItem(Strings.MenuFind, OnFind, global::Windows.System.VirtualKey.F, global::Windows.System.VirtualKeyModifiers.Control));
+        editMenu.Items.Add(MenuItem(Strings.MenuFindNext, OnFindNext, global::Windows.System.VirtualKey.F3));
         editMenu.Items.Add(new MenuFlyoutSeparator());
         editMenu.Items.Add(MenuItem(Strings.MenuPermissions, OnStub));
         menuBar.Items.Add(editMenu);
@@ -180,7 +180,7 @@ public sealed partial class MainWindow : Window
         addressBarToggle.Click += (s, e) => _addressBarRow.Visibility = addressBarToggle.IsChecked ? Visibility.Visible : Visibility.Collapsed;
         viewMenu.Items.Add(addressBarToggle);
         viewMenu.Items.Add(new MenuFlyoutSeparator());
-        viewMenu.Items.Add(MenuItem(Strings.MenuRefresh, OnRefresh, Windows.System.VirtualKey.F5));
+        viewMenu.Items.Add(MenuItem(Strings.MenuRefresh, OnRefresh, global::Windows.System.VirtualKey.F5));
         menuBar.Items.Add(viewMenu);
 
         // Favorites
@@ -200,7 +200,7 @@ public sealed partial class MainWindow : Window
     }
 
     private static MenuFlyoutItem MenuItem(string text, RoutedEventHandler handler,
-        Windows.System.VirtualKey? key = null, Windows.System.VirtualKeyModifiers modifiers = Windows.System.VirtualKeyModifiers.None)
+        global::Windows.System.VirtualKey? key = null, global::Windows.System.VirtualKeyModifiers modifiers = global::Windows.System.VirtualKeyModifiers.None)
     {
         var item = new MenuFlyoutItem { Text = text };
         item.Click += handler;
@@ -396,7 +396,7 @@ public sealed partial class MainWindow : Window
         {
             Text = val.DisplayName,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            FontStyle = val.IsDefault ? Windows.UI.Text.FontStyle.Italic : Windows.UI.Text.FontStyle.Normal
+            FontStyle = val.IsDefault ? global::Windows.UI.Text.FontStyle.Italic : global::Windows.UI.Text.FontStyle.Normal
         };
         Grid.SetColumn(nameText, 0);
         grid.Children.Add(nameText);
@@ -718,7 +718,7 @@ public sealed partial class MainWindow : Window
             RegistryValueKind.DWord => BitConverter.GetBytes(val.Data is int i ? i : 0),
             RegistryValueKind.QWord => BitConverter.GetBytes(val.Data is long l ? l : 0L),
             RegistryValueKind.None => val.Data as byte[] ?? Array.Empty<byte>(),
-            _ => System.Text.Encoding.Unicode.GetBytes(val.Data?.ToString() ?? string.Empty)
+            _ => global::System.Text.Encoding.Unicode.GetBytes(val.Data?.ToString() ?? string.Empty)
         };
 
         var result = await EditBinaryDialog.ShowAsync(Content.XamlRoot, val.Name, data);

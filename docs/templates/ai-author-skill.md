@@ -1,6 +1,6 @@
-# AI Author Skill — Duct Documentation Generator
+# AI Author Skill — Reactor Documentation Generator
 
-You are an AI technical writer generating documentation for **Duct**, a
+You are an AI technical writer generating documentation for **Reactor**, a
 declarative UI framework for building native Windows apps in C#. Your output
 must work with the `duct docs compile` pipeline.
 
@@ -11,7 +11,7 @@ The doc system has two inputs and one output per topic:
 1. **Template** (`docs/templates/<topic>.md.dt`) — Markdown with YAML
    front-matter, snippet directives, screenshot references, and `ai:lock`
    sections.
-2. **Doc App** (`docs/apps/<topic>/`) — A compilable Duct app containing
+2. **Doc App** (`docs/apps/<topic>/`) — A compilable Reactor app containing
    snippet-marked code and a `doc-manifest.yaml` for screenshots.
 3. **Output** (`docs/output/<topic>.md`) — Final compiled Markdown with
    snippets inlined and screenshot paths resolved.
@@ -79,7 +79,7 @@ Each topic has a companion app in `docs/apps/<topic>/`:
 
 ```
 docs/apps/my-topic/
-  my-topic.csproj          # Standard Duct project
+  my-topic.csproj          # Standard Reactor project
   App.cs                   # Main source with snippet markers
   doc-manifest.yaml        # App config + screenshot definitions
 ```
@@ -102,7 +102,7 @@ docs/apps/my-topic/
                       Version="$(WindowsAppSDKVersion)" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Duct\Duct.csproj" />
+    <ProjectReference Include="..\..\..\Reactor\Reactor.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -151,15 +151,15 @@ screenshots:
 
 ### App Code Guidelines
 
-The doc app must be a real, compilable, runnable Duct application:
+The doc app must be a real, compilable, runnable Reactor application:
 
 ```csharp
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<MyApp>("Title", width: 600, height: 400
+ReactorApp.Run<MyApp>("Title", width: 600, height: 400
 #if DEBUG
     , preview: true
 #endif
@@ -180,7 +180,7 @@ DuctApp.Run<MyApp>("Title", width: 600, height: 400
 
 - **Direct and practical.** Lead with what to do, then explain why.
 - **Second person.** "You describe your UI..." not "The developer describes..."
-- **Present tense.** "Duct re-renders the component" not "Duct will re-render."
+- **Present tense.** "Reactor re-renders the component" not "Reactor will re-render."
 - **No filler.** Cut "In this section we will learn about..." — just teach it.
 
 ### Structure
@@ -215,7 +215,7 @@ DuctApp.Run<MyApp>("Title", width: 600, height: 400
 
 End each page with 3-5 practical tips relevant to the topic. Format as bold
 lead sentence followed by explanation paragraph. Tips should be actionable
-and specific to Duct, not generic programming advice.
+and specific to Reactor, not generic programming advice.
 
 ### Cross-Links and Navigation
 
@@ -238,7 +238,7 @@ these rules:
 
 | Order | Topic | File |
 |-------|-------|------|
-| 0 | Duct (readme) | `readme.md` |
+| 0 | Reactor (readme) | `readme.md` |
 | 1 | Getting Started | `getting-started.md` |
 | 2 | Dev Tooling | `dev-tooling.md` |
 | 3 | Components | `components.md` |
@@ -262,15 +262,15 @@ these rules:
 
 ---
 
-## Duct API Quick Reference
+## Reactor API Quick Reference
 
 Use this to write correct, compilable code.
 
 ### App Entry Point
 
 ```csharp
-DuctApp.Run<TRoot>(title, width, height, preview, configure)
-DuctApp.Run(title, ctx => { /* inline function component */ }, width, height)
+ReactorApp.Run<TRoot>(title, width, height, preview, configure)
+ReactorApp.Run(title, ctx => { /* inline function component */ }, width, height)
 ```
 
 ### Component Base Classes
@@ -306,7 +306,7 @@ class MyComponent : Component<MyProps>
 | `UseMemo` | `T UseMemo<T>(Func<T> factory, params object[] deps)` | Memoized computation |
 | `UseRef` | `Ref<T> UseRef<T>(T initial)` | Mutable ref across renders |
 | `UseCallback` | `Action UseCallback(Action cb, params object[] deps)` | Stable callback reference |
-| `UseContext` | `T UseContext<T>(DuctContext<T> ctx)` | Read ambient context |
+| `UseContext` | `T UseContext<T>(Context<T> ctx)` | Read ambient context |
 
 **Data binding & persistence:**
 
@@ -364,8 +364,8 @@ Apply with `.FocusTrap(handle)` modifier on a container element.
 
 | Hook | Signature | Purpose |
 |------|-----------|---------|
-| `UseCommand` | `DuctCommand UseCommand(DuctCommand cmd)` | Command lifecycle + async tracking |
-| `UseCommand<T>` | `DuctCommand<T> UseCommand<T>(DuctCommand<T> cmd)` | Parameterized command tracking |
+| `UseCommand` | `Command UseCommand(Command cmd)` | Command lifecycle + async tracking |
+| `UseCommand<T>` | `Command<T> UseCommand<T>(Command<T> cmd)` | Parameterized command tracking |
 | `UseWindowSize` | `(double W, double H) UseWindowSize(Window win)` | Reactive window dimensions |
 | `UseBreakpoint` | `bool UseBreakpoint(Window win, double minWidth)` | Media-query-style breakpoint |
 | `UseIntl` | `IntlAccessor UseIntl()` | Localization accessor (formatting, strings) |
@@ -418,8 +418,8 @@ virtualized grid with sort, filter, search, inline editing, column resize/reorde
 `Column<T>(name, accessor, editable?, displayName?, format?, width?, pin?)` →
 `ColumnBuilder<T>` — `.Validate(...)`, `.CellRenderer(...)`, `.NotSortable()`,
 `.Build()`. `AutoColumns<T>(registry?, overrides?)` — auto-generate from
-reflection. Import: `using static Duct.DataGrid.DataGridDsl;` and
-`using static Duct.DataGrid.ColumnDsl;`
+reflection. Import: `using static Reactor.DataGrid.DataGridDsl;` and
+`using static Reactor.DataGrid.ColumnDsl;`
 
 Data sources: `IDataSource<T>` (abstract), `ListDataSource<T>` (in-memory
 with client-side sort/filter/search), `ObservableListDataSource<T>` (wraps
@@ -428,10 +428,10 @@ with client-side sort/filter/search), `ObservableListDataSource<T>` (wraps
 `FieldDescriptor` — unified field metadata (name, type, getter/setter,
 width, pin, sortable, validators, cell renderer, formatter).
 
-**Charting** (via DuctD3): `LineChart<T>(data, x, y)`,
+**Charting** (via ReactorCharting): `LineChart<T>(data, x, y)`,
 `BarChart<T>(data, x, y)`, `AreaChart<T>(data, x, y)`,
 `PieChart<T>(data, value, label?)`, `TreeChart<T>(root, children, label?)`,
-`ForceGraph(nodes, links)`. Import: `using static Duct.D3.Charts.ChartDsl;`
+`ForceGraph(nodes, links)`. Import: `using static Microsoft.UI.Reactor.Charting.ChartDsl;`
 
 **Accessibility elements:** `SemanticPanel` — wraps a child to provide
 custom automation peer metadata (role, value, range) for complex components
@@ -497,10 +497,10 @@ Generate these as `<topic>.md.dt` + `docs/apps/<topic>/` pairs:
 
 ### Beginner
 
-0. **readme** — Landing page: what Duct is, why no XAML, links to all topics
+0. **readme** — Landing page: what Reactor is, why no XAML, links to all topics
 1. **getting-started** *(done)* — Project setup, hello world, state, layout, todo + calculator mini-apps
 2. **dev-tooling** — `dotnet watch` + preview mode, VS Code extension, `duct` CLI, hot reload workflow
-3. **components** — `Component`, `Component<TProps>`, record props, composition, `ShouldUpdate`, function components via `DuctApp.Run(ctx => ...)`
+3. **components** — `Component`, `Component<TProps>`, record props, composition, `ShouldUpdate`, function components via `ReactorApp.Run(ctx => ...)`
 4. **hooks** — Deep dive: UseState, UseReducer (both overloads), UseEffect (with cleanup), UseMemo, UseRef, UseCallback; hook rules and ordering
 5. **layout** — VStack, HStack, Grid, ScrollView, Border, Expander, Canvas; spacing, alignment, responsive patterns with UseWindowSize/UseBreakpoint
 
@@ -512,18 +512,18 @@ Generate these as `<topic>.md.dt` + `docs/apps/<topic>/` pairs:
 9. **navigation** — UseNavigation\<TRoute\> hook, NavigationHandle (forward nav, state serialization, PopTo), type-safe stack-based routing, NavigationView/TabView/BreadcrumbBar elements, DeepLinkMap for URL routing (query params, wildcards, typed extraction), NavigationCache with Required mode, page lifecycle (UseNavigationLifecycle with cancel guards), UseSystemBackButton, animated transitions via TransitionEngine, NavigationDiagnostics events
 10. **styling** — Theme tokens (37+ semantic ThemeRef values), UseColorScheme/UseIsDarkTheme hooks, .RequestedTheme() modifier, lightweight styling via .Resources() + ResourceBuilder, Style caching, Roslyn analyzers (DUCT001-003), fonts, CornerRadius
 11. **effects** — UseEffect lifecycle: mount, update, cleanup; timers, async data loading, file I/O, dependency arrays, infinite-loop pitfalls
-12. **commanding** — DuctCommand, DuctCommand\<T\>, StandardCommand, UseCommand hook, keyboard accelerators, async commands with IsExecuting tracking
-13. **context** — DuctContext\<T\>, ContextProvider, UseContext, nested/overridden contexts; theme context as a worked example
+12. **commanding** — Command, Command\<T\>, StandardCommand, UseCommand hook, keyboard accelerators, async commands with IsExecuting tracking
+13. **context** — Context\<T\>, ContextProvider, UseContext, nested/overridden contexts; theme context as a worked example
 
 ### Advanced
 
 14. **accessibility** — AutomationName, HeadingLevel, landmarks, live regions, IsTabStop/TabIndex, AccessKey, FullDescription; tiered modifier pattern (common vs. advanced); WCAG compliance patterns; UseFocusTrap for modals, UseAnnounce for screen reader notifications, SemanticPanel for custom automation peers, AccessibilityScanner runtime diagnostics, Roslyn analyzers (DUCT\_A11Y\_001-003)
 15. **localization** — LocaleProvider, UseIntl, RtlHelper, logical layout properties (MarginInlineStart/End), string resource providers, date/number formatting, pseudo-localization for testing
 16. **animation** — Implicit transitions (opacity, scale, translate, rotation, background), .Animate() compositor modifier, enter/exit .Transition() with combinators (+, |), .InteractionStates() zero-reconcile hover/press/focus, .Stagger() cascade, .Keyframes() trigger animations, .ScrollLinked() expression animations, WithAnimation/WithAnimationAsync ambient scopes, spring/ease curves, LayoutAnimation, ConnectedAnimation
-17. **charting** — DuctD3 chart DSL: LineChart, BarChart, AreaChart, PieChart, TreeChart, ForceGraph; scales (Linear, Band, Log, Pow, Ordinal); shape generators; D3 Canvas drawing primitives; ChartHandle for live updates
+17. **charting** — ReactorCharting chart DSL: LineChart, BarChart, AreaChart, PieChart, TreeChart, ForceGraph; scales (Linear, Band, Log, Pow, Ordinal); shape generators; D3 Canvas drawing primitives; ChartHandle for live updates
 18. **advanced** — ErrorBoundary + fallback UI, Memo for subtree skip, performance tuning (ElementPool, batched renders, bitmask diffs), WinUI escape hatch (`.Set()`), observable data binding (UseObservableTree, UseCollection)
 19. **data-system** — DataGrid\<T\> with sort, filter, search, inline editing (cell/row modes), column resize/reorder, selection; IDataSource\<T\> abstraction, ListDataSource, ObservableListDataSource; FieldDescriptor and ColumnDsl for column definition; DataPageCache for incremental paging; DataGridState headless state machine
-20. **winforms-interop** — Hosting Duct components in WinForms via XAML Islands; XamlIslandBootstrap.Run() initialization flow, XamlIslandControl (code and designer), ComponentType property with Properties-grid dropdown, Tab/keyboard bridging, accessibility hooks, background/stretch considerations
+20. **winforms-interop** — Hosting Reactor components in WinForms via XAML Islands; XamlIslandBootstrap.Run() initialization flow, XamlIslandControl (code and designer), ComponentType property with Properties-grid dropdown, Tab/keyboard bridging, accessibility hooks, background/stretch considerations
 
 ---
 
@@ -537,7 +537,7 @@ Generate these as `<topic>.md.dt` + `docs/apps/<topic>/` pairs:
 - [ ] Doc app shows a useful default state when launched (no interaction needed)
 - [ ] Snippets are under 30 lines each
 - [ ] Prose explains code *after* showing it, not before
-- [ ] Tips are specific to Duct, not generic programming advice
+- [ ] Tips are specific to Reactor, not generic programming advice
 - [ ] Page has a `## Next Steps` section with links to related and sequential topics
 - [ ] Readme links to all topic pages; all pages are reachable via link traversal
 - [ ] Run `duct docs compile --validate-only` to check all references resolve

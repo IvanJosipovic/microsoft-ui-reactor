@@ -2,11 +2,11 @@
 
 **Status:** Brainstorm / Proposal Draft  
 **Date:** 2026-04-04  
-**Goal:** Identify the smallest set of C# language changes that would make Duct (and declarative UI frameworks generally) dramatically better. Each proposal includes current syntax, proposed syntax, a rough feature definition, and references to prior art.
+**Goal:** Identify the smallest set of C# language changes that would make Reactor (and declarative UI frameworks generally) dramatically better. Each proposal includes current syntax, proposed syntax, a rough feature definition, and references to prior art.
 
 ### Tier Ratings
 
-Each proposal is rated on three axes — benefit to Duct, likelihood of landing in C#, and positive impact on the broader C# community — then combined into a single tier:
+Each proposal is rated on three axes — benefit to Reactor, likelihood of landing in C#, and positive impact on the broader C# community — then combined into a single tier:
 
 - **S Tier** — High value across all three axes. Invest here first.
 - **A Tier** — Strong on two axes, viable on the third. Worth championing.
@@ -37,9 +37,9 @@ Each proposal is rated on three axes — benefit to Duct, likelihood of landing 
 
 ### Problem
 
-Duct components sometimes need to represent a fixed set of UI states (loading/error/success, different view modes, navigation destinations). Today this requires separate classes or enums plus separate data carriers, and pattern matching doesn't guarantee exhaustiveness across the data.
+Reactor components sometimes need to represent a fixed set of UI states (loading/error/success, different view modes, navigation destinations). Today this requires separate classes or enums plus separate data carriers, and pattern matching doesn't guarantee exhaustiveness across the data.
 
-### Current Duct Syntax
+### Current Reactor Syntax
 
 ```csharp
 // Must define separate types and manually associate data with states
@@ -117,7 +117,7 @@ class DataView : Component
 - Pattern matching on a union is **exhaustive** — the compiler errors if any case is unhandled and no default `_` arm is present.
 - Adding a new case to a union produces compile errors at all incomplete match sites.
 - This is an [active proposal](https://github.com/dotnet/csharplang/issues/9662) for C# and widely requested by the community.
-- For Duct, this enables type-safe navigation state, fetch results, form validation states, and view mode switching without defensive defaults.
+- For Reactor, this enables type-safe navigation state, fetch results, form validation states, and view mode switching without defensive defaults.
 
 ### Why Not
 
@@ -262,9 +262,9 @@ Further reading: [Enterprise Craftsmanship: C# and F# approaches to illegal stat
 
 ### Problem
 
-Duct render methods must return expressions, but complex conditional logic is naturally expressed with statements. Developers must choose between awkward ternary chains, helper methods that fragment the render logic, or the `When()` helper that hides the condition.
+Reactor render methods must return expressions, but complex conditional logic is naturally expressed with statements. Developers must choose between awkward ternary chains, helper methods that fragment the render logic, or the `When()` helper that hides the condition.
 
-### Current Duct Syntax
+### Current Reactor Syntax
 
 ```csharp
 return VStack(12,
@@ -354,9 +354,9 @@ return VStack(12,
 
 **Interaction with `ref`, `await`, definite assignment, and nullable analysis.** Variables declared inside an expression block and their lifetime/scope semantics need careful definition. Can you `await` inside an expression block? Can you capture `ref` locals? How does nullable flow analysis propagate through `yield`? Each interaction multiplies design surface area and the LDM has flagged these as requiring significant work.
 
-**The problem has existing solutions.** Complex conditional logic in Duct already works via: (1) switch expressions for multi-branch, (2) ternary for two-branch, (3) helper methods for complex cases, (4) the `When()` DSL helper. These are well-understood C# patterns. Expression blocks would add a new way to do what's already possible, creating "two ways to do it" fragmentation that the C# team has historically tried to avoid.
+**The problem has existing solutions.** Complex conditional logic in Reactor already works via: (1) switch expressions for multi-branch, (2) ternary for two-branch, (3) helper methods for complex cases, (4) the `When()` DSL helper. These are well-understood C# patterns. Expression blocks would add a new way to do what's already possible, creating "two ways to do it" fragmentation that the C# team has historically tried to avoid.
 
-**Modest impact on Duct specifically.** Looking at the actual Duct test app code, most conditional rendering uses switch expressions or ternaries that are already clean enough. The cases where expression blocks would help — multi-statement computed values inline — are relatively rare and arguably better served by local methods that name the computation.
+**Modest impact on Reactor specifically.** Looking at the actual Reactor test app code, most conditional rendering uses switch expressions or ternaries that are already clean enough. The cases where expression blocks would help — multi-statement computed values inline — are relatively rare and arguably better served by local methods that name the computation.
 
 ### Expanded Use Cases
 
@@ -514,7 +514,7 @@ var greeting =
     let name = $"{user.First} {user.Last}" in
     $"Welcome, {title} {name}!";
 
-// In a Duct render tree — name subexpressions inline
+// In a Reactor render tree — name subexpressions inline
 return VStack(16,
     let total = items.Sum(i => i.Price) in
     let tax = total * 0.08 in
@@ -665,9 +665,9 @@ return let result = ComputeResult() in
 
 ### Problem
 
-Duct's hook system relies on call-order stability: hooks must be called in the same order every render. This is a runtime contract — violating it throws `InvalidOperationException`. The compiler could enforce this statically and optimize re-renders by knowing which parameters changed.
+Reactor's hook system relies on call-order stability: hooks must be called in the same order every render. This is a runtime contract — violating it throws `InvalidOperationException`. The compiler could enforce this statically and optimize re-renders by knowing which parameters changed.
 
-### Current Duct Syntax
+### Current Reactor Syntax
 
 ```csharp
 class CounterDemo : Component
@@ -767,7 +767,7 @@ class Greeting : Component<GreetingProps>
 
 **C# source generators cannot transform method signatures.** Unlike Kotlin's compiler plugin, C# source generators can only generate new code — they cannot modify existing method signatures to inject hidden `$composer` and `$changed` parameters. Achieving Phase 2 would require either a new compiler plugin API (which the Roslyn team has resisted) or a fundamentally different approach. The gap between "analyzer that warns" and "compiler that transforms" is enormous.
 
-**The benefit may not justify the magic.** Duct's virtual element tree is already lightweight — Render() produces immutable records that are cheap to diff. The Compose-style skip optimization matters most when rendering is expensive (Compose creates real Android Views). For Duct, where the reconciler already efficiently diffs elements, the performance benefit of skipping Render() entirely may be marginal compared to the debugging complexity of invisible compiler transforms.
+**The benefit may not justify the magic.** Reactor's virtual element tree is already lightweight — Render() produces immutable records that are cheap to diff. The Compose-style skip optimization matters most when rendering is expensive (Compose creates real Android Views). For Reactor, where the reconciler already efficiently diffs elements, the performance benefit of skipping Render() entirely may be marginal compared to the debugging complexity of invisible compiler transforms.
 
 ### Expanded Use Cases
 
@@ -865,7 +865,7 @@ The strongest argument comes from Kotlin's ecosystem: `kotlinx.serialization`, C
 
 ### Problem
 
-Duct builds element trees with nested function calls closed by `)`. Deep nesting produces a wall of closing parentheses — `), ), )` — that is hard to match visually. C# developers are more accustomed to `{ }` for nested scopes. The language already has a mechanism for adding items to a container — collection initializers — but it only works with `new`, not with factory methods.
+Reactor builds element trees with nested function calls closed by `)`. Deep nesting produces a wall of closing parentheses — `), ), )` — that is hard to match visually. C# developers are more accustomed to `{ }` for nested scopes. The language already has a mechanism for adding items to a container — collection initializers — but it only works with `new`, not with factory methods.
 
 ### What Works Today (with `new`)
 
@@ -895,7 +895,7 @@ The hierarchy is visually clear: `{ }` for children, properties set inline, nest
 
 ### The Key Gap: Factory Methods
 
-The `new` keyword is noisy. Duct's existing DSL uses factory methods via `using static Duct.UI` — `VStack(16, ...)` instead of `new VStackElement(16)`. But **collection initializers only work after `new` expressions**, not factory method calls:
+The `new` keyword is noisy. Reactor's existing DSL uses factory methods via `using static Reactor.UI` — `VStack(16, ...)` instead of `new VStackElement(16)`. But **collection initializers only work after `new` expressions**, not factory method calls:
 
 ```csharp
 // THIS DOES NOT COMPILE — VStack() is a method call, not a constructor
@@ -980,7 +980,7 @@ The `with` keyword is already used for record copy-mutation (`record with { Prop
 
 **The `{ }` ambiguity is the same fundamental problem as trailing lambdas.** `Foo() { ... }` at statement level: is it a method call followed by a statement block, or a method call with a collection initializer? Mads Torgersen and Jared Parsons have flagged this as a fundamental syntactic conflict. This is why the proposals ([#6602](https://github.com/dotnet/csharplang/discussions/6602), [#9528](https://github.com/dotnet/csharplang/discussions/9528), [#5654](https://github.com/dotnet/csharplang/discussions/5654)) have been open since 2020+ without resolution. The `with` keyword variant solves the ambiguity but adds visual noise.
 
-**`IEnumerable` + `Add()` is a poor fit for immutable element trees.** Collection initializers call `Add()` sequentially on a mutable object. For Duct's immutable element model, each `Add()` would need to return a new object (wasteful O(n²) copying) or the type must use a mutable builder internally. [This analysis](https://smellegantcode.wordpress.com/2009/01/29/using-collection-initializers-with-immutable-lists/) documents the cost. Duct would likely need internal mutability behind an immutable façade, or a `[CollectionBuilder]` pattern that collects items into a `ReadOnlySpan` before constructing the element.
+**`IEnumerable` + `Add()` is a poor fit for immutable element trees.** Collection initializers call `Add()` sequentially on a mutable object. For Reactor's immutable element model, each `Add()` would need to return a new object (wasteful O(n²) copying) or the type must use a mutable builder internally. [This analysis](https://smellegantcode.wordpress.com/2009/01/29/using-collection-initializers-with-immutable-lists/) documents the cost. Reactor would likely need internal mutability behind an immutable façade, or a `[CollectionBuilder]` pattern that collects items into a `ReadOnlySpan` before constructing the element.
 
 **Properties and children interleaved in `{ }` can be confusing.** `Panel { Margin = 4, Label("hi"), Background = "red", Button("OK") }` interleaves property assignments and collection adds. While the compiler can disambiguate, human readers may find it hard to scan. A convention of "properties first, then children" helps but isn't enforced.
 
@@ -1082,7 +1082,7 @@ var config = AppConfig("myapp") {
 
 UI frameworks frequently pass child-building lambdas, slot lambdas, and event callbacks. In C#, every lambda must appear inside parentheses, creating deeply nested `), ),` closing sequences that obscure tree structure.
 
-### Current Duct Syntax
+### Current Reactor Syntax
 
 ```csharp
 // Component with children as params array — not too bad
@@ -1170,7 +1170,7 @@ If both features ship, markup expressions handle the tree structure and trailing
 
 **LDM has repeatedly declined to champion this.** The proposal has been raised at least three times ([#2781](https://github.com/dotnet/csharplang/issues/2781), [#6122](https://github.com/dotnet/csharplang/discussions/6122), [#9669](https://github.com/dotnet/csharplang/discussions/9669)) over multiple years. The LDM has consistently concluded "not enough motivation relative to the complexity and ambiguity costs." No team member has volunteered to champion it, which in the C# design process is a strong signal against adoption.
 
-**Limited payoff in practice.** Unlike Kotlin, where trailing lambdas enable the entire DSL builder pattern that Compose is built on, C# already has LINQ query syntax, expression-bodied members, and `params` arrays that reduce the pressure. Duct's existing `VStack(12, Text("A"), Text("B"))` syntax with `params Element?[]` is already quite clean — the trailing lambda version `VStack(12) { Text("A"), Text("B") }` is only marginally better for the common case, while adding grammar complexity that every C# developer must learn.
+**Limited payoff in practice.** Unlike Kotlin, where trailing lambdas enable the entire DSL builder pattern that Compose is built on, C# already has LINQ query syntax, expression-bodied members, and `params` arrays that reduce the pressure. Reactor's existing `VStack(12, Text("A"), Text("B"))` syntax with `params Element?[]` is already quite clean — the trailing lambda version `VStack(12) { Text("A"), Text("B") }` is only marginally better for the common case, while adding grammar complexity that every C# developer must learn.
 
 **Nested trailing lambdas degrade readability.** In deeply nested DSLs, nested trailing lambdas with implicit `it` parameters and scope leakage from outer receivers create confusing code. Kotlin had to add `@DslMarker` after the fact to mitigate this, and the problem persists in practice.
 
@@ -1259,9 +1259,9 @@ var adults = people.Where { it.Age >= 18 }.Select { it.Name }.ToList();
 
 ### Problem
 
-Duct uses `params Element?[]` to collect children. This works but has limitations: `if/else` can't appear inline (must use ternary or `When()`), `foreach` can't appear inline (must use `.Select().ToArray()`), and early returns from a child block are impossible. The developer must think in expressions, not statements.
+Reactor uses `params Element?[]` to collect children. This works but has limitations: `if/else` can't appear inline (must use ternary or `When()`), `foreach` can't appear inline (must use `.Select().ToArray()`), and early returns from a child block are impossible. The developer must think in expressions, not statements.
 
-### Current Duct Syntax
+### Current Reactor Syntax
 
 ```csharp
 return VStack(12,
@@ -1326,13 +1326,13 @@ public override Element Render()
 
 - A **result builder** is a type annotated with `[ResultBuilder]` that implements static methods: `BuildBlock(params T[] items)`, `BuildOptional(T? item)`, `BuildEither(bool condition, T first, T second)`, `BuildArray(T[] items)`.
 - A method or lambda annotated with the result builder attribute (e.g., `[ElementBuilder]`) has its body transformed: expression statements are collected, `if/else` is transformed to `BuildEither`/`BuildOptional`, `foreach` to `BuildArray`, etc.
-- The result builder for Duct would be `ElementBuilder` that collects `Element` values and produces a parent container (or fragment).
+- The result builder for Reactor would be `ElementBuilder` that collects `Element` values and produces a parent container (or fragment).
 - Local variable declarations, `using` statements, and `return` work normally — only bare expression statements are captured.
 - This is a compile-time transformation (like `async/await` state machines), not a runtime concept.
 
 ### Tradeoff
 
-Result builders are powerful but add cognitive complexity — the code *looks* like imperative statements but is really a declarative builder. Developers familiar with SwiftUI find this natural; developers coming from traditional C# may find it confusing. Duct's current `params` approach is simple and explicit. This proposal is most valuable if combined with trailing lambdas for building child blocks.
+Result builders are powerful but add cognitive complexity — the code *looks* like imperative statements but is really a declarative builder. Developers familiar with SwiftUI find this natural; developers coming from traditional C# may find it confusing. Reactor's current `params` approach is simple and explicit. This proposal is most valuable if combined with trailing lambdas for building child blocks.
 
 ### Why Not
 
@@ -1344,7 +1344,7 @@ Result builders are powerful but add cognitive complexity — the code *looks* l
 
 **The 10-view limit problem.** Swift's `ViewBuilder` historically limited containers to 10 children because it used `TupleView` overloads with up to 10 generic parameters. Exceeding this required wrapping in `Group`. Swift 5.7's `buildPartialBlock` theoretically fixes this, but the limitation demonstrates how result builders impose surprising artificial constraints that leak implementation details.
 
-**C# already has `params` and collection expressions.** Duct's `VStack(12, Text("A"), isAdmin ? Text("Admin") : null, Text("B"))` works today. The ternary for conditionals and `.Select().ToArray()` for lists are well-understood C# patterns. Result builders trade familiar idioms for magic syntax that requires learning a new mental model. The incremental improvement over `params` may not justify the complexity.
+**C# already has `params` and collection expressions.** Reactor's `VStack(12, Text("A"), isAdmin ? Text("Admin") : null, Text("B"))` works today. The ternary for conditionals and `.Select().ToArray()` for lists are well-understood C# patterns. Result builders trade familiar idioms for magic syntax that requires learning a new mental model. The incremental improvement over `params` may not justify the complexity.
 
 **No formal C# proposal exists.** The C# LDM has not discussed Swift-style result builders as a feature. The closest related proposal ([#9243: Expression Blocks](https://github.com/dotnet/csharplang/issues/9243)) is much more conservative. The team's general philosophy has been to avoid features that transform method body semantics in ways that are invisible to the reader. `async/await` was the exception, and even that was controversial.
 
@@ -1463,9 +1463,9 @@ static Schema DefineApi() {
 
 ### Problem
 
-In Duct, all `UI.*` factory methods are available everywhere via `using static`. But some modifiers only make sense in certain contexts — `.Grid(row: 1)` only makes sense inside a `Grid()`, `.Flex(grow: 1)` only makes sense inside a `FlexPanel()`. Today these are available on all elements, and using them in the wrong context silently does nothing.
+In Reactor, all `UI.*` factory methods are available everywhere via `using static`. But some modifiers only make sense in certain contexts — `.Grid(row: 1)` only makes sense inside a `Grid()`, `.Flex(grow: 1)` only makes sense inside a `FlexPanel()`. Today these are available on all elements, and using them in the wrong context silently does nothing.
 
-### Current Duct Syntax
+### Current Reactor Syntax
 
 ```csharp
 // Grid attached properties — available everywhere, no compile-time scoping
@@ -1518,14 +1518,14 @@ Grid(
 - A **receiver lambda** is a lambda where `this` refers to a specified type: `Grid(children: GridScope.() => { ... })`.
 - Inside the receiver lambda, instance members of the scope type are available without qualification.
 - A `[DslScope]` attribute (analogous to Kotlin's `@DslMarker`) prevents accidental use of outer scope receivers — you can't call `Cell()` from a nested `FlexPanel` scope without explicit qualification.
-- For Duct, `GridScope`, `FlexScope`, `CanvasScope` would expose only the layout modifiers relevant to that container.
+- For Reactor, `GridScope`, `FlexScope`, `CanvasScope` would expose only the layout modifiers relevant to that container.
 - **Minimal version:** Even without full receiver lambdas, C# 14's extensions feature could enable extension methods scoped to a type parameter, providing some of the benefit: `extension GridChildren for Element[] { void Cell(...) { } }`.
 
 ### Why Not
 
 **C# has no receiver lambda concept and adding one is a deep language change.** Changing what `this` means inside a lambda fundamentally alters C#'s scoping model. In C#, `this` always refers to the enclosing type — this is a foundational assumption that every C# developer relies on, and that tools, analyzers, and debuggers depend on. Receiver lambdas would make `this` context-dependent, breaking 20+ years of consistent behavior.
 
-**The problem is solvable without a language change.** Duct could simply not expose `.Grid()` and `.Flex()` as extension methods on all elements. Instead, `Grid()` could accept children via a delegate that takes a `GridScope` parameter: `Grid(..., (grid) => [ grid.Cell(0, 0, Text("Hi")) ])`. This is verbose but works today, requires no language change, and provides full compile-time safety. The "silent no-op" problem is a Duct API design choice, not a language limitation.
+**The problem is solvable without a language change.** Reactor could simply not expose `.Grid()` and `.Flex()` as extension methods on all elements. Instead, `Grid()` could accept children via a delegate that takes a `GridScope` parameter: `Grid(..., (grid) => [ grid.Cell(0, 0, Text("Hi")) ])`. This is verbose but works today, requires no language change, and provides full compile-time safety. The "silent no-op" problem is a Reactor API design choice, not a language limitation.
 
 **Kotlin needed @DslMarker to fix scope leakage.** Even with receiver lambdas, Kotlin found that nested builders could accidentally access methods from outer scopes — e.g., calling `Row { Text("hi").weight(1f) }` from inside a `Column` scope, where `weight` is a `RowScope` method, not a `ColumnScope` method. Kotlin had to add `@DslMarker` after the fact to prevent this. The feature created a new class of bugs while trying to prevent others.
 
@@ -1656,9 +1656,9 @@ var packet = Protobuf.Build<SearchRequest>(msg => {
 
 ### Problem
 
-Duct's hooks-based state (`UseState`, `UseReducer`) returns tuples that must be destructured. This is ergonomic for simple cases but becomes verbose when a component has many state variables. There's also no compile-time connection between a state value and its setter — they're just two local variables.
+Reactor's hooks-based state (`UseState`, `UseReducer`) returns tuples that must be destructured. This is ergonomic for simple cases but becomes verbose when a component has many state variables. There's also no compile-time connection between a state value and its setter — they're just two local variables.
 
-### Current Duct Syntax
+### Current Reactor Syntax
 
 ```csharp
 class FormDemo : Component
@@ -1741,7 +1741,7 @@ class FormDemo : Component
 - A **property wrapper** is a generic type annotated with `[PropertyWrapper]` that exposes `T WrappedValue { get; set; }` and optionally `TProjected ProjectedValue { get; }`.
 - When applied to a variable or field declaration, the compiler generates a backing field of the wrapper type and rewrites reads/writes to go through `WrappedValue`.
 - The `$` prefix (or another sigil) accesses the `ProjectedValue` — e.g., `$name` could return a `Binding<string>` for two-way binding to child components.
-- For Duct, `[State]` would wrap `UseState` — the wrapper registers with the component's hook context and triggers re-render on set.
+- For Reactor, `[State]` would wrap `UseState` — the wrapper registers with the component's hook context and triggers re-render on set.
 - `[Binding]` would accept a projected value from a parent's `[State]`, enabling child components to modify parent state.
 - `[Environment]` would read from a context provider higher in the tree.
 
@@ -1761,9 +1761,9 @@ Property wrappers would be an alternative syntax for hooks, not a replacement. T
 
 **Assignment semantics become magical.** With property wrappers, `count = 5` no longer means "store 5 in count" — it means "call the wrapper's setter, which may trigger re-renders, validation, network calls, or anything." This violates the principle of least surprise. In Swift, `@Published` properties have a known bug where `didSet` fires twice on iOS 15 when bound to a `TextField`, and property wrapper `didSet` handlers can be re-entrant. These bugs are extremely hard to diagnose because the abstraction hides what's actually happening.
 
-**Duct's tuple destructuring is already quite ergonomic.** `var (count, setCount) = UseState(0)` is one line that makes both the value and setter explicit. It's a well-understood C# pattern (tuple deconstruction) with no magic. The proposed `@State var count = 0` saves a few characters but hides the setter entirely — how does the framework know to re-render when `count` changes? The explicit tuple makes the reactivity contract visible.
+**Reactor's tuple destructuring is already quite ergonomic.** `var (count, setCount) = UseState(0)` is one line that makes both the value and setter explicit. It's a well-understood C# pattern (tuple deconstruction) with no magic. The proposed `@State var count = 0` saves a few characters but hides the setter entirely — how does the framework know to re-render when `count` changes? The explicit tuple makes the reactivity contract visible.
 
-**Hook ordering becomes invisible.** Property wrappers on fields would obscure hook call order — a critical invariant in Duct's rendering model. With `UseState()` calls in the method body, the ordering is visible and explicit. With `[State]` fields, the ordering depends on field declaration order, which is a much weaker and less obvious contract.
+**Hook ordering becomes invisible.** Property wrappers on fields would obscure hook call order — a critical invariant in Reactor's rendering model. With `UseState()` calls in the method body, the ordering is visible and explicit. With `[State]` fields, the ordering depends on field declaration order, which is a much weaker and less obvious contract.
 
 ### Expanded Use Cases
 
@@ -1849,9 +1849,9 @@ balance = 100m; // logs: "balance changed from 0 to 100 at 2026-04-04T..."
 
 ### Problem
 
-Duct builds element trees with nested function calls. Deep nesting produces a wall of parentheses and commas that is hard to scan visually. The tree structure is obscured by C# call syntax.
+Reactor builds element trees with nested function calls. Deep nesting produces a wall of parentheses and commas that is hard to scan visually. The tree structure is obscured by C# call syntax.
 
-### Current Duct Syntax
+### Current Reactor Syntax
 
 ```csharp
 class FormDemo : Component
@@ -1940,7 +1940,7 @@ class FormDemo : Component
 
 ### Key Design Question
 
-Should markup expressions lower to factory methods (`UI.VStack(...)`) or to constructors (`new VStackElement { ... }`)? Factory methods are more flexible (can return different types), but constructors are simpler to specify. Duct's existing DSL uses factory methods via `using static Duct.UI`, so lowering to factory calls would be a natural fit.
+Should markup expressions lower to factory methods (`UI.VStack(...)`) or to constructors (`new VStackElement { ... }`)? Factory methods are more flexible (can return different types), but constructors are simpler to specify. Reactor's existing DSL uses factory methods via `using static Reactor.UI`, so lowering to factory calls would be a natural fit.
 
 ### Why Not
 
@@ -1950,13 +1950,13 @@ Should markup expressions lower to factory methods (`UI.VStack(...)`) or to cons
 
 **Angle brackets conflict with generics.** C# already uses `<T>` for generics. Distinguishing `List<Item>` from `<Item prop="x">` requires unbounded lookahead or contextual parsing rules. TypeScript sidesteps this because its generics use a different syntax position. C# cannot.
 
-**JSX has no native control flow.** JSX is frequently criticized for forcing ternary expressions and `.map()` instead of `if/else` and `for` loops — exactly the same problem Duct already has. We'd be adding massive language complexity to get... the same limitations we have today, just with angle brackets instead of parentheses. The control flow problem is better solved by result builders or expression blocks.
+**JSX has no native control flow.** JSX is frequently criticized for forcing ternary expressions and `.map()` instead of `if/else` and `for` loops — exactly the same problem Reactor already has. We'd be adding massive language complexity to get... the same limitations we have today, just with angle brackets instead of parentheses. The control flow problem is better solved by result builders or expression blocks.
 
 **Separation of concerns.** The original criticism of JSX — that mixing markup and logic violates separation of concerns — would be amplified in C#, where the community has 20+ years of muscle memory around XAML/Razor separation. Many C# developers actively prefer markup in separate files. We would be making the language harder for every C# developer (server, library, CLI) to benefit a subset writing UI code.
 
 **Tooling burden.** Every tool in the C# ecosystem — IDE syntax highlighting, refactoring, code formatters, linters, code review tools, AI coding assistants — would need to understand a second grammar embedded in C#. The ongoing maintenance cost is permanent and affects the entire ecosystem, not just UI developers.
 
-**The problem it solves may not be real.** Duct's current function-call syntax (`VStack(12, Text("Hello"), Button("Go", onClick))`) is already quite readable. The parenthesis nesting that markup expressions solve is largely an artifact of deeply nested trees — which might better be solved by component extraction (good practice anyway) or trailing lambdas (a much simpler language change).
+**The problem it solves may not be real.** Reactor's current function-call syntax (`VStack(12, Text("Hello"), Button("Go", onClick))`) is already quite readable. The parenthesis nesting that markup expressions solve is largely an artifact of deeply nested trees — which might better be solved by component extraction (good practice anyway) or trailing lambdas (a much simpler language change).
 
 ### Expanded Use Cases
 
@@ -2058,12 +2058,12 @@ XElement BuildSoapEnvelope(Order order) =>
 
 ## Summary and Prioritization
 
-| Tier | Feature | Duct Benefit | Likelihood of Shipping | Broader C# Impact |
+| Tier | Feature | Reactor Benefit | Likelihood of Shipping | Broader C# Impact |
 |------|---------|-------------|----------------------|-------------------|
 | **S** | **Discriminated Unions** | Medium — type-safe state modeling | Medium-High — active proposal #9662, working group, huge community demand | Very High — error handling, domain modeling, protocols, CQRS; every C# dev benefits |
 | **A** | **Expression Blocks** | Medium — eliminates helper method fragmentation | High — #9243 championed (March 2025), low complexity | High — immutable init, scope hygiene, switch arms; general purpose |
 | **A** | **Let-Binding Expressions** | Medium — name subexpressions inline in render trees | Medium — #973 championed since 2017; lighter than expression blocks, could ship alongside or instead | High — universal need; `is var` hack proves demand; LINQ, logging, expression-bodied members all benefit |
-| **A** | **Render Compiler Transform** | Medium-High — Phase 1 hook safety, Phase 2 skip optimization | Phase 1: Very High (just a Roslyn analyzer); Phase 2: Very Low (no plugin API) | Medium — Phase 1 is Duct-specific; Phase 2 concepts (tracing, memoization) are broad but blocked |
+| **A** | **Render Compiler Transform** | Medium-High — Phase 1 hook safety, Phase 2 skip optimization | Phase 1: Very High (just a Roslyn analyzer); Phase 2: Very Low (no plugin API) | Medium — Phase 1 is Reactor-specific; Phase 2 concepts (tracing, memoization) are broad but blocked |
 | **B** | **Collection Initializer Trees** | High — replaces `)` nesting with `{ }`, visually cleaner trees | Low-Medium — #6602/#9528/#5654 deferred since 2020; `{ }` ambiguity same as trailing lambdas | Medium-High — HTML builders, file trees, ASTs, config hierarchies; extends existing C# pattern |
 | **B** | **Trailing Lambdas** | High — cleans up slot APIs, event handlers, builders | Low — LDM declined 3x, fatal brace ambiguity | High — testing, builders, concurrency, collections |
 | **B** | **Result Builders** | High — enables if/foreach in element trees natively | Low — no formal proposal, SwiftUI pain is cautionary | High — regex, HTML, SQL, config DSLs; 50+ non-UI Swift libraries |
@@ -2075,25 +2075,25 @@ XElement BuildSoapEnvelope(Order order) =>
 
 **Do now (S + A Tier):**
 
-1. **Discriminated Unions** — Support the active proposal (#9662). Build Duct examples that demonstrate the value for UI state modeling to add weight to the community case. This feature will ship eventually; our job is to ensure Duct's patterns are represented in the design discussions.
-2. **Expression Blocks** — Already championed (#9243). Low risk, high utility. Write up Duct-specific use cases to feed into the proposal. This is the most likely feature to ship in C# 14/15.
+1. **Discriminated Unions** — Support the active proposal (#9662). Build Reactor examples that demonstrate the value for UI state modeling to add weight to the community case. This feature will ship eventually; our job is to ensure Reactor's patterns are represented in the design discussions.
+2. **Expression Blocks** — Already championed (#9243). Low risk, high utility. Write up Reactor-specific use cases to feed into the proposal. This is the most likely feature to ship in C# 14/15.
 3. **Let-Binding Expressions** — Advocate for this as a lightweight companion to expression blocks. The declaration expressions proposal (#973) is already championed; push for narrow scoping (Flavor 1) which is more useful in expression-heavy code. The `is var` hack's popularity is a strong demand signal to cite.
-4. **Render Compiler Transform (Phase 1)** — Build the Roslyn analyzer now. No language change needed, no LDM approval required. Ship it as part of the Duct SDK. Phase 2 is aspirational; don't block on it.
+4. **Render Compiler Transform (Phase 1)** — Build the Roslyn analyzer now. No language change needed, no LDM approval required. Ship it as part of the Reactor SDK. Phase 2 is aspirational; don't block on it.
 
 **Watch and support (B Tier):**
 
-5. **Collection Initializer Trees** — The most "C# native" tree syntax, but blocked by the same `{ }` ambiguity as trailing lambdas. The `with { }` variant (#6602) could break the logjam. Contribute Duct examples to the factory initializer discussions. Worth prototyping with `new`-based syntax today to validate the ergonomics.
-6. **Trailing Lambdas, Result Builders, Scoped Receivers** — These have the strongest non-UI justifications but face real language design obstacles. Contribute to the csharplang discussions with Duct examples and non-UI use cases. Don't design Duct's API around features that may never ship.
+5. **Collection Initializer Trees** — The most "C# native" tree syntax, but blocked by the same `{ }` ambiguity as trailing lambdas. The `with { }` variant (#6602) could break the logjam. Contribute Reactor examples to the factory initializer discussions. Worth prototyping with `new`-based syntax today to validate the ergonomics.
+6. **Trailing Lambdas, Result Builders, Scoped Receivers** — These have the strongest non-UI justifications but face real language design obstacles. Contribute to the csharplang discussions with Reactor examples and non-UI use cases. Don't design Reactor's API around features that may never ship.
 
 **Don't plan around (C Tier):**
 
 7. **Property Wrappers** — Source generators and the `field` keyword cover the practical need. The expanded use cases (validation, persistence, DI) are compelling but the LDM has moved on.
-8. **Markup Expressions** — The highest Duct-specific impact but the lowest feasibility. The parser complexity, generic conflicts, and tooling burden make this a non-starter with the C# team. Duct's function-call syntax is already clean enough; invest in component extraction patterns and IDE tooling instead.
+8. **Markup Expressions** — The highest Reactor-specific impact but the lowest feasibility. The parser complexity, generic conflicts, and tooling burden make this a non-starter with the C# team. Reactor's function-call syntax is already clean enough; invest in component extraction patterns and IDE tooling instead.
 
 ### Next Steps
 
 1. **Ship the Phase 1 hook-safety analyzer** — immediate, zero-dependency win.
-2. **Write csharplang discussion posts** for discriminated unions, expression blocks, and let-bindings, using Duct examples + the non-UI use cases documented here.
+2. **Write csharplang discussion posts** for discriminated unions, expression blocks, and let-bindings, using Reactor examples + the non-UI use cases documented here.
 3. **Prototype collection initializer trees** using `new`-based syntax to validate the `{ }` ergonomics before advocating for factory method support.
 4. For each S/A tier feature, produce a detailed spec including:
    - Full type system changes and grammar definition
@@ -2101,4 +2101,4 @@ XElement BuildSoapEnvelope(Order order) =>
    - Error messages and diagnostics
    - Breaking change analysis
    - Prototype implementation strategy (Roslyn fork or source generator)
-5. Build prototypes demonstrating S/A tier features on real Duct code.
+5. Build prototypes demonstrating S/A tier features on real Reactor code.

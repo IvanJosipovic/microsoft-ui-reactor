@@ -35,8 +35,8 @@ PLATFORM=$(detect_platform "$STRESS_DIR/StressPerf.Direct/bin")
 
 DIRECT_EXE="$STRESS_DIR/StressPerf.Direct/bin/$PLATFORM/$CONFIG/$TFM_WINUI/StressPerf.Direct.exe"
 BOUND_EXE="$STRESS_DIR/StressPerf.Bound/bin/$PLATFORM/$CONFIG/$TFM_WINUI/StressPerf.Bound.exe"
-DUCT_EXE="$STRESS_DIR/StressPerf.Duct/bin/$PLATFORM/$CONFIG/$TFM_WINUI/StressPerf.Duct.exe"
-DUCTGRID_EXE="$STRESS_DIR/StressPerf.DuctGrid/bin/$PLATFORM/$CONFIG/$TFM_WINUI/StressPerf.DuctGrid.exe"
+REACTOR_EXE="$STRESS_DIR/StressPerf.Reactor/bin/$PLATFORM/$CONFIG/$TFM_WINUI/StressPerf.Reactor.exe"
+REACTORGRID_EXE="$STRESS_DIR/StressPerf.ReactorGrid/bin/$PLATFORM/$CONFIG/$TFM_WINUI/StressPerf.ReactorGrid.exe"
 WPF_EXE="$STRESS_DIR/StressPerf.Wpf/bin/$PLATFORM/$CONFIG/$TFM_WPF/StressPerf.Wpf.exe"
 DIRECTX_EXE="$STRESS_DIR/StressPerf.DirectX/bin/$PLATFORM/$CONFIG/$TFM_WINUI/StressPerf.DirectX.exe"
 
@@ -104,8 +104,8 @@ for pct in 10 20 30 40 50 60 70 80 90 100; do
     run_app "$WPF_EXE"      "WPF.Direct"      "$pct"
     run_app "$DIRECT_EXE"    "WinUI.Direct"    "$pct"
     run_app "$BOUND_EXE"     "WinUI.Bound"     "$pct"
-    run_app "$DUCT_EXE"      "WinUI.Duct"      "$pct"
-    run_app "$DUCTGRID_EXE"  "WinUI.DuctGrid"  "$pct"
+    run_app "$REACTOR_EXE"      "WinUI.Reactor"      "$pct"
+    run_app "$REACTORGRID_EXE"  "WinUI.ReactorGrid"  "$pct"
     run_app "$DIRECTX_EXE"   "WinUI.DirectX"   "$pct"
     echo ""
 done

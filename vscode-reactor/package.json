@@ -1,0 +1,44 @@
+{
+  "name": "reactor-preview",
+  "displayName": "Reactor Preview",
+  "description": "Live preview panel for Reactor components — shows a streaming thumbnail of the native WinUI preview window",
+  "version": "0.1.0",
+  "publisher": "reactor",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "reactor.preview",
+        "title": "Reactor: Preview Component"
+      },
+      {
+        "command": "reactor.previewConnect",
+        "title": "Reactor: Connect to Preview"
+      },
+      {
+        "command": "reactor.previewStop",
+        "title": "Reactor: Stop Preview"
+      },
+      {
+        "command": "reactor.previewFocus",
+        "title": "Reactor: Focus Preview Window"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}

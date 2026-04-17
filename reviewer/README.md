@@ -1,6 +1,6 @@
 # Code Review System
 
-Parallelized code review of the Duct framework using specialized Claude Code agents with an expert C# review pipeline. Findings go through a manager approve/decline workflow, then approved fixes are handed to an AI for implementation.
+Parallelized code review of the Reactor framework using specialized Claude Code agents with an expert C# review pipeline. Findings go through a manager approve/decline workflow, then approved fixes are handed to an AI for implementation.
 
 ## Prerequisites
 
@@ -122,7 +122,7 @@ Decisions are saved directly into `fix-list.md`. The file can also be edited man
 
 ```markdown
 ## F001
-- **File**: Duct/Core/Reconciler.cs:145-167
+- **File**: Reactor/Core/Reconciler.cs:145-167
 - **Severity**: high
 - **Priority**: P1
 - **Domain**: concurrency
@@ -160,11 +160,11 @@ The implementation agent:
 ## Scope
 
 **Included** (485 files across 91 batches):
-- `Duct/` — Core framework (reconciler, elements, hosting, flex, yoga, animation, markdown, monaco, property grid)
-- `Duct.Cli/` — CLI tool
-- `Duct.Localization.Generator/` — Source generator
-- `DuctD3/` — D3 visualization library
-- `vscode-duct/` — VS Code extension
+- `Reactor/` — Core framework (reconciler, elements, hosting, flex, yoga, animation, markdown, monaco, property grid)
+- `Reactor.Cli/` — CLI tool
+- `Reactor.Localization.Generator/` — Source generator
+- `ReactorCharting/` — D3 visualization library
+- `vscode-reactor/` — VS Code extension
 - `tests/` — All test projects (reviewed for quality, not just correctness)
 - Build config (`Directory.Build.props`, `*.csproj`, `*.sln`)
 
@@ -172,8 +172,8 @@ The implementation agent:
 - `samples/` — Sample apps
 - `docs/` — Documentation markdown
 - `selfhost/` — Runtime config files
-- `tests/Duct.Tests/YogaGenerated/` — Auto-generated upstream test fixtures
-- `tests/Duct.Tests/Md4cGenerated/` — Auto-generated CommonMark spec tests
+- `tests/Reactor.Tests/YogaGenerated/` — Auto-generated upstream test fixtures
+- `tests/Reactor.Tests/Md4cGenerated/` — Auto-generated CommonMark spec tests
 - Binary/image/config files
 
 ## Advanced Usage

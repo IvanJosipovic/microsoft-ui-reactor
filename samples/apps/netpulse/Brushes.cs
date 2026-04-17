@@ -1,7 +1,7 @@
-using Duct.D3;
-using Duct.D3.Charts;
+using Microsoft.UI.Reactor.Charting.D3;
+using Microsoft.UI.Reactor.Charting;
 using Microsoft.UI.Xaml.Media;
-using static Duct.D3.Charts.D3;
+using static Microsoft.UI.Reactor.Charting.D3Dsl;
 
 namespace NetPulse;
 

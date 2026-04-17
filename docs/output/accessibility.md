@@ -1,7 +1,7 @@
 
 # Accessibility
 
-Duct provides accessibility modifiers on every [component](components.md). They map directly to
+Reactor provides accessibility modifiers on every [component](components.md). They map directly to
 WinUI's automation properties, so screen readers, keyboard navigation, and
 test tools work out of the box. Modifiers are split into two tiers based on
 how often you need them.
@@ -54,7 +54,7 @@ Here is what each modifier does:
 ## Tier 2 Modifiers
 
 Tier 2 modifiers cover supplemental information, landmarks, and visibility
-control. They are lazy-allocated — Duct only creates the backing storage when
+control. They are lazy-allocated — Reactor only creates the backing storage when
 you use them, keeping the common case lightweight.
 
 ```csharp
@@ -305,7 +305,7 @@ error messages, and timer-based status updates.
 ## Semantic Panel
 
 `SemanticPanel` wraps a child element to provide custom automation metadata
-that Duct components cannot expose directly (since they are C# records, not
+that Reactor components cannot expose directly (since they are C# records, not
 WinUI controls with overridable automation peers):
 
 ```csharp
@@ -387,16 +387,16 @@ and value to add. Export to JSON with `AccessibilityScanner.ExportJson()`.
 
 ## Roslyn Analyzers
 
-Duct ships three compile-time accessibility analyzers that flag violations
+Reactor ships three compile-time accessibility analyzers that flag violations
 as you type in your IDE:
 
 | Diagnostic ID | Rule |
 |--------------|------|
-| `DUCT_A11Y_001` | Icon-only `Button(icon, action)` calls without `.AutomationName()` |
-| `DUCT_A11Y_002` | `Image()` without `.AutomationName()` or `.AccessibilityHidden()` |
-| `DUCT_A11Y_003` | `TextField`/`NumberBox`/`PasswordBox` without `header:` arg or label modifier |
+| `REACTOR_A11Y_001` | Icon-only `Button(icon, action)` calls without `.AutomationName()` |
+| `REACTOR_A11Y_002` | `Image()` without `.AutomationName()` or `.AccessibilityHidden()` |
+| `REACTOR_A11Y_003` | `TextField`/`NumberBox`/`PasswordBox` without `header:` arg or label modifier |
 
-These analyzers run automatically when you reference the `Duct.Analyzers`
+These analyzers run automatically when you reference the `Reactor.Analyzers`
 package. They complement the runtime `AccessibilityScanner` by catching the
 most common violations at compile time.
 
@@ -427,4 +427,4 @@ WinUI renders the key tips automatically when the user presses Alt.
 - **[Forms and Input](forms.md)** — build accessible forms with labels, validation, and tab order
 - **[Navigation](navigation.md)** — add landmarks and keyboard-navigable page structure
 - **[Styling and Theming](styling.md)** — ensure high-contrast themes work with your accessible controls
-- **[WinForms Interop](winforms-interop.md)** — accessibility bridging between WinForms and Duct
+- **[WinForms Interop](winforms-interop.md)** — accessibility bridging between WinForms and Reactor

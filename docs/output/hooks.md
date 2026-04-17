@@ -33,7 +33,7 @@ class StateDemo : Component
 
 ![UseState demo](images/hooks/usestate.png)
 
-Call `setColor("#FF0000")` and Duct re-renders the component with the new
+Call `setColor("#FF0000")` and Reactor re-renders the component with the new
 value. The setter also accepts a function: `setSize(s => s + 1)` — this is
 safer when the update depends on the previous value.
 
@@ -163,7 +163,7 @@ class EffectDemo : Component
 Key details:
 
 - The effect runs **after** the render completes, not during.
-- Return a **cleanup function** to dispose resources. Duct calls it before
+- Return a **cleanup function** to dispose resources. Reactor calls it before
   re-running the effect and when the component unmounts.
 - **Empty dependencies** `UseEffect(() => { ... })` — runs once on mount.
 - **With dependencies** `UseEffect(() => { ... }, running)` — runs when
@@ -178,7 +178,7 @@ class MemoDemo : Component
 {
     public override Element Render()
     {
-        var (input, setInput) = UseState("Hello, Duct!");
+        var (input, setInput) = UseState("Hello, Reactor!");
 
         var stats = UseMemo(() => new
         {
@@ -275,7 +275,7 @@ memoized [child components](components.md).
 
 ## Hook Rules
 
-Hooks must be called **in the same order** every render. Duct tracks hooks by
+Hooks must be called **in the same order** every render. Reactor tracks hooks by
 their position in the call sequence — the first `UseState` call always maps to
 the first state slot, the second to the second, and so on.
 

@@ -1,5 +1,5 @@
 using System.Text;
-using Duct.Data;
+using Microsoft.UI.Reactor.Data;
 using Microsoft.Data.Sqlite;
 
 namespace HeadTrax.DataSources;
@@ -10,7 +10,7 @@ namespace HeadTrax.DataSources;
 /// search, count, and projection.
 ///
 /// Written to live in the sample app for now but structured so it could move
-/// into Duct.Data.Providers as a first-class provider later.
+/// into Microsoft.UI.Reactor.Data.Providers as a first-class provider later.
 /// </summary>
 internal sealed class SqliteDataSource :
     IDataSource<Dictionary<string, object?>>,

@@ -1,19 +1,19 @@
-// DuctRegedit — A registry editor built with Duct + WinUI 3.
+// ReactorRegedit — A registry editor built with Reactor + WinUI 3.
 // Ports the native Win32 regedit.exe to a declarative component model.
 
-using Duct;
-using Duct.Core;
-using DuctRegedit;
-using DuctRegedit.Components;
-using DuctRegedit.Components.Dialogs;
-using DuctRegedit.Models;
-using DuctRegedit.Services;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorRegedit;
+using ReactorRegedit.Components;
+using ReactorRegedit.Components.Dialogs;
+using ReactorRegedit.Models;
+using ReactorRegedit.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.Win32;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-DuctApp.Run<RegeditApp>("Registry Editor", width: 1000, height: 600,
+ReactorApp.Run<RegeditApp>("Registry Editor", width: 1000, height: 600,
     configure: host => CursorBorderRegistration.Register(host.Reconciler));
 
 // ─── Root component ───────────────────────────────────────────────────────────
@@ -222,7 +222,7 @@ class RegeditApp : Component
                 RegistryValueKind.Binary => (byte[])(value.Data ?? Array.Empty<byte>()),
                 RegistryValueKind.DWord => BitConverter.GetBytes((int)(value.Data ?? 0)),
                 RegistryValueKind.QWord => BitConverter.GetBytes((long)(value.Data ?? 0L)),
-                _ => System.Text.Encoding.Unicode.GetBytes(value.Data?.ToString() ?? "")
+                _ => global::System.Text.Encoding.Unicode.GetBytes(value.Data?.ToString() ?? "")
             };
             setEditValueData(EditBinaryDialog.FormatHexDump(bytes));
             setActiveDialog(ActiveDialog.EditBinary);
@@ -252,7 +252,7 @@ class RegeditApp : Component
                 case ActiveDialog.EditDword:
                     if (editNumberBase == NumberBase.Hexadecimal)
                     {
-                        if (int.TryParse(editValueData, System.Globalization.NumberStyles.HexNumber, null, out var hexVal))
+                        if (int.TryParse(editValueData, global::System.Globalization.NumberStyles.HexNumber, null, out var hexVal))
                             data = hexVal;
                     }
                     else
@@ -265,7 +265,7 @@ class RegeditApp : Component
                 case ActiveDialog.EditQword:
                     if (editNumberBase == NumberBase.Hexadecimal)
                     {
-                        if (long.TryParse(editValueData, System.Globalization.NumberStyles.HexNumber, null, out var hexVal))
+                        if (long.TryParse(editValueData, global::System.Globalization.NumberStyles.HexNumber, null, out var hexVal))
                             data = hexVal;
                     }
                     else
@@ -427,9 +427,9 @@ class RegeditApp : Component
         void CopyKeyName()
         {
             if (string.IsNullOrEmpty(currentKeyPath)) return;
-            var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            var dataPackage = new global::Windows.ApplicationModel.DataTransfer.DataPackage();
             dataPackage.SetText(currentKeyPath);
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+            global::Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
         }
 
         // ── Export handler ───────────────────────────────────────────
@@ -447,9 +447,9 @@ class RegeditApp : Component
                 var content = await RegFileService.ExportAsync(exportPath);
                 syncContext?.Post(_ =>
                 {
-                    var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                    var dataPackage = new global::Windows.ApplicationModel.DataTransfer.DataPackage();
                     dataPackage.SetText(content);
-                    Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+                    global::Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
                     setStatusText("Exported to clipboard.");
                 }, null);
             });
@@ -491,7 +491,7 @@ class RegeditApp : Component
             {
                 if (newBase == NumberBase.Decimal && editNumberBase == NumberBase.Hexadecimal)
                 {
-                    if (int.TryParse(editValueData, System.Globalization.NumberStyles.HexNumber, null, out var val))
+                    if (int.TryParse(editValueData, global::System.Globalization.NumberStyles.HexNumber, null, out var val))
                         setEditValueData(val.ToString());
                 }
                 else if (newBase == NumberBase.Hexadecimal && editNumberBase == NumberBase.Decimal)
@@ -504,7 +504,7 @@ class RegeditApp : Component
             {
                 if (newBase == NumberBase.Decimal && editNumberBase == NumberBase.Hexadecimal)
                 {
-                    if (long.TryParse(editValueData, System.Globalization.NumberStyles.HexNumber, null, out var val))
+                    if (long.TryParse(editValueData, global::System.Globalization.NumberStyles.HexNumber, null, out var val))
                         setEditValueData(val.ToString());
                 }
                 else if (newBase == NumberBase.Hexadecimal && editNumberBase == NumberBase.Decimal)
@@ -528,7 +528,7 @@ class RegeditApp : Component
                     {
                         try
                         {
-                            var content = await Windows.ApplicationModel.DataTransfer.Clipboard.GetContent().GetTextAsync();
+                            var content = await global::Windows.ApplicationModel.DataTransfer.Clipboard.GetContent().GetTextAsync();
                             if (!string.IsNullOrEmpty(content))
                             {
                                 var count = await RegFileService.ImportAsync(content);
@@ -543,7 +543,7 @@ class RegeditApp : Component
                     });
                 }),
                 MenuItem(Strings.Export, () => setActiveDialog(ActiveDialog.Export)) with
-                    { KeyboardAccelerators = [Accelerator(Windows.System.VirtualKey.E, Windows.System.VirtualKeyModifiers.Control)] },
+                    { KeyboardAccelerators = [Accelerator(global::Windows.System.VirtualKey.E, global::Windows.System.VirtualKeyModifiers.Control)] },
                 MenuSeparator(),
                 MenuItem(Strings.LoadHive, () => { /* requires elevation */ }),
                 MenuItem(Strings.UnloadHive, () => { /* requires elevation */ }),
@@ -552,7 +552,7 @@ class RegeditApp : Component
                 MenuItem(Strings.DisconnectNetworkRegistry, () => { }),
                 MenuSeparator(),
                 MenuItem(Strings.Print, () => { }) with
-                    { KeyboardAccelerators = [Accelerator(Windows.System.VirtualKey.P, Windows.System.VirtualKeyModifiers.Control)] },
+                    { KeyboardAccelerators = [Accelerator(global::Windows.System.VirtualKey.P, global::Windows.System.VirtualKeyModifiers.Control)] },
                 MenuSeparator(),
                 MenuItem(Strings.Exit, () => Application.Current.Exit()),
             ]),
@@ -573,16 +573,16 @@ class RegeditApp : Component
                 MenuItem(Strings.Permissions, ShowPermissions),
                 MenuSeparator(),
                 MenuItem(Strings.Delete, DeleteCurrentKey) with
-                    { KeyboardAccelerators = [Accelerator(Windows.System.VirtualKey.Delete)] },
+                    { KeyboardAccelerators = [Accelerator(global::Windows.System.VirtualKey.Delete)] },
                 MenuItem(Strings.Rename, StartRenameKey) with
-                    { KeyboardAccelerators = [Accelerator(Windows.System.VirtualKey.F2)] },
+                    { KeyboardAccelerators = [Accelerator(global::Windows.System.VirtualKey.F2)] },
                 MenuSeparator(),
                 MenuItem(Strings.CopyKeyName, CopyKeyName),
                 MenuSeparator(),
                 MenuItem(Strings.Find, () => setActiveDialog(ActiveDialog.Find)) with
-                    { KeyboardAccelerators = [Accelerator(Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control)] },
+                    { KeyboardAccelerators = [Accelerator(global::Windows.System.VirtualKey.F, global::Windows.System.VirtualKeyModifiers.Control)] },
                 MenuItem(Strings.FindNext, FindNext) with
-                    { KeyboardAccelerators = [Accelerator(Windows.System.VirtualKey.F3)] },
+                    { KeyboardAccelerators = [Accelerator(global::Windows.System.VirtualKey.F3)] },
             ]),
 
             // View
@@ -593,7 +593,7 @@ class RegeditApp : Component
                 MenuItem(Strings.Split, () => { }),
                 MenuSeparator(),
                 MenuItem(Strings.Refresh, RefreshCurrentKey) with
-                    { KeyboardAccelerators = [Accelerator(Windows.System.VirtualKey.F5)] },
+                    { KeyboardAccelerators = [Accelerator(global::Windows.System.VirtualKey.F5)] },
             ]),
 
             // Favorites
@@ -609,7 +609,7 @@ class RegeditApp : Component
         // ── Address bar ──────────────────────────────────────────────
         var addressBar = When(showAddressBar, () =>
             HStack(8,
-                Text(Strings.Computer)
+                Factories.Text(Strings.Computer)
                     .VAlign(VerticalAlignment.Center)
                     .SemiBold(),
                 AutoSuggestBox(addressBarText, setAddressBarText, text => AddressBarSubmit(text))
@@ -642,7 +642,7 @@ class RegeditApp : Component
         // ── Status bar ───────────────────────────────────────────────
         var statusBar = When(showStatusBar, () =>
             HStack(8,
-                Text(string.IsNullOrEmpty(currentKeyPath) ? Strings.Computer : currentKeyPath)
+                Factories.Text(string.IsNullOrEmpty(currentKeyPath) ? Strings.Computer : currentKeyPath)
                     .Set(tb =>
                     {
                         tb.TextTrimming = Microsoft.UI.Xaml.TextTrimming.CharacterEllipsis;
@@ -744,7 +744,7 @@ class RegeditApp : Component
         var renameKeyDialog = ContentDialog(
             Strings.RenameKeyTitle,
             VStack(8,
-                Text(Strings.NewKeyName),
+                Factories.Text(Strings.NewKeyName),
                 TextField(editValueData, setEditValueData)
             ).Width(350),
             Strings.OK
@@ -765,7 +765,7 @@ class RegeditApp : Component
         var renameValueDialog = ContentDialog(
             Strings.RenameValueTitle,
             VStack(8,
-                Text(Strings.NewKeyName),
+                Factories.Text(Strings.NewKeyName),
                 TextField(editValueData, setEditValueData)
             ).Width(350),
             Strings.OK
@@ -785,7 +785,7 @@ class RegeditApp : Component
 
         var aboutDialog = ContentDialog(
             Strings.AboutTitle,
-            Text(Strings.AboutText),
+            Factories.Text(Strings.AboutText),
             Strings.OK
         ) with
         {

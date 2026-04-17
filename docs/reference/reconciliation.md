@@ -37,7 +37,7 @@ The reconciler is split across multiple partial class files:
 
 ## Two reconciliation paths
 
-Duct supports two reconciliation implementations:
+Reactor supports two reconciliation implementations:
 
 ### Pure C# path (default)
 
@@ -143,7 +143,7 @@ old.IsEnabled != new.IsEnabled → button.IsEnabled = new.IsEnabled
 
 ## Tag-based event dispatch
 
-Event handlers in WinUI are wired once at mount time. But Duct elements are recreated every render with new closure captures. The Tag pattern solves this:
+Event handlers in WinUI are wired once at mount time. But Reactor elements are recreated every render with new closure captures. The Tag pattern solves this:
 
 1. At mount: wire the event handler once (e.g., `button.Click += ...`)
 2. At mount and update: store the current element in `control.Tag`
@@ -172,7 +172,7 @@ Interactive controls (Button, TextBox, etc.) are not yet pooled because resettin
 
 ## Custom element types
 
-The reconciler supports custom element types via `RegisterType<TElement, TControl>()`. This allows extending Duct with new control types without modifying the framework source.
+The reconciler supports custom element types via `RegisterType<TElement, TControl>()`. This allows extending Reactor with new control types without modifying the framework source.
 
 ## Performance characteristics
 

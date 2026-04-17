@@ -5,9 +5,9 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeadTrax", "HeadTrax\HeadTrax.csproj", "{CDABDD22-E1C8-4AD7-8F2D-C8FB4E870E38}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duct", "..\..\..\Duct\Duct.csproj", "{24287A79-679E-4CE0-B703-6C76FC708F04}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reactor", "..\..\..\Reactor\Reactor.csproj", "{24287A79-679E-4CE0-B703-6C76FC708F04}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duct.Localization.Generator", "..\..\..\Duct.Localization.Generator\Duct.Localization.Generator.csproj", "{1FE78218-FA20-4897-A4BD-34ED0C7A4905}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reactor.Localization.Generator", "..\..\..\Reactor.Localization.Generator\Reactor.Localization.Generator.csproj", "{1FE78218-FA20-4897-A4BD-34ED0C7A4905}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

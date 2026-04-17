@@ -1,9 +1,9 @@
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<GettingStartedApp>("Getting Started", width: 600, height: 400
+ReactorApp.Run<GettingStartedApp>("Getting Started", width: 600, height: 400
 #if DEBUG
     , preview: true
 #endif
@@ -17,7 +17,7 @@ class GettingStartedApp : Component
         var (name, setName) = UseState("World");
 
         return VStack(16,
-            Text($"Hello, {name}!").FontSize(24).Bold(),
+            Factories.Text($"Hello, {name}!").FontSize(24).Bold(),
             TextField(name, setName, placeholder: "Enter your name").Width(250)
         ).Padding(24);
     }
@@ -32,7 +32,7 @@ class CounterExample : Component
         var (count, setCount) = UseState(0);
 
         return VStack(12,
-            Text($"Count: {count}").FontSize(20).SemiBold(),
+            Factories.Text($"Count: {count}").FontSize(20).SemiBold(),
             HStack(8,
                 Button("- 1", () => setCount(count - 1)),
                 Button("Reset", () => setCount(0)),
@@ -61,14 +61,14 @@ class LayoutBasicsExample : Component
             SubHeading("Nested Layout"),
             HStack(16,
                 VStack(4,
-                    Text("Left Column").Bold(),
-                    Text("Item A"),
-                    Text("Item B")
+                    Factories.Text("Left Column").Bold(),
+                    Factories.Text("Item A"),
+                    Factories.Text("Item B")
                 ),
                 VStack(4,
-                    Text("Right Column").Bold(),
-                    Text("Item X"),
-                    Text("Item Y")
+                    Factories.Text("Right Column").Bold(),
+                    Factories.Text("Item X"),
+                    Factories.Text("Item Y")
                 )
             )
         ).Padding(24);
@@ -90,13 +90,13 @@ class MultipleStateExample : Component
             : $"{firstName} {lastName}".Trim();
 
         return VStack(12,
-            Text($"Hello, {fullName}!").FontSize(fontSize).Bold(),
+            Factories.Text($"Hello, {fullName}!").FontSize(fontSize).Bold(),
             TextField(firstName, setFirstName, placeholder: "First name").Width(200),
             TextField(lastName, setLastName, placeholder: "Last name").Width(200),
             HStack(8,
-                Text("Font size:"),
+                Factories.Text("Font size:"),
                 Slider(fontSize, 10, 40, setFontSize).Width(200),
-                Text($"{fontSize:F0}px")
+                Factories.Text($"{fontSize:F0}px")
             )
         ).Padding(24);
     }

@@ -1,9 +1,9 @@
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<AnimationApp>("Animation", width: 650, height: 700
+ReactorApp.Run<AnimationApp>("Animation", width: 650, height: 700
 #if DEBUG
     , preview: true
 #endif
@@ -20,7 +20,7 @@ class OpacityDemo : Component
             SubHeading("Opacity Transition"),
             Button(visible ? "Fade Out" : "Fade In",
                 () => setVisible(!visible)),
-            Text("This text fades in and out")
+            Factories.Text("This text fades in and out")
                 .FontSize(18).Bold()
                 .Opacity(visible ? 1.0 : 0.0)
                 .OpacityTransition(TimeSpan.FromMilliseconds(500))
@@ -41,7 +41,7 @@ class ScaleDemo : Component
             Button(enlarged ? "Shrink" : "Enlarge",
                 () => setEnlarged(!enlarged)),
             Border(
-                Text("Scales up and down").FontSize(18).Bold()
+                Factories.Text("Scales up and down").FontSize(18).Bold()
             ).Padding(12)
              .CornerRadius(8)
              .Background("#e8e8e8")
@@ -62,7 +62,7 @@ class TranslationDemo : Component
             SubHeading("Translation Transition"),
             Button(moved ? "Slide Back" : "Slide Right",
                 () => setMoved(!moved)),
-            Text("Slides horizontally")
+            Factories.Text("Slides horizontally")
                 .FontSize(18).Bold()
                 .Translation(moved ? 120f : 0f, 0f, 0f)
                 .TranslationTransition()
@@ -83,7 +83,7 @@ class BackgroundDemo : Component
             Button(warm ? "Cool Colors" : "Warm Colors",
                 () => setWarm(!warm)),
             VStack(8,
-                Text("Background animates between colors")
+                Factories.Text("Background animates between colors")
                     .Foreground("#ffffff").Bold()
             ).Padding(16)
              .CornerRadius(8)
@@ -106,7 +106,7 @@ class CombinedDemo : Component
             Button(active ? "Reset" : "Animate",
                 () => setActive(!active)),
             Border(
-                Text("All at once").FontSize(16).Bold()
+                Factories.Text("All at once").FontSize(16).Bold()
                     .Foreground("#ffffff")
             ).Padding(16)
              .CornerRadius(8)
@@ -140,7 +140,7 @@ class LayoutAnimationDemo : Component
                     l.Count > 0 ? l.Take(l.Count - 1).ToList() : l))
             ),
             VStack(4, items.Select(item =>
-                Text(item).Padding(8, 12).Background("#f0f0f0")
+                Factories.Text(item).Padding(8, 12).Background("#f0f0f0")
                     .CornerRadius(4).LayoutAnimation()
                     .WithKey($"item-{item}")
             ).ToArray())
@@ -159,7 +159,7 @@ class ConnectedAnimationDemo : Component
         if (selected is not null)
             return VStack(12,
                 Button("Back to list", () => setSelected(null)),
-                Text(selected)
+                Factories.Text(selected)
                     .FontSize(28).Bold()
                     .ConnectedAnimation($"title-{selected}")
             ).Padding(24);
@@ -189,13 +189,13 @@ class WithAnimationDemo : Component
             SubHeading("WithAnimation Scope"),
             Button(opacity > 0.5 ? "Fade Out" : "Fade In", () =>
             {
-                Duct.Animation.AnimationScope.WithAnimation(
-                    Duct.Animation.Curve.Ease(300, Duct.Animation.Easing.Decelerate), () =>
+                Microsoft.UI.Reactor.Animation.AnimationScope.WithAnimation(
+                    Microsoft.UI.Reactor.Animation.Curve.Ease(300, Microsoft.UI.Reactor.Animation.Easing.Decelerate), () =>
                     {
                         setOpacity(opacity > 0.5 ? 0.2 : 1.0);
                     });
             }),
-            Text("Compositor-animated via WithAnimation scope")
+            Factories.Text("Compositor-animated via WithAnimation scope")
                 .FontSize(18).Bold()
                 .Opacity(opacity)
         ).Padding(24);
@@ -214,10 +214,10 @@ class AnimateDemo : Component
             SubHeading(".Animate() Modifier"),
             Button(active ? "Reset" : "Animate", () => setActive(!active)),
             Border(
-                Text("Spring-animated").FontSize(18).Bold()
+                Factories.Text("Spring-animated").FontSize(18).Bold()
             ).Padding(12).CornerRadius(8).Background("#e8e8e8")
              .Opacity(active ? 0.5 : 1.0)
-             .Animate(Duct.Animation.Curve.Spring(0.65f))
+             .Animate(Microsoft.UI.Reactor.Animation.Curve.Spring(0.65f))
         ).Padding(24);
     }
 }
@@ -230,23 +230,23 @@ class InteractionStatesDemo : Component
     {
         return VStack(12,
             SubHeading("InteractionStates"),
-            Text("Hover and press — zero reconcile, compositor-driven."),
+            Factories.Text("Hover and press — zero reconcile, compositor-driven."),
             HStack(12,
                 Border(
-                    Text("Hover me").FontSize(16).Bold()
+                    Factories.Text("Hover me").FontSize(16).Bold()
                         .HAlign(HorizontalAlignment.Center).VAlign(VerticalAlignment.Center)
                 ).Padding(16).CornerRadius(8).Size(150, 60).Background("#50C878")
                  .InteractionStates(s => s
                     .PointerOver(opacity: 0.85f, scale: 1.05f)
                     .Pressed(scale: 0.95f, opacity: 0.7f)),
                 Border(
-                    Text("Press me").FontSize(16).Bold()
+                    Factories.Text("Press me").FontSize(16).Bold()
                         .HAlign(HorizontalAlignment.Center).VAlign(VerticalAlignment.Center)
                 ).Padding(16).CornerRadius(8).Size(150, 60).Background("#9B59B6")
                  .InteractionStates(s => s
                     .PointerOver(scale: 1.03f)
                     .Pressed(scale: 0.97f, opacity: 0.8f),
-                    curve: Duct.Animation.Curve.Spring(0.5f))
+                    curve: Microsoft.UI.Reactor.Animation.Curve.Spring(0.5f))
             )
         ).Padding(24);
     }
@@ -265,11 +265,11 @@ class TransitionDemo : Component
             Button(visible ? "Hide" : "Show", () => setVisible(!visible)),
             visible
                 ? Border(
-                    Text("Fade + Slide").FontSize(16).Bold()
+                    Factories.Text("Fade + Slide").FontSize(16).Bold()
                         .HAlign(HorizontalAlignment.Center).VAlign(VerticalAlignment.Center)
                 ).Padding(12).CornerRadius(8).Size(200, 60).Background("#E74C3C")
-                 .Transition(Duct.Animation.Transition.Fade + Duct.Animation.Transition.Slide(Duct.Animation.Edge.Bottom))
-                : (Element)Text("(removed from tree)")
+                 .Transition(Microsoft.UI.Reactor.Animation.Transition.Fade + Microsoft.UI.Reactor.Animation.Transition.Slide(Microsoft.UI.Reactor.Animation.Edge.Bottom))
+                : (Element)Factories.Text("(removed from tree)")
         ).Padding(24);
     }
 }
@@ -286,7 +286,7 @@ class StaggerDemo : Component
             SubHeading("Staggered Animation"),
             Button("Shuffle", () => setItems(items.OrderBy(_ => Random.Shared.Next()).ToArray())),
             VStack(4, items.Select(item =>
-                Text(item).Padding(8, 12).Background("#f0f0f0")
+                Factories.Text(item).Padding(8, 12).Background("#f0f0f0")
                     .CornerRadius(4).LayoutAnimation()
                     .WithKey(item)
             ).ToArray()).Stagger(TimeSpan.FromMilliseconds(40))
@@ -306,15 +306,15 @@ class KeyframeDemo : Component
             SubHeading("Keyframe Animation"),
             Button("Pulse!", () => setCount(count + 1)),
             Border(
-                Text("Pulse target").FontSize(16).Bold()
+                Factories.Text("Pulse target").FontSize(16).Bold()
                     .HAlign(HorizontalAlignment.Center).VAlign(VerticalAlignment.Center)
             ).Padding(12).CornerRadius(8).Size(200, 60).Background("#9B59B6")
              .Keyframes("pulse", count, kf => kf
                 .Duration(600)
-                .At(0.0f, scale: System.Numerics.Vector3.One)
-                .At(0.4f, scale: new System.Numerics.Vector3(1.3f, 1.3f, 1f), easing: Duct.Animation.Easing.Decelerate)
-                .At(0.7f, scale: new System.Numerics.Vector3(0.95f, 0.95f, 1f))
-                .At(1.0f, scale: System.Numerics.Vector3.One, easing: Duct.Animation.Easing.Accelerate))
+                .At(0.0f, scale: global::System.Numerics.Vector3.One)
+                .At(0.4f, scale: new global::System.Numerics.Vector3(1.3f, 1.3f, 1f), easing: Microsoft.UI.Reactor.Animation.Easing.Decelerate)
+                .At(0.7f, scale: new global::System.Numerics.Vector3(0.95f, 0.95f, 1f))
+                .At(1.0f, scale: global::System.Numerics.Vector3.One, easing: Microsoft.UI.Reactor.Animation.Easing.Accelerate))
         ).Padding(24);
     }
 }
@@ -331,12 +331,12 @@ class ChoreographyDemo : Component
             SubHeading("Choreography (WithAnimationAsync)"),
             Button("Run Sequence", async () =>
             {
-                await Duct.Animation.AnimationScope.WithAnimationAsync(
-                    Duct.Animation.Curve.Ease(200), () => setPhase(1));
-                await Duct.Animation.AnimationScope.WithAnimationAsync(
-                    Duct.Animation.Curve.Spring(0.7f), () => setPhase(2));
+                await Microsoft.UI.Reactor.Animation.AnimationScope.WithAnimationAsync(
+                    Microsoft.UI.Reactor.Animation.Curve.Ease(200), () => setPhase(1));
+                await Microsoft.UI.Reactor.Animation.AnimationScope.WithAnimationAsync(
+                    Microsoft.UI.Reactor.Animation.Curve.Spring(0.7f), () => setPhase(2));
             }),
-            Text($"Phase: {phase}").FontSize(18).Bold()
+            Factories.Text($"Phase: {phase}").FontSize(18).Bold()
                 .Opacity(phase == 0 ? 1.0 : phase == 1 ? 0.3 : 1.0)
         ).Padding(24);
     }

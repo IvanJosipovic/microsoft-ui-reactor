@@ -1,6 +1,6 @@
 # Avalonia — Framework Analysis
 
-**Purpose:** Critical technical analysis for comparison against Microsoft UI frameworks (WinForms, WPF, WinUI 3, Duct).
+**Purpose:** Critical technical analysis for comparison against Microsoft UI frameworks (WinForms, WPF, WinUI 3, Reactor).
 
 **Version analyzed:** Avalonia 11.x–12.0 (2024-2026 era)
 
@@ -468,7 +468,7 @@ Avalonia does not have a single unified navigation framework. Multiple approache
 | Non-Task Threads | `AppDomain.UnhandledException` | Informational only |
 | Global | try-catch in `Program.Main` | Logging/cleanup only |
 
-**No error boundary concept.** Unlike React or Duct, Avalonia has no component-level error boundary that isolates failures to a subtree. An uncaught exception during rendering crashes the application. The closest equivalent is try-catch in view models or command handlers.
+**No error boundary concept.** Unlike React or Reactor, Avalonia has no component-level error boundary that isolates failures to a subtree. An uncaught exception during rendering crashes the application. The closest equivalent is try-catch in view models or command handlers.
 
 **ReactiveUI integration:** `RxApp.DefaultExceptionHandler` must be set for `ReactiveCommand` error handling.
 
@@ -591,7 +591,7 @@ Avalonia does not have a single unified navigation framework. Multiple approache
 **Weaknesses:**
 - XPF is expensive (EUR 29,500 per application) — out of reach for many teams
 - Manual migration requires real work — CSS-like styling is a significant departure from WPF's resource dictionaries
-- No equivalent to Duct's `UseObservable` (one-line MVVM ViewModel bridge) or Compose's seamless View interop
+- No equivalent to Reactor's `UseObservable` (one-line MVVM ViewModel bridge) or Compose's seamless View interop
 - NativeControlHost has the same airspace issues as WPF's HwndHost — native content renders above Avalonia content
 - No incremental adoption story for WinUI 3 apps (XPF is WPF-only)
 

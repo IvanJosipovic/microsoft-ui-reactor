@@ -2,7 +2,7 @@
     x:Class="FlexPanelGallery.Pages.AlignItemsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:flex="using:Duct.Flex">
+    xmlns:layout="using:Microsoft.UI.Reactor.Layout">
 
     <ScrollViewer>
         <StackPanel Spacing="16" Padding="24">
@@ -22,11 +22,11 @@
 
                     <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1"
                             Height="200">
-                        <flex:FlexPanel x:Name="DemoPanel" Direction="Row" AlignItems="Stretch">
+                        <layout:FlexPanel x:Name="DemoPanel" Direction="Row" AlignItems="Stretch">
                             <Border Width="60" Height="40" Background="CornflowerBlue" CornerRadius="4" />
                             <Border Width="80" Height="80" Background="MediumSeaGreen" CornerRadius="4" />
                             <Border Width="50" Height="60" Background="Coral" CornerRadius="4" />
-                        </flex:FlexPanel>
+                        </layout:FlexPanel>
                     </Border>
                 </StackPanel>
             </Border>

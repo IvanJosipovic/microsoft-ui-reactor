@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using DuctOutlook.Models;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorOutlook.Models;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Calendar;
+namespace ReactorOutlook.Components.Calendar;
 
 internal sealed record WeekGridProps(
     CalendarEvent[] Events,
@@ -42,7 +42,7 @@ internal sealed class WeekGrid : Component<WeekGridProps>
                 : $"{h - 12} PM";
 
             children.Add(
-                Text(label).FontSize(11).Foreground(TertiaryText)
+                Factories.Text(label).FontSize(11).Foreground(TertiaryText)
                     .Padding(4, 0, 8, 0)
                     .VAlign(Microsoft.UI.Xaml.VerticalAlignment.Top)
                     .HAlign(Microsoft.UI.Xaml.HorizontalAlignment.Right)

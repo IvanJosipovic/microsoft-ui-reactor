@@ -1,11 +1,11 @@
 using System.Runtime.InteropServices;
-using Duct;
-using Duct.Core;
-using Duct.Core.Navigation;
-using DuctOutlook.Components;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Navigation;
+using ReactorOutlook.Components;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
 // Parse --screenshot [view] [output-path]
 var cliArgs = Environment.GetCommandLineArgs();
@@ -21,7 +21,7 @@ if (ssIdx >= 0)
     }
 }
 
-DuctApp.Run<OutlookApp>("Outlook", width: 1800, height: 1100,
+ReactorApp.Run<OutlookApp>("Outlook", width: 1800, height: 1100,
     configure: host =>
     {
         CursorBorderRegistration.Register(host.Reconciler);
@@ -39,7 +39,7 @@ DuctApp.Run<OutlookApp>("Outlook", width: 1800, height: 1100,
 
 static async Task CaptureWindowScreenshot(Window window, string outputPath)
 {
-    var fullPath = System.IO.Path.GetFullPath(outputPath);
+    var fullPath = global::System.IO.Path.GetFullPath(outputPath);
     var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
     GetWindowRect(hwnd, out var rect);
     int w = rect.Right - rect.Left;
@@ -48,8 +48,8 @@ static async Task CaptureWindowScreenshot(Window window, string outputPath)
     await Task.Delay(200);
     using var bmp = new System.Drawing.Bitmap(w, h);
     using (var g = System.Drawing.Graphics.FromImage(bmp))
-        g.CopyFromScreen(rect.Left, rect.Top, 0, 0, new System.Drawing.Size(w, h));
-    bmp.Save(fullPath, System.Drawing.Imaging.ImageFormat.Png);
+        g.CopyFromScreen(rect.Left, rect.Top, 0, 0, new global::System.Drawing.Size(w, h));
+    bmp.Save(fullPath, global::System.Drawing.Imaging.ImageFormat.Png);
 }
 
 [DllImport("user32.dll")]
@@ -102,8 +102,8 @@ class OutlookApp : Component
             ],
             NavigationHost(nav, route => route switch
             {
-                CalendarRoute => (Element)Component<DuctOutlook.Components.Calendar.CalendarViewComponent>(),
-                _ => Component<DuctOutlook.Components.Email.EmailView>(),
+                CalendarRoute => (Element)Component<ReactorOutlook.Components.Calendar.CalendarViewComponent>(),
+                _ => Component<ReactorOutlook.Components.Email.EmailView>(),
             }) with { Transition = NavigationTransition.Slide() }
         ) with
         {

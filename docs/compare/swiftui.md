@@ -1,6 +1,6 @@
 # SwiftUI — Framework Analysis
 
-**Purpose:** Critical technical analysis for comparison against Microsoft UI frameworks (WinForms, WPF, WinUI 3, Duct).
+**Purpose:** Critical technical analysis for comparison against Microsoft UI frameworks (WinForms, WPF, WinUI 3, Reactor).
 
 **Version analyzed:** SwiftUI as of iOS 18 / macOS 15 (WWDC 2024-2025 era)
 
@@ -145,7 +145,7 @@ SwiftUI's philosophy: **describe what the UI should look like for a given state,
 - Back stack is value-type and inspectable
 
 **Weaknesses:**
-- **NavigationPath is type-erased** — you lose compile-time type safety for heterogeneous stacks. This is the fundamental weakness vs Compose Navigation 3's typed `SnapshotStateList<NavKey>` or Duct's type-safe route records
+- **NavigationPath is type-erased** — you lose compile-time type safety for heterogeneous stacks. This is the fundamental weakness vs Compose Navigation 3's typed `SnapshotStateList<NavKey>` or Reactor's type-safe route records
 - Pre-iOS 16 NavigationView is buggy and widely considered broken (especially on iPad)
 - No built-in adaptive multi-pane layout that transitions between phone/tablet/desktop layouts
 - Deep linking configuration is platform-specific and fragile

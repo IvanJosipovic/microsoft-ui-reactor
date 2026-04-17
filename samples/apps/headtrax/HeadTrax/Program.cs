@@ -1,5 +1,5 @@
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using HeadTrax;
 using HeadTrax.Components;
 
@@ -13,4 +13,4 @@ var urlIdx = Array.IndexOf(cliArgs, "--graphql-url");
 if (urlIdx >= 0 && urlIdx + 1 < cliArgs.Length)
     AppConfig.GraphQLUrl = cliArgs[urlIdx + 1];
 
-DuctApp.Run<App>("HeadTrax – Employee Database", width: 1400, height: 900, preview: true);
+ReactorApp.Run<App>("HeadTrax – Employee Database", width: 1400, height: 900, preview: true);

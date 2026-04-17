@@ -1,4 +1,4 @@
-namespace DuctOutlook.Models;
+namespace ReactorOutlook.Models;
 
 public sealed record MailFolder(
     string Id,

@@ -1,9 +1,9 @@
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<TodoApp>("Todo App", width: 550, height: 600
+ReactorApp.Run<TodoApp>("Todo App", width: 550, height: 600
 #if DEBUG
     , preview: true
 #endif
@@ -20,7 +20,7 @@ class TodoApp : Component
     {
         var (items, updateItems) = UseReducer(new List<TodoItem>
         {
-            new("Learn Duct basics", true),
+            new("Learn Reactor basics", true),
             new("Build a todo app", false),
             new("Explore hooks", false),
         });
@@ -30,7 +30,7 @@ class TodoApp : Component
 
         return VStack(16,
             Heading("Todo List"),
-            Text($"{doneCount}/{items.Count} completed").Opacity(0.6),
+            Factories.Text($"{doneCount}/{items.Count} completed").Opacity(0.6),
 
             // Input row
             HStack(8,

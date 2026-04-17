@@ -1,12 +1,12 @@
-using Duct;
-using Duct.Core;
-using Duct.D3;
-using Duct.D3.Charts;
-using static Duct.UI;
-using static Duct.D3.Charts.ChartDsl;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Charting.D3;
+using Microsoft.UI.Reactor.Charting;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Charting.ChartDsl;
 using Microsoft.UI.Xaml;
 
-DuctApp.Run<ChartingApp>("Charting", width: 700, height: 800
+ReactorApp.Run<ChartingApp>("Charting", width: 700, height: 800
 #if DEBUG
     , preview: true
 #endif

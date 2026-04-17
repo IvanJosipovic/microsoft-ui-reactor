@@ -1,8 +1,8 @@
 using System.Security;
-using DuctRegedit.Models;
+using ReactorRegedit.Models;
 using Microsoft.Win32;
 
-namespace DuctRegedit.Services;
+namespace ReactorRegedit.Services;
 
 /// <summary>
 /// Provides all registry access operations. All mutations use Task.Run for thread safety.

@@ -1,12 +1,12 @@
-using Duct;
-using Duct.Core;
-using DuctOutlook.Models;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorOutlook.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Email;
+namespace ReactorOutlook.Components.Email;
 
 internal sealed record MessageRowProps(
     EmailMessage Message,
@@ -19,11 +19,11 @@ internal sealed class MessageRow : Component<MessageRowProps>
     static readonly string[] AvatarColors =
         ["#0078D4", "#008272", "#C239B3", "#E74856", "#FF8C00", "#107C10", "#767676", "#5C2D91"];
 
-    static readonly SolidColorBrush TransparentBrush = new(Windows.UI.Color.FromArgb(0, 0, 0, 0));
-    static readonly SolidColorBrush SelectedBrush = new(Windows.UI.Color.FromArgb(255, 218, 234, 251));
-    static readonly SolidColorBrush UnreadBrush = new(Windows.UI.Color.FromArgb(255, 240, 246, 255));
-    static readonly SolidColorBrush HoverBrush = new(Windows.UI.Color.FromArgb(255, 230, 240, 250));
-    static readonly SolidColorBrush BorderBrush = new(Windows.UI.Color.FromArgb(255, 237, 237, 237));
+    static readonly SolidColorBrush TransparentBrush = new(global::Windows.UI.Color.FromArgb(0, 0, 0, 0));
+    static readonly SolidColorBrush SelectedBrush = new(global::Windows.UI.Color.FromArgb(255, 218, 234, 251));
+    static readonly SolidColorBrush UnreadBrush = new(global::Windows.UI.Color.FromArgb(255, 240, 246, 255));
+    static readonly SolidColorBrush HoverBrush = new(global::Windows.UI.Color.FromArgb(255, 230, 240, 250));
+    static readonly SolidColorBrush BorderBrush = new(global::Windows.UI.Color.FromArgb(255, 237, 237, 237));
 
     public override Element Render()
     {
@@ -46,7 +46,7 @@ internal sealed class MessageRow : Component<MessageRowProps>
             : Empty();
 
         var avatar = Border(
-            Text(msg.SenderInitials).Foreground("white").FontSize(13)
+            Factories.Text(msg.SenderInitials).Foreground("white").FontSize(13)
                 .Set(t =>
                 {
                     t.HorizontalTextAlignment = TextAlignment.Center;
@@ -58,26 +58,26 @@ internal sealed class MessageRow : Component<MessageRowProps>
 
         // Line 1: Sender + date — use FlexRow so grow works
         var senderLine = FlexRow(
-            Text(msg.SenderName).FontSize(14)
+            Factories.Text(msg.SenderName).FontSize(14)
                 .Set(t => { t.FontWeight = bold; t.TextTrimming = TextTrimming.CharacterEllipsis; })
                 .Flex(grow: 1),
-            Text(dateStr).FontSize(12).Foreground(TertiaryText)
+            Factories.Text(dateStr).FontSize(12).Foreground(TertiaryText)
         ) with { ColumnGap = 8 };
 
         // Line 2: Subject
-        var subjectLine = Text(msg.Subject).FontSize(13)
+        var subjectLine = Factories.Text(msg.Subject).FontSize(13)
             .Set(t => { t.FontWeight = bold; t.TextTrimming = TextTrimming.CharacterEllipsis; t.MaxLines = 1; });
 
         // Line 3: Preview + badges — use FlexRow so grow works
         var previewLine = FlexRow(
-            Text(msg.PreviewText).FontSize(12).Foreground(TertiaryText)
+            Factories.Text(msg.PreviewText).FontSize(12).Foreground(TertiaryText)
                 .Set(t => { t.TextTrimming = TextTrimming.CharacterEllipsis; t.MaxLines = 1; })
                 .Flex(grow: 1),
             msg.HasAttachments
                 ? MdlIcon("\uE723", 12, TertiaryText)
                 : Empty(),
             msg.HasRsvp
-                ? Border(Text("RSVP").FontSize(9).Foreground(AccentText))
+                ? Border(Factories.Text("RSVP").FontSize(9).Foreground(AccentText))
                     .Padding(4, 1, 4, 1).CornerRadius(2).WithBorder(Accent, 1)
                 : Empty()
         ) with { ColumnGap = 6 };
@@ -111,11 +111,11 @@ internal sealed class MessageRow : Component<MessageRowProps>
     }
 
     static Element MdlIcon(string glyph, double size, string color) =>
-        Text(glyph).FontSize(size).Foreground(color)
+        Factories.Text(glyph).FontSize(size).Foreground(color)
             .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets"));
 
     static Element MdlIcon(string glyph, double size, ThemeRef color) =>
-        Text(glyph).FontSize(size).Foreground(color)
+        Factories.Text(glyph).FontSize(size).Foreground(color)
             .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets"));
 
     static string FormatDate(DateTimeOffset date)

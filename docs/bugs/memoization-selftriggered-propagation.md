@@ -25,7 +25,7 @@ Concrete example from PIX docking:
 DockPanelFrame.setState()
   -> CreateComponentRerender(panelFrameWrapper, hostRerender)
        -> sets DockPanelFrame.SelfTriggered = true
-       -> calls hostRerender (root DuctHost callback, skipping all intermediate components)
+       -> calls hostRerender (root ReactorHost callback, skipping all intermediate components)
 ```
 
 When the root re-renders, it walks the tree top-down. `DockingHost` has `SelfTriggered = false` and unchanged props, so the memo check returns early. The entire subtree (including the dirty `DockPanelFrame`) is never visited.

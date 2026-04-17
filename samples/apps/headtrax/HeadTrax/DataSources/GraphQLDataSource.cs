@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Duct.Data;
+using Microsoft.UI.Reactor.Data;
 
 namespace HeadTrax.DataSources;
 
@@ -12,7 +12,7 @@ namespace HeadTrax.DataSources;
 /// to dictionary rows.
 ///
 /// Written to live in the sample app for now but structured so it could move
-/// into Duct.Data.Providers as a first-class provider later.
+/// into Microsoft.UI.Reactor.Data.Providers as a first-class provider later.
 /// </summary>
 internal sealed class GraphQLDataSource :
     IDataSource<Dictionary<string, object?>>,

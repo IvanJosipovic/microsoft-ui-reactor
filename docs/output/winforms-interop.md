@@ -1,14 +1,14 @@
 
 # WinForms Interop
 
-Duct components can run inside WinForms applications using XAML Islands.
-The `Duct.Interop.WinForms` package provides `XamlIslandControl` — a
-standard WinForms control that hosts a Duct component tree with full
+Reactor components can run inside WinForms applications using XAML Islands.
+The `Reactor.Interop.WinForms` package provides `XamlIslandControl` — a
+standard WinForms control that hosts a Reactor component tree with full
 keyboard, accessibility, and theming support.
 
 ## Bootstrap
 
-Every WinForms + Duct app starts with `XamlIslandBootstrap.Run()`. This
+Every WinForms + Reactor app starts with `XamlIslandBootstrap.Run()`. This
 initializes the WinAppSDK/WinUI runtime and then calls your callback to
 show the WinForms UI:
 
@@ -17,7 +17,7 @@ XamlIslandBootstrap.Run(() =>
 {
     var form = new SWF.Form
     {
-        Text = "My WinForms + Duct App",
+        Text = "My WinForms + Reactor App",
         Width = 800,
         Height = 500
     };
@@ -42,7 +42,7 @@ The bootstrap handles:
 - Clean shutdown when `Application.Exit()` is called
 
 Call `XamlIslandBootstrap.Run()` once, at the very start of your
-application. WinForms owns the message loop — Duct runs inside it.
+application. WinForms owns the message loop — Reactor runs inside it.
 
 ## XamlIslandControl
 
@@ -58,7 +58,7 @@ class WinFormsHostDemo : Component
         var (count, setCount) = UseState(0);
 
         return VStack(12,
-            Heading("Duct in WinForms"),
+            Heading("Reactor in WinForms"),
             Text($"Count: {count}").FontSize(24),
             Button("+1", () => setCount(count + 1))
         ).Padding(24).Background(SolidBackground);
@@ -66,13 +66,13 @@ class WinFormsHostDemo : Component
 }
 ```
 
-![Duct component in a WinForms form](images/winforms-interop/island-control.png)
+![Reactor component in a WinForms form](images/winforms-interop/island-control.png)
 
 There are three ways to set the content:
 
 | Property | Use case |
 |----------|---------|
-| `ComponentType` | Set a Duct `Component` type — works in the designer |
+| `ComponentType` | Set a Reactor `Component` type — works in the designer |
 | `ContentFactory` | Provide a factory function for custom initialization |
 | `XamlContent` | Set raw WinUI `UIElement` content directly |
 
@@ -104,7 +104,7 @@ At design time, the control renders a placeholder with a border showing the
 component name. No WinUI objects are created until the app runs, so the
 designer stays lightweight.
 
-The `DuctComponentTypeConverter` powers this integration. It converts
+The `ReactorComponentTypeConverter` powers this integration. It converts
 between `Type` objects and type name strings, and enumerates available
 components for the dropdown.
 
@@ -120,9 +120,9 @@ class KeyboardDemo : Component
     {
         var (text, setText) = UseState("");
 
-        // Tab moves focus into this Duct tree from WinForms controls.
-        // Tab/Shift+Tab cycles through Duct controls normally.
-        // Tab out of the last Duct control returns focus to WinForms.
+        // Tab moves focus into this Reactor tree from WinForms controls.
+        // Tab/Shift+Tab cycles through Reactor controls normally.
+        // Tab out of the last Reactor control returns focus to WinForms.
         return VStack(12,
             TextField(text, setText, placeholder: "Type here...")
                 .TabIndex(0),
@@ -135,10 +135,10 @@ class KeyboardDemo : Component
 ```
 
 - **Tab/Shift+Tab** moves focus between WinForms controls and into/out of
-  the Duct component tree
+  the Reactor component tree
 - **Arrow keys, Enter, Escape** are routed to WinUI controls inside the
   island
-- **Alt+key shortcuts** work for both WinForms menus and Duct `AccessKey`
+- **Alt+key shortcuts** work for both WinForms menus and Reactor `AccessKey`
   modifiers
 
 The bootstrap's `ContentPreTranslateMessage` hook ensures keyboard messages
@@ -146,7 +146,7 @@ reach WinUI controls. No additional configuration is needed.
 
 ## Accessibility
 
-Screen readers see Duct components inside XAML Islands as part of the
+Screen readers see Reactor components inside XAML Islands as part of the
 WinForms automation tree. The interop layer bridges:
 
 ```csharp
@@ -175,17 +175,17 @@ class AccessibleIslandComponent : Component
 ```
 
 - **AutomationName**, **HeadingLevel**, and other [accessibility](accessibility.md)
-  modifiers work identically to a pure Duct app
+  modifiers work identically to a pure Reactor app
 - **UseAnnounce** live regions are forwarded through the island boundary
-- **Tab order** flows correctly between WinForms and Duct controls
-- **Focus trapping** via `UseFocusTrap` works within the Duct subtree
+- **Tab order** flows correctly between WinForms and Reactor controls
+- **Focus trapping** via `UseFocusTrap` works within the Reactor subtree
 
 See [Accessibility](accessibility.md) for the full modifier reference.
 
 ## Background and Sizing
 
 XAML Islands do not provide an implicit background or stretch behavior.
-Duct components hosted in WinForms must manage their own background:
+Reactor components hosted in WinForms must manage their own background:
 
 ```csharp
 class BackgroundDemo : Component
@@ -224,7 +224,7 @@ use `ContentFactory` instead of `ComponentType`:
 // {
 //     ContentFactory = () =>
 //     {
-//         var host = new DuctHostControl();
+//         var host = new ReactorHostControl();
 //         host.SetComponent<ConfigurableComponent>();
 //         return host;
 //     }
@@ -245,7 +245,7 @@ class ConfigurableComponent : Component
 ```
 
 The factory function runs on the UI thread after the XAML Island is ready.
-Return any `UIElement` — typically a `DuctHostControl` wrapping your
+Return any `UIElement` — typically a `ReactorHostControl` wrapping your
 component.
 
 ## Tips
@@ -266,13 +266,13 @@ theme-aware backgrounds.
 standard WinForms layout: `Dock = DockStyle.Fill` to fill a panel,
 or anchoring for proportional resize.
 
-**Test Tab navigation end-to-end.** Tab between WinForms controls and Duct
+**Test Tab navigation end-to-end.** Tab between WinForms controls and Reactor
 controls to verify focus flows correctly. The bridging handles most cases
 automatically, but complex tab orders may need `.TabIndex()` hints.
 
 ## Next Steps
 
-- **[Duct](readme.md)** — back to the index: overview of the framework and full topic list
+- **[Reactor](readme.md)** — back to the index: overview of the framework and full topic list
 - **[Data System](data-system.md)** — previous topic: DataGrid with sort, filter, and editing
 - **[Accessibility](accessibility.md)** — accessibility modifiers and screen reader support
 - **[Advanced Patterns](advanced.md)** — error boundaries, Memo, and escape hatches

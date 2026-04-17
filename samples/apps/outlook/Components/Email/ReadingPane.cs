@@ -1,12 +1,12 @@
-using Duct;
-using Duct.Core;
-using DuctOutlook.Models;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorOutlook.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Email;
+namespace ReactorOutlook.Components.Email;
 
 internal sealed record ReadingPaneProps(
     EmailMessage? Message
@@ -24,7 +24,7 @@ internal sealed class ReadingPane : Component<ReadingPaneProps>
             return VStack(
                 MdlIcon("\uE715", 48, DisabledText)
                     .HAlign(HorizontalAlignment.Center),
-                Text("Select a message to read")
+                Factories.Text("Select a message to read")
                     .FontSize(15).Foreground(TertiaryText)
                     .HAlign(HorizontalAlignment.Center)
             ).Spacing(16).Center();
@@ -37,7 +37,7 @@ internal sealed class ReadingPane : Component<ReadingPaneProps>
         var color = AvatarColors[Math.Abs(msg.SenderName.GetHashCode()) % AvatarColors.Length];
 
         var avatar = Border(
-            Text(msg.SenderInitials).Foreground("white").FontSize(15)
+            Factories.Text(msg.SenderInitials).Foreground("white").FontSize(15)
                 .Set(t =>
                 {
                     t.HorizontalTextAlignment = TextAlignment.Center;
@@ -48,7 +48,7 @@ internal sealed class ReadingPane : Component<ReadingPaneProps>
 
         return FlexColumn(
             // Subject line
-            Text(msg.Subject)
+            Factories.Text(msg.Subject)
                 .FontSize(22).SemiBold()
                 .Set(t => t.TextWrapping = TextWrapping.Wrap)
                 .Padding(28, 20, 28, 10),
@@ -58,14 +58,14 @@ internal sealed class ReadingPane : Component<ReadingPaneProps>
                 avatar,
                 VStack(2,
                     (FlexRow(
-                        Text(msg.SenderName).SemiBold().FontSize(14),
-                        Text($"<{msg.SenderEmail}>").FontSize(12).Foreground(TertiaryText)
+                        Factories.Text(msg.SenderName).SemiBold().FontSize(14),
+                        Factories.Text($"<{msg.SenderEmail}>").FontSize(12).Foreground(TertiaryText)
                     ) with { ColumnGap = 6 }),
-                    Text($"To: {toLine}").FontSize(12).Foreground(SecondaryText)
+                    Factories.Text($"To: {toLine}").FontSize(12).Foreground(SecondaryText)
                 ).Flex(grow: 1),
                 // Date + action buttons
                 VStack(4,
-                    Text(msg.ReceivedDate.ToString("M/d/yyyy h:mm tt"))
+                    Factories.Text(msg.ReceivedDate.ToString("M/d/yyyy h:mm tt"))
                         .FontSize(12).Foreground(TertiaryText)
                         .HAlign(HorizontalAlignment.Right),
                     (FlexRow(
@@ -84,7 +84,7 @@ internal sealed class ReadingPane : Component<ReadingPaneProps>
                 .WithKey(msg.Id)
                 .Set(wv =>
                 {
-                    wv.DefaultBackgroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                    wv.DefaultBackgroundColor = global::Windows.UI.Color.FromArgb(255, 255, 255, 255);
                 })
                 .OnMount(fe =>
                 {
@@ -96,30 +96,30 @@ internal sealed class ReadingPane : Component<ReadingPaneProps>
     }
 
     static Element MdlIcon(string glyph, double size, string color) =>
-        Text(glyph).FontSize(size).Foreground(color)
+        Factories.Text(glyph).FontSize(size).Foreground(color)
             .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets"));
 
     static Element MdlIcon(string glyph, double size, ThemeRef color) =>
-        Text(glyph).FontSize(size).Foreground(color)
+        Factories.Text(glyph).FontSize(size).Foreground(color)
             .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets"));
 
     static Element SmallBtn(string icon) =>
         Button(
-            Text(icon).FontSize(15).Foreground(SecondaryText)
+            Factories.Text(icon).FontSize(15).Foreground(SecondaryText)
                 .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets")),
             null
         ).Set(b =>
         {
-            b.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+            b.Background = new SolidColorBrush(global::Windows.UI.Color.FromArgb(0, 0, 0, 0));
             b.BorderThickness = new Thickness(0);
             b.Padding = new Thickness(7, 5, 7, 5);
             b.CornerRadius = new CornerRadius(3);
             b.MinWidth = 0;
             b.MinHeight = 0;
             b.Resources["ButtonBackgroundPointerOver"] = new SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 240, 240, 240));
+                global::Windows.UI.Color.FromArgb(255, 240, 240, 240));
             b.Resources["ButtonBorderBrushPointerOver"] = new SolidColorBrush(
-                Windows.UI.Color.FromArgb(0, 0, 0, 0));
+                global::Windows.UI.Color.FromArgb(0, 0, 0, 0));
         });
 
     static async Task InitWebView(Microsoft.UI.Xaml.Controls.WebView2 wv, string html)

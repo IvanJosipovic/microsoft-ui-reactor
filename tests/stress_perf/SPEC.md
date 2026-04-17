@@ -56,13 +56,13 @@ Standard MVVM pattern:
 - ViewModel exposes `DisplayText` (string) and `PriceBrush` (SolidColorBrush).
 - On tick: set ViewModel properties; the binding engine propagates changes.
 
-### 3. Duct Functional (`StressPerf.Duct`)
+### 3. Reactor Functional (`StressPerf.Reactor`)
 
-Duct's declarative reconciliation:
+Reactor's declarative reconciliation:
 
 - A `Component` holds `StockItem[]` in `UseState`.
 - `Render()` produces 4,800 `Text(...)` elements inside a `Grid(...)`.
-- On tick: call `setData(newArray)` — the Duct reconciler diffs old vs new
+- On tick: call `setData(newArray)` — the Reactor reconciler diffs old vs new
   element trees and patches only changed `TextBlock` controls.
 
 ## Interactive Mode (default)
@@ -121,7 +121,7 @@ All projects target `net8.0-windows10.0.22621.0` and use the repo-wide
 # Build all
 dotnet build tests/stress_perf/StressPerf.Direct -c Release -p:Platform=x64
 dotnet build tests/stress_perf/StressPerf.Bound  -c Release -p:Platform=x64
-dotnet build tests/stress_perf/StressPerf.Duct   -c Release -p:Platform=x64
+dotnet build tests/stress_perf/StressPerf.Reactor   -c Release -p:Platform=x64
 
 # Run interactive
 dotnet run --project tests/stress_perf/StressPerf.Direct -c Release -p:Platform=x64

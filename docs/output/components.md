@@ -1,7 +1,7 @@
 
 # Components
 
-Components are the building blocks of a Duct app. Each component is a class
+Components are the building blocks of a Reactor app. Each component is a class
 with a `Render()` method that returns an element tree describing its UI.
 
 ## Basic Component
@@ -27,7 +27,7 @@ class Greeting : Component
 ![Basic component](images/components/basic-component.png)
 
 `Render()` is called every time state changes. You call [hooks](hooks.md) like `UseState`
-at the top, then return an element tree. Duct diffs the result against the
+at the top, then return an element tree. Reactor diffs the result against the
 previous render and patches only the controls that changed.
 
 ## Props with Records
@@ -63,7 +63,7 @@ class Alert : Component<AlertProps>
 
 ![Props component](images/components/props-component.png)
 
-Records give you immutable data with value equality. Duct uses this for
+Records give you immutable data with value equality. Reactor uses this for
 automatic memoization — if the parent re-renders but the props haven't
 changed structurally, the child skips its `Render()` call.
 
@@ -142,7 +142,7 @@ You can also use a function component as the app root:
 
 <!-- ai:lock -->
 ```csharp
-DuctApp.Run("Title", ctx => {
+ReactorApp.Run("Title", ctx => {
     var (n, setN) = ctx.UseState(0);
     return Text($"{n}");
 }, width: 400, height: 300);
@@ -182,13 +182,13 @@ class ComponentsApp : Component
 ![Composed components](images/components/composition.png)
 
 Each component manages its own state independently. The parent creates child
-components with `new` and sets their `Props`. Duct handles the rest —
+components with `new` and sets their `Props`. Reactor handles the rest —
 mounting, updating, and unmounting as the tree changes.
 
 ## Tips
 
 **Use records for props.** They give you immutable data, value equality, and
-`with` expressions for free. Duct's memoization depends on `Equals()` working
+`with` expressions for free. Reactor's memoization depends on `Equals()` working
 correctly.
 
 **Prefer composition over deep inheritance.** `Component` and

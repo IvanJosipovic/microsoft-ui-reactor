@@ -1,15 +1,15 @@
-using Duct;
-using Duct.Core;
-using Duct.Data;
-using Duct.Data.Providers;
-using Duct.DataGrid;
-using Duct.PropertyGrid;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Data;
+using Microsoft.UI.Reactor.Data.Providers;
+using Microsoft.UI.Reactor.Controls;
+using Microsoft.UI.Reactor.Controls;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
-using static Duct.DataGrid.DataGridDsl;
-using static Duct.DataGrid.ColumnDsl;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Controls.DataGridDsl;
+using static Microsoft.UI.Reactor.Controls.ColumnDsl;
 
-DuctApp.Run<DataSystemApp>("Data System", width: 900, height: 600
+ReactorApp.Run<DataSystemApp>("Data System", width: 900, height: 600
 #if DEBUG
     , preview: true
 #endif
@@ -117,7 +117,7 @@ class SelectionDemo : Component
         var columns = UseMemo(() => AutoColumns<Product>());
 
         return VStack(12,
-            Text($"Selected: {selected.Count} items").Opacity(0.6),
+            Factories.Text($"Selected: {selected.Count} items").Opacity(0.6),
             DataGrid<Product>(source, columns,
                 selectionMode: SelectionMode.Multiple,
                 onSelectionChanged: setSelected).Height(350)
@@ -213,10 +213,10 @@ class RowDetailsDemo : Component
         return DataGrid<Product>(source, columns,
             rowDetailTemplate: (product, key) =>
                 VStack(8,
-                    Text($"Product ID: {product.Id}").Bold(),
-                    Text($"Full details for {product.Name}"),
-                    Text($"Category: {product.Category}"),
-                    Text($"Unit price: {product.Price:C2}, Stock: {product.Stock}")
+                    Factories.Text($"Product ID: {product.Id}").Bold(),
+                    Factories.Text($"Full details for {product.Name}"),
+                    Factories.Text($"Category: {product.Category}"),
+                    Factories.Text($"Unit price: {product.Price:C2}, Stock: {product.Stock}")
                 ).Padding(16).Background("#f5f5f5")
         ).Height(400);
     }

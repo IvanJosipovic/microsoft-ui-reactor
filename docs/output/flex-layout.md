@@ -1,11 +1,11 @@
 
 # Flex Layout
 
-Duct includes a full CSS Flexbox implementation powered by Yoga. Use `FlexRow`
+Reactor includes a full CSS Flexbox implementation powered by Yoga. Use `FlexRow`
 and `FlexColumn` when you need alignment control, wrapping, or proportional
 sizing that [`VStack` and `HStack`](layout.md) cannot express.
 
-Add `using Duct.Flex;` to access the enum types: `FlexDirection`, `FlexJustify`,
+Add `using Microsoft.UI.Reactor.Layout;` to access the enum types: `FlexDirection`, `FlexJustify`,
 `FlexAlign`, and `FlexWrap`.
 
 ## Direction
@@ -105,7 +105,7 @@ class WrapGapDemo : Component
     public override Element Render()
     {
         var tags = new[] {
-            "C#", "WinUI", "Duct", ".NET", "XAML",
+            "C#", "WinUI", "Reactor", ".NET", "XAML",
             "Flex", "Layout", "Desktop", "Native"
         };
 

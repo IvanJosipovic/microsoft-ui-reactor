@@ -13,7 +13,7 @@ goal: |
 
 # Animation
 
-Duct animations are declarative. You set the target value (opacity, scale,
+Reactor animations are declarative. You set the target value (opacity, scale,
 translation) and attach a transition modifier. When the value changes on the
 next render — driven by [hooks](hooks.md) and state — WinUI animates from
 the old value to the new one automatically.
@@ -99,7 +99,7 @@ layout reflow — items entering, leaving, or reordering in a [collection](colle
 ![Layout animation](screenshot://animation/layout-animation)
 
 Layout animation works at the Composition layer. When WinUI repositions an
-element (e.g., a sibling is added or removed), Duct animates from the old
+element (e.g., a sibling is added or removed), Reactor animates from the old
 position to the new one. Use `.WithKey()` on each element so the reconciler
 can track identity across reorders.
 
@@ -157,7 +157,7 @@ flags: `.Animate(Curve.Spring(), AnimateProperty.Opacity | AnimateProperty.Scale
 
 `.InteractionStates()` applies hover, press, and focus effects at the
 compositor layer with zero reconciles. The visual feedback runs entirely on
-the GPU — Duct's render loop is never involved:
+the GPU — Reactor's render loop is never involved:
 
 ```csharp snippet="animation/interaction-states"
 ```

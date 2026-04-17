@@ -1,7 +1,7 @@
 
 # Animation
 
-Duct animations are declarative. You set the target value (opacity, scale,
+Reactor animations are declarative. You set the target value (opacity, scale,
 translation) and attach a transition modifier. When the value changes on the
 next render — driven by [hooks](hooks.md) and state — WinUI animates from
 the old value to the new one automatically.
@@ -209,7 +209,7 @@ class LayoutAnimationDemo : Component
 ![Layout animation](images/animation/layout-animation.png)
 
 Layout animation works at the Composition layer. When WinUI repositions an
-element (e.g., a sibling is added or removed), Duct animates from the old
+element (e.g., a sibling is added or removed), Reactor animates from the old
 position to the new one. Use `.WithKey()` on each element so the reconciler
 can track identity across reorders.
 
@@ -275,8 +275,8 @@ class WithAnimationDemo : Component
             SubHeading("WithAnimation Scope"),
             Button(opacity > 0.5 ? "Fade Out" : "Fade In", () =>
             {
-                Duct.Animation.AnimationScope.WithAnimation(
-                    Duct.Animation.Curve.Ease(300, Duct.Animation.Easing.Decelerate), () =>
+                Reactor.Animation.AnimationScope.WithAnimation(
+                    Reactor.Animation.Curve.Ease(300, Reactor.Animation.Easing.Decelerate), () =>
                     {
                         setOpacity(opacity > 0.5 ? 0.2 : 1.0);
                     });
@@ -316,7 +316,7 @@ class AnimateDemo : Component
                 Text("Spring-animated").FontSize(18).Bold()
             ).Padding(12).CornerRadius(8).Background("#e8e8e8")
              .Opacity(active ? 0.5 : 1.0)
-             .Animate(Duct.Animation.Curve.Spring(0.65f))
+             .Animate(Reactor.Animation.Curve.Spring(0.65f))
         ).Padding(24);
     }
 }
@@ -332,7 +332,7 @@ flags: `.Animate(Curve.Spring(), AnimateProperty.Opacity | AnimateProperty.Scale
 
 `.InteractionStates()` applies hover, press, and focus effects at the
 compositor layer with zero reconciles. The visual feedback runs entirely on
-the GPU — Duct's render loop is never involved:
+the GPU — Reactor's render loop is never involved:
 
 ```csharp
 class InteractionStatesDemo : Component
@@ -357,7 +357,7 @@ class InteractionStatesDemo : Component
                  .InteractionStates(s => s
                     .PointerOver(scale: 1.03f)
                     .Pressed(scale: 0.97f, opacity: 0.8f),
-                    curve: Duct.Animation.Curve.Spring(0.5f))
+                    curve: Reactor.Animation.Curve.Spring(0.5f))
             )
         ).Padding(24);
     }
@@ -391,7 +391,7 @@ class TransitionDemo : Component
                     Text("Fade + Slide").FontSize(16).Bold()
                         .HAlign(HorizontalAlignment.Center).VAlign(VerticalAlignment.Center)
                 ).Padding(12).CornerRadius(8).Size(200, 60).Background("#E74C3C")
-                 .Transition(Duct.Animation.Transition.Fade + Duct.Animation.Transition.Slide(Duct.Animation.Edge.Bottom))
+                 .Transition(Reactor.Animation.Transition.Fade + Reactor.Animation.Transition.Slide(Reactor.Animation.Edge.Bottom))
                 : (Element)Text("(removed from tree)")
         ).Padding(24);
     }
@@ -467,9 +467,9 @@ class KeyframeDemo : Component
              .Keyframes("pulse", count, kf => kf
                 .Duration(600)
                 .At(0.0f, scale: System.Numerics.Vector3.One)
-                .At(0.4f, scale: new System.Numerics.Vector3(1.3f, 1.3f, 1f), easing: Duct.Animation.Easing.Decelerate)
+                .At(0.4f, scale: new System.Numerics.Vector3(1.3f, 1.3f, 1f), easing: Reactor.Animation.Easing.Decelerate)
                 .At(0.7f, scale: new System.Numerics.Vector3(0.95f, 0.95f, 1f))
-                .At(1.0f, scale: System.Numerics.Vector3.One, easing: Duct.Animation.Easing.Accelerate))
+                .At(1.0f, scale: System.Numerics.Vector3.One, easing: Reactor.Animation.Easing.Accelerate))
         ).Padding(24);
     }
 }
@@ -499,10 +499,10 @@ class ChoreographyDemo : Component
             SubHeading("Choreography (WithAnimationAsync)"),
             Button("Run Sequence", async () =>
             {
-                await Duct.Animation.AnimationScope.WithAnimationAsync(
-                    Duct.Animation.Curve.Ease(200), () => setPhase(1));
-                await Duct.Animation.AnimationScope.WithAnimationAsync(
-                    Duct.Animation.Curve.Spring(0.7f), () => setPhase(2));
+                await Reactor.Animation.AnimationScope.WithAnimationAsync(
+                    Reactor.Animation.Curve.Ease(200), () => setPhase(1));
+                await Reactor.Animation.AnimationScope.WithAnimationAsync(
+                    Reactor.Animation.Curve.Spring(0.7f), () => setPhase(2));
             }),
             Text($"Phase: {phase}").FontSize(18).Bold()
                 .Opacity(phase == 0 ? 1.0 : phase == 1 ? 0.3 : 1.0)

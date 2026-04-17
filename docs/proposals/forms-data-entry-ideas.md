@@ -2,7 +2,7 @@
 
 **Date:** April 2026
 **Status:** Proposal
-**Context:** Duct is graded C+ on Forms & Data Entry (overview scorecard). WPF is
+**Context:** Reactor is graded C+ on Forms & Data Entry (overview scorecard). WPF is
 A — the richest validation system of any framework. WinUI 3 is B — missing a
 validation framework entirely. LOB forms are the primary use case for Windows
 desktop apps.
@@ -11,7 +11,7 @@ desktop apps.
 
 ## Current State
 
-**What Duct has today:**
+**What Reactor has today:**
 - Controlled inputs: TextField, PasswordBox, NumberBox, ComboBox, RadioButtons,
   CheckBox, ToggleSwitch, Slider, RatingControl, ColorPicker, date/time pickers
 - Validation: plain C# logic derived from state on every render
@@ -96,9 +96,9 @@ WinUI control source code are needed. Specifics:
 
 | Capability | Built-on-top approach | WinUI change that would be nice (not required) |
 |---|---|---|
-| **Control error styling** | Set `BorderBrush` / `BorderThickness` directly on control instances from reconciler (Duct) or attached property callbacks (XAML). Store + restore originals. | Add `ValidationStates` visual state group to control templates for animated transitions. |
+| **Control error styling** | Set `BorderBrush` / `BorderThickness` directly on control instances from reconciler (Reactor) or attached property callbacks (XAML). Store + restore originals. | Add `ValidationStates` visual state group to control templates for animated transitions. |
 | **Error text below fields** | Our `FormField` wrapper adds error text as a sibling element below the control. | Add `Description` property to controls that lack it (CheckBox, ToggleSwitch, RadioButtons, Slider). |
-| **Validation context** | Duct's UseContext/UseRef infrastructure. For XAML: attached properties on a parent panel. | None — this is app-layer plumbing. |
+| **Validation context** | Reactor's UseContext/UseRef infrastructure. For XAML: attached properties on a parent panel. | None — this is app-layer plumbing. |
 | **Focus on first error** | `Control.Focus(FocusState.Programmatic)` — already public API. | None. |
 
 **Why this matters:** We can ship the entire validation system without blocking
@@ -180,9 +180,9 @@ Custom validators are just lambdas — no interface to implement:
 ```
 
 **Effort:** 3-4 weeks. Core context, message routing, built-in validators,
-integration with Duct reconciler.
+integration with Reactor reconciler.
 
-**WinUI bonus:** Indirect. The validators are Duct-side, but the attached
+**WinUI bonus:** Indirect. The validators are Reactor-side, but the attached
 property bridge (see 1C) makes them usable from XAML.
 
 ---
@@ -403,9 +403,9 @@ Invalid email format            ← error replaces description (from 1C)
 - Works with any control, not just TextBox
 
 **Implementation (no WinUI changes):**
-- Pure Duct element: composes Text (label) + child + Text (description/error)
+- Pure Reactor element: composes Text (label) + child + Text (description/error)
 - For XAML: ships as a `FormField` ContentControl similar to `Expander`
-- Description swap uses existing Duct animation for fade transitions
+- Description swap uses existing Reactor animation for fade transitions
 - Does NOT use WinUI's built-in `Header`/`Description` properties (those are
   internal to each control's template). Instead, wraps externally — works with
   every control uniformly, including CheckBox and Slider which lack Description.
@@ -471,7 +471,7 @@ When(ctx.IsDirty(), () =>
 SSN `___-__-____`, credit cards, dates, postal codes, IP addresses.
 
 ```csharp
-// Duct
+// Reactor
 MaskedTextField(phone, setPhone, mask: "(000) 000-0000",
     header: "Phone Number")
     .Validate(Required())
@@ -489,7 +489,7 @@ characters are literals that auto-insert.
 - Mask engine intercepts `BeforeTextChanging` to enforce format
 - Handles insertion, deletion, selection, clipboard paste
 - Raw value property returns unformatted text (digits only for phone)
-- Ships as standalone WinUI control + Duct DSL wrapper
+- Ships as standalone WinUI control + Reactor DSL wrapper
 - Acts as a validation **producer** — incomplete masks emit a Warning
 
 **Market prevalence:** Very high. WinForms MaskedTextBox, DevExpress/Telerik
@@ -538,7 +538,7 @@ TextField(code, setCode)
 - Each formatter is a function: `(string input, int cursorPos) → (string output, int newCursorPos)`
 - Composable: chain multiple formatters in a pipeline
 - Bidirectional: display value (formatted) vs. model value (raw)
-- Ships as WinUI attached behavior + Duct `.Format()` extension
+- Ships as WinUI attached behavior + Reactor `.Format()` extension
 
 **Effort:** 2-3 weeks. Cursor position management after formatting is the
 hardest part.
@@ -687,7 +687,7 @@ bubble like any other.
 
 **Effort:** 3-4 weeks.
 
-**WinUI bonus:** No — this is Duct state management.
+**WinUI bonus:** No — this is Reactor state management.
 
 ---
 
@@ -895,13 +895,13 @@ If the WinUI team is interested, these would improve the experience:
 ## Recommended Sequencing
 
 **Phase 1 — Validation Core (5-8 weeks): NOW**
-Items 1A through 1E. After this, Duct has a complete validation system with
+Items 1A through 1E. After this, Reactor has a complete validation system with
 producers, control styling, visualizers, FormField, and dirty/touched. This
 alone moves the Forms grade from **C+ to B+**.
 
 **Phase 2 — Controls (5-8 weeks): NOW**
 Items 2A through 2D. New controls (MaskedTextBox, InputFormatters) that
-raise the bar for WinUI + Duct. Async AutoSuggest and focus management round
+raise the bar for WinUI + Reactor. Async AutoSuggest and focus management round
 out the input story.
 
 **Phase 3 — Patterns (6-10 weeks): FUTURE**

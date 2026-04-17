@@ -1,15 +1,15 @@
-# Investigation: WinForms ↔ Duct/WinUI Interop
+# Investigation: WinForms ↔ Reactor/WinUI Interop
 
 ## Summary
 
 | Direction | Feasibility | Mechanism |
 |---|---|---|
-| **Duct/WinUI inside WinForms** | Supported (WinAppSDK 1.4+) | `DesktopWindowXamlSource` (XAML Islands) |
-| **WinForms inside Duct/WinUI** | No official API; workaround available | `CreateWindowEx` child HWND with `WS_EX_LAYERED` |
+| **Reactor/WinUI inside WinForms** | Supported (WinAppSDK 1.4+) | `DesktopWindowXamlSource` (XAML Islands) |
+| **WinForms inside Reactor/WinUI** | No official API; workaround available | `CreateWindowEx` child HWND with `WS_EX_LAYERED` |
 
 ---
 
-## Direction 1: Hosting Duct/WinUI Content in a WinForms App
+## Direction 1: Hosting Reactor/WinUI Content in a WinForms App
 
 This is the well-supported direction. Microsoft ships an official sample and the API graduated from experimental in WinAppSDK 1.4.
 
@@ -25,7 +25,7 @@ This is the well-supported direction. Microsoft ships an official sample and the
 │  │  │  DesktopChildSiteBridge child HWND   │  │  │
 │  │  │  ┌────────────────────────────────┐  │  │  │
 │  │  │  │  WinUI XAML content             │  │  │  │
-│  │  │  │  (DuctHostControl or raw XAML)  │  │  │  │
+│  │  │  │  (ReactorHostControl or raw XAML)  │  │  │  │
 │  │  │  └────────────────────────────────┘  │  │  │
 │  │  └──────────────────────────────────────┘  │  │
 │  └────────────────────────────────────────────┘  │
@@ -35,7 +35,7 @@ This is the well-supported direction. Microsoft ships an official sample and the
 
 ### How It Works
 
-`DesktopWindowXamlSource` creates a child HWND (via `DesktopChildSiteBridge`) inside the WinForms window. That child HWND hosts the WinUI compositor and renders WinUI content. You set its `.Content` to any `UIElement` — including a `DuctHostControl`.
+`DesktopWindowXamlSource` creates a child HWND (via `DesktopChildSiteBridge`) inside the WinForms window. That child HWND hosts the WinUI compositor and renders WinUI content. You set its `.Content` to any `UIElement` — including a `ReactorHostControl`.
 
 ### Step-by-Step Setup
 
@@ -55,8 +55,8 @@ This is the well-supported direction. Microsoft ships an official sample and the
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.*" />
-    <!-- Project reference to Duct -->
-    <ProjectReference Include="..\..\Duct\Duct.csproj" />
+    <!-- Project reference to Reactor -->
+    <ProjectReference Include="..\..\Reactor\Reactor.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -227,26 +227,26 @@ class XamlIslandControl : System.Windows.Forms.Control
 }
 ```
 
-#### 4. Using It — Duct Component Inside WinForms
+#### 4. Using It — Reactor Component Inside WinForms
 
 ```csharp
 class MainForm : Form
 {
     public MainForm()
     {
-        Text = "WinForms + Duct Demo";
+        Text = "WinForms + Reactor Demo";
         Size = new Size(1024, 768);
 
         // Standard WinForms controls
         var label = new Label { Text = "WinForms Label", Dock = DockStyle.Top, Height = 30 };
 
-        // XAML Island hosting a Duct component
+        // XAML Island hosting a Reactor component
         var island = new XamlIslandControl { Dock = DockStyle.Fill };
 
-        // Create a DuctHostControl and mount a Duct component into it
-        var ductHost = new Duct.DuctHostControl();
-        ductHost.Mount(new MyDuctComponent());
-        island.XamlContent = ductHost;
+        // Create a ReactorHostControl and mount a Reactor component into it
+        var reactorHost = new Reactor.ReactorHostControl();
+        reactorHost.Mount(new MyReactorComponent());
+        island.XamlContent = reactorHost;
 
         Controls.Add(island);
         Controls.Add(label);
@@ -269,7 +269,7 @@ class MainForm : Form
 
 ---
 
-## Direction 2: Hosting a WinForms Control Inside Duct/WinUI
+## Direction 2: Hosting a WinForms Control Inside Reactor/WinUI
 
 This direction is **not officially supported by Microsoft**. WinUI 3 has no equivalent to WPF's `WindowsFormsHost` or `HwndHost`. There are workarounds with significant limitations.
 
@@ -301,7 +301,7 @@ Create the WinForms control as a Win32 child window of the WinUI window's HWND.
 
 #### Implementation: WinFormsHostElement
 
-A custom Duct element that embeds a WinForms control:
+A custom Reactor element that embeds a WinForms control:
 
 ```csharp
 using System.Runtime.InteropServices;
@@ -309,7 +309,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 /// <summary>
-/// Duct element that hosts a WinForms control inside the WinUI tree.
+/// Reactor element that hosts a WinForms control inside the WinUI tree.
 ///
 /// LIMITATIONS:
 ///   - The WinForms control renders ON TOP of all WinUI content (airspace problem).
@@ -354,7 +354,7 @@ public static class WinFormsInterop
     private const uint SWP_SHOWWINDOW = 0x0040;
 
     /// <summary>
-    /// Register WinFormsHostElement with a Duct Reconciler.
+    /// Register WinFormsHostElement with a Reactor Reconciler.
     /// Call once during app startup.
     /// </summary>
     public static void Register(Reconciler reconciler, Window winuiWindow)
@@ -432,7 +432,7 @@ public static class WinFormsInterop
 }
 ```
 
-#### Usage in Duct
+#### Usage in Reactor
 
 ```csharp
 class MyApp : Component
@@ -440,7 +440,7 @@ class MyApp : Component
     public override Element Render()
     {
         return VStack(
-            Text("This is Duct/WinUI content"),
+            Text("This is Reactor/WinUI content"),
 
             // Embed a WinForms DataGridView
             new WinFormsHostElement(
@@ -456,13 +456,13 @@ class MyApp : Component
                 Height: 300
             ),
 
-            Text("More Duct content below")
+            Text("More Reactor content below")
         );
     }
 }
 
 // Registration at startup:
-DuctApp.Run<MyApp>("Demo", configure: host =>
+ReactorApp.Run<MyApp>("Demo", configure: host =>
 {
     WinFormsInterop.Register(host.Reconciler, host.Window);
 });
@@ -506,7 +506,7 @@ UseEffect(() =>
         form.Controls.Add(new PropertyGrid { Dock = DockStyle.Fill, SelectedObject = myObj });
 
         // Position next to WinUI window
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(DuctApp.ActiveHost!.Window);
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(ReactorApp.ActiveHost!.Window);
         // ... position logic ...
 
         form.Show();
@@ -529,10 +529,10 @@ This avoids all airspace issues but is a separate top-level window, not an embed
 
 ## Recommendation
 
-### For hosting Duct in WinForms:
-Use `DesktopWindowXamlSource` + `DuctHostControl`. This is the officially supported path. Duct's `DuctHostControl` is a self-contained `ContentControl` that works perfectly inside a XAML Island — no `DuctApp` or `DuctApplication` bootstrapping needed. The main work is the one-time setup of the WinForms `XamlIslandControl` wrapper and the `Program.cs` bootstrap.
+### For hosting Reactor in WinForms:
+Use `DesktopWindowXamlSource` + `ReactorHostControl`. This is the officially supported path. Reactor's `ReactorHostControl` is a self-contained `ContentControl` that works perfectly inside a XAML Island — no `ReactorApp` or `ReactorApplication` bootstrapping needed. The main work is the one-time setup of the WinForms `XamlIslandControl` wrapper and the `Program.cs` bootstrap.
 
-### For hosting WinForms in Duct:
+### For hosting WinForms in Reactor:
 Use Approach A (child HWND with `WS_EX_LAYERED`) for simple cases where airspace is acceptable (e.g., a PropertyGrid or DataGridView at a fixed position). For complex scenarios, use Approach C (separate window) or consider whether the WinForms control can be replaced with a WinUI equivalent.
 
-If this is a common need, a `WinFormsHostElement` could be added to Duct's `Hosting/` directory alongside `XamlInterop.cs`, registered via a `WinFormsInterop.Register(reconciler, window)` call similar to `XamlInterop.Register(reconciler)`.
+If this is a common need, a `WinFormsHostElement` could be added to Reactor's `Hosting/` directory alongside `XamlInterop.cs`, registered via a `WinFormsInterop.Register(reconciler, window)` call similar to `XamlInterop.Register(reconciler)`.

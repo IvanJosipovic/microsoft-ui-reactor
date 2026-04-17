@@ -1,7 +1,7 @@
-using DuctRegedit.Models;
+using ReactorRegedit.Models;
 using Microsoft.Win32;
 
-namespace DuctRegedit.Services;
+namespace ReactorRegedit.Services;
 
 /// <summary>
 /// Async registry search with cancellation support.

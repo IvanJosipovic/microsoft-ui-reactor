@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctRegedit.Components.Dialogs;
+namespace ReactorRegedit.Components.Dialogs;
 
 internal sealed record EditBinaryDialogProps(
     bool IsOpen,
@@ -23,12 +23,12 @@ internal sealed class EditBinaryDialog : Component<EditBinaryDialogProps>
             Strings.EditBinaryTitle,
             VStack(12,
                 VStack(4,
-                    Text(Strings.ValueName),
+                    Factories.Text(Strings.ValueName),
                     TextField(Props.ValueName, _ => { })
                         .ReadOnly()
                 ),
                 VStack(4,
-                    Text(Strings.ValueData),
+                    Factories.Text(Strings.ValueData),
                     TextField(Props.ValueData, Props.OnValueDataChanged)
                         .Set(tb =>
                         {
@@ -91,7 +91,7 @@ internal sealed class EditBinaryDialog : Component<EditBinaryDialogProps>
 
             foreach (var token in hexPart.Split(' ', StringSplitOptions.RemoveEmptyEntries))
             {
-                if (byte.TryParse(token, System.Globalization.NumberStyles.HexNumber, null, out var b))
+                if (byte.TryParse(token, global::System.Globalization.NumberStyles.HexNumber, null, out var b))
                     bytes.Add(b);
             }
         }

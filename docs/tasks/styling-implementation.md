@@ -1,4 +1,4 @@
-# Duct Styling Enhancements — Implementation Plan
+# Reactor Styling Enhancements — Implementation Plan
 
 Execution plan for the 5 styling features defined in
 [`docs/spec/duct-styling-design.md`](../spec/duct-styling-design.md).
@@ -16,7 +16,7 @@ target type + ThemeRef binding signature.
 
 ### 1.1 — Cache infrastructure
 - [x] Add `private static readonly ConcurrentDictionary<string, Style> _styleCache`
-      to `Duct\Core\Reconciler.cs` (near existing `ApplyThemeBindings`)
+      to `Reactor\Core\Reconciler.cs` (near existing `ApplyThemeBindings`)
 - [x] Add `BuildCacheKey(string targetType, IReadOnlyDictionary<string, ThemeRef> bindings)`
       private method — format: `"TargetType|Prop1=Key1|Prop2=Key2"` with keys
       sorted by `StringComparer.Ordinal` for deterministic ordering
@@ -41,7 +41,7 @@ target type + ThemeRef binding signature.
       style (e.g., implicit style from XAML)
 
 ### 1.4 — Cache invalidation on theme change
-- [x] In `DuctHost.AttachThemeListener` (~line 285–295 in DuctHost.cs), call
+- [x] In `ReactorHost.AttachThemeListener` (~line 285–295 in ReactorHost.cs), call
       `Reconciler.ClearStyleCache()` (or equivalent) when `ActualThemeChanged`
       fires — this is conservative memory cleanup, not a correctness requirement
       since `{ThemeResource}` setters are live-resolved by WinUI
@@ -65,13 +65,13 @@ ThemeRef setters resolve using the correct theme variant.
 
 ### 2.1 — ElementModifiers addition
 - [x] Add `public ElementTheme? RequestedTheme { get; init; }` to the
-      `ElementModifiers` record in `Duct\Core\Element.cs` (~line 472–530)
+      `ElementModifiers` record in `Reactor\Core\Element.cs` (~line 472–530)
 - [x] Add merge logic in `ElementModifiers.Merge()` — `RequestedTheme` should
       use the last-set value (right-hand side wins)
 
 ### 2.2 — Extension method
 - [x] Add `public static T RequestedTheme<T>(this T el, ElementTheme theme)`
-      extension method to `Duct\Elements\ElementExtensions.cs` that calls
+      extension method to `Reactor\Elements\ElementExtensions.cs` that calls
       `Modify(el, new ElementModifiers { RequestedTheme = theme })`
 - [x] Add XML doc comment with usage examples (dark sidebar, media controls)
 
@@ -98,7 +98,7 @@ New reactive hook allowing components to observe the effective color scheme
 (Light/Dark/HighContrast) at their position in the element tree.
 
 ### 3.1 — ColorScheme enum
-- [x] Create `ColorScheme` enum in `Duct\Core\` (or `Duct\Hooks\`) with values:
+- [x] Create `ColorScheme` enum in `Reactor\Core\` (or `Reactor\Hooks\`) with values:
       `Light`, `Dark`, `HighContrast`
 - [x] Add XML doc comments explaining each value
 
@@ -121,8 +121,8 @@ New reactive hook allowing components to observe the effective color scheme
 - [x] Ensure the hook triggers re-render when the theme changes (leverages
       existing `AttachThemeListener` re-render mechanism)
 
-### 3.4 — DuctHost integration
-- [x] In `DuctHost.AttachThemeListener` (~line 285–295), update
+### 3.4 — ReactorHost integration
+- [x] In `ReactorHost.AttachThemeListener` (~line 285–295), update
       `ColorSchemeContext` when `ActualThemeChanged` fires
 - [x] Verify that `RequestRender()` is called after the context update so
       components using `UseColorScheme()` see the new value
@@ -146,11 +146,11 @@ New reactive hook allowing components to observe the effective color scheme
 ## Phase 4: Lightweight Styling (Proposal 2 — P0)
 
 New API surface exposing WinUI's lightweight styling (per-control resource
-overrides) through an ergonomic fluent builder. This is Duct's unique
+overrides) through an ergonomic fluent builder. This is Reactor's unique
 competitive advantage — no other C# declarative framework surfaces this.
 
 ### 4.1 — ResourceBuilder type
-- [x] Create `Duct\Elements\ResourceBuilder.cs` with fluent API:
+- [x] Create `Reactor\Elements\ResourceBuilder.cs` with fluent API:
   - [x] `Set(string key, string color)` — parses via `BrushHelper.Parse()`
   - [x] `Set(string key, Brush brush)` — literal brush
   - [x] `Set(string key, ThemeRef themeRef)` — stores for reactive resolution
@@ -166,7 +166,7 @@ competitive advantage — no other C# declarative framework surfaces this.
 
 ### 4.3 — Element base record addition
 - [x] Add `public ResourceOverrides? ResourceOverrides { get; init; }` to the
-      `Element` abstract record in `Duct\Core\Element.cs`
+      `Element` abstract record in `Reactor\Core\Element.cs`
 
 ### 4.4 — Extension method
 - [x] Add `public static T Resources<T>(this T el, Action<ResourceBuilder> configure)`
@@ -192,12 +192,12 @@ competitive advantage — no other C# declarative framework surfaces this.
       old keys from `fe.Resources` that are no longer present in the new overrides
 
 ### 4.7 — Resource cleanup on update
-- [x] Track which keys were set by Duct (vs. keys set by XAML or other sources)
-      so that cleanup only removes Duct-managed keys
-- [x] Strategy: store a `HashSet<string>` of Duct-managed keys on the element
+- [x] Track which keys were set by Reactor (vs. keys set by XAML or other sources)
+      so that cleanup only removes Reactor-managed keys
+- [x] Strategy: store a `HashSet<string>` of Reactor-managed keys on the element
       (e.g., via `Tag` or an attached property / side dictionary) and diff on update
 - [x] When overrides are removed entirely (`ResourceOverrides` goes from non-null
-      to null), remove all Duct-managed keys from `fe.Resources`
+      to null), remove all Reactor-managed keys from `fe.Resources`
 
 ### 4.8 — Theme change re-resolution
 - [x] On theme change, ThemeRef-based resources must be re-resolved from
@@ -223,7 +223,7 @@ Separate analyzer project providing static analysis to guide developers toward
 theme-reactive styling and the new fluent APIs.
 
 ### 5.1 — Project setup
-- [x] Create `Duct.Analyzers` project (Roslyn analyzer + code fix provider)
+- [x] Create `Reactor.Analyzers` project (Roslyn analyzer + code fix provider)
 - [x] Add references to `Microsoft.CodeAnalysis.CSharp` and
       `Microsoft.CodeAnalysis.CSharp.Workspaces`
 - [x] Set up NuGet packaging for the analyzer assembly
@@ -265,7 +265,7 @@ theme-reactive styling and the new fluent APIs.
 
 ### 5.5 — Validation
 - [x] All analyzer unit tests pass via Roslyn test infrastructure
-- [x] Manually verify analyzers work in Visual Studio on a sample Duct project
+- [x] Manually verify analyzers work in Visual Studio on a sample Reactor project
 - [x] Verify analyzer NuGet package installs and activates correctly
 
 ---

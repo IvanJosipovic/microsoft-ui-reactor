@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using DuctOutlook.Models;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorOutlook.Models;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Calendar;
+namespace ReactorOutlook.Components.Calendar;
 
 internal sealed record AllDayRowProps(
     CalendarEvent[] AllDayEvents,
@@ -22,7 +22,7 @@ internal sealed class AllDayRow : Component<AllDayRowProps>
         var children = new List<Element>
         {
             // Label
-            Text("").FontSize(11).Foreground(TertiaryText)
+            Factories.Text("").FontSize(11).Foreground(TertiaryText)
                 .Grid(row: 0, column: 0)
                 .Padding(4, 2, 4, 2)
         };
@@ -41,7 +41,7 @@ internal sealed class AllDayRow : Component<AllDayRowProps>
                     {
                         var color = Props.SourceColors.GetValueOrDefault(e.CalendarSourceId, "#0078D4");
                         return (Element)Border(
-                            Text(e.Title).FontSize(10)
+                            Factories.Text(e.Title).FontSize(10)
                                 .Set(t =>
                                 {
                                     t.TextTrimming = Microsoft.UI.Xaml.TextTrimming.CharacterEllipsis;
@@ -63,7 +63,7 @@ internal sealed class AllDayRow : Component<AllDayRowProps>
             .Set(g =>
             {
                 g.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 224, 224, 224));
+                    global::Windows.UI.Color.FromArgb(255, 224, 224, 224));
                 g.BorderThickness = new Microsoft.UI.Xaml.Thickness(0, 0, 0, 1);
             });
     }

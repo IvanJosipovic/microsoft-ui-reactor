@@ -1,0 +1,60 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
+    <Platforms>x64;ARM64</Platforms>
+    <RootNamespace>Microsoft.UI.Reactor</RootNamespace>
+    <AssemblyName>Reactor</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWinUI>true</UseWinUI>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Override Directory.Build.props (true) — this library should not bundle
+         the WinUI runtime; the consuming executable controls self-containedness. -->
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Reactor.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(WindowsAppSDKVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.4" />
+    <PackageReference Include="MessageFormat" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Reactor.Localization.Generator\Reactor.Localization.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       Localization — .resw files fed to the source generator
+       ═══════════════════════════════════════════════════════════════════ -->
+  <PropertyGroup>
+    <ReactorLocDefaultLocale Condition="'$(ReactorLocDefaultLocale)' == ''">en-US</ReactorLocDefaultLocale>
+    <ReactorLocStringsPath Condition="'$(ReactorLocStringsPath)' == ''">Strings/</ReactorLocStringsPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="$(ReactorLocStringsPath)**/*.resw" Condition="Exists('$(ReactorLocStringsPath)')" />
+  </ItemGroup>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       Monaco editor — HTML shell + vendored JS assets (unmodified from npm)
+       Copied to output so MonacoEditor control can load them via WebView2.
+       ═══════════════════════════════════════════════════════════════════ -->
+  <ItemGroup>
+    <Content Include="Monaco\monaco-editor.html" CopyToOutputDirectory="PreserveNewest" Link="Monaco\monaco-editor.html" />
+    <!-- Use None (not Content) to avoid PRI resource indexer warnings on JS filenames -->
+    <None Include="Monaco\Assets\**" CopyToOutputDirectory="PreserveNewest" LinkBase="Monaco\Assets" />
+    <Compile Remove="Monaco\Assets\**" />
+    <EmbeddedResource Remove="Monaco\Assets\**" />
+    <Content Remove="Monaco\Assets\**" />
+  </ItemGroup>
+
+
+</Project>

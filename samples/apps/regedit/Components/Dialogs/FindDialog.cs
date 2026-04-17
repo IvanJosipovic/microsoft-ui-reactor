@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using DuctRegedit.Models;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorRegedit.Models;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctRegedit.Components.Dialogs;
+namespace ReactorRegedit.Components.Dialogs;
 
 internal sealed record FindDialogProps(
     bool IsOpen,
@@ -24,11 +24,11 @@ internal sealed class FindDialog : Component<FindDialogProps>
             Strings.FindTitle,
             VStack(12,
                 VStack(4,
-                    Text(Strings.FindWhat),
+                    Factories.Text(Strings.FindWhat),
                     TextField(Props.SearchText, Props.OnSearchTextChanged)
                 ),
                 VStack(4,
-                    Text(Strings.LookAt),
+                    Factories.Text(Strings.LookAt),
                     CheckBox(
                         Props.Flags.HasFlag(FindFlags.Keys),
                         v => ToggleFlag(FindFlags.Keys, v),

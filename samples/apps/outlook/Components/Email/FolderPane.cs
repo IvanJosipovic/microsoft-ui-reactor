@@ -1,12 +1,12 @@
-using Duct;
-using Duct.Core;
-using DuctOutlook.Models;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorOutlook.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-namespace DuctOutlook.Components.Email;
+namespace ReactorOutlook.Components.Email;
 
 internal sealed record FolderPaneProps(
     MailFolder[] Folders,
@@ -16,12 +16,12 @@ internal sealed record FolderPaneProps(
 
 internal sealed class FolderPane : Component<FolderPaneProps>
 {
-    static readonly SolidColorBrush TransparentBrush = new(Windows.UI.Color.FromArgb(0, 0, 0, 0));
-    static readonly SolidColorBrush SelectedBrush = new(Windows.UI.Color.FromArgb(255, 218, 234, 251));
-    static readonly SolidColorBrush HoverBrush = new(Windows.UI.Color.FromArgb(255, 243, 243, 243));
-    static readonly SolidColorBrush AccentBrush = new(Windows.UI.Color.FromArgb(255, 0, 120, 212));
-    static readonly SolidColorBrush AccentHoverBrush = new(Windows.UI.Color.FromArgb(255, 0, 100, 190));
-    static readonly SolidColorBrush WhiteBrush = new(Windows.UI.Color.FromArgb(255, 255, 255, 255));
+    static readonly SolidColorBrush TransparentBrush = new(global::Windows.UI.Color.FromArgb(0, 0, 0, 0));
+    static readonly SolidColorBrush SelectedBrush = new(global::Windows.UI.Color.FromArgb(255, 218, 234, 251));
+    static readonly SolidColorBrush HoverBrush = new(global::Windows.UI.Color.FromArgb(255, 243, 243, 243));
+    static readonly SolidColorBrush AccentBrush = new(global::Windows.UI.Color.FromArgb(255, 0, 120, 212));
+    static readonly SolidColorBrush AccentHoverBrush = new(global::Windows.UI.Color.FromArgb(255, 0, 100, 190));
+    static readonly SolidColorBrush WhiteBrush = new(global::Windows.UI.Color.FromArgb(255, 255, 255, 255));
 
     public override Element Render()
     {
@@ -33,7 +33,7 @@ internal sealed class FolderPane : Component<FolderPaneProps>
             Button(
                 (FlexRow(
                     MdlIcon("\uE710", 16, "white"),
-                    Text("New mail").FontSize(14).Foreground("white").SemiBold()
+                    Factories.Text("New mail").FontSize(14).Foreground("white").SemiBold()
                 ) with { ColumnGap = 8 }),
                 null
             ).Set(b =>
@@ -45,13 +45,13 @@ internal sealed class FolderPane : Component<FolderPaneProps>
                 b.Margin = new Thickness(16, 14, 16, 10);
                 b.Resources["ButtonBackgroundPointerOver"] = AccentHoverBrush;
                 b.Resources["ButtonBackgroundPressed"] = new SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 0, 80, 170));
+                    global::Windows.UI.Color.FromArgb(255, 0, 80, 170));
                 b.Resources["ButtonForegroundPointerOver"] = WhiteBrush;
                 b.Resources["ButtonForegroundPressed"] = WhiteBrush;
             }),
 
             // Favorites section
-            Text("Favorites")
+            Factories.Text("Favorites")
                 .SemiBold().FontSize(13).Foreground(SecondaryText)
                 .HeadingLevel(Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2)
                 .Padding(18, 6, 18, 6),
@@ -62,7 +62,7 @@ internal sealed class FolderPane : Component<FolderPaneProps>
             Border(Empty()).Height(1).Background(DividerStroke).Margin(16, 10, 16, 10),
 
             // All folders section
-            Text("Folders")
+            Factories.Text("Folders")
                 .SemiBold().FontSize(13).Foreground(SecondaryText)
                 .HeadingLevel(Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2)
                 .Padding(18, 4, 18, 6),
@@ -85,9 +85,9 @@ internal sealed class FolderPane : Component<FolderPaneProps>
         return Button(
             (FlexRow(
                 MdlIcon(folder.Icon, 16, SecondaryText).AccessibilityHidden(),
-                Text(folder.DisplayName).FontSize(14).Flex(grow: 1),
+                Factories.Text(folder.DisplayName).FontSize(14).Flex(grow: 1),
                 folder.UnreadCount > 0
-                    ? Text(folder.UnreadCount.ToString())
+                    ? Factories.Text(folder.UnreadCount.ToString())
                         .SemiBold().FontSize(13).Foreground(AccentText)
                         .AccessibilityHidden()
                     : Empty()
@@ -110,10 +110,10 @@ internal sealed class FolderPane : Component<FolderPaneProps>
     }
 
     static Element MdlIcon(string glyph, double size, string color) =>
-        Text(glyph).FontSize(size).Foreground(color)
+        Factories.Text(glyph).FontSize(size).Foreground(color)
             .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets"));
 
     static Element MdlIcon(string glyph, double size, ThemeRef color) =>
-        Text(glyph).FontSize(size).Foreground(color)
+        Factories.Text(glyph).FontSize(size).Foreground(color)
             .Set(t => t.FontFamily = new FontFamily("Segoe MDL2 Assets"));
 }

@@ -1,10 +1,10 @@
-using Duct.Interop.WinForms;
+using Microsoft.UI.Reactor.Interop.WinForms;
 
 namespace WinFormsInterop.Sample;
 
 partial class WinFormsOutsideForm
 {
-    private System.ComponentModel.IContainer components = null;
+    private global::System.ComponentModel.IContainer components = null;
 
     protected override void Dispose(bool disposing)
     {
@@ -31,7 +31,7 @@ partial class WinFormsOutsideForm
         SuspendLayout();
 
         // ── Left panel ──────────────────────────────────────────────
-        leftPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+        leftPanel.BackColor = global::System.Drawing.Color.FromArgb(40, 40, 40);
         leftPanel.Dock = DockStyle.Left;
         leftPanel.Padding = new Padding(12);
         leftPanel.Width = 300;
@@ -46,66 +46,66 @@ partial class WinFormsOutsideForm
         // title
         title.AutoSize = false;
         title.Dock = DockStyle.Top;
-        title.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold);
-        title.ForeColor = System.Drawing.Color.White;
+        title.Font = new global::System.Drawing.Font("Segoe UI", 14F, global::System.Drawing.FontStyle.Bold);
+        title.ForeColor = global::System.Drawing.Color.White;
         title.Height = 36;
         title.Text = "WinForms Controls";
 
         // description
         description.AutoSize = false;
         description.Dock = DockStyle.Top;
-        description.ForeColor = System.Drawing.Color.FromArgb(180, 180, 180);
+        description.ForeColor = global::System.Drawing.Color.FromArgb(180, 180, 180);
         description.Height = 80;
-        description.Text = "This panel is native WinForms.\r\n\r\nThe right side is a XAML Island\r\nhosting a Duct component tree\r\nwith WinUI controls.";
+        description.Text = "This panel is native WinForms.\r\n\r\nThe right side is a XAML Island\r\nhosting a Reactor component tree\r\nwith WinUI controls.";
 
         // inputLabel
         inputLabel.Dock = DockStyle.Top;
-        inputLabel.ForeColor = System.Drawing.Color.FromArgb(180, 180, 180);
+        inputLabel.ForeColor = global::System.Drawing.Color.FromArgb(180, 180, 180);
         inputLabel.Height = 20;
         inputLabel.Text = "WinForms TextBox:";
 
         // textBox
-        textBox.BackColor = System.Drawing.Color.FromArgb(50, 50, 50);
+        textBox.BackColor = global::System.Drawing.Color.FromArgb(50, 50, 50);
         textBox.BorderStyle = BorderStyle.FixedSingle;
         textBox.Dock = DockStyle.Top;
-        textBox.ForeColor = System.Drawing.Color.White;
+        textBox.ForeColor = global::System.Drawing.Color.White;
         textBox.Text = "Type here (WinForms)";
 
         // button
-        button.BackColor = System.Drawing.Color.FromArgb(0, 120, 212);
+        button.BackColor = global::System.Drawing.Color.FromArgb(0, 120, 212);
         button.Dock = DockStyle.Top;
         button.FlatStyle = FlatStyle.Flat;
-        button.ForeColor = System.Drawing.Color.White;
+        button.ForeColor = global::System.Drawing.Color.White;
         button.Height = 35;
         button.Margin = new Padding(0, 8, 0, 0);
         button.Text = "WinForms Button \u2014 Click Me";
 
         // logLabel
         logLabel.Dock = DockStyle.Top;
-        logLabel.ForeColor = System.Drawing.Color.FromArgb(140, 140, 140);
+        logLabel.ForeColor = global::System.Drawing.Color.FromArgb(140, 140, 140);
         logLabel.Height = 24;
         logLabel.Text = "Event Log:";
 
         // logList
-        logList.BackColor = System.Drawing.Color.FromArgb(25, 25, 25);
+        logList.BackColor = global::System.Drawing.Color.FromArgb(25, 25, 25);
         logList.BorderStyle = BorderStyle.None;
         logList.Dock = DockStyle.Fill;
-        logList.ForeColor = System.Drawing.Color.FromArgb(200, 200, 200);
+        logList.ForeColor = global::System.Drawing.Color.FromArgb(200, 200, 200);
 
         // ── Splitter ────────────────────────────────────────────────
-        splitter.BackColor = System.Drawing.Color.FromArgb(60, 60, 60);
+        splitter.BackColor = global::System.Drawing.Color.FromArgb(60, 60, 60);
         splitter.Dock = DockStyle.Left;
         splitter.Width = 4;
 
         // ── XAML Island ─────────────────────────────────────────────
-        island.ComponentType = typeof(SampleDuctComponent);
+        island.ComponentType = typeof(SampleReactorComponent);
         island.Dock = DockStyle.Fill;
 
         // ── Form ────────────────────────────────────────────────────
-        BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
-        ClientSize = new System.Drawing.Size(934, 561);
-        ForeColor = System.Drawing.Color.White;
-        Text = "WinForms hosts Duct";
+        BackColor = global::System.Drawing.Color.FromArgb(30, 30, 30);
+        ClientSize = new global::System.Drawing.Size(934, 561);
+        ForeColor = global::System.Drawing.Color.White;
+        Text = "WinForms hosts Reactor";
         Controls.Add(island);
         Controls.Add(splitter);
         Controls.Add(leftPanel);

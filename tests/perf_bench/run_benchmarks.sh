@@ -1,6 +1,6 @@
 #!/bin/bash
 # PerfBench Benchmark Suite
-# Runs all 10 experiments × 3 variants (Direct, Bound, Duct) headless.
+# Runs all 10 experiments × 3 variants (Direct, Bound, Reactor) headless.
 # Each run: --headless --duration 10
 # Collects report files and prints summary.
 
@@ -51,7 +51,7 @@ EXPERIMENTS=(DirtyTracking PropertyDiff StructuralSharing OffThread Journal Inte
 
 for exp in "${EXPERIMENTS[@]}"; do
     echo "--- EXP: $exp ---" | tee -a "$OUTFILE"
-    for var in Direct Bound Duct; do
+    for var in Direct Bound Reactor; do
         run_app "$exp" "$var"
     done
     echo "" | tee -a "$OUTFILE"

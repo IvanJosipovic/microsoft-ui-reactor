@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -14,8 +14,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(WindowsAppSDKVersion)" />
-    <ProjectReference Include="..\..\Duct.Interop.WinForms\Duct.Interop.WinForms.csproj" />
-    <ProjectReference Include="..\..\Duct\Duct.csproj" />
+    <ProjectReference Include="..\..\Reactor.Interop.WinForms\Reactor.Interop.WinForms.csproj" />
+    <ProjectReference Include="..\..\Reactor\Reactor.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,6 @@
-# How to Localize a Duct App
+# How to Localize a Reactor App
 
-A step-by-step guide for taking an existing Duct application with hardcoded
+A step-by-step guide for taking an existing Reactor application with hardcoded
 English strings and making it fully localizable.
 
 ## Prerequisites
@@ -9,43 +9,43 @@ English strings and making it fully localizable.
 
 The localization system has two compile-time parts:
 
-- **Runtime (`Duct.Core.Localization`)** — `IntlAccessor`, `MessageCache`,
+- **Runtime (`Reactor.Core.Localization`)** — `IntlAccessor`, `MessageCache`,
   `LocaleProviderElement`, `ReswResourceProvider`, etc. These live inside
-  `Duct.dll` itself, under `Duct/Core/Localization/`. If you already
-  reference `Duct`, you have the runtime — there is no separate
-  `Duct.Localization` NuGet package.
+  `Reactor.dll` itself, under `Reactor/Core/Localization/`. If you already
+  reference `Reactor`, you have the runtime — there is no separate
+  `Reactor.Localization` NuGet package.
 
-- **Source generator (`Duct.Localization.Generator`)** — A Roslyn source
+- **Source generator (`Reactor.Localization.Generator`)** — A Roslyn source
   generator that reads your `.resw` files at build time and emits a typed
   `Loc` class (`Loc.g.cs`) with compile-time-checked `MessageKey` constants.
   This is a separate project/DLL.
 
-### Setting up within this repo (Duct.TestApp)
+### Setting up within this repo (Reactor.TestApp)
 
-The source generator is **not transitive** — even though `Duct.csproj`
+The source generator is **not transitive** — even though `Reactor.csproj`
 references it, your app project needs its own reference. Add all of the
 following to your `.csproj`:
 
 ```xml
 <!-- Source generator: emits Loc.g.cs from .resw files -->
 <ItemGroup>
-  <ProjectReference Include="..\..\Duct.Localization.Generator\Duct.Localization.Generator.csproj"
+  <ProjectReference Include="..\..\Reactor.Localization.Generator\Reactor.Localization.Generator.csproj"
                     OutputItemType="Analyzer"
                     ReferenceOutputAssembly="false" />
 </ItemGroup>
 
 <!-- Localization properties and resource files -->
 <PropertyGroup>
-  <DuctLocDefaultLocale>en-US</DuctLocDefaultLocale>
-  <DuctLocStringsPath>Strings\</DuctLocStringsPath>
+  <ReactorLocDefaultLocale>en-US</ReactorLocDefaultLocale>
+  <ReactorLocStringsPath>Strings\</ReactorLocStringsPath>
 </PropertyGroup>
 
 <ItemGroup>
   <!-- Feed .resw files to the source generator at build time -->
   <AdditionalFiles Include="Strings\**\*.resw" />
   <!-- Expose MSBuild properties to the analyzer -->
-  <CompilerVisibleProperty Include="DuctLocDefaultLocale" />
-  <CompilerVisibleProperty Include="DuctLocMissingKeySeverity" />
+  <CompilerVisibleProperty Include="ReactorLocDefaultLocale" />
+  <CompilerVisibleProperty Include="ReactorLocMissingKeySeverity" />
 </ItemGroup>
 
 <!-- Copy .resw files to output so ReswResourceProvider can read them at runtime.
@@ -61,26 +61,26 @@ following to your `.csproj`:
 Three things to note:
 - **`AdditionalFiles`** is what the source generator reads at build time.
 - **`CompilerVisibleProperty`** exposes MSBuild properties to the analyzer.
-  Without these, the generator can't read `DuctLocDefaultLocale`.
+  Without these, the generator can't read `ReactorLocDefaultLocale`.
 - **`Content` with `CopyToOutputDirectory`** copies the raw `.resw` XML
   files to the output folder. The runtime reads these directly rather than
   going through MRT/PRI, which avoids `ResourceLoader` issues in
   unpackaged apps.
 
-> **For consumers outside this repo** (i.e., people using a published Duct
+> **For consumers outside this repo** (i.e., people using a published Reactor
 > NuGet package): the package would include the generator as an analyzer
-> dependency and ship a `.targets` file that sets up `DuctLocDefaultLocale`,
-> `DuctLocStringsPath`, and the `AdditionalFiles` glob automatically. That
+> dependency and ship a `.targets` file that sets up `ReactorLocDefaultLocale`,
+> `ReactorLocStringsPath`, and the `AdditionalFiles` glob automatically. That
 > packaging work hasn't been done yet — for now, add the items above
 > manually.
 
 ### CLI
 
-The CLI project is `Duct.Cli/Duct.Cli.csproj`. Run it via `dotnet run`,
+The CLI project is `Reactor.Cli/Reactor.Cli.csproj`. Run it via `dotnet run`,
 which auto-builds before executing:
 
 ```bash
-dotnet run --project Duct.Cli/Duct.Cli.csproj -- loc extract --help
+dotnet run --project Reactor.Cli/Reactor.Cli.csproj -- loc extract --help
 ```
 
 Everything after `--` is passed to the CLI as arguments.
@@ -135,7 +135,7 @@ these so you can exclude them during review:
 | Numeric labels | `Button("10", ...)`, `Button("500", ...)` | Numbers are universal |
 | Color hex values | `"#e57373"`, `"#4A90D9"` | Not displayed to users |
 | Technical units | `"px"`, `"ms"` | Debatable — may localize later |
-| Seed/test data | `new("Build Duct library", true)` | Not UI chrome |
+| Seed/test data | `new("Build Reactor library", true)` | Not UI chrome |
 | Emoji-only content | `Text("×")` (delete button) | Symbol, not text |
 
 ### 1c. Wrap your app root in a `LocaleProvider`
@@ -199,7 +199,7 @@ The extractor cannot rewrite static methods safely. Handle these manually.
 ### 2a. Dry run
 
 ```bash
-dotnet run --project Duct.Cli/Duct.Cli.csproj -- loc extract --source tests/Duct.TestApp --output tests/Duct.TestApp/Strings/en-US --dry-run
+dotnet run --project Reactor.Cli/Reactor.Cli.csproj -- loc extract --source tests/Reactor.TestApp --output tests/Reactor.TestApp/Strings/en-US --dry-run
 ```
 
 This reports every string it would extract and every source rewrite it
@@ -212,7 +212,7 @@ would make, without modifying any files. Review the output:
 ### 2b. Extract and rewrite
 
 ```bash
-dotnet run --project Duct.Cli/Duct.Cli.csproj -- loc extract --source tests/Duct.TestApp --output tests/Duct.TestApp/Strings/en-US --rewrite
+dotnet run --project Reactor.Cli/Reactor.Cli.csproj -- loc extract --source tests/Reactor.TestApp --output tests/Reactor.TestApp/Strings/en-US --rewrite
 ```
 
 This does three things:
@@ -280,7 +280,7 @@ The extractor automatically converts C# format specifiers (`:C` → currency,
 dotnet build
 ```
 
-The `Duct.Localization.Generator` source generator reads your `.resw`
+The `Reactor.Localization.Generator` source generator reads your `.resw`
 files and emits a typed `Loc` class:
 
 ```csharp
@@ -298,7 +298,7 @@ internal static class Loc
 If a key is referenced in code but missing from `.resw`, you get a
 compile error. If a key exists in `en-US` but is missing in another
 locale, you get `DUCT_LOC001` warning (or error, depending on
-`DuctLocMissingKeySeverity`).
+`ReactorLocMissingKeySeverity`).
 
 ---
 
@@ -307,7 +307,7 @@ locale, you get `DUCT_LOC001` warning (or error, depending on
 ### 5a. AI-assisted translation
 
 ```bash
-dotnet run --project Duct.Cli/Duct.Cli.csproj -- loc translate --source tests/Duct.TestApp/Strings/en-US --target fr-FR,ja-JP,ar-SA --missing-only
+dotnet run --project Reactor.Cli/Reactor.Cli.csproj -- loc translate --source tests/Reactor.TestApp/Strings/en-US --target fr-FR,ja-JP,ar-SA --missing-only
 ```
 
 This uses GitHub Copilot (via the `gh` CLI) to pre-fill translations.
@@ -329,7 +329,7 @@ Open the generated `.resw` files and review. Remove or update the
 ### 5c. Validate
 
 ```bash
-dotnet run --project Duct.Cli/Duct.Cli.csproj -- loc validate --resources tests/Duct.TestApp/Strings
+dotnet run --project Reactor.Cli/Reactor.Cli.csproj -- loc validate --resources tests/Reactor.TestApp/Strings
 ```
 
 Checks:
@@ -340,7 +340,7 @@ Checks:
 ### 5d. Coverage report
 
 ```bash
-dotnet run --project Duct.Cli/Duct.Cli.csproj -- loc status --resources tests/Duct.TestApp/Strings
+dotnet run --project Reactor.Cli/Reactor.Cli.csproj -- loc status --resources tests/Reactor.TestApp/Strings
 ```
 
 Prints a table like:
@@ -360,10 +360,10 @@ As you refactor code and remove UI, keys can become orphaned. Clean up:
 
 ```bash
 # Preview what would be removed
-dotnet run --project Duct.Cli/Duct.Cli.csproj -- loc prune --source tests/Duct.TestApp --resources tests/Duct.TestApp/Strings/en-US --dry-run
+dotnet run --project Reactor.Cli/Reactor.Cli.csproj -- loc prune --source tests/Reactor.TestApp --resources tests/Reactor.TestApp/Strings/en-US --dry-run
 
 # Actually remove them
-dotnet run --project Duct.Cli/Duct.Cli.csproj -- loc prune --source tests/Duct.TestApp --resources tests/Duct.TestApp/Strings/en-US --rewrite
+dotnet run --project Reactor.Cli/Reactor.Cli.csproj -- loc prune --source tests/Reactor.TestApp --resources tests/Reactor.TestApp/Strings/en-US --rewrite
 ```
 
 ---
@@ -455,7 +455,7 @@ markers with ~30% padding. Missing keys render as `[?? Namespace.Key ??]`.
   directly from disk rather than going through the Windows PRI resource
   system. This avoids `FileNotFoundException` issues with `ResourceLoader`
   in unpackaged apps, but means the `.resw` files must be copied to the
-  output directory (see Prerequisites). This may be revisited if Duct
+  output directory (see Prerequisites). This may be revisited if Reactor
   moves to packaged (MSIX) deployment.
 - **Hot reload** of `.resw` changes is not yet supported. Restart the app
   to pick up resource changes during development.

@@ -1,11 +1,11 @@
-using Duct;
-using Duct.Core;
-using Duct.Hooks;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Hooks;
+using static Microsoft.UI.Reactor.Factories;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 
-DuctApp.Run<AccessibilityApp>("Accessibility", width: 650, height: 700
+ReactorApp.Run<AccessibilityApp>("Accessibility", width: 650, height: 700
 #if DEBUG
     , preview: true
 #endif
@@ -17,10 +17,10 @@ class Tier1Demo : Component
     public override Element Render()
     {
         return VStack(12,
-            Text("Account Settings")
+            Factories.Text("Account Settings")
                 .FontSize(24).Bold()
                 .HeadingLevel(AutomationHeadingLevel.Level1),
-            Text("Profile")
+            Factories.Text("Profile")
                 .FontSize(18).SemiBold()
                 .HeadingLevel(AutomationHeadingLevel.Level2),
             TextField("", _ => { }, placeholder: "Display name")
@@ -47,13 +47,13 @@ class Tier2Demo : Component
                 .HelpText("Type a product name or SKU to filter results")
                 .Width(300),
             VStack(8,
-                Text("Revenue by Region").Bold(),
-                Text("Bar chart placeholder").Opacity(0.5)
+                Factories.Text("Revenue by Region").Bold(),
+                Factories.Text("Bar chart placeholder").Opacity(0.5)
             ).FullDescription(
                 "Bar chart showing Q1 revenue: East $4.2M, " +
                 "West $3.8M, Central $2.1M")
              .Padding(16).Background("#f5f5f5").CornerRadius(8),
-            Text("Decorative divider")
+            Factories.Text("Decorative divider")
                 .Opacity(0.2)
                 .AccessibilityHidden()
         ).Padding(24);
@@ -73,7 +73,7 @@ class AccessibleFormDemo : Component
             && email.Contains('@') && agree;
 
         return VStack(12,
-            Text("Create Account").FontSize(24).Bold()
+            Factories.Text("Create Account").FontSize(24).Bold()
                 .HeadingLevel(AutomationHeadingLevel.Level1),
             TextField(name, setName, header: "Full Name")
                 .AutomationName("Full name").Required().TabIndex(1),
@@ -103,10 +103,10 @@ class LandmarksDemo : Component
              .AutomationName("Main navigation"),
 
             VStack(12,
-                Text("Dashboard")
+                Factories.Text("Dashboard")
                     .FontSize(20).Bold()
                     .HeadingLevel(AutomationHeadingLevel.Level1),
-                Text("Welcome back. Here is your overview.")
+                Factories.Text("Welcome back. Here is your overview.")
             ).Landmark(AutomationLandmarkType.Main)
              .AutomationName("Main content"),
 
@@ -124,20 +124,20 @@ class HeadingHierarchyDemo : Component
     public override Element Render()
     {
         return VStack(12,
-            Text("Application Settings")
+            Factories.Text("Application Settings")
                 .FontSize(24).Bold()
                 .HeadingLevel(AutomationHeadingLevel.Level1),
-            Text("Appearance")
+            Factories.Text("Appearance")
                 .FontSize(18).SemiBold()
                 .HeadingLevel(AutomationHeadingLevel.Level2),
-            Text("Choose your preferred theme and font size."),
-            Text("Notifications")
+            Factories.Text("Choose your preferred theme and font size."),
+            Factories.Text("Notifications")
                 .FontSize(18).SemiBold()
                 .HeadingLevel(AutomationHeadingLevel.Level2),
-            Text("Email Alerts")
+            Factories.Text("Email Alerts")
                 .FontSize(15).SemiBold()
                 .HeadingLevel(AutomationHeadingLevel.Level3),
-            Text("Configure which emails you receive.")
+            Factories.Text("Configure which emails you receive.")
         ).Padding(24);
     }
 }
@@ -157,8 +157,8 @@ class FocusTrapDemo : Component
             When(showModal, () =>
                 Border(
                     VStack(12,
-                        Text("Modal Dialog").FontSize(18).Bold(),
-                        Text("Tab/Shift+Tab stays inside this panel."),
+                        Factories.Text("Modal Dialog").FontSize(18).Bold(),
+                        Factories.Text("Tab/Shift+Tab stays inside this panel."),
                         TextField("", _ => { }, placeholder: "Name")
                             .TabIndex(0),
                         Button("Close", () => setShowModal(false))
@@ -191,7 +191,7 @@ class AnnouncementsDemo : Component
             }),
             Button("Error (Assertive)", () =>
                 announce.Announce("Connection lost!", assertive: true)),
-            Text($"Saves: {count}").Opacity(0.6),
+            Factories.Text($"Saves: {count}").Opacity(0.6),
             announce.Region  // invisible live region — must be in tree
         ).Padding(24);
     }
@@ -218,7 +218,7 @@ class SemanticPanelDemo : Component
                 role: "slider",
                 value: $"{rating} of 5 stars",
                 rangeMin: 1, rangeMax: 5, rangeValue: rating),
-            Text($"Current: {rating}/5").Opacity(0.6)
+            Factories.Text($"Current: {rating}/5").Opacity(0.6)
         ).Padding(24);
     }
 }

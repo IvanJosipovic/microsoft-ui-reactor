@@ -1,4 +1,4 @@
-namespace DuctRegedit;
+namespace ReactorRegedit;
 
 /// <summary>
 /// Localizable string constants for the Registry Editor UI.
@@ -108,7 +108,7 @@ internal static class Strings
 
     // About
     public const string AboutTitle = "About Registry Editor";
-    public const string AboutText = "Registry Editor\nDuct WinUI 3 Edition";
+    public const string AboutText = "Registry Editor\nReactor WinUI 3 Edition";
 
     // Errors
     public const string ErrorTitle = "Error";

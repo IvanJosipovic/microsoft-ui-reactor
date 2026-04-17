@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace DuctRegedit.Models;
+namespace ReactorRegedit.Models;
 
 /// <summary>
 /// Represents a registry key (node in the tree).

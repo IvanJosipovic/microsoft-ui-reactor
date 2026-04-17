@@ -9,7 +9,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 1A. Validation Context & Producers (3–4 weeks)
 
 #### 1A.1 ValidationMessage Record
-- [x] Create `Duct/Validation/ValidationMessage.cs`
+- [x] Create `Reactor/Validation/ValidationMessage.cs`
 - [x] Define `Severity` enum: `Error`, `Warning`, `Info`
 - [x] Define `ValidationMessage` record:
   - [x] `string Field`
@@ -19,7 +19,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 - [x] Unit tests: record equality, `with` expressions, default severity
 
 #### 1A.2 ValidationContext Core
-- [x] Create `Duct/Validation/ValidationContext.cs`
+- [x] Create `Reactor/Validation/ValidationContext.cs`
 - [x] Implement message collection: `Add(string field, string text, Severity severity = Error)`
 - [x] Implement message clearing: `Clear(string field)`, `ClearAll()`
 - [x] Implement query methods:
@@ -34,13 +34,13 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 - [x] Unit tests: multiple messages per field, mixed severities
 
 #### 1A.3 UseValidationContext Hook
-- [x] Create `Duct/Validation/UseValidationContext.cs` (or integrate into existing hook infrastructure)
+- [x] Create `Reactor/Validation/UseValidationContext.cs` (or integrate into existing hook infrastructure)
 - [x] Implement `UseValidationContext()` hook that provides/creates a `ValidationContext` scoped to the current component tree
 - [x] Support nested contexts (child visualizer creates child scope that can bubble to parent)
 - [x] Unit tests: hook returns same context within same scope, child scope creation
 
 #### 1A.4 Built-in Validators
-- [x] Create `Duct/Validation/Validators/` directory
+- [x] Create `Reactor/Validation/Validators/` directory
 - [x] Implement `IValidator` interface (or `Func<T, ValidationMessage?>` delegate pattern)
 - [x] Implement validators:
   - [x] `Required()` — non-null, non-empty, non-default
@@ -59,8 +59,8 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 - [x] Unit tests: custom `Must()` lambda with complex predicates
 
 #### 1A.5 `.Validate()` Extension Method
-- [x] Create `Duct/Validation/ValidateExtensions.cs`
-- [x] Implement `.Validate(params IValidator[] validators)` extension on Duct element builder types
+- [x] Create `Reactor/Validation/ValidateExtensions.cs`
+- [x] Implement `.Validate(params IValidator[] validators)` extension on Reactor element builder types
 - [x] Wire `.Validate()` to register the control + validators with the nearest `ValidationContext`
 - [x] Run validators on every render/state change, push results to context
 - [x] Handle async validators: debounce, cancellation of in-flight async checks
@@ -69,7 +69,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 - [x] Unit tests: async validator debounce and cancellation
 
 #### 1A.6 Cross-Field ValidationRule
-- [x] Create `Duct/Validation/ValidationRule.cs` (element or component)
+- [x] Create `Reactor/Validation/ValidationRule.cs` (element or component)
 - [x] Implement `ValidationRule(Func<bool> predicate, string message, string field)` element
 - [x] Place anywhere in tree; errors bubble to nearest visualizer
 - [x] Support async variant: `ValidationRule(Func<Task<bool>> predicate, ...)`
@@ -84,7 +84,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 - [x] Unit tests: external errors cleared on field value change
 
 #### 1A.8 Reconciler Integration
-- [x] Wire validation context into Duct reconciler lifecycle
+- [x] Wire validation context into Reactor reconciler lifecycle
 - [x] Ensure validation runs after state updates, before rendering
 - [x] Ensure validation messages are available to visualizers in the same render pass
 - [x] Integration test: full component with producers → context → visualizer pipeline
@@ -182,7 +182,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 1D. FormField Wrapper (1–2 weeks)
 
 #### 1D.1 FormField Element
-- [x] Create `Duct/Validation/FormField.cs` (Duct element)
+- [x] Create `Reactor/Validation/FormField.cs` (Reactor element)
 - [x] Accept parameters: `label`, `required`, `description`, `content`
 - [x] Layout: Label row → content control → description/error row
 - [x] Show `*` indicator when `required: true`
@@ -254,7 +254,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 2A. MaskedTextBox (3–4 weeks)
 
 #### 2A.1 Mask Engine
-- [x] Create `Duct/Controls/MaskedTextBox/MaskEngine.cs`
+- [x] Create `Reactor/Controls/MaskedTextBox/MaskEngine.cs`
 - [x] Implement mask token parsing:
   - [x] `0` = required digit
   - [x] `9` = optional digit
@@ -271,7 +271,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 - [x] Unit tests: completion detection
 
 #### 2A.2 MaskedTextBox WinUI Control
-- [x] Create `Duct/Controls/MaskedTextBox/MaskedTextBox.cs` inheriting from `TextBox`
+- [x] Create `Reactor/Controls/MaskedTextBox/MaskedTextBox.cs` inheriting from `TextBox`
 - [x] DependencyProperties: `Mask`, `Placeholder` (char, default `_`), `RawValue` (read-only)
 - [x] Hook `BeforeTextChanging` to intercept and enforce mask
 - [x] Handle single character insertion at cursor position
@@ -284,13 +284,13 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 - [x] Unit tests: paste handling (valid and invalid content)
 - [x] Unit tests: cursor positioning after operations
 
-#### 2A.3 MaskedTextBox Duct DSL
-- [x] Create `MaskedTextField()` Duct element function
+#### 2A.3 MaskedTextBox Reactor DSL
+- [x] Create `MaskedTextField()` Reactor element function
 - [x] Parameters: `value`, `onChanged`, `mask`, `header`, `placeholder`
 - [x] Wire to WinUI MaskedTextBox control via reconciler
 - [x] Act as validation producer: incomplete mask emits Warning
 - [x] Integrate with `.Validate()` extension
-- [x] Unit tests: Duct element creates and updates MaskedTextBox
+- [x] Unit tests: Reactor element creates and updates MaskedTextBox
 - [x] Unit tests: incomplete mask produces warning message
 
 #### 2A.4 Common Mask Presets
@@ -309,7 +309,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 2B. InputFormatters (2–3 weeks)
 
 #### 2B.1 Formatter Infrastructure
-- [x] Create `Duct/Controls/Formatting/InputFormatter.cs`
+- [x] Create `Reactor/Controls/Formatting/InputFormatter.cs`
 - [x] Define formatter signature: `(string input, int cursorPos) → (string output, int newCursorPos)`
 - [x] Implement formatter pipeline: chain multiple formatters in sequence
 - [x] Implement bidirectional support: display value (formatted) vs. model value (raw)
@@ -349,7 +349,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 2C. Async AutoSuggest with Templates (3–4 weeks)
 
 #### 2C.1 AutoSuggest\<T\> Core
-- [x] Create `Duct/Controls/AutoSuggest.cs` (generic Duct element)
+- [x] Create `Reactor/Controls/AutoSuggest.cs` (generic Reactor element)
 - [x] Parameters: `selected`, `onSelected`, `search`, `displayText`, `placeholder`
 - [x] Wrap WinUI `AutoSuggestBox`
 - [x] Type-safe: `T` for selected item, search results are `IReadOnlyList<T>`
@@ -375,7 +375,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 
 #### 2C.4 Custom Item Templates
 - [x] `template: Func<T, Element>` parameter for custom suggestion rendering
-- [x] Wire to `AutoSuggestBox.ItemTemplate` (DataTemplate with Duct rendering)
+- [x] Wire to `AutoSuggestBox.ItemTemplate` (DataTemplate with Reactor rendering)
 - [x] `displayText: Func<T, string>` for selected item text
 - [x] Unit tests: custom template renders for each suggestion item
 
@@ -389,7 +389,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 2D. Focus Management — UseFocus (2–3 weeks)
 
 #### 2D.1 UseFocus Hook
-- [x] Create `Duct/Hooks/UseFocus.cs`
+- [x] Create `Reactor/Hooks/UseFocus.cs`
 - [x] Implement `UseFocus()` hook returning a `FocusManager` instance
 - [x] `FocusManager` tracks registered controls by field name
 - [x] Unit tests: hook creates FocusManager
@@ -430,7 +430,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 3A. Multi-Step Form Wizard (3–4 weeks)
 
 #### 3A.1 UseWizard Hook
-- [ ] Create `Duct/Hooks/UseWizard.cs`
+- [ ] Create `Reactor/Hooks/UseWizard.cs`
 - [ ] `UseWizard(params Step[] steps)` returns a `WizardState` instance
 - [ ] `Step(string title, Func<Element> render)` definition
 - [ ] State: `CurrentStepIndex`, `CanGoBack`, `CanGoNext`, `IsLastStep`, `IsFirstStep`
@@ -465,7 +465,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 3B. FieldArray — Dynamic Repeated Sections (3–4 weeks)
 
 #### 3B.1 UseFieldArray Hook
-- [ ] Create `Duct/Hooks/UseFieldArray.cs`
+- [ ] Create `Reactor/Hooks/UseFieldArray.cs`
 - [ ] `UseFieldArray<T>()` returns `FieldArrayState<T>`
 - [ ] `Fields` property: `IReadOnlyList<T>` of current items
 - [ ] Unit tests: initial empty array, initial with items
@@ -491,7 +491,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 3C. AutoForm — Schema-Driven Generation (4–6 weeks)
 
 #### 3C.1 Type Inspection
-- [ ] Create `Duct/Validation/AutoForm/TypeInspector.cs`
+- [ ] Create `Reactor/Validation/AutoForm/TypeInspector.cs`
 - [ ] Inspect C# record type via reflection
 - [ ] Read `DataAnnotations` attributes: `[Required]`, `[EmailAddress]`, `[StringLength]`, `[Range]`, `[AllowedValues]`
 - [ ] Read `[Display]` attribute: `Name`, `Prompt`, `Description`, `Order`, `GroupName`
@@ -506,7 +506,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 - [ ] Unit tests: type-to-control mapping for each supported type
 
 #### 3C.2 AutoForm Element
-- [ ] Create `Duct/Validation/AutoForm/AutoForm.cs` (Duct element)
+- [ ] Create `Reactor/Validation/AutoForm/AutoForm.cs` (Reactor element)
 - [ ] `AutoForm<T>(T value, Action<T> onChange, Action onSubmit, VisualizerStyle visualizer)`
 - [ ] Auto-generate form layout from type inspection
 - [ ] Wrap each field in `FormField` with label from `[Display(Name)]` or property name
@@ -527,7 +527,7 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 ### 3D. Inline Editable DataGrid (8–12 weeks — separate workstream)
 
 #### 3D.1 DataGrid Core
-- [ ] Create `Duct/Controls/DataGrid/DataGrid.cs` (WinUI control)
+- [ ] Create `Reactor/Controls/DataGrid/DataGrid.cs` (WinUI control)
 - [ ] Column definition API: `Column(string header, Func<T, object> binding)`
 - [ ] Read-only rendering: display tabular data
 - [ ] Row virtualization for performance (large datasets)
@@ -568,11 +568,11 @@ Derived from: `docs/proposals/forms-data-entry-ideas.md`
 - [ ] Unit tests: cell validation on edit
 - [ ] Integration test: edit + validate + save flow
 
-#### 3D.6 DataGrid Duct DSL
-- [ ] Wrap WinUI DataGrid control as Duct element
+#### 3D.6 DataGrid Reactor DSL
+- [ ] Wrap WinUI DataGrid control as Reactor element
 - [ ] Declarative column definitions with lambdas
-- [ ] Integrate with Duct state management (controlled selection, editing)
-- [ ] Unit tests: Duct DSL creates and updates DataGrid
+- [ ] Integrate with Reactor state management (controlled selection, editing)
+- [ ] Unit tests: Reactor DSL creates and updates DataGrid
 
 ---
 

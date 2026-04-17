@@ -1,18 +1,18 @@
 ---
 name: duct-app
 description: >
-  Create WinUI 3 desktop applications using the Duct (Functional UI) framework — a React-inspired
+  Create WinUI 3 desktop applications using the Reactor (Functional UI) framework — a React-inspired
   declarative C# projection over WinUI 3. No XAML, no data binding, no templates. Use when asked
-  to "create a Duct app", "build a desktop app with Duct", "make a WinUI app", or any request
-  involving the Duct framework. This skill contains the complete API reference, patterns, and
+  to "create a Reactor app", "build a desktop app with Reactor", "make a WinUI app", or any request
+  involving the Reactor framework. This skill contains the complete API reference, patterns, and
   project setup needed to generate correct Patch code in one shot.
 ---
 
-# Duct App Builder — Complete Reference for Code Generation
+# Reactor App Builder — Complete Reference for Code Generation
 
 ## What is Patch?
 
-Duct (Functional UI) is a **React-inspired functional projection for WinUI 3**. It replaces XAML
+Reactor (Functional UI) is a **React-inspired functional projection for WinUI 3**. It replaces XAML
 with pure C# using a declarative, component-based approach. Think of it as "React hooks + JSX,
 but in C# targeting native Windows controls."
 
@@ -39,7 +39,7 @@ re-renders automatically.
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.0-experimental6" />
-    <ProjectReference Include="..\Duct\Duct.csproj" />
+    <ProjectReference Include="..\Reactor\Reactor.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -52,15 +52,15 @@ re-renders automatically.
 ### Required Imports (top of every file)
 
 ```csharp
-using Duct;
-using Duct.Core;
-using Duct.Flex;                   // FlexDirection, FlexJustify, etc. (if using Flex layout)
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Layout;                   // FlexDirection, FlexJustify, etc. (if using Flex layout)
 using Microsoft.UI.Xaml;           // Thickness, HorizontalAlignment, VerticalAlignment
 using Microsoft.UI.Xaml.Controls;  // Orientation, InfoBarSeverity, etc. (if needed)
-using static Duct.UI;  // Brings Text(), Button(), VStack() etc. into scope
+using static Microsoft.UI.Reactor.Factories;  // Brings Text(), Button(), VStack() etc. into scope
 ```
 
-The `using static Duct.UI;` import is essential — it makes all DSL factory methods available
+The `using static Microsoft.UI.Reactor.Factories;` import is essential — it makes all DSL factory methods available
 as bare function calls (like JSX tags). The WinUI usings give you access to enums and structs
 like `Thickness`, `HorizontalAlignment`, and `Orientation` — Patch uses WinUI types directly.
 
@@ -68,10 +68,10 @@ like `Thickness`, `HorizontalAlignment`, and `Orientation` — Patch uses WinUI 
 
 ```csharp
 // Component root with all options
-DuctApp.Run<TRoot>(title: "Duct App", width: 1024, height: 768, fullScreen: false, configure: host => { });
+ReactorApp.Run<TRoot>(title: "Reactor App", width: 1024, height: 768, fullScreen: false, configure: host => { });
 
 // Inline render function root
-DuctApp.Run("Window Title", ctx => { ... }, width: 1024, height: 768, fullScreen: false);
+ReactorApp.Run("Window Title", ctx => { ... }, width: 1024, height: 768, fullScreen: false);
 ```
 
 The `configure` parameter gives access to the host, which exposes `host.Window` for
@@ -79,12 +79,12 @@ Mica backdrop, titlebar customization, etc.
 
 Example — component root (most common):
 ```csharp
-DuctApp.Run<MyRootComponent>("Window Title", width: 1024, height: 768);
+ReactorApp.Run<MyRootComponent>("Window Title", width: 1024, height: 768);
 ```
 
 Example — inline root (no component class needed):
 ```csharp
-DuctApp.Run("Window Title", ctx =>
+ReactorApp.Run("Window Title", ctx =>
 {
     var (msg, setMsg) = ctx.UseState("Hello!");
     return VStack(Text(msg), Button("Change", () => setMsg("Changed!")));
@@ -259,7 +259,7 @@ default if no provider exists. Re-renders automatically when the provided value 
 
 ```csharp
 // Define a context (static field, typically on a static class):
-public static readonly DuctContext<string> ThemeCtx = new("light");
+public static readonly Context<string> ThemeCtx = new("light");
 
 // Provide a value to a subtree (modifier on any element):
 VStack(
@@ -438,7 +438,7 @@ Column/row definition syntax:
 FlexPanel implements **CSS Flexbox** using a C# port of Meta's Yoga layout engine. If you know
 CSS Flexbox, you already know how this works — the property names map directly:
 
-| CSS Property | Duct Container Property | Duct Enum |
+| CSS Property | Reactor Container Property | Reactor Enum |
 |---|---|---|
 | `flex-direction` | `Direction` | `FlexDirection` { Row, RowReverse, Column, ColumnReverse } |
 | `justify-content` | `JustifyContent` | `FlexJustify` { FlexStart, Center, FlexEnd, SpaceBetween, SpaceAround, SpaceEvenly } |
@@ -517,7 +517,7 @@ FlexColumn(
 
 **Required imports for Flex:**
 ```csharp
-using Duct.Flex;  // FlexDirection, FlexJustify, FlexAlign, FlexWrap, FlexPositionType
+using Microsoft.UI.Reactor.Layout;  // FlexDirection, FlexJustify, FlexAlign, FlexWrap, FlexPositionType
 ```
 
 ### Navigation
@@ -864,7 +864,7 @@ FontWeights.Bold
 FontWeights.SemiBold
 FontWeights.Normal
 
-// Duct.Flex namespace (for Flex layout):
+// Reactor.Flex namespace (for Flex layout):
 FlexDirection            { Column, ColumnReverse, Row, RowReverse }
 FlexJustify              { FlexStart, Center, FlexEnd, SpaceBetween, SpaceAround, SpaceEvenly }
 FlexAlign                { FlexStart, Center, FlexEnd, Stretch, Baseline, SpaceBetween, SpaceAround, SpaceEvenly }
@@ -1236,32 +1236,32 @@ FlexRow(
 
 ## Testing Your Changes
 
-Duct has **three test suites**. Run the right one for what you changed.
+Reactor has **three test suites**. Run the right one for what you changed.
 
 ### 1. Unit tests — fast, no UI window (~3s)
 ```bash
-dotnet test tests/Duct.Tests
+dotnet test tests/Reactor.Tests
 ```
 Run after **any** code change. Covers reconciliation, elements, hooks, Yoga layout (2,200+ tests).
 
 ### 2. Selfhost tests — real WinUI controls, in-process (~15s)
 ```bash
-dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.SelfTestBatch"
+dotnet test tests/Reactor.AppTests --filter "ClassName=Reactor.AppTests.Tests.SelfTestBatch"
 ```
 Run after **reconciler, control mount/update, or UI changes**. 60+ fixtures that mount real controls and assert via `VisualTreeHelper`. This is the only way to test the diff engine end-to-end.
 
 ### 3. Appium / E2E tests — cross-process UI Automation (~30s)
 ```bash
-dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.InteractiveTests"
+dotnet test tests/Reactor.AppTests --filter "ClassName=Reactor.AppTests.Tests.InteractiveTests"
 ```
 Run before **shipping**. Requires [WinAppDriver](https://github.com/microsoft/WinAppDriver/releases).
 
 ### Run everything
 ```bash
-dotnet test Duct.sln
+dotnet test Reactor.sln
 ```
 
-> **Note:** `samples/Duct.TestApp` is the interactive demo app, not a test runner. All tests live in `tests/`.
+> **Note:** `samples/Reactor.TestApp` is the interactive demo app, not a test runner. All tests live in `tests/`.
 
 ---
 
@@ -1323,7 +1323,7 @@ InfoBar("Title", "Msg") with { Severity = InfoBarSeverity.Warning, IsClosable = 
 ```
 
 ### 6. No XAML, No App.xaml, No Resources
-Patch apps have zero XAML files. The `DuctApplication` class loads `XamlControlsResources`
+Patch apps have zero XAML files. The `ReactorApplication` class loads `XamlControlsResources`
 programmatically. WinUI theme resources (Fluent design) are automatically available.
 
 ### 7. Icons Use Symbol Enum Names
@@ -1345,13 +1345,13 @@ new Thickness(10, 20, 10, 20)       // left, top, right, bottom
 ## Complete Starter App Template
 
 ```csharp
-// App.cs — A complete Duct application in a single file
-using Duct;
-using Duct.Core;
+// App.cs — A complete Reactor application in a single file
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-DuctApp.Run<App>("My Duct App", width: 1200, height: 800);
+ReactorApp.Run<App>("My Reactor App", width: 1200, height: 800);
 
 class App : Component
 {
@@ -1401,7 +1401,7 @@ class HomePage : Component
                 TextField(name, setName, placeholder: "Enter your name").Width(300),
                 When(!string.IsNullOrEmpty(name), () => Text($"Hello, {name}!").SemiBold())
             ),
-            Text("This is a Duct application — no XAML, just C#.").Opacity(0.6)
+            Text("This is a Reactor application — no XAML, just C#.").Opacity(0.6)
         );
     }
 }
@@ -1472,19 +1472,19 @@ class SettingsPage : Component
 | `{items.map(i => <X/>)}` | `items.Select(i => X()).ToArray()` or `ForEach(items, i => X())` |
 | `<Component />` | `Component<MyComponent>()` |
 | `props` | `Component<TProps>` — typed props via `Props` property |
-| `createContext` + `useContext` | `DuctContext<T>` + `.Provide()` + `UseContext()` |
+| `createContext` + `useContext` | `Context<T>` + `.Provide()` + `UseContext()` |
 | `React.memo()` | Auto — propless components skip by default; `Memo()` for function components |
 | `className="..."` | `.Set(el => ...)` for native property access |
 | `display: flex` | `Flex()` / `FlexRow()` / `FlexColumn()` |
 | `flex-grow: 1` | `.Flex(grow: 1)` |
 | `style={{margin: 10}}` | `.Margin(10)` |
-| JSX | C# method calls + `using static Duct.UI` |
+| JSX | C# method calls + `using static Reactor.UI` |
 
 ## Commands
 
 ### When to Use Commands vs Bare Actions
 
-Use **DuctCommand** when:
+Use **Command** when:
 - An action appears in multiple surfaces (toolbar, menu, context menu)
 - The action needs a keyboard shortcut
 - The action needs CanExecute disabling (e.g., "Copy" disabled when no selection)
@@ -1494,12 +1494,12 @@ Use **bare `Action`** when:
 - Simple one-off button click with no reuse
 - No need for metadata, keyboard shortcuts, or enabled/disabled state
 
-### DuctCommand Record
+### Command Record
 
 Immutable command descriptor that bundles an action with metadata:
 
 ```csharp
-var save = new DuctCommand
+var save = new Command
 {
     Label = "Save",                           // required
     Execute = () => Save(),                   // sync action (mutually exclusive with ExecuteAsync)
@@ -1514,12 +1514,12 @@ var save = new DuctCommand
 // Computed: IsEnabled = CanExecute && !IsExecuting
 ```
 
-### DuctCommand\<T\> — Parameterized Commands
+### Command\<T\> — Parameterized Commands
 
-Same as DuctCommand but Execute/ExecuteAsync receive a parameter:
+Same as Command but Execute/ExecuteAsync receive a parameter:
 
 ```csharp
-var delete = new DuctCommand<Item>
+var delete = new Command<Item>
 {
     Label = "Delete",
     Execute = item => Remove(item),
@@ -1630,14 +1630,14 @@ CommandHost([save, undo],
 
 Only commands with an `Accelerator` register keyboard accelerators. Commands without accelerators are ignored by CommandHost.
 
-### Context-Based Command Sharing via DuctContext
+### Context-Based Command Sharing via Context
 
 Editor-provides / toolbar-consumes pattern:
 
 ```csharp
 // 1. Define a command set record and context
-record EditorCommands(DuctCommand Save, DuctCommand Undo, DuctCommand Redo);
-static readonly DuctContext<EditorCommands?> EditorCtx = new(null);
+record EditorCommands(Command Save, Command Undo, Command Redo);
+static readonly Context<EditorCommands?> EditorCtx = new(null);
 
 // 2. Editor provides commands
 class Editor : Component
@@ -1672,7 +1672,7 @@ class Toolbar : Component
 
 ### CommandInterop.FromCommand — ICommand Migration
 
-Bridge existing ICommand (MVVM/CommunityToolkit) to DuctCommand:
+Bridge existing ICommand (MVVM/CommunityToolkit) to Command:
 
 ```csharp
 var ductCmd = CommandInterop.FromCommand(
@@ -1702,7 +1702,7 @@ For lightweight demos and quick prototypes, you can skip the full `.csproj` setu
 Add this header block at the very top of your `.cs` file:
 
 ```csharp
-#:project C:\Users\andersonch\Code\patch3\Duct
+#:project C:\Users\andersonch\Code\patch3\Reactor
 #:package Microsoft.WindowsAppSDK@2.0.0-experimental6
 #:property OutputType=WinExe
 #:property TargetFramework=net9.0-windows10.0.22621.0
@@ -1712,7 +1712,7 @@ Add this header block at the very top of your `.cs` file:
 #:property RuntimeIdentifier=win-arm64
 ```
 
-> **Note:** The `#:project` path must be the fully qualified path to the `Duct` folder in your
+> **Note:** The `#:project` path must be the fully qualified path to the `Reactor` folder in your
 > cloned copy of this repo. Adjust accordingly if your clone is in a different location.
 >
 > **Note:** The `RuntimeIdentifier` must match the native processor architecture of the local
@@ -1732,10 +1732,10 @@ No `.csproj`, no solution file, no project scaffolding — just one `.cs` file a
 > error output, fix the `.cs` file, and retry. Do not assume the app launched successfully without
 > checking the output.
 
-### Example — minimal single-file Duct app
+### Example — minimal single-file Reactor app
 
 ```csharp
-#:project C:\Users\andersonch\Code\patch3\Duct
+#:project C:\Users\andersonch\Code\patch3\Reactor
 #:package Microsoft.WindowsAppSDK@2.0.0-experimental6
 #:property OutputType=WinExe
 #:property TargetFramework=net9.0-windows10.0.22621.0
@@ -1744,10 +1744,10 @@ No `.csproj`, no solution file, no project scaffolding — just one `.cs` file a
 #:property WindowsAppSDKSelfContained=true
 #:property RuntimeIdentifier=win-arm64
 
-using Duct;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using static Microsoft.UI.Reactor.Factories;
 
-DuctApp.Run("Hello Duct", ctx =>
+ReactorApp.Run("Hello Reactor", ctx =>
 {
     var (count, setCount) = ctx.UseState(0);
     return VStack(
@@ -1761,7 +1761,7 @@ DuctApp.Run("Hello Duct", ctx =>
 
 ## On-the-Fly Data Visualization with Code Gen
 
-You can generate throwaway Duct apps on the fly to visualize data. The workflow:
+You can generate throwaway Reactor apps on the fly to visualize data. The workflow:
 
 1. **Generate** a `.cs` file into `C:\temp\<somename>\Program.cs` with the single-file header above
 2. **Run** it with `dotnet run`
@@ -1770,16 +1770,16 @@ You can generate throwaway Duct apps on the fly to visualize data. The workflow:
 ### Passing data via command-line arguments
 
 To visualize arbitrary data (charts, grids, tables), generate a `.cs` file that reads
-`args` (or `Environment.GetCommandLineArgs()`) and feeds that data into Duct components. This
+`args` (or `Environment.GetCommandLineArgs()`) and feeds that data into Reactor components. This
 lets you pipe data from any source into a live desktop UI.
 
 For example, to show a chart or data grid:
 - Generate a `.cs` file that parses CSV, JSON, or delimited values from `args`
-- Use `DataGrid`, chart controls, or any Duct layout to render the data
+- Use `DataGrid`, chart controls, or any Reactor layout to render the data
 - Run it with `dotnet run -- "arg1" "arg2" ...`
 
 ```csharp
-#:project C:\Users\andersonch\Code\patch3\Duct
+#:project C:\Users\andersonch\Code\patch3\Reactor
 #:package Microsoft.WindowsAppSDK@2.0.0-experimental6
 #:property OutputType=WinExe
 #:property TargetFramework=net9.0-windows10.0.22621.0
@@ -1788,16 +1788,16 @@ For example, to show a chart or data grid:
 #:property WindowsAppSDKSelfContained=true
 #:property RuntimeIdentifier=win-arm64
 
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 
 // Parse args — e.g. "Name:Alice:90,Bob:75,Charlie:88"
 var data = args.Length > 0
     ? args[0].Split(',').Select(r => r.Split(':')).Select(p => (p[0], int.Parse(p[1])))
     : [("Sample", 42)];
 
-DuctApp.Run("Data Viewer", ctx =>
+ReactorApp.Run("Data Viewer", ctx =>
 {
     return VStack(
         Text("Results").FontSize(20).Bold(),

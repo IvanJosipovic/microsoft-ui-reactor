@@ -1,8 +1,8 @@
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctOutlook.Components;
+namespace ReactorOutlook.Components;
 
 internal sealed record ThreePaneSplitProps(
     Element Left,

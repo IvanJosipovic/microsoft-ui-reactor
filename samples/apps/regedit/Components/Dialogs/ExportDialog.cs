@@ -1,9 +1,9 @@
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctRegedit.Components.Dialogs;
+namespace ReactorRegedit.Components.Dialogs;
 
 internal sealed record ExportDialogProps(
     bool IsOpen,
@@ -22,7 +22,7 @@ internal sealed class ExportDialog : Component<ExportDialogProps>
             Strings.ExportTitle,
             VStack(12,
                 VStack(4,
-                    Text(Strings.ExportRange),
+                    Factories.Text(Strings.ExportRange),
                     RadioButton(Strings.All,
                         Props.ExportAll,
                         _ => Props.OnExportAllChanged(true),

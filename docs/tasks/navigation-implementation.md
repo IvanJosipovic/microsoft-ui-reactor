@@ -1,4 +1,4 @@
-# Duct Navigation System — Implementation Tasks
+# Reactor Navigation System — Implementation Tasks
 
 Reference: [docs/spec/duct-navigation-design.md](../spec/duct-navigation-design.md)
 
@@ -8,18 +8,18 @@ Tests are classified by the infrastructure they require:
 
 | Level | Project | What it needs | Speed | When to use |
 |---|---|---|---|---|
-| **Unit** | `Duct.Tests` (xUnit) | `NavigationStack`, `NavigationHandle`, `DeepLinkMap`, record equality, pure logic. No reconciler, no WinUI control tree. | Fast | Stack operations, guard logic, serialization, route matching |
-| **Self-host** | `Duct.Tests` (xUnit) | Reconciler + WinUI controls instantiated in-process. No visible window, no event loop. | Medium | `NavigationHost` mount/update/unmount, content switching, lifecycle hooks, context propagation, cache eviction |
-| **E2E Appium** | `Duct.AppTests` (MSTest + Appium) | Full app launched, WinAppDriver out-of-process automation. | **Slow** | Navigation transitions visible to user, back button UIA, NavigationView selection sync, system back button integration |
+| **Unit** | `Reactor.Tests` (xUnit) | `NavigationStack`, `NavigationHandle`, `DeepLinkMap`, record equality, pure logic. No reconciler, no WinUI control tree. | Fast | Stack operations, guard logic, serialization, route matching |
+| **Self-host** | `Reactor.Tests` (xUnit) | Reconciler + WinUI controls instantiated in-process. No visible window, no event loop. | Medium | `NavigationHost` mount/update/unmount, content switching, lifecycle hooks, context propagation, cache eviction |
+| **E2E Appium** | `Reactor.AppTests` (MSTest + Appium) | Full app launched, WinAppDriver out-of-process automation. | **Slow** | Navigation transitions visible to user, back button UIA, NavigationView selection sync, system back button integration |
 
 ---
 
 ## Phase 1: NavigationStack & NavigationHandle (Pure Logic)
 
-Scope: New files in `Duct/Core/Navigation/`. No reconciler changes. Pure C# data structures and logic.
+Scope: New files in `Reactor/Core/Navigation/`. No reconciler changes. Pure C# data structures and logic.
 
 ### 1.1 NavigationStack\<TRoute\> internal class
-- [x] Create `Duct/Core/Navigation/NavigationStack.cs`
+- [x] Create `Reactor/Core/Navigation/NavigationStack.cs`
 - [x] Private fields: `List<TRoute> _backStack`, `TRoute _current`, `List<TRoute> _forwardStack`
 - [x] Constructor: `NavigationStack(TRoute initial)` — sets `_current`, empty back/forward
 - [x] `TRoute Current` property
@@ -45,7 +45,7 @@ Scope: New files in `Duct/Core/Navigation/`. No reconciler changes. Pure C# data
 - [x] `NavigationMode` enum: `Push`, `Pop`, `Replace`, `Reset`, `Forward`
 
 ### 1.4 NavigationHandle\<TRoute\> public API
-- [x] Create `Duct/Core/Navigation/NavigationHandle.cs`
+- [x] Create `Reactor/Core/Navigation/NavigationHandle.cs`
 - [x] Wraps `NavigationStack<TRoute>` with public readonly + action API
 - [x] Properties: `CurrentRoute`, `CanGoBack`, `CanGoForward`, `BackStack`, `ForwardStack`, `Depth`
 - [x] Methods: `Navigate(TRoute, NavigateOptions?)`, `GoBack()`, `GoForward()`, `Replace(TRoute)`, `Reset(TRoute)`, `PopTo(Func<TRoute, bool>)`
@@ -55,7 +55,7 @@ Scope: New files in `Duct/Core/Navigation/`. No reconciler changes. Pure C# data
 - [x] When `PushToBackStack` is false, call `Replace` instead of `Push` internally
 
 ### 1.5 NavigationTransition type hierarchy (stubs)
-- [x] Create `Duct/Core/Navigation/NavigationTransition.cs`
+- [x] Create `Reactor/Core/Navigation/NavigationTransition.cs`
 - [x] Abstract record `NavigationTransition` with static factory methods (stubs — animation logic deferred to Phase 3)
 - [x] `static readonly NavigationTransition Default` → `new SlideTransition()`
 - [x] `static readonly NavigationTransition None` → `new SuppressTransition()`
@@ -70,7 +70,7 @@ Scope: New files in `Duct/Core/Navigation/`. No reconciler changes. Pure C# data
 
 ### 1.6 Phase 1 tests — NavigationStack (unit)
 
-All Phase 1 tests are **unit tests** (`Duct.Tests`). No reconciler, no WinUI controls, no UI thread.
+All Phase 1 tests are **unit tests** (`Reactor.Tests`). No reconciler, no WinUI controls, no UI thread.
 
 **Stack operations:**
 - [x] Test: Push adds to back stack and sets new current
@@ -105,17 +105,17 @@ All Phase 1 tests are **unit tests** (`Duct.Tests`). No reconciler, no WinUI con
 
 ## Phase 2: UseNavigation Hook & NavigationHost Element
 
-Scope: Wire navigation into Duct's hook system, element tree, and reconciler. Depends on Phase 1.
+Scope: Wire navigation into Reactor's hook system, element tree, and reconciler. Depends on Phase 1.
 
-### 2.1 NavigationContext for DuctContext
-- [x] Create `NavigationContext<TRoute>` as a `DuctContext<NavigationHandle<TRoute>>` instance
-- [x] Ensure type-erased storage works with Duct's existing context system
-- [x] Consider static cache of `DuctContext` instances per TRoute type (avoid allocating per render)
+### 2.1 NavigationContext for Context
+- [x] Create `NavigationContext<TRoute>` as a `Context<NavigationHandle<TRoute>>` instance
+- [x] Ensure type-erased storage works with Reactor's existing context system
+- [x] Consider static cache of `Context` instances per TRoute type (avoid allocating per render)
 
 ### 2.2 UseNavigation\<TRoute\> hook — root mode
 - [x] Add `UseNavigation<TRoute>(TRoute initial)` to `RenderContext.cs`
 - [x] Root mode (initial provided): allocate `NavigationStack<TRoute>` via `UseRef`, wrap in `NavigationHandle<TRoute>`
-- [x] Publish handle via `DuctContext<NavigationHandle<TRoute>>` using `.Provide()` on the subtree
+- [x] Publish handle via `Context<NavigationHandle<TRoute>>` using `.Provide()` on the subtree
 - [x] Wire `NavigationStack.OnChanged` to `_requestRerender` so navigation mutations trigger re-render
 - [x] Add convenience method on `Component`: `UseNavigation<TRoute>(TRoute initial)` delegating to `RenderContext`
 
@@ -125,7 +125,7 @@ Scope: Wire navigation into Duct's hook system, element tree, and reconciler. De
 - [x] Add convenience method on `Component`: `UseNavigation<TRoute>()` (parameterless overload)
 
 ### 2.4 NavigationHostElement record
-- [x] Add `NavigationHostElement` record to `Duct/Core/Element.cs` (or new file in Navigation/)
+- [x] Add `NavigationHostElement` record to `Reactor/Core/Element.cs` (or new file in Navigation/)
 - [x] Fields: `object NavigationHandle` (type-erased), `Func<object, Element> RouteMap`
 - [x] Properties: `NavigationTransition Transition` (default: `NavigationTransition.Default`), `NavigationCacheMode CacheMode` (default: `Disabled`), `int CacheSize` (default: 10)
 
@@ -179,7 +179,7 @@ Scope: Wire navigation into Duct's hook system, element tree, and reconciler. De
 Scope: `UseNavigationLifecycle` hook for components to respond to navigation events. Depends on Phase 2.
 
 ### 3.1 Lifecycle context types
-- [x] Create `Duct/Core/Navigation/NavigationLifecycle.cs`
+- [x] Create `Reactor/Core/Navigation/NavigationLifecycle.cs`
 - [x] `NavigatedToContext` class: `Route`, `PreviousRoute`, `Mode`
 - [x] `NavigatingFromContext` class: `Route`, `TargetRoute`, `Mode`, `IsCancelled`, `Cancel()` (already existed in NavigationStack.cs from Phase 1)
 - [x] `NavigatedFromContext` class: `Route`, `TargetRoute`, `Mode`
@@ -216,7 +216,7 @@ Scope: `UseNavigationLifecycle` hook for components to respond to navigation eve
 Scope: GPU-accelerated transition animations between pages. Depends on Phase 2 (NavigationHost rendering).
 
 ### 4.1 TransitionEngine
-- [x] Create `Duct/Core/Navigation/TransitionEngine.cs`
+- [x] Create `Reactor/Core/Navigation/TransitionEngine.cs`
 - [x] `RunTransition(Visual outgoing, Visual incoming, NavigationTransition transition, NavigationMode mode)` method
 - [x] Create `CompositionScopedBatch` for coordinating exit + enter animations
 - [x] `batch.Completed` callback to finalize: remove outgoing, set incoming to full opacity
@@ -279,7 +279,7 @@ Scope: GPU-accelerated transition animations between pages. Depends on Phase 2 (
 Scope: LRU cache for component instances across navigation. Depends on Phase 2 (NavigationHost).
 
 ### 5.1 NavigationCache internal class
-- [x] Create `Duct/Core/Navigation/NavigationCache.cs`
+- [x] Create `Reactor/Core/Navigation/NavigationCache.cs`
 - [x] `CachedPage` struct: `UIElement MountedControl`, `Element LastElement`, `DateTime LastAccessed`, `CacheMode`
 - [x] `Dictionary<object, CachedPage> _cache` keyed by route (structural equality)
 - [x] `int MaxSize` from `NavigationHostElement.CacheSize`
@@ -321,7 +321,7 @@ Scope: Persist and restore navigation state; map URIs to routes. Depends on Phas
 - [x] `SetState` fires `Navigated` event with `Mode = Reset`
 
 ### 6.2 DeepLinkMap\<TRoute\>
-- [x] Create `Duct/Core/Navigation/DeepLinkMap.cs`
+- [x] Create `Reactor/Core/Navigation/DeepLinkMap.cs`
 - [x] `Map(string pattern, Func<RouteArgs, TRoute> factory)` — register URI pattern to route constructor
 - [x] URI pattern syntax: `/segment/{param:type}` with type constraints (`int`, `string`)
 - [x] `RouteArgs` class with `Get<T>(string name)` for typed parameter access
@@ -410,8 +410,8 @@ Scope: Standalone sample demonstrating all navigation features. Also update exis
 - [x] State serialization (restore on relaunch)
 - [x] System back button (Alt+Left, title bar)
 
-### 8.3 Update Duct.TestApp to use navigation
-- [x] Add "Navigation" tab to the existing DemoApp tab bar (`samples/Duct.TestApp/App.cs`)
+### 8.3 Update Reactor.TestApp to use navigation
+- [x] Add "Navigation" tab to the existing DemoApp tab bar (`samples/Reactor.TestApp/App.cs`)
 - [x] Create `NavigationDemo` component demonstrating basic UseNavigation + NavigationHost
 - [x] Show a simple 3-page flow: Home → Detail → Settings with back navigation
 - [x] Replaces manual `UseState<string>` page switching with proper navigation
@@ -423,9 +423,9 @@ Scope: Standalone sample demonstrating all navigation features. Also update exis
 - [x] Wire `NavigationView.OnSelectionChanged` to `nav.Navigate()`
 - [x] Add slide transition between Mail and Calendar views
 
-### 8.5 Update Duct.TestApp to use NavigationView (optional)
+### 8.5 Update Reactor.TestApp to use NavigationView (optional)
 - [x] Consider replacing the manual tab bar in `DemoApp.Render()` with `NavigationView` + `NavigationHost`
-- **Decision: Skipped.** The selfhost test fixtures in `tests/Duct.AppTests.Host` rely on exact button label matching and disabled state to identify tabs. Converting to NavigationView would break those checks for "Counter", "Todo List", etc. The existing tab bar pattern is preserved; the new "Navigation" tab demonstrates the navigation system within the existing shell.
+- **Decision: Skipped.** The selfhost test fixtures in `tests/Reactor.AppTests.Host` rely on exact button label matching and disabled state to identify tabs. Converting to NavigationView would break those checks for "Counter", "Todo List", etc. The existing tab bar pattern is preserved; the new "Navigation" tab demonstrates the navigation system within the existing shell.
 
 ---
 
@@ -434,11 +434,11 @@ Scope: Standalone sample demonstrating all navigation features. Also update exis
 Scope: End-to-end tests using the full app + WinAppDriver for user-visible navigation behavior.
 
 ### 9.1 Update NavigationFixtures for Appium
-- [x] Update `tests/Duct.AppTests.Host/Fixtures/NavigationFixtures.cs` to use `UseNavigation` + `NavigationHost` instead of manual `UseState` tab switching
+- [x] Update `tests/Reactor.AppTests.Host/Fixtures/NavigationFixtures.cs` to use `UseNavigation` + `NavigationHost` instead of manual `UseState` tab switching
 - [x] Add fixture for multi-level navigation (Home → List → Detail → Related)
 - [x] Add fixture for navigation with guards (cancel navigation)
 - [x] Add fixture for NavigationView + NavigationHost integration
-- [x] Add SelfTest variants in `tests/Duct.AppTests.Host/SelfTest/Fixtures/NavigationFixtures.cs`
+- [x] Add SelfTest variants in `tests/Reactor.AppTests.Host/SelfTest/Fixtures/NavigationFixtures.cs`
 
 ### 9.2 E2E Appium test cases
 - [ ] Test: NavigationView item click navigates to correct page (verify UIA content changes)
@@ -480,8 +480,8 @@ Scope: Update documentation and AI skills guidance.
 - [x] Document the `NavigationHost` DSL signature and all `with { }` options
 
 ### 10.3 Regression testing
-- [x] Run full `Duct.Tests` suite — all existing tests pass (1 pre-existing failure in PersistedStateTests unrelated to navigation)
-- [ ] Run full `Duct.AppTests` E2E suite — no regressions (requires WinAppDriver)
+- [x] Run full `Reactor.Tests` suite — all existing tests pass (1 pre-existing failure in PersistedStateTests unrelated to navigation)
+- [ ] Run full `Reactor.AppTests` E2E suite — no regressions (requires WinAppDriver)
 - [x] Run all sample apps — verify they build and compile correctly
 - [ ] Performance check: navigation sample with 10+ pages, rapid forward/back doesn't leak memory
 

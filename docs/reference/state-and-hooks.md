@@ -1,6 +1,6 @@
 # State & Hooks Reference
 
-Duct uses a hooks system inspired by React. All state is managed through hook methods called during `Render()`. Hooks keep state co-located with render logic — no separate ViewModel classes, no `INotifyPropertyChanged` boilerplate.
+Reactor uses a hooks system inspired by React. All state is managed through hook methods called during `Render()`. Hooks keep state co-located with render logic — no separate ViewModel classes, no `INotifyPropertyChanged` boilerplate.
 
 ## How hooks work internally
 
@@ -190,7 +190,7 @@ Understanding the full render cycle helps when debugging:
    └─ RequestRender() enqueued via DispatcherQueue
 
 2. DispatcherQueue fires (batched — multiple setters collapse into one render)
-   └─ DuctHost.RenderLoop()
+   └─ ReactorHost.RenderLoop()
 
 3. Render phase
    └─ component.Render() called

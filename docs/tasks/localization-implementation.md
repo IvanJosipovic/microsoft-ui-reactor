@@ -1,4 +1,4 @@
-# Duct Localization System — Implementation Tasks
+# Reactor Localization System — Implementation Tasks
 
 Reference: [docs/spec/duct-localization-design.md](../spec/duct-localization-design.md)
 
@@ -9,14 +9,14 @@ Reference: [docs/spec/duct-localization-design.md](../spec/duct-localization-des
 ## Phase 1: Foundation (Runtime Core)
 
 ### 1.1 Core Types & Interfaces
-- [x] Add `MessageFormat` NuGet package dependency to `Duct.csproj`
-- [x] Create `Duct/Core/Localization/MessageKey.cs` — record struct with `Namespace` and `Key` properties
-- [x] Create `Duct/Core/Localization/NumberFormatOptions.cs` — options type with `NumberStyle` enum (Default, Currency, Percent)
-- [x] Create `Duct/Core/Localization/DateFormatOptions.cs` — options type with `DateStyle` enum (Short, Long, Full, Default)
-- [x] Create `Duct/Core/Localization/ListFormatType.cs` — enum (Conjunction, Disjunction)
+- [x] Add `MessageFormat` NuGet package dependency to `Reactor.csproj`
+- [x] Create `Reactor/Core/Localization/MessageKey.cs` — record struct with `Namespace` and `Key` properties
+- [x] Create `Reactor/Core/Localization/NumberFormatOptions.cs` — options type with `NumberStyle` enum (Default, Currency, Percent)
+- [x] Create `Reactor/Core/Localization/DateFormatOptions.cs` — options type with `DateStyle` enum (Short, Long, Full, Default)
+- [x] Create `Reactor/Core/Localization/ListFormatType.cs` — enum (Conjunction, Disjunction)
 
 ### 1.2 IntlAccessor
-- [x] Create `Duct/Core/Localization/IntlAccessor.cs` implementing the full API:
+- [x] Create `Reactor/Core/Localization/IntlAccessor.cs` implementing the full API:
   - `Locale` property (string)
   - `Direction` property (FlowDirection)
   - `IsRtl` convenience property
@@ -24,22 +24,22 @@ Reference: [docs/spec/duct-localization-design.md](../spec/duct-localization-des
   - `FormatNumber(double value, NumberFormatOptions? options = null)` — delegates to .NET CultureInfo
   - `FormatDate(DateTimeOffset value, DateFormatOptions? options = null)` — delegates to .NET CultureInfo
   - `FormatList(IEnumerable<string> values, ListFormatType type)` — locale-aware list join
-- [x] Create `Duct/Core/Localization/RtlHelper.cs` — static `IsRtlLocale(string locale)` with CLDR-sourced RTL language set
+- [x] Create `Reactor/Core/Localization/RtlHelper.cs` — static `IsRtlLocale(string locale)` with CLDR-sourced RTL language set
 
 ### 1.3 ICU Message Cache
-- [x] Create `Duct/Core/Localization/MessageCache.cs` — `ConcurrentDictionary<(string locale, string key), compiled>` caching parsed ICU patterns
+- [x] Create `Reactor/Core/Localization/MessageCache.cs` — `ConcurrentDictionary<(string locale, string key), compiled>` caching parsed ICU patterns
 - [x] Wire `MessageFormat` engine into cache: parse on first access, reuse thereafter
 - [x] Add `Flush()` and `Flush(string locale)` methods for locale switching / hot reload
 
 ### 1.4 ResourceLoader Integration
-- [x] Create `Duct/Core/Localization/IStringResourceProvider.cs` — interface abstracting string loading (enables testing without MRT)
-- [x] Create `Duct/Core/Localization/ReswResourceProvider.cs` — implementation wrapping WinUI `ResourceLoader`
+- [x] Create `Reactor/Core/Localization/IStringResourceProvider.cs` — interface abstracting string loading (enables testing without MRT)
+- [x] Create `Reactor/Core/Localization/ReswResourceProvider.cs` — implementation wrapping WinUI `ResourceLoader`
   - Handles namespace-to-ResourceLoader mapping (single `Resources.resw` vs. multiple named `.resw` files)
   - Falls back to default locale when key is missing in current locale
-- [x] Add debug-mode logging for missing keys: `[Duct.Intl] Missing key '{ns}.{key}' for locale '{locale}', falling back to en-US`
+- [x] Add debug-mode logging for missing keys: `[Reactor.Intl] Missing key '{ns}.{key}' for locale '{locale}', falling back to en-US`
 
 ### 1.5 LocaleProvider Element
-- [x] Create `Duct/Elements/LocaleProviderElement.cs` — Duct element that:
+- [x] Create `Reactor/Elements/LocaleProviderElement.cs` — Reactor element that:
   - Stores locale string in context
   - Creates/caches `IntlAccessor` for the active locale
   - Sets `FlowDirection` on the root WinUI element when locale changes
@@ -75,9 +75,9 @@ Reference: [docs/spec/duct-localization-design.md](../spec/duct-localization-des
 ## Phase 2: Source Generator + Pseudolocalization
 
 ### 2.1 Source Generator Project Setup
-- [x] Create new project `Duct.Localization.Generator` (C# source generator, targets `netstandard2.0`)
-- [x] Add to `Duct.sln`
-- [x] Reference from `Duct.csproj` as analyzer/source generator
+- [x] Create new project `Reactor.Localization.Generator` (C# source generator, targets `netstandard2.0`)
+- [x] Add to `Reactor.sln`
+- [x] Reference from `Reactor.csproj` as analyzer/source generator
 
 ### 2.2 .resw Parser
 - [x] Implement `.resw` XML parser in the generator — reads `<data name="..."><value>...</value></data>` entries
@@ -94,16 +94,16 @@ Reference: [docs/spec/duct-localization-design.md](../spec/duct-localization-des
 ### 2.4 Missing Key Diagnostics
 - [x] Cross-reference all locale folders at build time
 - [x] Emit `DUCT_LOC001` warning for keys in default locale missing in other locales
-- [x] Support `DuctLocMissingKeySeverity` MSBuild property to promote warnings to errors
+- [x] Support `ReactorLocMissingKeySeverity` MSBuild property to promote warnings to errors
 
 ### 2.5 MSBuild Integration
-- [x] Add `DuctLocDefaultLocale` property (default: `en-US`)
-- [x] Add `DuctLocStringsPath` property (default: `Strings/`)
+- [x] Add `ReactorLocDefaultLocale` property (default: `en-US`)
+- [x] Add `ReactorLocStringsPath` property (default: `Strings/`)
 - [x] Wire `.resw` files as `AdditionalFiles` for the source generator to consume
-- [x] Add `DuctPseudoLocalize` MSBuild property
+- [x] Add `ReactorPseudoLocalize` MSBuild property
 
 ### 2.6 Pseudolocalization
-- [x] Create `Duct/Core/Localization/PseudoLocalizer.cs` — transforms strings:
+- [x] Create `Reactor/Core/Localization/PseudoLocalizer.cs` — transforms strings:
   - ASCII -> accented equivalents (a->å, e->é, etc.)
   - Wrap in `[!! ... !!]` markers
   - Pad ~30% longer to simulate expansion
@@ -126,13 +126,13 @@ Reference: [docs/spec/duct-localization-design.md](../spec/duct-localization-des
 ## Phase 3: CLI — Extract
 
 ### 3.1 CLI Project Setup
-- [x] Create new project `Duct.Cli` (console app, `dotnet tool` packaging)
+- [x] Create new project `Reactor.Cli` (console app, `dotnet tool` packaging)
 - [x] Add Roslyn (`Microsoft.CodeAnalysis.CSharp`) dependency for AST parsing
 - [x] Set up `duct-loc` command structure with subcommands: `extract`, `translate`, `validate`, `status`, `prune`
 
 ### 3.2 AST Scanner
 - [x] Implement Roslyn-based scanner that parses `.cs` files and walks the syntax tree
-- [x] Detect Duct DSL patterns — localizable call sites:
+- [x] Detect Reactor DSL patterns — localizable call sites:
   - `Text(literal)`, `Heading(literal)`, `Button(literal, ...)`
   - `.Placeholder(literal)`, `.Header(literal)`, `.ToolTip(literal)`, `.Title(literal)`
   - `.AutomationName(literal)` (localizable), `.HelpText(literal)` (localizable)

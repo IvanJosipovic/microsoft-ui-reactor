@@ -6,7 +6,7 @@ app:
 
 screenshots:
   - id: island-control
-    description: "Duct counter component hosted inside a WinForms form"
+    description: "Reactor counter component hosted inside a WinForms form"
     component: WinFormsHostDemo
     region: window
     format: png
@@ -15,7 +15,7 @@ screenshots:
     region: window
     format: png
   - id: background
-    description: "Duct component with explicit theme-aware background in WinForms"
+    description: "Reactor component with explicit theme-aware background in WinForms"
     component: BackgroundDemo
     region: client
     format: png

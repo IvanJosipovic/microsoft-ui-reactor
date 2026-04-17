@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 using Microsoft.UI.Xaml;
 using Windows.System;
 
-DuctApp.Run<CommandingApp>("Commanding", width: 650, height: 550
+ReactorApp.Run<CommandingApp>("Commanding", width: 650, height: 550
 #if DEBUG
     , preview: true
 #endif
@@ -18,7 +18,7 @@ class BasicCommandExample : Component
         var (text, setText) = UseState("Hello, World!");
         var (saved, setSaved) = UseState(false);
 
-        var saveCmd = new DuctCommand
+        var saveCmd = new Command
         {
             Label = "Save",
             Execute = () => setSaved(true),
@@ -32,7 +32,7 @@ class BasicCommandExample : Component
                 .Width(400),
             HStack(8,
                 Button(saveCmd),
-                When(saved, () => Text("Saved!").Foreground(Theme.SystemSuccess))
+                When(saved, () => Factories.Text("Saved!").Foreground(Theme.SystemSuccess))
             )
         ).Padding(24);
     }
@@ -58,7 +58,7 @@ class StandardCommandsExample : Component
                 primaryCommands: new[] { AppBarButton(cut), AppBarButton(copy),
                     AppBarButton(paste), AppBarButton(undo) }
             ),
-            Text($"Actions: {string.Join(", ", log)}").Padding(12)
+            Factories.Text($"Actions: {string.Join(", ", log)}").Padding(12)
         ).Padding(24);
     }
 }
@@ -71,7 +71,7 @@ class AsyncCommandExample : Component
     {
         var (status, setStatus) = UseState("Ready");
 
-        var saveCmd = UseCommand(new DuctCommand
+        var saveCmd = UseCommand(new Command
         {
             Label = "Save to Cloud",
             ExecuteAsync = async () =>
@@ -86,7 +86,7 @@ class AsyncCommandExample : Component
         return VStack(12,
             HStack(8,
                 Button(saveCmd),
-                Text(status).Foreground(Theme.SecondaryText)
+                Factories.Text(status).Foreground(Theme.SecondaryText)
             ),
             When(saveCmd.IsExecuting, () =>
                 ProgressRing().Width(20).Height(20))
@@ -137,7 +137,7 @@ class MenuBarExample : Component
                 Menu("File", MenuItem(save), MenuItem(close)),
                 Menu("Edit", MenuItem(undo), MenuItem(redo))
             ),
-            Text(text).Padding(16)
+            Factories.Text(text).Padding(16)
         );
     }
 }

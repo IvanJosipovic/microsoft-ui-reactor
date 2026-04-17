@@ -1,8 +1,8 @@
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
 using NetPulse.Charts;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
 namespace NetPulse;
 
@@ -94,12 +94,12 @@ sealed class App : Component
         return VStack(0,
             // Header bar
             HStack(12,
-                Text("NetPulse").FontSize(18).Bold().Margin(12, 8, 0, 4),
-                Text($"TCP: {tcpActive} active").FontSize(11).Foreground(Gray(100)).Margin(0, 10, 0, 0),
-                Text($"UDP: {udpEndpoints.Length} endpoints").FontSize(11).Foreground(Gray(100)).Margin(0, 10, 0, 0),
-                Text($"Sparklines: {sparklineData.Length}").FontSize(11).Foreground(Gray(100)).Margin(0, 10, 0, 0),
-                Text($"Renders: {renderCountRef.Current}").FontSize(11).Foreground(Gray(80)).Margin(0, 10, 0, 0),
-                Text($"History: {trafficHistory.Count} samples").FontSize(11).Foreground(Gray(80)).Margin(0, 10, 0, 0)
+                Factories.Text("NetPulse").FontSize(18).Bold().Margin(12, 8, 0, 4),
+                Factories.Text($"TCP: {tcpActive} active").FontSize(11).Foreground(Gray(100)).Margin(0, 10, 0, 0),
+                Factories.Text($"UDP: {udpEndpoints.Length} endpoints").FontSize(11).Foreground(Gray(100)).Margin(0, 10, 0, 0),
+                Factories.Text($"Sparklines: {sparklineData.Length}").FontSize(11).Foreground(Gray(100)).Margin(0, 10, 0, 0),
+                Factories.Text($"Renders: {renderCountRef.Current}").FontSize(11).Foreground(Gray(80)).Margin(0, 10, 0, 0),
+                Factories.Text($"History: {trafficHistory.Count} samples").FontSize(11).Foreground(Gray(80)).Margin(0, 10, 0, 0)
             ),
 
             // Row 1: Area chart + Donut
@@ -133,5 +133,5 @@ sealed class App : Component
     }
 
     static Microsoft.UI.Xaml.Media.SolidColorBrush Gray(byte v) =>
-        new(Windows.UI.Color.FromArgb(255, v, v, v));
+        new(global::Windows.UI.Color.FromArgb(255, v, v, v));
 }

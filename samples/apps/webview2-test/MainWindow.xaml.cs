@@ -8,10 +8,10 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(800, 600));
+        AppWindow.Resize(new global::Windows.Graphics.SizeInt32(800, 600));
 
-        // Add MonacoEditor directly (not through Duct reconciler)
-        var editor = new Duct.Monaco.MonacoEditor
+        // Add MonacoEditor directly (not through Reactor reconciler)
+        var editor = new Microsoft.UI.Reactor.Monaco.MonacoEditor
         {
             Text = "// Hello from Monaco!\nconsole.log('It works!');",
             EditorLanguage = "javascript",

@@ -11,7 +11,7 @@ goal: |
 
 # Styling and Theming
 
-Duct uses WinUI's built-in theme system. Instead of hardcoding colors, you
+Reactor uses WinUI's built-in theme system. Instead of hardcoding colors, you
 reference semantic tokens that automatically adapt to light mode, dark mode,
 and high contrast. The `Theme` class exposes these tokens as `ThemeRef` values
 you can pass to any color modifier. These modifiers work on any
@@ -63,7 +63,7 @@ strings for brand colors that should stay constant regardless of mode.
 
 ## Signal Colors
 
-WinUI provides semantic signal colors for status indicators. Duct exposes them
+WinUI provides semantic signal colors for status indicators. Reactor exposes them
 through `Theme`:
 
 ```csharp snippet="styling/signal-colors"
@@ -132,7 +132,7 @@ named property. The key must exist in WinUI's resource dictionaries.
 
 ## Roslyn Analyzers
 
-Duct ships three Roslyn analyzers that flag common styling mistakes:
+Reactor ships three Roslyn analyzers that flag common styling mistakes:
 
 | Analyzer | Severity | What it flags |
 |----------|----------|--------------|
@@ -141,7 +141,7 @@ Duct ships three Roslyn analyzers that flag common styling mistakes:
 | DUCT003 | Info | `.Set(fe => fe.RequestedTheme = ...)` — use `.RequestedTheme()` |
 
 Each analyzer includes a code fix that auto-converts to the preferred
-pattern. Enable them by referencing the `Duct.Analyzers` project.
+pattern. Enable them by referencing the `Reactor.Analyzers` project.
 
 ## Tips
 

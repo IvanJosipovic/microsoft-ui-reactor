@@ -1,9 +1,9 @@
-using Duct;
-using Duct.Core;
-using DuctOutlook.Models;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorOutlook.Models;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctOutlook.Components.Email;
+namespace ReactorOutlook.Components.Email;
 
 internal sealed class EmailView : Component
 {

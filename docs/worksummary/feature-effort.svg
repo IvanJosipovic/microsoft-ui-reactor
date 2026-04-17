@@ -55,16 +55,16 @@
   <text x="284" y="349" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" fill="#1B1B1B" text-anchor="end">Theme System</text>
   <rect x="290" y="336" width="113" height="22" fill="#54A8DC" rx="3" ry="3"/>
   <text x="411" y="352" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" font-weight="bold" fill="#1B1B1B" text-anchor="start">3</text>
-  <!-- Row 11: Perf Experiments & DuctCpp — 3 days => w=113 -->
-  <text x="284" y="380" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" fill="#1B1B1B" text-anchor="end">Perf Experiments &amp; DuctCpp</text>
+  <!-- Row 11: Perf Experiments & C++ — 3 days => w=113 -->
+  <text x="284" y="380" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" fill="#1B1B1B" text-anchor="end">Perf Experiments &amp; C++</text>
   <rect x="290" y="367" width="113" height="22" fill="#54A8DC" rx="3" ry="3"/>
   <text x="411" y="383" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" font-weight="bold" fill="#1B1B1B" text-anchor="start">3</text>
   <!-- Row 12: Preview / Hot Reload — 3 days => w=113 -->
   <text x="284" y="411" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" fill="#1B1B1B" text-anchor="end">Preview / Hot Reload</text>
   <rect x="290" y="398" width="113" height="22" fill="#54A8DC" rx="3" ry="3"/>
   <text x="411" y="414" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" font-weight="bold" fill="#1B1B1B" text-anchor="start">3</text>
-  <!-- Row 13: DuctD3 Charting — 2 days => w=76 -->
-  <text x="284" y="442" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" fill="#1B1B1B" text-anchor="end">DuctD3 Charting Library</text>
+  <!-- Row 13: Charting — 2 days => w=76 -->
+  <text x="284" y="442" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" fill="#1B1B1B" text-anchor="end">Charting Library</text>
   <rect x="290" y="429" width="76" height="22" fill="#83B9E2" rx="3" ry="3"/>
   <text x="374" y="445" font-family="Segoe UI, Calibri, Arial, sans-serif" font-size="12" font-weight="bold" fill="#1B1B1B" text-anchor="start">2</text>
   <!-- Row 14: Localization — 2 days => w=76 -->

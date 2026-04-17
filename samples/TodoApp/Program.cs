@@ -1,13 +1,13 @@
-// TodoApp — A real starter template demonstrating Duct's component model.
-// Shows: UseReducer for state management, DuctCommand for actions, Theme tokens.
+// TodoApp — A real starter template demonstrating Reactor's component model.
+// Shows: UseReducer for state management, Command for actions, Theme tokens.
 
-using Duct;
-using Duct.Core;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 
-DuctApp.Run<TodoApp>("Todo App", width: 700, height: 550);
+ReactorApp.Run<TodoApp>("Todo App", width: 700, height: 550);
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ class TodoApp : Component
 
         var remaining = state.Items.Count(i => !i.IsCompleted);
 
-        var addCmd = new DuctCommand
+        var addCmd = new Command
         {
             Label = "Add",
             Execute = () => dispatch(new AddItem()),
@@ -78,7 +78,7 @@ class TodoApp : Component
 
         return VStack(0,
             // Header
-            Text("todos").FontSize(36)
+            Factories.Text("todos").FontSize(36)
                 .Set(t => t.FontWeight = Microsoft.UI.Text.FontWeights.Light)
                 .Foreground(AccentText)
                 .HAlign(HorizontalAlignment.Center)
@@ -104,7 +104,7 @@ class TodoApp : Component
 
             // Footer
             HStack(8,
-                Text($"{remaining} item{(remaining == 1 ? "" : "s")} left")
+                Factories.Text($"{remaining} item{(remaining == 1 ? "" : "s")} left")
                     .FontSize(12).Foreground(SecondaryText)
                     .VAlign(VerticalAlignment.Center),
                 Empty().HAlign(HorizontalAlignment.Stretch),
@@ -121,13 +121,13 @@ class TodoApp : Component
     static Element TodoRow(TodoItem item, Action<TodoAction> dispatch) =>
         HStack(8,
             CheckBox(item.IsCompleted, _ => dispatch(new ToggleItem(item.Id))),
-            Text(item.Text)
+            Factories.Text(item.Text)
                 .FontSize(14)
                 .Opacity(item.IsCompleted ? 0.5 : 1)
                 .Set(t =>
                 {
                     if (item.IsCompleted)
-                        t.TextDecorations = Windows.UI.Text.TextDecorations.Strikethrough;
+                        t.TextDecorations = global::Windows.UI.Text.TextDecorations.Strikethrough;
                 })
                 .VAlign(VerticalAlignment.Center),
             Empty().HAlign(HorizontalAlignment.Stretch),

@@ -320,7 +320,7 @@ public partial class MainWindow : Window
             _enabledCountText.Text = $"Enabled: {CommandSet.CountEnabled(_currentFlags)} / {CommandSet.All.Length}";
         if (_memoryText is not null)
         {
-            long mem = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64;
+            long mem = global::System.Diagnostics.Process.GetCurrentProcess().WorkingSet64;
             _memoryText.Text = $"Mem: {mem / (1024.0 * 1024):F1} MB";
         }
     }

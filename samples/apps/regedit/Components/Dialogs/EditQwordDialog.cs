@@ -1,10 +1,10 @@
-using Duct;
-using Duct.Core;
-using DuctRegedit.Models;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using ReactorRegedit.Models;
 using Microsoft.UI.Xaml;
-using static Duct.UI;
+using static Microsoft.UI.Reactor.Factories;
 
-namespace DuctRegedit.Components.Dialogs;
+namespace ReactorRegedit.Components.Dialogs;
 
 internal sealed record EditQwordDialogProps(
     bool IsOpen,
@@ -25,16 +25,16 @@ internal sealed class EditQwordDialog : Component<EditQwordDialogProps>
             Strings.EditQwordTitle,
             VStack(12,
                 VStack(4,
-                    Text(Strings.ValueName),
+                    Factories.Text(Strings.ValueName),
                     TextField(Props.ValueName, _ => { })
                         .ReadOnly()
                 ),
                 VStack(4,
-                    Text(Strings.ValueData),
+                    Factories.Text(Strings.ValueData),
                     TextField(Props.ValueData, Props.OnValueDataChanged)
                 ),
                 VStack(4,
-                    Text(Strings.Base),
+                    Factories.Text(Strings.Base),
                     RadioButton(Strings.Hexadecimal,
                         Props.NumberBase == NumberBase.Hexadecimal,
                         _ => Props.OnBaseChanged(NumberBase.Hexadecimal),

@@ -1,20 +1,20 @@
 // Monaco Editor sample — a simple text editor for testing the MonacoEditor control.
 // Supports file open, save, drag-and-drop, and language selection.
 
-using Duct;
-using Duct.Core;
-using Duct.Flex;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Layout;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.System;
-using static Duct.UI;
-using static Duct.Core.Theme;
+using static Microsoft.UI.Reactor.Factories;
+using static Microsoft.UI.Reactor.Core.Theme;
 using Path = System.IO.Path;
 
 public static class Program
 {
     [STAThread]
-    static void Main() => DuctApp.Run<EditorApp>("Monaco Editor", width: 1200, height: 800, configure: host =>
+    static void Main() => ReactorApp.Run<EditorApp>("Monaco Editor", width: 1200, height: 800, configure: host =>
     {
         host.Window.SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
     });
@@ -79,7 +79,7 @@ class EditorApp : Component
         var (filePath, setFilePath) = UseState<string?>(null);
         var (isDirty, setIsDirty) = UseState(false);
         var (status, setStatus) = UseState("Ready");
-        var editorRef = UseRef<Duct.Monaco.MonacoEditor?>(null);
+        var editorRef = UseRef<Microsoft.UI.Reactor.Monaco.MonacoEditor?>(null);
 
         var language = Languages[langIndex].Id;
 
@@ -96,7 +96,7 @@ class EditorApp : Component
 
         async void OnOpen()
         {
-            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            var picker = new global::Windows.Storage.Pickers.FileOpenPicker();
             picker.FileTypeFilter.Add("*");
             InitPicker(picker);
 
@@ -123,8 +123,8 @@ class EditorApp : Component
 
         async void OnSaveAs()
         {
-            var picker = new Windows.Storage.Pickers.FileSavePicker();
-            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            var picker = new global::Windows.Storage.Pickers.FileSavePicker();
+            picker.SuggestedStartLocation = global::Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
             picker.FileTypeChoices.Add("All Files", [".txt", ".cs", ".js", ".json", ".xml", ".md"]);
             if (filePath is not null)
                 picker.SuggestedFileName = Path.GetFileName(filePath);
@@ -143,7 +143,7 @@ class EditorApp : Component
         void OnNew() { setText(""); setFilePath(null); setIsDirty(false); setLangIndex(0); setStatus("New file"); }
 
         // ── Commands ─────────────────────────────────────────────
-        var newCmd = new DuctCommand
+        var newCmd = new Command
         {
             Label = "New",
             Execute = OnNew,
@@ -151,7 +151,7 @@ class EditorApp : Component
         };
         var openCmd = StandardCommand.Open((Action)OnOpen);
         var saveCmd = StandardCommand.Save((Action)OnSave);
-        var saveAsCmd = new DuctCommand
+        var saveAsCmd = new Command
         {
             Label = "Save As...",
             Execute = (Action)OnSaveAs,
@@ -180,15 +180,15 @@ class EditorApp : Component
             Button(openCmd),
             Button(saveCmd),
             Button(saveAsCmd),
-            Text("").Flex(grow: 1),
-            Text("Language:").VAlign(VerticalAlignment.Center),
+            Factories.Text("").Flex(grow: 1),
+            Factories.Text("Language:").VAlign(VerticalAlignment.Center),
             ComboBox(
                 Languages.Select(l => l.Label).ToArray(),
                 langIndex,
                 i => setLangIndex(i)
             ).Width(160),
-            Text("").Width(8),
-            Text("Theme:").VAlign(VerticalAlignment.Center),
+            Factories.Text("").Width(8),
+            Factories.Text("Theme:").VAlign(VerticalAlignment.Center),
             ComboBox(
                 ["Light", "Dark", "High Contrast"],
                 theme switch { "vs" => 0, "vs-dark" => 1, "hc-black" => 2, _ => 1 },
@@ -199,15 +199,15 @@ class EditorApp : Component
         .Grid(row: 1, columnSpan: columns.Length);
 
         var statusBar = (FlexRow(
-            Text(title).FontSize(12),
-            Text("").Flex(grow: 1),
-            Text(status).FontSize(12).Opacity(0.7)
+            Factories.Text(title).FontSize(12),
+            Factories.Text("").Flex(grow: 1),
+            Factories.Text(status).FontSize(12).Opacity(0.7)
         ) with { ColumnGap = 12 })
         .Padding(8, 4)
         .Grid(row: 3, columnSpan: columns.Length);
 
         var editor = MonacoEditor(text, OnTextChanged, language, theme)
-            .OnMount(ctrl => editorRef.Current = ctrl as Duct.Monaco.MonacoEditor)
+            .OnMount(ctrl => editorRef.Current = ctrl as Microsoft.UI.Reactor.Monaco.MonacoEditor)
             .Grid(row: 2, column: 0);
 
         if (!showPreview)
@@ -234,7 +234,7 @@ class EditorApp : Component
 
     static void InitPicker(object picker)
     {
-        var window = DuctApp.ActiveHost?.Window;
+        var window = ReactorApp.ActiveHost?.Window;
         if (window is null) return;
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);

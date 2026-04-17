@@ -1,13 +1,13 @@
-# Duct — Functional UI for WinUI 3
+# Reactor — Functional UI for WinUI 3
 
-Duct is a React/SwiftUI/Compose-inspired framework for building WinUI 3 desktop apps in pure C#. Declarative, component-based, no XAML — just C#.
+Reactor is a React/SwiftUI/Compose-inspired framework for building WinUI 3 desktop apps in pure C#. Declarative, component-based, no XAML — just C#.
 
 ```csharp
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 
-DuctApp.Run<MyApp>("Hello Duct");
+ReactorApp.Run<MyApp>("Hello Reactor");
 
 class MyApp : Component
 {
@@ -53,8 +53,8 @@ class MyApp : Component
 ### Create a new app
 
 ```bash
-# Using the Duct CLI
-dotnet run --project Duct.Cli -- --create MyApp
+# Using the Reactor CLI
+dotnet run --project Reactor.Cli -- --create MyApp
 ```
 
 Or manually — create a `.csproj`:
@@ -70,7 +70,7 @@ Or manually — create a `.csproj`:
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.0-experimental6" />
-    <ProjectReference Include="..\Duct\Duct.csproj" />
+    <ProjectReference Include="..\Reactor\Reactor.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -78,11 +78,11 @@ Or manually — create a `.csproj`:
 Add a single `App.cs`:
 
 ```csharp
-using Duct;
-using Duct.Core;
-using static Duct.UI;
+using Microsoft.UI.Reactor;
+using Microsoft.UI.Reactor.Core;
+using static Microsoft.UI.Reactor.Factories;
 
-DuctApp.Run<App>("My App", width: 900, height: 600);
+ReactorApp.Run<App>("My App", width: 900, height: 600);
 
 class App : Component
 {
@@ -104,15 +104,15 @@ No `App.xaml`. No `MainWindow.xaml`. Just run it.
 
 ```bash
 # Restore NuGet packages (pulls the experimental WinUI 3 SDK automatically)
-dotnet restore Duct.sln
+dotnet restore Reactor.sln
 
 # Build the entire solution — from CLI
-dotnet build Duct.sln -p:Platform=x64
+dotnet build Reactor.sln -p:Platform=x64
 
-# Or open Duct.sln in Visual Studio 2022, select x64 or ARM64, and build (Ctrl+Shift+B)
+# Or open Reactor.sln in Visual Studio 2022, select x64 or ARM64, and build (Ctrl+Shift+B)
 
 # Run the interactive demo app
-dotnet run --project samples/Duct.TestApp -p:Platform=x64
+dotnet run --project samples/Reactor.TestApp -p:Platform=x64
 ```
 
 ### Run tests
@@ -122,32 +122,32 @@ There are three types of tests — pick the right one for your scenario:
 ```bash
 # ── 1. Unit tests (xUnit, no UI window, ~3s) ──
 # Fast, headless tests for framework internals: reconciliation, elements, hooks, Yoga layout.
-dotnet test tests/Duct.Tests
+dotnet test tests/Reactor.Tests
 
 # ── 2. Selfhost tests (in-process WinUI window, ~15s) ──
 # 60+ fixtures that mount real WinUI controls and assert via VisualTreeHelper.
 # This is the only way to test the reconciler end-to-end against real controls.
-dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.SelfTestBatch"
+dotnet test tests/Reactor.AppTests --filter "ClassName=Reactor.AppTests.Tests.SelfTestBatch"
 
 # ── 3. Appium / E2E tests (requires WinAppDriver, ~30s) ──
 # Cross-process UI Automation tests that simulate real user input.
 # Requires WinAppDriver installed at C:\Program Files (x86)\Windows Application Driver\
-dotnet test tests/Duct.AppTests --filter "ClassName=Duct.AppTests.Tests.InteractiveTests"
+dotnet test tests/Reactor.AppTests --filter "ClassName=Reactor.AppTests.Tests.InteractiveTests"
 
 # ── Run everything ──
-dotnet test Duct.sln
+dotnet test Reactor.sln
 ```
 
 ## Live preview
 
-Duct includes a built-in preview mode that lets you see a single component in isolation with hot reload. There are two ways to use it: from the CLI, or via the VS Code extension.
+Reactor includes a built-in preview mode that lets you see a single component in isolation with hot reload. There are two ways to use it: from the CLI, or via the VS Code extension.
 
 ### CLI preview with hot reload
 
-Any Duct app that passes `preview: true` to `DuctApp.Run` supports the `--preview` flag:
+Any Reactor app that passes `preview: true` to `ReactorApp.Run` supports the `--preview` flag:
 
 ```csharp
-DuctApp.Run<App>("My App", preview: true);
+ReactorApp.Run<App>("My App", preview: true);
 ```
 
 Then use `dotnet watch` for live hot reload:
@@ -170,12 +170,12 @@ dotnet run --project MyApp -- --preview-list
 
 ### VS Code extension (recommended)
 
-The **Duct Preview** extension adds a live preview panel directly in VS Code. It launches a single preview process and switches between components instantly via HTTP — no process restart when you change components.
+The **Reactor Preview** extension adds a live preview panel directly in VS Code. It launches a single preview process and switches between components instantly via HTTP — no process restart when you change components.
 
 #### Install
 
 ```bash
-cd vscode-duct
+cd vscode-reactor
 npm install
 npm run compile
 ```
@@ -185,14 +185,14 @@ Then install the extension in VS Code:
 1. Open VS Code
 2. Run **Extensions: Install from VSIX...** from the command palette, or:
    ```bash
-   code --install-extension vscode-duct
+   code --install-extension vscode-reactor
    ```
-   (If you're developing the extension locally, press **F5** in the `vscode-duct` folder to launch an Extension Development Host instead.)
+   (If you're developing the extension locally, press **F5** in the `vscode-reactor` folder to launch an Extension Development Host instead.)
 
 #### Usage
 
-1. Open a C# file containing a Duct `Component`
-2. Run **Duct: Preview Component** from the command palette (`Ctrl+Shift+P`)
+1. Open a C# file containing a Reactor `Component`
+2. Run **Reactor: Preview Component** from the command palette (`Ctrl+Shift+P`)
 3. A preview panel opens beside your editor showing a live capture of the component
 
 The extension:
@@ -206,27 +206,27 @@ The extension:
 
 | Command | Description |
 |---------|-------------|
-| **Duct: Preview Component** | Start preview for the current file |
-| **Duct: Connect to Preview** | Connect to an already-running preview by port |
-| **Duct: Stop Preview** | Stop the preview process |
-| **Duct: Focus Preview Window** | Bring the native preview window to front |
+| **Reactor: Preview Component** | Start preview for the current file |
+| **Reactor: Connect to Preview** | Connect to an already-running preview by port |
+| **Reactor: Stop Preview** | Stop the preview process |
+| **Reactor: Focus Preview Window** | Bring the native preview window to front |
 
 ## Project structure
 
 ```
-Duct/                  Core framework
+Reactor/                  Core framework
   Core/                Reconciler, components, hooks, elements
   Elements/            DSL factory methods + fluent modifiers
   Flex/                FlexPanel — CSS Flexbox layout via Yoga engine
   Yoga/                Pure C# port of Meta's Yoga layout engine
   Hosting/             App bootstrap, render loop, hot reload, preview capture server
   Native/              Experimental Rust differ (ViewDiffer)
-Duct.Cli/              CLI scaffolding tool
-vscode-duct/           VS Code extension — live preview panel
+Reactor.Cli/              CLI scaffolding tool
+vscode-reactor/           VS Code extension — live preview panel
 tests/
-  Duct.Tests/          Unit tests — xUnit, 2,200+ tests incl. 590 Yoga layout fixtures
-  Duct.AppTests/       Test runner — MSTest, orchestrates selfhost + Appium tests
-  Duct.AppTests.Host/  Selfhost test app — WinUI host with 60+ in-process fixtures
+  Reactor.Tests/          Unit tests — xUnit, 2,200+ tests incl. 590 Yoga layout fixtures
+  Reactor.AppTests/       Test runner — MSTest, orchestrates selfhost + Appium tests
+  Reactor.AppTests.Host/  Selfhost test app — WinUI host with 60+ in-process fixtures
   stress_perf/         Performance benchmarks
 samples/
   apps/                Sample apps (wordpuzzle, ductfiles, regedit, etc.)
@@ -238,9 +238,9 @@ samples/
 
 | Doc | Description |
 |-----|-------------|
-| [Getting Started](Duct/Docs/GettingStarted.md) | Tutorial — elements, layout, state, components |
-| [Architecture](Duct/Docs/Architecture.md) | Virtual tree, reconciler, hooks, design decisions |
-| [Flex Layout Spec](Duct/Docs/specs/flex-layout.md) | CSS Flexbox via Yoga — FlexPanel design and API |
+| [Getting Started](Reactor/Docs/GettingStarted.md) | Tutorial — elements, layout, state, components |
+| [Architecture](Reactor/Docs/Architecture.md) | Virtual tree, reconciler, hooks, design decisions |
+| [Flex Layout Spec](Reactor/Docs/specs/flex-layout.md) | CSS Flexbox via Yoga — FlexPanel design and API |
 | [Contributing](CONTRIBUTING.md) | Build, test, add features, code style |
 | [State & Hooks](docs/reference/state-and-hooks.md) | Deep dive on the hook system and reactivity |
 | [Reconciliation](docs/reference/reconciliation.md) | How tree diffing works (C# and Rust paths) |
@@ -249,12 +249,12 @@ samples/
 
 ## Sample apps
 
-### DuctFiles — file explorer
+### ReactorFiles — file explorer
 
-A full file explorer built with Duct, demonstrating TreeView, hierarchical navigation, component composition, and platform interop.
+A full file explorer built with Reactor, demonstrating TreeView, hierarchical navigation, component composition, and platform interop.
 
 ```bash
-dotnet run --project samples/apps/ductfiles
+dotnet run --project samples/apps/reactorfiles
 ```
 
 ### WordPuzzle — word search game

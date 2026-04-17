@@ -1,4 +1,4 @@
-namespace DuctOutlook.Models;
+namespace ReactorOutlook.Models;
 
 public static class MockData
 {
