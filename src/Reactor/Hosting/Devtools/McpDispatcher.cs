@@ -49,6 +49,13 @@ internal sealed class McpDispatcher
         {
             object? result = request.Method switch
             {
+                "initialize" => HandleInitialize(request.Params),
+                "ping" => new { },
+                // Notifications have no response per JSON-RPC, but HTTP still
+                // needs *something* on the wire. Returning an empty result
+                // satisfies both strict MCP clients (which ignore the body
+                // when id is absent) and curl-happy humans.
+                var m when m.StartsWith("notifications/", StringComparison.Ordinal) => new { },
                 "tools/list" => new
                 {
                     tools = _tools.List().Select(t => new
@@ -58,6 +65,11 @@ internal sealed class McpDispatcher
                         inputSchema = t.InputSchema,
                     }).ToArray(),
                 },
+                // MCP resource / prompt surfaces are not implemented yet; return
+                // the empty inventory so `initialize`-speaking clients don't fail
+                // their discovery step.
+                "resources/list" => new { resources = Array.Empty<object>() },
+                "prompts/list" => new { prompts = Array.Empty<object>() },
                 "tools/call" => HandleCall(request.Params),
                 _ => HandleDirect(request.Method, request.Params),
             };
@@ -79,6 +91,45 @@ internal sealed class McpDispatcher
                 Error = new JsonRpcError { Code = JsonRpcErrorCodes.InternalError, Message = ex.Message },
             };
         }
+    }
+
+    /// <summary>
+    /// Responds to the MCP <c>initialize</c> handshake. Echoes the client's
+    /// requested protocol version back if we recognize it; otherwise pins
+    /// <c>2024-11-05</c> (the baseline MCP version this server targets).
+    /// Capabilities advertise just <c>tools</c> — resources / prompts are stubbed
+    /// in the dispatcher but not populated yet.
+    /// </summary>
+    private static object HandleInitialize(JsonElement? @params)
+    {
+        string? requested = null;
+        if (@params is { } p && p.ValueKind == JsonValueKind.Object &&
+            p.TryGetProperty("protocolVersion", out var pv) && pv.ValueKind == JsonValueKind.String)
+        {
+            requested = pv.GetString();
+        }
+
+        var protocol = requested switch
+        {
+            "2024-11-05" => requested,
+            "2025-03-26" => requested,
+            _ => "2024-11-05",
+        };
+
+        return new
+        {
+            protocolVersion = protocol,
+            capabilities = new
+            {
+                tools = new { listChanged = false },
+            },
+            serverInfo = new
+            {
+                name = "reactor-devtools",
+                version = typeof(McpDispatcher).Assembly
+                    .GetName().Version?.ToString() ?? "0.1.0",
+            },
+        };
     }
 
     private object? HandleCall(JsonElement? @params)
@@ -113,7 +164,13 @@ internal sealed class McpDispatcher
         {
             var result = handler(@params);
             sw.Stop();
-            _logger.LogCall(name, selector, sw.ElapsedMilliseconds, success: true, resultCode: 0);
+            // Soft failures (tools like waitFor that return `{ok:false, reason:…}`
+            // instead of throwing) should still show up as `err` in the log —
+            // otherwise a grep for failed calls misses them. The handler didn't
+            // throw, so the wire response is a normal 200 result; the log alone
+            // reflects outcome.
+            bool softOk = !HasOkFalse(result);
+            _logger.LogCall(name, selector, sw.ElapsedMilliseconds, success: softOk, resultCode: 0);
             return result;
         }
         catch (McpToolException mte)
@@ -129,6 +186,19 @@ internal sealed class McpDispatcher
                 success: false, resultCode: JsonRpcErrorCodes.InternalError);
             throw;
         }
+    }
+
+    /// <summary>
+    /// True when <paramref name="result"/> is an object with an <c>ok</c> property
+    /// whose value is explicitly <c>false</c>. Used to translate tool-level soft
+    /// failures into <c>err</c> log lines.
+    /// </summary>
+    private static bool HasOkFalse(object? result)
+    {
+        if (result is null) return false;
+        var prop = result.GetType().GetProperty("ok", global::System.Reflection.BindingFlags.Instance | global::System.Reflection.BindingFlags.Public);
+        if (prop is null || prop.PropertyType != typeof(bool)) return false;
+        return prop.GetValue(result) is bool b && !b;
     }
 
     private static string? TryReadSelector(JsonElement? @params)

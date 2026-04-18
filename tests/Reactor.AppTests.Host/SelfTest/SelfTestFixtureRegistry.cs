@@ -468,7 +468,15 @@ internal static class SelfTestFixtureRegistry
         "Devtools_InvokeDirectPattern",
         "Devtools_StateReadsHooks",
         "Devtools_ScreenshotReturnsPng",
+        "Devtools_SelectListItem",
+        "Devtools_ScrollByAndInto",
+        "Devtools_LoggerWritesOneLinePerCall",
         "Devtools_UnknownSelectorStructuredError",
+        "Devtools_NameSelectorMatchesButtonContent",
+        "Devtools_TreeIdsUniqueAcrossSiblingsWithDifferentParents",
+        "Devtools_FireRejectsLifecycleMethods",
+        "Devtools_WaitForTimeoutLoggedAsErr",
+        "Devtools_InitializeHandshake",
     ];
 
     public static SelfTestFixtureBase? Create(string name, Harness harness) => name switch
@@ -933,7 +941,15 @@ internal static class SelfTestFixtureRegistry
         "Devtools_InvokeDirectPattern" => new DevtoolsFixtures.InvokeDirectPattern(harness),
         "Devtools_StateReadsHooks" => new DevtoolsFixtures.StateReadsHooks(harness),
         "Devtools_ScreenshotReturnsPng" => new DevtoolsFixtures.ScreenshotReturnsPng(harness),
+        "Devtools_SelectListItem" => new DevtoolsFixtures.SelectListItem(harness),
+        "Devtools_ScrollByAndInto" => new DevtoolsFixtures.ScrollByAndInto(harness),
+        "Devtools_LoggerWritesOneLinePerCall" => new DevtoolsFixtures.LoggerWritesOneLinePerCall(harness),
         "Devtools_UnknownSelectorStructuredError" => new DevtoolsFixtures.UnknownSelectorStructuredError(harness),
+        "Devtools_NameSelectorMatchesButtonContent" => new DevtoolsFixtures.NameSelectorMatchesButtonContent(harness),
+        "Devtools_TreeIdsUniqueAcrossSiblingsWithDifferentParents" => new DevtoolsFixtures.TreeIdsUniqueAcrossSiblingsWithDifferentParents(harness),
+        "Devtools_FireRejectsLifecycleMethods" => new DevtoolsFixtures.FireRejectsLifecycleMethods(harness),
+        "Devtools_WaitForTimeoutLoggedAsErr" => new DevtoolsFixtures.WaitForTimeoutLoggedAsErr(harness),
+        "Devtools_InitializeHandshake" => new DevtoolsFixtures.InitializeHandshake(harness),
         _ => null,
     };
 }

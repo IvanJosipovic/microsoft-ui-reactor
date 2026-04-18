@@ -43,9 +43,10 @@ internal static class DevtoolsFixtures
             Window window,
             Func<Component?> rootComponent,
             string currentComponent,
-            IReadOnlyList<string>? components = null)
+            IReadOnlyList<string>? components = null,
+            DevtoolsLogger? logger = null)
         {
-            Server = new DevtoolsMcpServer(window.DispatcherQueue, window);
+            Server = new DevtoolsMcpServer(window.DispatcherQueue, window, logger: logger);
             Windows = new WindowRegistry(Server.BuildTag);
             Nodes = new NodeRegistry();
             Windows.Attach(window, isMain: true);
@@ -517,6 +518,184 @@ internal static class DevtoolsFixtures
         }
     }
 
+    /// <summary>
+    /// A component that mounts a ListView and a ScrollView of many items —
+    /// targets for the <c>select</c> and <c>scroll</c> MCP tools. Kept separate
+    /// from <see cref="DevtoolsFixtureRoot"/> so other fixtures stay lean.
+    /// </summary>
+    private sealed class ScrollAndSelectRoot : Component
+    {
+        public override Element Render()
+        {
+            var items = Enumerable.Range(0, 50)
+                .Select(i => Factories.Text($"row-{i}").AutomationId($"row-{i}") as Element)
+                .ToArray();
+
+            return VStack(
+                ListView(
+                    Factories.Text("Alpha").AutomationId("item-alpha"),
+                    Factories.Text("Beta").AutomationId("item-beta"),
+                    Factories.Text("Gamma").AutomationId("item-gamma")
+                ).AutomationId("lv-items"),
+                ScrollView(VStack(items)).AutomationId("sv-items")
+            );
+        }
+    }
+
+    internal sealed class SelectListItem(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            var root = new ScrollAndSelectRoot();
+            host.Mount(root);
+            await Harness.Render(50);
+
+            using var mcp = new McpHarness(H.Window, () => root, nameof(ScrollAndSelectRoot));
+            var resp = await mcp.CallAsync("select", new
+            {
+                selector = "#lv-items",
+                itemSelector = "#item-beta",
+            });
+            var result = Result(resp) ?? throw new Exception("missing result");
+
+            H.Check("Devtools_Select_Ok", result.GetProperty("ok").GetBoolean());
+            H.Check("Devtools_Select_Selected", result.GetProperty("selected").GetBoolean());
+
+            // Restore default root so later fixtures using H.CreateHost()/MountRoot
+            // start from a clean tree.
+            H.SetContent(null);
+        }
+    }
+
+    internal sealed class ScrollByAndInto(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            var root = new ScrollAndSelectRoot();
+            host.Mount(root);
+            await Harness.Render(50);
+
+            using var mcp = new McpHarness(H.Window, () => root, nameof(ScrollAndSelectRoot));
+
+            // "to" path — should scroll a far row into view. The selftest window
+            // may be sized such that all rows already fit; in that case the
+            // ScrollItem call is a no-op but still returns ok.
+            var resp = await mcp.CallAsync("scroll", new
+            {
+                selector = "#sv-items",
+                to = "#row-40",
+            });
+            var result = Result(resp);
+            // Some hosts expose ScrollItem only when the container actually
+            // scrolls; accept either ok=true OR a structured no-pattern error
+            // (the `to` codepath is still wired).
+            if (result is not null)
+            {
+                H.Check("Devtools_ScrollTo_Ok", result.Value.GetProperty("ok").GetBoolean());
+            }
+            else
+            {
+                var err = Error(resp) ?? throw new Exception("expected result or error");
+                H.Check("Devtools_ScrollTo_AcceptNoPattern",
+                    err.TryGetProperty("data", out var data) &&
+                    data.TryGetProperty("code", out var code) &&
+                    code.GetString() == "no-pattern");
+            }
+
+            // "by" path — shift vertical by some percent. Again the container
+            // may not be scrollable in this layout; accept no-pattern.
+            resp = await mcp.CallAsync("scroll", new
+            {
+                selector = "#sv-items",
+                by = new { horizontal = 0.0, vertical = 10.0 },
+            });
+            result = Result(resp);
+            if (result is not null)
+            {
+                H.Check("Devtools_ScrollBy_HasPosition",
+                    result.Value.TryGetProperty("scrollPosition", out var pos) &&
+                    pos.ValueKind == JsonValueKind.Object);
+            }
+            else
+            {
+                var err = Error(resp) ?? throw new Exception("expected result or error");
+                H.Check("Devtools_ScrollBy_AcceptNoPattern",
+                    err.TryGetProperty("data", out var data) &&
+                    data.TryGetProperty("code", out var code) &&
+                    code.GetString() == "no-pattern");
+            }
+
+            H.SetContent(null);
+        }
+    }
+
+    internal sealed class LoggerWritesOneLinePerCall(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var root = MountRoot(H);
+            await Harness.Render();
+
+            var tempDir = global::System.IO.Path.Combine(
+                global::System.IO.Path.GetTempPath(),
+                "reactor-devtools-selftest",
+                Guid.NewGuid().ToString("N"));
+            using var logger = new DevtoolsLogger(tempDir, pid: Environment.ProcessId, DevtoolsLogLevel.Call);
+            using var mcp = new McpHarness(H.Window, () => root, nameof(DevtoolsFixtureRoot), logger: logger);
+
+            const int Calls = 25;
+            for (int i = 0; i < Calls; i++)
+                _ = await mcp.CallAsync("version");
+
+            // Force a flush via dispose before reading.
+            logger.Dispose();
+
+            var logFile = global::System.IO.Path.Combine(tempDir, $"{Environment.ProcessId}.log");
+            H.Check("Devtools_Logging_FileExists", File.Exists(logFile));
+
+            var lines = File.ReadAllLines(logFile);
+            H.Check("Devtools_Logging_OneLinePerCall", lines.Length == Calls);
+
+            // Every line is tab-separated with >=6 columns: ts, tool, selector, latency, status, code.
+            bool shapeOk = lines.All(l =>
+            {
+                var parts = l.Split('\t');
+                return parts.Length >= 6 &&
+                       parts[1] == "version" &&
+                       parts[3].EndsWith("ms", StringComparison.Ordinal) &&
+                       parts[4] == "ok";
+            });
+            H.Check("Devtools_Logging_LineShape", shapeOk);
+
+            // Timestamps parse and are monotonic (non-decreasing).
+            bool monotonic = true;
+            DateTime prev = DateTime.MinValue;
+            foreach (var line in lines)
+            {
+                var ts = line.Split('\t')[0];
+                if (!DateTime.TryParse(ts, null, global::System.Globalization.DateTimeStyles.AssumeUniversal, out var parsed))
+                { monotonic = false; break; }
+                if (parsed < prev) { monotonic = false; break; }
+                prev = parsed;
+            }
+            H.Check("Devtools_Logging_MonotonicTimestamps", monotonic);
+
+            // Latencies are non-negative integers.
+            bool latencyOk = lines.All(l =>
+            {
+                var parts = l.Split('\t');
+                if (parts.Length < 4) return false;
+                var latencyStr = parts[3].TrimEnd('m', 's');
+                return long.TryParse(latencyStr, out var ms) && ms >= 0;
+            });
+            H.Check("Devtools_Logging_NonNegativeLatency", latencyOk);
+
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+
     internal sealed class UnknownSelectorStructuredError(Harness h) : SelfTestFixtureBase(h)
     {
         public override async Task RunAsync()
@@ -534,6 +713,192 @@ internal static class DevtoolsFixtures
                 err.TryGetProperty("data", out var data) &&
                 data.TryGetProperty("code", out var ec) &&
                 ec.GetString() == "unknown-selector");
+        }
+    }
+
+    /// <summary>
+    /// B5: a Reactor <c>Button("Increment", …)</c> is selectable via
+    /// <c>[name='Increment']</c>, matching what <c>tree</c> reports as the
+    /// button's text. Previously failed because WinUI doesn't auto-populate
+    /// <see cref="AutomationProperties.Name"/> from string content.
+    /// </summary>
+    internal sealed class NameSelectorMatchesButtonContent(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var root = MountRoot(H);
+            await Harness.Render();
+
+            using var mcp = new McpHarness(H.Window, () => root, nameof(DevtoolsFixtureRoot));
+            var resp = await mcp.CallAsync("click", new { selector = "[name='Increment']" });
+            var result = Result(resp) ?? throw new Exception("expected result; got " + resp);
+
+            H.Check("Devtools_NameSelector_ClickOk", result.GetProperty("ok").GetBoolean());
+            H.Check("Devtools_NameSelector_ViaInvoke",
+                result.GetProperty("via").GetString() == "invoke");
+
+            await Harness.Render();
+            H.Check("Devtools_NameSelector_Incremented", H.FindText("count:1") is not null);
+        }
+    }
+
+    /// <summary>
+    /// B1 regression: two same-typed siblings under different parents must get
+    /// distinct node ids. The previous bug collapsed all non-root ids to a
+    /// single segment, so the two TextBoxes in this fixture collided and
+    /// the tree had duplicate ids.
+    /// </summary>
+    private sealed class TwoTextBoxesRoot : Component
+    {
+        public override Element Render() => VStack(
+            VStack(
+                Factories.Text("Name").AutomationId("lbl-name"),
+                TextField("a", _ => { }).AutomationId("tb-name")
+            ),
+            VStack(
+                Factories.Text("Email").AutomationId("lbl-email"),
+                TextField("b", _ => { }).AutomationId("tb-email")
+            )
+        );
+    }
+
+    internal sealed class TreeIdsUniqueAcrossSiblingsWithDifferentParents(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            var root = new TwoTextBoxesRoot();
+            host.Mount(root);
+            await Harness.Render();
+
+            using var mcp = new McpHarness(H.Window, () => root, nameof(TwoTextBoxesRoot));
+            var resp = await mcp.CallAsync("tree", new { });
+            var result = Result(resp) ?? throw new Exception("missing result");
+
+            var ids = result.GetProperty("nodes").EnumerateArray()
+                .Select(n => n.GetProperty("id").GetString()!)
+                .ToArray();
+
+            H.Check("Devtools_NodeIds_AllUnique",
+                ids.Length == ids.Distinct(StringComparer.Ordinal).Count());
+
+            H.SetContent(null);
+        }
+    }
+
+    /// <summary>
+    /// U6: <c>fire</c> must refuse lifecycle / hook-owned methods like
+    /// <c>Render</c> to keep the reconciler's invariants. A raw invocation
+    /// could corrupt hook state.
+    /// </summary>
+    internal sealed class FireRejectsLifecycleMethods(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var root = MountRoot(H);
+            await Harness.Render();
+
+            using var mcp = new McpHarness(H.Window, () => root, nameof(DevtoolsFixtureRoot));
+            var resp = await mcp.CallAsync("fire", new
+            {
+                component = nameof(DevtoolsFixtureRoot),
+                @event = "Render",
+            });
+            var err = Error(resp) ?? throw new Exception("expected error envelope");
+            H.Check("Devtools_Fire_BlocksRender",
+                err.TryGetProperty("data", out var data) &&
+                data.TryGetProperty("code", out var code) &&
+                code.GetString() == "forbidden-method");
+        }
+    }
+
+    /// <summary>
+    /// B6: <c>waitFor</c> returning <c>{ok:false, reason:"timeout"}</c> is a
+    /// soft failure, but the rolling log was writing <c>ok</c> because the
+    /// handler didn't throw. Inspect the log line for the call and assert the
+    /// status column is <c>err</c>.
+    /// </summary>
+    internal sealed class WaitForTimeoutLoggedAsErr(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var root = MountRoot(H);
+            await Harness.Render();
+
+            var tempDir = global::System.IO.Path.Combine(
+                global::System.IO.Path.GetTempPath(),
+                "reactor-devtools-selftest",
+                Guid.NewGuid().ToString("N"));
+            using var logger = new DevtoolsLogger(tempDir, pid: Environment.ProcessId, DevtoolsLogLevel.Call);
+            using var mcp = new McpHarness(H.Window, () => root, nameof(DevtoolsFixtureRoot), logger: logger);
+
+            var resp = await mcp.CallAsync("waitFor", new
+            {
+                predicate = new { selector = "#count-label", textEquals = "count:999" },
+                timeoutMs = 120,
+            });
+            var result = Result(resp) ?? throw new Exception("missing result");
+            H.Check("Devtools_WaitForLog_ReturnsSoftFail", !result.GetProperty("ok").GetBoolean());
+
+            logger.Dispose();
+
+            var logFile = global::System.IO.Path.Combine(tempDir, $"{Environment.ProcessId}.log");
+            var lines = File.ReadAllLines(logFile);
+            var waitForLine = lines.FirstOrDefault(l => l.Split('\t') is { Length: >= 6 } c && c[1] == "waitFor");
+            H.Check("Devtools_WaitForLog_HasEntry", waitForLine is not null);
+
+            var parts = waitForLine!.Split('\t');
+            H.Check("Devtools_WaitForLog_StatusIsErr", parts[4] == "err");
+
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// U7: standard MCP clients hit <c>initialize</c> first. The server must
+    /// respond with a well-formed handshake (protocol version + capabilities
+    /// + server info) so the client doesn't bail.
+    /// </summary>
+    internal sealed class InitializeHandshake(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var root = MountRoot(H);
+            await Harness.Render();
+
+            using var mcp = new McpHarness(H.Window, () => root, nameof(DevtoolsFixtureRoot));
+
+            var envelope = new
+            {
+                jsonrpc = "2.0",
+                id = 1,
+                method = "initialize",
+                @params = new
+                {
+                    protocolVersion = "2024-11-05",
+                    capabilities = new { },
+                    clientInfo = new { name = "reactor-selftest", version = "1.0" },
+                },
+            };
+            var body = JsonSerializer.Serialize(envelope, DevtoolsMcpServer.JsonOpts);
+            using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{mcp.Server.Port}/") };
+            using var req = new HttpRequestMessage(HttpMethod.Post, "mcp")
+            { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+            var resp = await client.SendAsync(req);
+            var text = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(text);
+            var root2 = doc.RootElement;
+
+            H.Check("Devtools_Initialize_HasResult",
+                root2.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.Object);
+
+            var r = root2.GetProperty("result");
+            H.Check("Devtools_Initialize_ProtocolVersion",
+                r.TryGetProperty("protocolVersion", out var pv) && pv.ValueKind == JsonValueKind.String);
+            H.Check("Devtools_Initialize_Capabilities",
+                r.TryGetProperty("capabilities", out var caps) && caps.ValueKind == JsonValueKind.Object);
+            H.Check("Devtools_Initialize_ServerInfo",
+                r.TryGetProperty("serverInfo", out var info) && info.ValueKind == JsonValueKind.Object);
         }
     }
 }

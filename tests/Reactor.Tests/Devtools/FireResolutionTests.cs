@@ -75,4 +75,21 @@ public class FireResolutionTests
         Assert.Same(root, instance);
         Assert.Equal("OnIncrement", handler.Name);
     }
+
+    [Theory]
+    [InlineData("Render")]
+    [InlineData("render")]
+    [InlineData("OnInitialized")]
+    [InlineData("UseState")]
+    [InlineData("Dispose")]
+    public void ResolveTarget_ForbiddenLifecycleMethod_Rejected(string forbidden)
+    {
+        var root = new CounterDemo();
+        var ex = Assert.Throws<McpToolException>(() =>
+            DevtoolsFireTool.ResolveTarget(root, "CounterDemo", forbidden));
+        Assert.Equal(JsonRpcErrorCodes.ToolExecution, ex.Code);
+
+        var payload = JsonSerializer.Serialize(ex.Payload, DevtoolsMcpServer.JsonOpts);
+        Assert.Contains("\"code\":\"forbidden-method\"", payload);
+    }
 }

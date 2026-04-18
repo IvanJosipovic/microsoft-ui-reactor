@@ -101,14 +101,48 @@ internal static class DevtoolsFireTool
 
     internal static MethodInfo? FindHandler(Component instance, string eventName)
     {
+        // Reactor lifecycle / render / hook machinery: firing these from outside
+        // the reconciler can corrupt hook state, double-render, or bypass
+        // disposal ordering. `fire` is an escape hatch for user-authored
+        // handlers, not for the framework's internal surface — refuse by name.
+        if (ForbiddenMethods.Contains(eventName))
+            throw new McpToolException(
+                $"Method '{eventName}' is a framework lifecycle / render entry point; fire it via UIA patterns instead.",
+                JsonRpcErrorCodes.ToolExecution,
+                new { code = "forbidden-method", @event = eventName });
+
         var type = instance.GetType();
         // Prefer an exact-cased public or internal instance method; fall back to
         // case-insensitive. Only parameter shapes compatible with our passed args
         // will succeed at invoke time — we don't filter by signature here.
         const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
         return type.GetMethods(flags)
-            .FirstOrDefault(m => string.Equals(m.Name, eventName, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(m =>
+                string.Equals(m.Name, eventName, StringComparison.OrdinalIgnoreCase) &&
+                !ForbiddenMethods.Contains(m.Name));
     }
+
+    /// <summary>
+    /// Framework-owned method names that <c>fire</c> must refuse. These either
+    /// run inside the reconciler's render pass or manage the hook table —
+    /// invoking them externally leaves the component in an inconsistent state.
+    /// </summary>
+    internal static readonly HashSet<string> ForbiddenMethods = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Render",
+        "OnInitialized",
+        "OnMounted",
+        "OnUnmounted",
+        "OnDisposed",
+        "Dispose",
+        "UseState",
+        "UseEffect",
+        "UseRef",
+        "UseMemo",
+        "UseCallback",
+        "UseContext",
+        "UseReducer",
+    };
 
     internal static object?[] ExtractArgs(JsonElement? @params)
     {

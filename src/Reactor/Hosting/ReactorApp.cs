@@ -74,7 +74,7 @@ public static class ReactorApp
         where TRoot : Component, new()
     {
         var effectiveDevtools = ResolveDevtoolsParam(devtools, preview);
-        if (effectiveDevtools && TryRunDevtools(title, width, height, configure)) return;
+        if (effectiveDevtools && TryRunDevtools(title, width, height, configure, hostRoot: typeof(TRoot))) return;
 
         RunOnSta(() =>
         {
@@ -154,7 +154,7 @@ public static class ReactorApp
     /// With <c>--vscode</c>, starts the capture server for the VS Code preview panel. Only
     /// active when the caller passes <c>devtools: true</c>.
     /// </summary>
-    private static bool TryRunDevtools(string title, int width, int height, Action<ReactorHost>? configure)
+    private static bool TryRunDevtools(string title, int width, int height, Action<ReactorHost>? configure, Type? hostRoot = null)
     {
         var args = Environment.GetCommandLineArgs();
         var options = DevtoolsCliParser.Parse(args);
@@ -175,9 +175,9 @@ public static class ReactorApp
             case DevtoolsSubverb.List:
                 return RunListSubverb(options);
             case DevtoolsSubverb.Run:
-                return RunRunSubverb(options, title, width, height, configure);
+                return RunRunSubverb(options, title, width, height, configure, hostRoot);
             case DevtoolsSubverb.Screenshot:
-                return RunScreenshotSubverb(options, width, height, configure);
+                return RunScreenshotSubverb(options, width, height, configure, hostRoot);
             case DevtoolsSubverb.Tree:
                 Console.Error.WriteLine($"[devtools] '--devtools tree' (headless) is not implemented yet.");
                 return true;
@@ -186,7 +186,7 @@ public static class ReactorApp
         }
     }
 
-    private static bool RunScreenshotSubverb(DevtoolsCliOptions options, int width, int height, Action<ReactorHost>? configure)
+    private static bool RunScreenshotSubverb(DevtoolsCliOptions options, int width, int height, Action<ReactorHost>? configure, Type? hostRoot = null)
     {
         if (string.IsNullOrEmpty(options.ScreenshotOutputPath))
         {
@@ -194,7 +194,7 @@ public static class ReactorApp
             return true;
         }
 
-        var componentName = options.ComponentName ?? FindAllComponentNames().FirstOrDefault();
+        var componentName = options.ComponentName ?? hostRoot?.Name ?? FindAllComponentNames().FirstOrDefault();
         if (componentName == null)
         {
             Console.Error.WriteLine("[devtools] No Component subclasses found.");
@@ -265,11 +265,16 @@ public static class ReactorApp
         return true;
     }
 
-    private static bool RunRunSubverb(DevtoolsCliOptions options, string title, int width, int height, Action<ReactorHost>? configure)
+    private static bool RunRunSubverb(DevtoolsCliOptions options, string title, int width, int height, Action<ReactorHost>? configure, Type? hostRoot = null)
     {
         _ = title;
 
-        // Resolve the initial component type
+        // Resolve the initial component type. Precedence:
+        //   1. Explicit --component on the command line — the user asked.
+        //   2. The TRoot type that the host passed to Run<TRoot> — matches their
+        //      intent and avoids "first-alphabetical" surprises where a nested
+        //      helper component wins over the real app root.
+        //   3. Fallback to the first component the reflection scan finds.
         string? componentName = options.ComponentName;
         Type? componentType = null;
         if (componentName != null)
@@ -282,6 +287,11 @@ public static class ReactorApp
                 return true;
             }
         }
+        else if (hostRoot != null && typeof(Core.Component).IsAssignableFrom(hostRoot) && !hostRoot.IsAbstract)
+        {
+            componentType = hostRoot;
+            componentName = hostRoot.Name;
+        }
         else
         {
             var firstName = FindAllComponentNames().FirstOrDefault();
@@ -292,6 +302,9 @@ public static class ReactorApp
             }
             componentType = FindComponentType(firstName)!;
             componentName = firstName;
+            Console.Error.WriteLine(
+                $"[devtools] No --component passed and Run<T> not detected; defaulting to '{firstName}' (alphabetical). " +
+                $"Pass --component to pick another.");
         }
 
         bool vscodeMode = options.VsCodeMode;

@@ -157,9 +157,15 @@ internal sealed class TreeWalker
 
         sink.Add(node);
 
-        // Determine the next ancestor for content-addressed ids.
-        bool isStable = !string.IsNullOrEmpty(descriptor.AutomationId) || descriptor.ReactorSource is not null;
-        var nextAncestor = isStable ? descriptor : ancestor;
+        // Always thread the immediate parent through as the descriptor's ancestor
+        // chain. NodeIdBuilder anchors to the nearest *stable* ancestor (one with
+        // an AutomationId or source location); if none exists, it walks the full
+        // chain up to the root and includes each parent's type+siblingIndex in
+        // the content-addressed id. Without this, two siblings of the same type
+        // with the same parent-local index but different grandparents would
+        // collide — e.g., two TextBoxes each as the 2nd child of their own
+        // StackPanel got identical ids before the fix.
+        var nextAncestor = descriptor;
 
         int childCount = VisualTreeHelper.GetChildrenCount(element);
         for (int i = 0; i < childCount; i++)

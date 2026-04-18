@@ -74,6 +74,16 @@ public class DevtoolsFireToolTests
     }
 
     [Fact]
+    public void FindHandler_ForbiddenLifecycleName_Throws()
+    {
+        var c = new TestComponent();
+        // Render is framework-owned; fire must refuse it even though the method
+        // technically exists on the component.
+        var ex = Assert.Throws<McpToolException>(() => DevtoolsFireTool.FindHandler(c, "Render"));
+        Assert.Contains("forbidden-method", JsonSerializer.Serialize(ex.Payload, DevtoolsMcpServer.JsonOpts));
+    }
+
+    [Fact]
     public void ExtractArgs_ParsesTypedJsonElements()
     {
         using var doc = JsonDocument.Parse("""{"args":[3,"label",true,null]}""");

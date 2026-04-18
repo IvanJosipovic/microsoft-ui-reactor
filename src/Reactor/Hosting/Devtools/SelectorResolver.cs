@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 
 namespace Microsoft.UI.Reactor.Hosting.Devtools;
@@ -73,7 +74,7 @@ internal sealed class SelectorResolver
             SelectorKind.AutomationId => ResolveByPredicate(root, el =>
                 string.Equals(AutomationProperties.GetAutomationId(el), ir.AutomationId, StringComparison.Ordinal)),
             SelectorKind.AutomationName => ResolveByPredicate(root, el =>
-                string.Equals(AutomationProperties.GetName(el), ir.AutomationName, StringComparison.Ordinal)),
+                NameMatches(el, ir.AutomationName!)),
             SelectorKind.TypePath => ResolveTypePath(root, ir.TypePath!),
             SelectorKind.ReactorSource => throw new McpToolException(
                 "Reactor-source selectors require the source map (Phase 3).",
@@ -207,4 +208,28 @@ internal sealed class SelectorResolver
         if (!string.IsNullOrEmpty(name)) return $"[name='{name}']";
         return el.GetType().Name;
     }
+
+    /// <summary>
+    /// Matches an element against a <c>[name='X']</c> selector. Falls back to the
+    /// same visible-text surface that <c>tree</c> reports so the selector is
+    /// consistent with what an agent reads from the tree — a Reactor
+    /// <c>Button("Save", …)</c> can be selected by <c>[name='Save']</c> even
+    /// though WinUI doesn't auto-fill <see cref="AutomationProperties.Name"/>.
+    /// </summary>
+    private static bool NameMatches(UIElement el, string value)
+    {
+        if (string.Equals(AutomationProperties.GetName(el), value, StringComparison.Ordinal))
+            return true;
+
+        return ExtractText(el) is { } text && string.Equals(text, value, StringComparison.Ordinal);
+    }
+
+    private static string? ExtractText(UIElement element) => element switch
+    {
+        TextBlock tb => tb.Text,
+        TextBox tx => tx.Text,
+        Button b => b.Content?.ToString(),
+        ContentControl cc => cc.Content?.ToString(),
+        _ => null,
+    };
 }

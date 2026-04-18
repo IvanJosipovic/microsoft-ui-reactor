@@ -112,4 +112,37 @@ public class NodeIdBuilderTests
         Assert.StartsWith("r:main/", NodeIdBuilder.Build(a));
         Assert.StartsWith("r:aux/", NodeIdBuilder.Build(b));
     }
+
+    [Fact]
+    public void ContentAddressed_TwoSiblingsUnderDifferentParents_GetDistinctIds()
+    {
+        // Regression for the "every non-root node has a one-segment id" collision:
+        // two TextBoxes, each the 2nd child of their own StackPanel, were getting
+        // identical ids. The fix threads the immediate parent through as the
+        // ancestor chain even when it isn't stable, so the local path includes
+        // every ancestor and disambiguates siblings across parents.
+        var stackA = new NodeDescriptor("main", "FormDemo", null, null, "StackPanel", 0, StableAncestor: null);
+        var stackB = new NodeDescriptor("main", "FormDemo", null, null, "StackPanel", 1, StableAncestor: null);
+
+        var tbUnderA = new NodeDescriptor("main", "FormDemo", null, null, "TextBox", 1, StableAncestor: stackA);
+        var tbUnderB = new NodeDescriptor("main", "FormDemo", null, null, "TextBox", 1, StableAncestor: stackB);
+
+        Assert.NotEqual(NodeIdBuilder.Build(tbUnderA), NodeIdBuilder.Build(tbUnderB));
+    }
+
+    [Fact]
+    public void ContentAddressed_UnstableAncestorChain_WalksToRoot()
+    {
+        // Grandparent has no stable anchor either — the id should include every
+        // ancestor's type+sibling, terminating at the component prefix. Prior
+        // behavior stopped at the first unstable ancestor and dropped the rest.
+        var grand = new NodeDescriptor("main", "FormDemo", null, null, "FlexPanel", 3, StableAncestor: null);
+        var parent = new NodeDescriptor("main", "FormDemo", null, null, "StackPanel", 0, StableAncestor: grand);
+        var child = new NodeDescriptor("main", "FormDemo", null, null, "TextBox", 1, StableAncestor: parent);
+
+        var id = NodeIdBuilder.Build(child);
+        Assert.Contains("FlexPanel[3]", id);
+        Assert.Contains("StackPanel[0]", id);
+        Assert.Contains("TextBox[1]", id);
+    }
 }

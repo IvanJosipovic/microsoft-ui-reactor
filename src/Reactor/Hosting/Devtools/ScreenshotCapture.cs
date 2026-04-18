@@ -52,11 +52,20 @@ internal static class ScreenshotCapture
 
         if (crop is var (cx, cy, cw, ch) && cw > 0 && ch > 0)
         {
-            // Crop is expressed in client-space; shift by offset when chrome isn't included.
-            int cropX = (int)Math.Round(cx) + srcX;
-            int cropY = (int)Math.Round(cy) + srcY;
-            int cropW = (int)Math.Round(cw);
-            int cropH = (int)Math.Round(ch);
+            // The crop rect comes in from TransformToVisual in device-independent
+            // pixels (DIPs). PrintWindow hands us a bitmap in *physical* pixels.
+            // Without scaling, the crop is correct only at 100% DPI; at 125% a
+            // rect that should cover a button up at y=240 lands at y=177 (the
+            // "Cour" of "Current count" above it). Scale DIPs to physical px
+            // using the window's effective DPI before stacking the client offset.
+            double dpi = GetDpiForWindow(hwnd);
+            if (dpi <= 0) dpi = 96;
+            double scale = dpi / 96.0;
+
+            int cropX = (int)Math.Round(cx * scale) + srcX;
+            int cropY = (int)Math.Round(cy * scale) + srcY;
+            int cropW = (int)Math.Round(cw * scale);
+            int cropH = (int)Math.Round(ch * scale);
             cropX = Math.Max(0, Math.Min(cropX, windowWidth - 1));
             cropY = Math.Max(0, Math.Min(cropY, windowHeight - 1));
             cropW = Math.Max(1, Math.Min(cropW, windowWidth - cropX));
@@ -104,4 +113,10 @@ internal static class ScreenshotCapture
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ClientToScreen(IntPtr hwnd, ref POINT lpPoint);
+
+    // GetDpiForWindow is Windows 10+; we target Windows 10 18362 so it's always
+    // available at runtime. Returns the DPI the window currently renders at —
+    // 96 is 100%, 120 is 125%, 144 is 150%.
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
 }
