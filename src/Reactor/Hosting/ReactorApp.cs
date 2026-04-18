@@ -368,6 +368,7 @@ public static class ReactorApp
                 });
                 DevtoolsUiaTools.RegisterUiaTools(mcp, nodes, windows);
                 DevtoolsFireTool.Register(mcp, () => host.RootComponent);
+                DevtoolsStateTool.Register(mcp, () => host.RootComponent);
 
                 mcp.Start();
                 // Ready line fires after the first render — subscribe once to the host.

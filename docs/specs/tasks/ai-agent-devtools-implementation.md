@@ -328,12 +328,12 @@ Tests for this feature are classified by the infrastructure they require. Every 
 
 ### 3.3 Tool: `reactor.state`
 
-- [ ] Args: `selector?`.
-- [ ] Reads per-component hook tables on the UI dispatcher.
-- [ ] Output matches spec §12 shape: `{ hooks: [{ component, instanceId, hook, index, name?, valueType, value }] }`.
-- [ ] Primitives serialize as JSON values. Complex objects return `{ "$type", "$shape" }` — no full dump.
-- [ ] `name` heuristic: if the hook's caller destructured the return into a named local variable traceable via the source map, include the name; otherwise omit.
-- [ ] Mutation is out of scope — read-only.
+- [x] Args: `selector?`. *(Accepted but reserved — v1 always inspects the root component; selector routing lands with the child-component registry follow-up.)*
+- [x] Reads per-component hook tables on the UI dispatcher.
+- [x] Output matches spec §12 shape: `{ hooks: [{ component, instanceId, hook, index, name?, valueType, value }] }`.
+- [x] Primitives serialize as JSON values. Complex objects return `{ "$type", "$shape" }` — no full dump.
+- [ ] `name` heuristic: if the hook's caller destructured the return into a named local variable traceable via the source map, include the name; otherwise omit. *(Deferred with §3.2 source map wiring.)*
+- [x] Mutation is out of scope — read-only.
 
 ### 3.4 Tool: `reactor.invoke`
 
@@ -380,9 +380,9 @@ Tests for this feature are classified by the infrastructure they require. Every 
 - [ ] `tests/Reactor.Tests/Devtools/SourceMapReactorBackrefTests.cs`:
   - [ ] `reactor` block appears when the source map resolves; absent otherwise.
   - [ ] Templated-part nodes never get a synthesized `reactor` block.
-- [ ] `tests/Reactor.Tests/Devtools/StateShapeTests.cs`:
-  - [ ] Primitive hook values serialize directly.
-  - [ ] Complex objects serialize as `{ "$type", "$shape" }`, no deep dump.
+- [x] `tests/Reactor.Tests/Devtools/StateShapeTests.cs`:
+  - [x] Primitive hook values serialize directly.
+  - [x] Complex objects serialize as `{ "$type", "$shape" }`, no deep dump.
 - [ ] `tests/Reactor.Tests/Devtools/FireResolutionTests.cs`:
   - [ ] Component + event name resolves to the right handler.
   - [ ] Unknown component or unknown event returns structured errors.

@@ -1,0 +1,121 @@
+using System.Collections.Generic;
+using System.Text.Json;
+using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Hosting.Devtools;
+using Xunit;
+
+namespace Microsoft.UI.Reactor.Tests.Devtools;
+
+/// <summary>
+/// Shape tests for <c>reactor.state</c>. Exercises the two contracts that
+/// matter most for the tool's safety story: primitives pass through, complex
+/// values return <c>{ $type, $shape }</c> without leaking values (spec §12).
+/// End-to-end hook-table reads need a rendered component and live in the
+/// self-host fixture (§3.11).
+/// </summary>
+public class StateShapeTests
+{
+    [Theory]
+    [InlineData(42)]
+    [InlineData(3.14)]
+    [InlineData("hello")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void PrimitivesPassThroughUnchanged(object primitive)
+    {
+        var shaped = DevtoolsStateTool.ShapeValue(primitive);
+        Assert.Equal(primitive, shaped);
+    }
+
+    [Fact]
+    public void NullStaysNull()
+    {
+        Assert.Null(DevtoolsStateTool.ShapeValue(null));
+    }
+
+    [Fact]
+    public void EnumRendersAsString()
+    {
+        var shaped = DevtoolsStateTool.ShapeValue(SampleEnum.Second);
+        Assert.Equal("Second", shaped);
+    }
+
+    [Fact]
+    public void ComplexObject_ReturnsTypeAndShape_NotValues()
+    {
+        var person = new Person { Name = "Kim", Age = 40, Secret = "do-not-leak" };
+        var shaped = DevtoolsStateTool.ShapeValue(person);
+
+        var dict = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(shaped);
+        Assert.Contains("$type", dict.Keys);
+        Assert.Contains("$shape", dict.Keys);
+
+        var json = JsonSerializer.Serialize(shaped, DevtoolsMcpServer.JsonOpts);
+        // Type name is present — agents can reason about it.
+        Assert.Contains("Person", json);
+        // Property names are present as shape metadata (dictionary keys
+        // bypass the class property-naming policy, so they stay as authored).
+        Assert.Contains("\"Name\":\"String\"", json);
+        Assert.Contains("\"Age\":\"Int32\"", json);
+        // Actual values never leak — the string "Kim" and "do-not-leak" must be absent.
+        Assert.DoesNotContain("Kim", json);
+        Assert.DoesNotContain("do-not-leak", json);
+        Assert.DoesNotContain("40", json);
+    }
+
+    [Fact]
+    public void Collection_ReturnsCountAndType_NotContents()
+    {
+        var list = new List<Person>
+        {
+            new() { Name = "A", Age = 1, Secret = "s1" },
+            new() { Name = "B", Age = 2, Secret = "s2" },
+        };
+        var shaped = DevtoolsStateTool.ShapeValue(list);
+
+        Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(shaped);
+        var json = JsonSerializer.Serialize(shaped, DevtoolsMcpServer.JsonOpts);
+
+        Assert.Contains("List", json);
+        Assert.Contains("\"kind\":\"collection\"", json);
+        Assert.Contains("\"count\":2", json);
+        // Per-element contents must not leak.
+        Assert.DoesNotContain("\"A\"", json);
+        Assert.DoesNotContain("\"B\"", json);
+        Assert.DoesNotContain("s1", json);
+    }
+
+    [Fact]
+    public void BuildPayload_WithNullRoot_ThrowsNotReady()
+    {
+        var ex = Assert.Throws<McpToolException>(() => DevtoolsStateTool.BuildPayload(null));
+        Assert.Equal(JsonRpcErrorCodes.ToolExecution, ex.Code);
+        Assert.Contains("not-ready", JsonSerializer.Serialize(ex.Payload));
+    }
+
+    [Fact]
+    public void BuildPayload_EmptyComponent_ReturnsEmptyHooksArray()
+    {
+        // A component that never calls a hook should report an empty hooks
+        // list — exercising the snapshot pipeline without any hook cells.
+        var c = new EmptyComponent();
+        var payload = DevtoolsStateTool.BuildPayload(c);
+
+        var json = JsonSerializer.Serialize(payload, DevtoolsMcpServer.JsonOpts);
+        Assert.Contains("\"hooks\":[]", json);
+    }
+
+    private enum SampleEnum { First, Second, Third }
+
+    private sealed class Person
+    {
+        public string Name { get; set; } = "";
+        public int Age { get; set; }
+        public string Secret { get; set; } = "";
+    }
+
+    private sealed class EmptyComponent : Component
+    {
+        public override Element Render() => null!;
+    }
+}
