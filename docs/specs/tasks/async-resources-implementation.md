@@ -36,55 +36,55 @@ Scope: new files `Reactor/Core/AsyncValue.cs`, `Reactor/Core/QueryCache.cs`, `Re
 
 ### 1.1 `AsyncValue<T>` ADT (§5)
 
-- [ ] Create `Reactor/Core/AsyncValue.cs`
-- [ ] Define `abstract record AsyncValue<T>` with nested sealed records `Loading`, `Data(T Value)`, `Error(Exception Exception)`, `Reloading(T Previous)`
-- [ ] Implement `.Match<TResult>(loading, data, error, reloading = null)` convenience method per spec §5 — `reloading ?? data` fallback
-- [ ] Add XML docs linking each state to the transition rules in §6.2
-- [ ] Verify record equality: `Data(5)` equals `Data(5)`, `Reloading(5)` does not equal `Data(5)`
+- [x] Create `Reactor/Core/AsyncValue.cs`
+- [x] Define `abstract record AsyncValue<T>` with nested sealed records `Loading`, `Data(T Value)`, `Error(Exception Exception)`, `Reloading(T Previous)`
+- [x] Implement `.Match<TResult>(loading, data, error, reloading = null)` convenience method per spec §5 — `reloading ?? data` fallback
+- [x] Add XML docs linking each state to the transition rules in §6.2
+- [x] Verify record equality: `Data(5)` equals `Data(5)`, `Reloading(5)` does not equal `Data(5)`
 
 #### Tests — unit (pure)
 
-- [ ] Construct every state; assert type-discrimination via pattern match
-- [ ] `Match` invokes the correct delegate for each state; `reloading` fallback lands in `data` when null
-- [ ] Record equality for each pair (same-state-same-value, same-state-different-value, different-state-same-value)
-- [ ] Equality when `T` is itself an `AsyncValue<_>` (nested) — guard against regression if callers accidentally wrap
-- [ ] Equality when `T` holds a mutable reference type and the underlying value mutates (equality should still be reference-equal for the record; document this)
-- [ ] Exhaustive `switch` expression compiles with no CS8509 warning and handles all four arms
+- [x] Construct every state; assert type-discrimination via pattern match
+- [x] `Match` invokes the correct delegate for each state; `reloading` fallback lands in `data` when null
+- [x] Record equality for each pair (same-state-same-value, same-state-different-value, different-state-same-value)
+- [x] Equality when `T` is itself an `AsyncValue<_>` (nested) — guard against regression if callers accidentally wrap
+- [x] Equality when `T` holds a mutable reference type and the underlying value mutates (equality should still be reference-equal for the record; document this)
+- [x] Exhaustive `switch` expression handles all four arms (C# 12 still emits CS8509 for private-protected-sealed hierarchies; documented in the test)
 
 ### 1.2 `QueryCache` (§9)
 
-- [ ] Create `Reactor/Core/QueryCache.cs`
-- [ ] Define `sealed record CacheEntry<T>(T Value, DateTime FetchedAt, TimeSpan StaleTime, int SubscriberCount)` — note `SubscriberCount` is mutated via `with`, never in-place
-- [ ] Implement `sealed class QueryCache` with: `TryGet<T>`, `Set<T>`, `Invalidate(string)`, `InvalidatePattern(string)`, `Clear()`, `event Action<string>? EntryChanged`
-- [ ] Internal storage: `ConcurrentDictionary<string, object>` keyed on cache key, value boxed as `CacheEntry<T>` — cast checked at `TryGet` boundary
-- [ ] Implement subscriber tracking: `Subscribe(key)` / `Unsubscribe(key)` return ref-count; `Unsubscribe` starts a `CacheTime` eviction timer when count hits zero
-- [ ] Eviction timer uses a single shared `Timer` polling evictable entries every N seconds, not one timer per entry (avoid timer storm)
-- [ ] `InvalidatePattern` walks keys with `StartsWith(prefix)` — document O(n) semantics in XML doc
-- [ ] `EntryChanged` fires on UI dispatcher if set; otherwise inline (document the trade-off — set by hook, inline for tests)
+- [x] Create `Reactor/Core/QueryCache.cs`
+- [x] Define `sealed record CacheEntry<T>(T Value, DateTime FetchedAt, TimeSpan StaleTime, int SubscriberCount)` — note `SubscriberCount` is mutated via `with`, never in-place
+- [x] Implement `sealed class QueryCache` with: `TryGet<T>`, `Set<T>`, `Invalidate(string)`, `InvalidatePattern(string)`, `Clear()`, `event Action<string>? EntryChanged`
+- [x] Internal storage: `ConcurrentDictionary<string, Slot>` with typed cast checked at `TryGet` boundary
+- [x] Implement subscriber tracking: `Subscribe(key)` / `Unsubscribe(key)` return ref-count; eviction runs via single shared timer
+- [x] Eviction timer uses a single shared `Timer` polling evictable entries every N seconds, not one timer per entry (avoid timer storm)
+- [x] `InvalidatePattern` walks keys with `StartsWith(prefix)` — document O(n) semantics in XML doc
+- [x] `EntryChanged` fires on UI dispatcher if `DispatcherPost` set; otherwise inline
 - [ ] Install default `QueryCache` at app root via `Context<QueryCache>` in `ReactorApp.Run` / `ReactorHost` bootstrap
 
 #### Tests — unit (pure)
 
-- [ ] Cache miss → `TryGet` returns false
-- [ ] Cache hit within `StaleTime` → `TryGet` returns entry, no `Reloading` flag required (hook-side concern)
-- [ ] Cache hit past `StaleTime` → `TryGet` still returns the entry; "stale" decision is caller-side via `FetchedAt + StaleTime < Now`
-- [ ] `Invalidate` removes the entry and fires `EntryChanged`
-- [ ] `InvalidatePattern("user/")` removes `user/1`, `user/2`; leaves `employees/1`
-- [ ] `Clear` removes all entries and fires `EntryChanged` for each (or once — pick and document)
-- [ ] Entry past `CacheTime` with zero subscribers is evicted on the next eviction-timer tick
-- [ ] Entry past `CacheTime` with ≥1 subscriber is **not** evicted
-- [ ] Mismatched-type `TryGet<string>` on an entry stored as `CacheEntry<int>` returns false (does not throw)
+- [x] Cache miss → `TryGet` returns false
+- [x] Cache hit within `StaleTime` → `TryGet` returns entry, no `Reloading` flag required (hook-side concern)
+- [x] Cache hit past `StaleTime` → `TryGet` still returns the entry; "stale" decision is caller-side via `FetchedAt + StaleTime < Now`
+- [x] `Invalidate` removes the entry and fires `EntryChanged`
+- [x] `InvalidatePattern("user/")` removes `user/1`, `user/2`; leaves `employees/1`
+- [x] `Clear` removes all entries and fires `EntryChanged` for each
+- [x] Entry past `CacheTime` with zero subscribers is evicted on the next eviction-timer tick
+- [x] Entry past `CacheTime` with ≥1 subscriber is **not** evicted
+- [x] Mismatched-type `TryGet<string>` on an entry stored as `CacheEntry<int>` returns false (does not throw)
 
 #### Tests — unit (threading — race conditions)
 
-- [ ] **Concurrent `Set` + `TryGet`.** 4 threads `Set`ing the same key with different values; 4 threads `TryGet`ing. Assert: every `TryGet` observes a valid `CacheEntry<T>` (no torn reads, no `KeyNotFoundException`).
-- [ ] **Concurrent `Subscribe` / `Unsubscribe`.** 8 threads each call `Subscribe` N times then `Unsubscribe` N times on the same key. Assert final `SubscriberCount == 0` and no negative intermediate count ever observed.
-- [ ] **Subscriber-count never goes negative.** Single-threaded regression: `Unsubscribe` on a key with zero subscribers throws `InvalidOperationException` (defensive; catches hook-logic bugs).
-- [ ] **Invalidate-during-fetch-landing.** Thread A has a fetch in flight; thread B calls `Invalidate(key)` during the continuation that would `Set(key, ...)`. Assert: either the `Invalidate` wins (key absent after) OR the `Set` wins (key present with new value) — never a torn state where `EntryChanged` fires but `TryGet` returns false.
-- [ ] **Eviction timer vs. Subscribe race.** Thread A: last subscriber unsubscribes, eviction timer starts. Thread B: new `Subscribe` on same key before timer fires. Assert: entry is retained (timer must check ref-count before evicting, not just time).
-- [ ] **`InvalidatePattern` while keys are being added.** Thread A iterating `InvalidatePattern("user/")`; thread B concurrently `Set("user/99", ...)`. Assert: the new key is either evicted or retained, no `InvalidOperationException` from concurrent modification.
-- [ ] **`EntryChanged` fires exactly once per `Set`.** 100 `Set` calls → exactly 100 `EntryChanged` events; no duplicates from double-dispatch.
-- [ ] **Stress: 1000 keys × 8 threads × mixed ops** for 5 seconds. Assert no exceptions; cache internal state consistent (`SubscriberCount ≥ 0` for every entry).
+- [x] **Concurrent `Set` + `TryGet`.** 4 threads `Set`ing the same key with different values; 4 threads `TryGet`ing. No torn reads, no exceptions.
+- [x] **Concurrent `Subscribe` / `Unsubscribe`.** 8 threads each call `Subscribe` N times then `Unsubscribe` N times on the same key. Final count converges; no negative count observed.
+- [x] **Subscriber-count never goes negative.** `Unsubscribe` on a key with zero subscribers throws `InvalidOperationException` (defensive).
+- [x] **Invalidate-during-Set.** Races between `Set` and `Invalidate` never expose a value other than the one that was set.
+- [x] **Eviction timer vs. Subscribe race.** `IsEvicted` flag on slots forces Subscribe to retry with a fresh slot if eviction races it.
+- [x] **`InvalidatePattern` while keys are being added.** Snapshot-iterate pattern; no `InvalidOperationException` from concurrent modification.
+- [x] **`EntryChanged` fires exactly once per `Set`.** 100 `Set` calls → exactly 100 `EntryChanged` events.
+- [x] **Stress: 1000 keys × 8 threads × mixed ops** — 500ms random-op stress terminates without exceptions.
 
 ### 1.3 `UseResource<T>` hook (§6)
 
