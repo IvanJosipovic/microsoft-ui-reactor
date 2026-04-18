@@ -13,7 +13,8 @@ public sealed record ResourceOptions(
     TimeSpan? CacheTime = null,
     int RetryCount = 0,
     bool RefetchOnMount = true,
-    string? CacheKey = null)
+    string? CacheKey = null,
+    bool RefetchOnWindowFocus = false)
 {
     public static readonly ResourceOptions Default = new();
     internal TimeSpan EffectiveStaleTime => StaleTime ?? TimeSpan.Zero;
@@ -123,12 +124,17 @@ public static class UseResourceExtensions
         // Peek the nearest Pending scope at the call-site. Null outside any <see cref="Pending"/>
         // — zero-overhead when no bubble-up is installed.
         var pendingScope = ctx.UseContext(AppContexts.PendingScope);
+        // Focus revalidation service: null when no service is installed in the context
+        // (tests, headless hosts). Hooks with RefetchOnWindowFocus=true enroll their
+        // cache key so activation events can invalidate stale entries.
+        var focusService = ctx.UseContext(AppContexts.FocusRevalidation);
 
         var state = stateRef.Current ??= new ResourceHookState<T>(
             cache: cache,
             dispatcher: dispatcher ?? TryCaptureCurrentDispatcher(),
             requestRerender: () => rerenderTick(n => n + 1),
-            pendingScope: pendingScope);
+            pendingScope: pendingScope,
+            focusService: options.RefetchOnWindowFocus ? focusService : null);
 
         // Run-once-on-unmount cleanup. Deps-change is driven synchronously below rather than
         // via UseEffect, because we need the updated value inside this same render.
@@ -395,15 +401,40 @@ internal sealed class ResourceHookState<T> : IDisposable
     public bool InFlight;
     public bool IsDisposed;
 
-    public ResourceHookState(QueryCache cache, IHookDispatcher? dispatcher, Action requestRerender, PendingScope? pendingScope = null)
+    private readonly Action<string> _onEntryChanged;
+    private readonly FocusRevalidationService? _focusService;
+
+    public ResourceHookState(
+        QueryCache cache,
+        IHookDispatcher? dispatcher,
+        Action requestRerender,
+        PendingScope? pendingScope = null,
+        FocusRevalidationService? focusService = null)
     {
         Cache = cache;
         Dispatcher = dispatcher;
         RequestRerender = requestRerender;
         PendingScope = pendingScope;
+        _focusService = focusService;
+        // Subscribe to the cache's change notifications so external invalidations
+        // (mutation side-effects, focus revalidation) reach this hook without
+        // depending on a parent re-render. The handler runs on whichever thread
+        // fired the event; RequestRerender marshals through the thread-safe reducer.
+        _onEntryChanged = OnEntryChanged;
+        cache.EntryChanged += _onEntryChanged;
         // Register with initial Loading state — the bubble-up scope should show the
         // fallback immediately, before the first fetch round-trip.
         PendingScope?.Register(this, isLoading: true);
+    }
+
+    private void OnEntryChanged(string key)
+    {
+        if (IsDisposed) return;
+        if (!string.Equals(key, CacheKey, StringComparison.Ordinal)) return;
+        // Only react when the entry is gone — a Set that just wrote the value we
+        // already hold would trigger a no-op re-render otherwise.
+        if (LastValue is AsyncValue<T>.Data && !Cache.TryGet<T>(key, out _))
+            RequestRerender();
     }
 
     private void NotifyPending()
@@ -424,10 +455,12 @@ internal sealed class ResourceHookState<T> : IDisposable
         if (!string.IsNullOrEmpty(CacheKey) && !string.Equals(CacheKey, newKey, StringComparison.Ordinal))
         {
             try { Cache.Unsubscribe(CacheKey); } catch (InvalidOperationException) { /* defensive */ }
+            _focusService?.Unenroll(CacheKey);
         }
 
         CacheKey = newKey;
         Cache.Subscribe(newKey);
+        _focusService?.Enroll(newKey);
         LastDeps = newDeps.ToArray();
     }
 
@@ -449,12 +482,14 @@ internal sealed class ResourceHookState<T> : IDisposable
     {
         if (IsDisposed) return;
         IsDisposed = true;
+        Cache.EntryChanged -= _onEntryChanged;
         Cts?.Cancel();
         Cts?.Dispose();
         Cts = null;
         if (!string.IsNullOrEmpty(CacheKey))
         {
             try { Cache.Unsubscribe(CacheKey); } catch (InvalidOperationException) { /* defensive */ }
+            _focusService?.Unenroll(CacheKey);
         }
         PendingScope?.Unregister(this);
     }

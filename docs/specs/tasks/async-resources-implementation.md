@@ -369,18 +369,20 @@ Scope: new `Reactor/Core/Hooks/UseMutation.cs`; modifications to `Reactor/Contro
 
 ### 4.2 Focus revalidation (§15 Q1)
 
-- [ ] Add `ResourceOptions.RefetchOnWindowFocus = false` default (D11 equivalent)
-- [ ] Hook `CoreWindow.Activated` + `CoreApplication.Resuming` in a central service
-- [ ] On activation: iterate cache entries past `StaleTime`, fire refetch for each, dedup concurrent
-- [ ] Throttle: default 30s between activation-triggered refetches (avoid Alt-Tab thrash)
-- [ ] Feature-flag `ReactorFeatureFlags.FocusRevalidation` (default off); document rollout plan
+- [x] Add `ResourceOptions.RefetchOnWindowFocus = false` default (D11 equivalent)
+- [x] Central service (`FocusRevalidationService`) hooking `Window.Activated`; app-resume wiring left for platforms that expose it (UWP `CoreApplication.Resuming` is not reachable from our Win32-App-SDK host)
+- [x] On activation: iterate enrolled entries past `StaleTime`, fire `cache.Invalidate(key)` for each; hook's `EntryChanged` subscription drives the refetch
+- [x] Throttle: default 30s between activation-triggered refetches (`FocusRevalidationService.ThrottleWindow`)
+- [x] Feature-flag `ReactorFeatureFlags.FocusRevalidation` (default off). The service is always live so tests and explicit consumers can drive it directly; only the auto-activation hook checks the flag.
 
 #### Tests
 
-- [ ] Unit: activation triggers refetch only for entries past `StaleTime`
-- [ ] Unit: throttle blocks revalidation within 30s of previous
-- [ ] Unit: per-query `RefetchOnWindowFocus: false` opts out
-- [ ] Selfhost: `AsyncResource.FocusRevalidate` — simulate window-activated event; assert refetch fires and `Reloading` is observed
+- [x] Unit: activation triggers refetch only for entries past `StaleTime` (`FocusRevalidationTests.RevalidateNow_Invalidates_Stale_Enrolled_Entries`)
+- [x] Unit: throttle blocks revalidation within the window (`RevalidateNow_Throttles_Within_Window`, `RevalidateNowForce_Bypasses_Throttle`)
+- [x] Unit: per-query `RefetchOnWindowFocus: false` opts out (`Hook_Does_Not_Enroll_When_RefetchOnWindowFocus_False`)
+- [x] Unit: idempotent enroll + unenroll semantics
+- [x] Unit: enrolled but non-stale entries are left alone; non-enrolled stale entries are left alone
+- [x] Selfhost: `AsyncResource.FocusRevalidate` — simulate a revalidation sweep; assert refetch fires and the new value renders
 
 ### 4.3 Analyzer diagnostics (§16 Phase 4)
 

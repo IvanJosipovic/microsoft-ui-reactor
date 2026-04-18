@@ -417,6 +417,7 @@ internal static class SelfTestFixtureRegistry
         "AsyncResource.StaleWhileRevalidate",
         "AsyncResource.DepsChangeCancel",
         "AsyncResource.UnmountDuringFetch",
+        "AsyncResource.FocusRevalidate",
         // Pending bubble-up scope
         "AsyncResource.PendingBubbleUp",
         "AsyncResource.PendingWithOverride",
@@ -855,6 +856,7 @@ internal static class SelfTestFixtureRegistry
         "AsyncResource.StaleWhileRevalidate" => new AsyncResourceFixtures.StaleWhileRevalidate(harness),
         "AsyncResource.DepsChangeCancel" => new AsyncResourceFixtures.DepsChangeCancel(harness),
         "AsyncResource.UnmountDuringFetch" => new AsyncResourceFixtures.UnmountDuringFetch(harness),
+        "AsyncResource.FocusRevalidate" => new AsyncResourceFixtures.FocusRevalidate(harness),
         // Pending bubble-up scope
         "AsyncResource.PendingBubbleUp" => new PendingFixtures.BubbleUp(harness),
         "AsyncResource.PendingWithOverride" => new PendingFixtures.WithOverride(harness),

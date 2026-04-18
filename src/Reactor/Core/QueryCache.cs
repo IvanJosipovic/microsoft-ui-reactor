@@ -18,6 +18,8 @@ namespace Microsoft.UI.Reactor.Core;
 internal interface ICacheEntry
 {
     int SubscriberCount { get; }
+    DateTime FetchedAt { get; }
+    TimeSpan StaleTime { get; }
     ICacheEntry WithSubscriberCount(int count);
 }
 
@@ -256,6 +258,31 @@ public sealed class QueryCache : IDisposable
     /// </summary>
     public int Count => _slots.Count;
 
+    /// <summary>
+    /// Non-generic metadata peek used by <see cref="FocusRevalidationService"/> to
+    /// decide whether an entry is stale without knowing its payload type. Returns
+    /// false if the slot is missing, empty, or holds a non-<see cref="CacheEntry{T}"/>
+    /// payload (which should be impossible through the public API).
+    /// </summary>
+    internal bool TryGetFetchedAt(string key, out DateTime fetchedAt, out TimeSpan staleTime)
+    {
+        if (_slots.TryGetValue(key, out var slot))
+        {
+            lock (slot.Lock)
+            {
+                if (slot.Entry is ICacheEntry e)
+                {
+                    fetchedAt = e.FetchedAt;
+                    staleTime = e.StaleTime;
+                    return true;
+                }
+            }
+        }
+        fetchedAt = default;
+        staleTime = default;
+        return false;
+    }
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -327,4 +354,13 @@ public static class AppContexts
     /// </summary>
     public static readonly Context<Hooks.PendingScope?> PendingScope =
         new(null, nameof(PendingScope));
+
+    /// <summary>
+    /// Ambient <see cref="Core.FocusRevalidationService"/> bound to the root
+    /// <see cref="QueryCache"/>. Hooks that opt in via
+    /// <c>ResourceOptions.RefetchOnWindowFocus = true</c> enroll themselves so the
+    /// service can invalidate their cache entry on window activation / resume.
+    /// </summary>
+    public static readonly Context<FocusRevalidationService?> FocusRevalidation =
+        new(new FocusRevalidationService(QueryCache.DefaultValue), nameof(FocusRevalidation));
 }

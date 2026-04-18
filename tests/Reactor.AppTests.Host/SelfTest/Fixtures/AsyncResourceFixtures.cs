@@ -325,6 +325,88 @@ internal static class AsyncResourceFixtures
     }
 
     // ════════════════════════════════════════════════════════════════════
+    //  FocusRevalidate — simulate a window-activation sweep; the enrolled
+    //  hook invalidates, re-renders, and a fresh fetch lands.
+    // ════════════════════════════════════════════════════════════════════
+
+    internal class FocusRevalidate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var cache = new QueryCache();
+            var baseTime = DateTime.UtcNow;
+            cache.UtcNow = () => baseTime;
+
+            var service = new FocusRevalidationService(cache)
+            {
+                ThrottleWindow = TimeSpan.Zero,
+                UtcNow = () => baseTime,
+            };
+
+            FocusChild.Reset();
+
+            var host = H.CreateHost();
+            host.Mount(ctx =>
+                Factories.Component<FocusChild, FocusChildProps>(new FocusChildProps(cache))
+                    .Provide(AppContexts.FocusRevalidation, (FocusRevalidationService?)service));
+
+            await Harness.Render();
+
+            H.Check($"FocusRevalidate_InitialFetch (count={FocusChild.Fetches})", FocusChild.Fetches == 1);
+            H.Check("FocusRevalidate_InitialDataVisible",
+                H.FindText("data: v1") is not null);
+
+            // Advance past StaleTime and fire a revalidation sweep.
+            baseTime = baseTime.AddSeconds(1);
+            var invalidated = service.RevalidateNow();
+            H.Check($"FocusRevalidate_SweepInvalidated (count={invalidated.Count})",
+                invalidated.Count == 1);
+
+            // The hook's EntryChanged subscription triggers a re-render; next render
+            // sees cache miss, refetches, and — because the previous value was Data —
+            // passes through Reloading on its way to new Data.
+            await Harness.Render();
+            await Harness.Render();
+
+            H.Check($"FocusRevalidate_RefetchHappened (count={FocusChild.Fetches})",
+                FocusChild.Fetches == 2);
+            H.Check("FocusRevalidate_NewDataVisible",
+                H.FindText("data: v2") is not null);
+        }
+    }
+
+    internal sealed record FocusChildProps(QueryCache Cache);
+
+    internal sealed class FocusChild : Component<FocusChildProps>
+    {
+        static int _fetches;
+        public static int Fetches => Volatile.Read(ref _fetches);
+        public static void Reset() => Volatile.Write(ref _fetches, 0);
+
+        public override Element Render()
+        {
+            var v = UseResource(
+                _ => Task.FromResult($"v{Interlocked.Increment(ref _fetches)}"),
+                Props.Cache,
+                Array.Empty<object>(),
+                new ResourceOptions(
+                    CacheKey: "focus/target",
+                    StaleTime: TimeSpan.FromMilliseconds(100),
+                    RefetchOnWindowFocus: true));
+            return Factories.Text(v switch
+            {
+                AsyncValue<string>.Loading => "loading",
+                AsyncValue<string>.Data d => $"data: {d.Value}",
+                AsyncValue<string>.Reloading r => $"reloading: {r.Previous}",
+                AsyncValue<string>.Error e => $"error: {e.Exception.Message}",
+                _ => "?",
+            });
+        }
+
+        protected override bool ShouldUpdate(FocusChildProps? oldProps, FocusChildProps? newProps) => true;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     //  Shared helpers
     // ════════════════════════════════════════════════════════════════════
 

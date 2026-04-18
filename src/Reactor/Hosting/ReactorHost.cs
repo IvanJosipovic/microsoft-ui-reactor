@@ -106,6 +106,26 @@ public sealed class ReactorHost : IDisposable
                 action(); // dispatcher shut down — fall back to inline
         };
 
+        // Hook the window's Activated event into the focus-revalidation service.
+        // The service itself lives in <see cref="AppContexts.FocusRevalidation"/> and is
+        // always live; enrollment is a no-op when nothing has opted in. Only fire the
+        // sweep when the feature flag is on — apps that don't want window-focus
+        // revalidation pay zero cost.
+        var focusService = AppContexts.FocusRevalidation.DefaultValue;
+        if (focusService is not null)
+        {
+            try
+            {
+                _window.Activated += (_, args) =>
+                {
+                    if (!ReactorFeatureFlags.FocusRevalidation) return;
+                    if (args.WindowActivationState != WindowActivationState.Deactivated)
+                        focusService.RevalidateNow();
+                };
+            }
+            catch { /* windowless / headless host — no activation hook */ }
+        }
+
         // Register built-in custom element types
         Controls.ResizeGripRegistration.Register(_reconciler);
 
