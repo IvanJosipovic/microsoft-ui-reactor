@@ -22,6 +22,8 @@ internal sealed class DevtoolsMcpServer : IDisposable
     private readonly string _buildTag;
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly DevtoolsLogger? _logger;
+    private readonly McpTransport _transport;
+    private StdioMcpLoop? _stdioLoop;
     private bool _disposed;
 
     public int Port { get; }
@@ -29,19 +31,30 @@ internal sealed class DevtoolsMcpServer : IDisposable
     public string BuildTag => _buildTag;
     public DispatcherQueue DispatcherQueue => _dispatcherQueue;
     public Window Window => _window;
+    public McpTransport Transport => _transport;
     internal DevtoolsLogger? Logger => _logger;
+
+    /// <summary>
+    /// Routes banner/announcement lines. When stdio is the active MCP
+    /// transport, stdout is reserved for JSON-RPC framing so everything else
+    /// has to go to stderr — otherwise we'd corrupt the agent's message stream.
+    /// </summary>
+    private TextWriter BannerWriter =>
+        _transport == McpTransport.Stdio ? Console.Error : Console.Out;
 
     public DevtoolsMcpServer(
         DispatcherQueue dispatcherQueue,
         Window window,
         int? preferredPort = null,
-        DevtoolsLogger? logger = null)
+        DevtoolsLogger? logger = null,
+        McpTransport transport = McpTransport.Http)
     {
         _dispatcherQueue = dispatcherQueue;
         _window = window;
         _tools = new McpToolRegistry();
         _buildTag = ResolveBuildTag();
         _logger = logger;
+        _transport = transport;
 
         Port = preferredPort ?? FindFreePort();
         _listener = new HttpListener();
@@ -50,15 +63,31 @@ internal sealed class DevtoolsMcpServer : IDisposable
 
     public void Start()
     {
-        _listener.Start();
-        _ = ListenAsync().ContinueWith(
-            t => Console.Error.WriteLine($"[devtools:mcp] Listener loop failed: {t.Exception!.GetBaseException()}"),
-            TaskContinuationOptions.OnlyOnFaulted);
+        if (_transport == McpTransport.Http)
+        {
+            _listener.Start();
+            _ = ListenAsync().ContinueWith(
+                t => Console.Error.WriteLine($"[devtools:mcp] Listener loop failed: {t.Exception!.GetBaseException()}"),
+                TaskContinuationOptions.OnlyOnFaulted);
 
-        Console.WriteLine($"[devtools] MCP serving on http://127.0.0.1:{Port}/mcp");
-        Console.WriteLine($"MCP_ENDPOINT=http://127.0.0.1:{Port}/mcp");
-        Console.WriteLine($"MCP_PORT={Port}");
-        Console.Out.Flush();
+            BannerWriter.WriteLine($"[devtools] MCP serving on http://127.0.0.1:{Port}/mcp");
+            BannerWriter.WriteLine($"MCP_TRANSPORT=http");
+            BannerWriter.WriteLine($"MCP_ENDPOINT=http://127.0.0.1:{Port}/mcp");
+            BannerWriter.WriteLine($"MCP_PORT={Port}");
+        }
+        else // Stdio
+        {
+            _stdioLoop = new StdioMcpLoop(
+                new McpDispatcher(_tools, _logger),
+                Console.In,
+                Console.Out);
+            _stdioLoop.Start();
+
+            // Stdio banner goes to stderr so stdout stays clean for framing.
+            BannerWriter.WriteLine($"[devtools] MCP serving over stdio");
+            BannerWriter.WriteLine($"MCP_TRANSPORT=stdio");
+        }
+        BannerWriter.Flush();
     }
 
     /// <summary>
@@ -67,8 +96,8 @@ internal sealed class DevtoolsMcpServer : IDisposable
     /// </summary>
     public void AnnounceReady()
     {
-        Console.WriteLine($"[devtools] ready (build {_buildTag})");
-        Console.Out.Flush();
+        BannerWriter.WriteLine($"[devtools] ready (build {_buildTag})");
+        BannerWriter.Flush();
     }
 
     public void Dispose()
@@ -78,6 +107,7 @@ internal sealed class DevtoolsMcpServer : IDisposable
         _shutdownCts.Cancel();
         try { _listener.Stop(); } catch { }
         try { _listener.Close(); } catch { }
+        try { _stdioLoop?.Dispose(); } catch { }
         try { _logger?.Dispose(); } catch { }
     }
 

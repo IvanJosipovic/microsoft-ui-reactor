@@ -428,9 +428,9 @@ Tests for this feature are classified by the infrastructure they require. Every 
 
 ### 4.1 stdio MCP transport
 
-- [ ] Add stdio transport alongside HTTP. `--devtools run --mcp-transport stdio` switches.
-- [ ] Same tool surface, same schema. Spec §16 resolved question #1: HTTP stays the default in v1; stdio is additive.
-- [ ] Self-host test: run the same tool suite against stdio and assert parity.
+- [x] Add stdio transport alongside HTTP. `--devtools run --mcp-transport stdio` switches.
+- [x] Same tool surface, same schema. Spec §16 resolved question #1: HTTP stays the default in v1; stdio is additive. *(`StdioMcpLoop` shares the `McpDispatcher` with the HTTP path; console banners route to stderr on stdio.)*
+- [ ] Self-host test: run the same tool suite against stdio and assert parity. *(Parity is pinned structurally in `StdioTransportTests.ResponseShape_MatchesHttpTransport`; running the full Phase 2/3 suite over stdio lands with the self-host fixture in §4.7.)*
 
 ### 4.2 `mur devtools --print-config`
 
@@ -465,7 +465,7 @@ Tests for this feature are classified by the infrastructure they require. Every 
 
 ### 4.6 Phase 4 tests — Unit
 
-- [ ] `tests/Reactor.Tests/Devtools/StdioTransportTests.cs`: framing parity with HTTP.
+- [x] `tests/Reactor.Tests/Devtools/StdioTransportTests.cs`: framing parity with HTTP.
 - [x] `tests/Reactor.Tests/Devtools/PrintConfigTests.cs`: fragment parses as valid JSON for each target agent; endpoint placeholder substituted.
 - [x] `tests/Reactor.Tests/Devtools/LoggingTests.cs`: every tool call writes one line; rotation at 10 MB. *(Rotation cap is verified structurally via direct rotate calls — the 10 MB threshold itself is enforced in-code; the natural-fill path is covered by the self-host suite to avoid slow IO in unit tests.)*
 

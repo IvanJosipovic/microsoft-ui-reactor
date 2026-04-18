@@ -358,7 +358,8 @@ public static class ReactorApp
                     host.Window.DispatcherQueue,
                     host.Window,
                     preferredPort: options.McpPort,
-                    logger: logger);
+                    logger: logger,
+                    transport: options.Transport);
 
                 var windows = new WindowRegistry(mcp.BuildTag);
                 var nodes = new NodeRegistry();

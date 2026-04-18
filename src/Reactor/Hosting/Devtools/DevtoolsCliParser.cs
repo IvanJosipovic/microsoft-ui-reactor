@@ -21,6 +21,7 @@ internal sealed record DevtoolsCliOptions(
     string? ScreenshotOutputPath,
     int? McpPort,
     string? LogLevel,
+    McpTransport Transport,
     bool UsedDeprecatedPreview,
     bool PreviewAndDevtoolsConflict);
 
@@ -52,6 +53,7 @@ internal static class DevtoolsCliParser
                 ScreenshotOutputPath: null,
                 McpPort: null,
                 LogLevel: null,
+                Transport: McpTransport.Http,
                 UsedDeprecatedPreview: true,
                 PreviewAndDevtoolsConflict: true);
         }
@@ -67,6 +69,7 @@ internal static class DevtoolsCliParser
                 ScreenshotOutputPath: null,
                 McpPort: null,
                 LogLevel: null,
+                Transport: McpTransport.Http,
                 UsedDeprecatedPreview: false,
                 PreviewAndDevtoolsConflict: false);
         }
@@ -136,6 +139,14 @@ internal static class DevtoolsCliParser
         if (logLevelIdx >= 0 && logLevelIdx + 1 < args.Length)
             logLevel = args[logLevelIdx + 1];
 
+        var transport = McpTransport.Http;
+        int transportIdx = IndexOf(args, "--mcp-transport");
+        if (transportIdx >= 0 && transportIdx + 1 < args.Length)
+        {
+            if (string.Equals(args[transportIdx + 1], "stdio", StringComparison.OrdinalIgnoreCase))
+                transport = McpTransport.Stdio;
+        }
+
         int outIdx = IndexOf(args, "--out");
         if (outIdx >= 0 && outIdx + 1 < args.Length && subverb == DevtoolsSubverb.Screenshot)
             screenshotOut = args[outIdx + 1];
@@ -151,6 +162,7 @@ internal static class DevtoolsCliParser
             ScreenshotOutputPath: screenshotOut,
             McpPort: mcpPort,
             LogLevel: logLevel,
+            Transport: transport,
             UsedDeprecatedPreview: deprecated,
             PreviewAndDevtoolsConflict: false);
     }

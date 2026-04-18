@@ -178,4 +178,28 @@ public class CliFlagParsingTests
         var opts = DevtoolsCliParser.Parse(["app.exe", "--devtools", "run"]);
         Assert.Null(opts.LogLevel);
     }
+
+    [Fact]
+    public void McpTransportFlag_Stdio_IsPicked()
+    {
+        var opts = DevtoolsCliParser.Parse(["app.exe", "--devtools", "run", "--mcp-transport", "stdio"]);
+        Assert.Equal(McpTransport.Stdio, opts.Transport);
+    }
+
+    [Fact]
+    public void McpTransportFlag_DefaultsToHttp()
+    {
+        var opts = DevtoolsCliParser.Parse(["app.exe", "--devtools", "run"]);
+        Assert.Equal(McpTransport.Http, opts.Transport);
+    }
+
+    [Fact]
+    public void McpTransportFlag_UnknownValue_KeepsHttpDefault()
+    {
+        // An unknown transport token should not flip to stdio silently —
+        // the HTTP default stays, so users don't end up with a silently
+        // broken stdout stream.
+        var opts = DevtoolsCliParser.Parse(["app.exe", "--devtools", "run", "--mcp-transport", "carrier-pigeon"]);
+        Assert.Equal(McpTransport.Http, opts.Transport);
+    }
 }
