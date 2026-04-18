@@ -82,4 +82,44 @@ public class DataSourceResourceTests
         // Different search query → deps change → new first page fetch.
         Assert.Equal(2, source.CallCount);
     }
+
+    /// <summary>
+    /// Regression: deep scroll against a cursor-paginated source used to hang because
+    /// <c>EnsureRange</c> claimed in-flight slots for unreachable pages and
+    /// <c>RequestPage</c> bailed without clearing the claim or chaining forward.
+    /// With the fix, completion of each page advances the chain by one and the final
+    /// page lands without user intervention.
+    /// </summary>
+    [Fact]
+    public void EnsureRange_Deep_Scroll_Chains_Through_Cursor_Dependencies()
+    {
+        var cache = new QueryCache();
+        var source = new InMemorySource(total: 1000, pageSize: 10);
+        var ctx = new RenderContext();
+        ctx.BeginRender(() => { });
+
+        var resource = ctx.UseDataSource(
+            source,
+            new DataRequest { PageSize = 10 },
+            cache,
+            new InfiniteResourceOptions(PageSize: 10),
+            new InlineDispatcher());
+
+        // Page 0 is fetched eagerly.
+        Assert.Equal(1, source.CallCount);
+
+        // Scroll to row 200 — pages 20..22 cover the visible range. Under the old
+        // semantics this would claim page 20 as in-flight, fire page 1, and hang
+        // because subsequent EnsureRange calls skipped page 20 forever.
+        resource.EnsureRange(200, 220);
+
+        // With InlineDispatcher all continuations run synchronously, so the chain
+        // should have walked from page 1 through page 22 already.
+        Assert.True(source.CallCount >= 23,
+            $"Expected at least 23 fetches to cover pages 0..22; saw {source.CallCount}");
+
+        // The tail of the requested range should be populated.
+        Assert.Equal(200, resource.Items[200]);
+        Assert.Equal(220, resource.Items[220]);
+    }
 }

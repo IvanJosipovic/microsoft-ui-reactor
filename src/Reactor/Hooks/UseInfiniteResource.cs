@@ -133,6 +133,12 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
     private Func<TCursor?, CancellationToken, Task<Page<TItem, TCursor>>>? _fetcher;
     private readonly Dictionary<int, CancellationTokenSource> _pageCts = new();
     private readonly HashSet<string> _subscribedKeys = new();
+    // Pages the hook wanted to fetch but couldn't yet because the cursor for that page
+    // depends on a prior page that's still loading. When a prior page completes, the
+    // smallest entry here is retried. See RequestPage for the rationale — cursor paging
+    // is inherently serial, so deep-scroll requests must chain forward one page at a
+    // time rather than all-at-once.
+    private readonly SortedSet<int> _deferredRequests = new();
     public string KeyPrefix = "";
     public object[]? LastDeps;
     public InfiniteResource<TItem> Resource { get; private set; } = default!;
@@ -180,6 +186,7 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
             try { cts.Cancel(); cts.Dispose(); } catch { /* ignore */ }
         }
         _pageCts.Clear();
+        _deferredRequests.Clear();
 
         // Unsubscribe from old keys.
         foreach (var key in _subscribedKeys)
@@ -241,15 +248,27 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
                 RequestPage(pageIndex - 1);
                 // If the recursive call completed synchronously (sync-complete fetcher, cache
                 // hit), the previous page is now loaded — fall through and request this one.
-                if (!HasLoadedPage(pageIndex - 1)) return;
+                if (!HasLoadedPage(pageIndex - 1))
+                {
+                    // The prior page isn't loaded yet. Remember we want this one; we'll retry
+                    // from CommitSuccess when the chain advances. Also clear the claim on
+                    // Resource._pages[pageIndex] so EnsureRange can re-drive us later — without
+                    // this, the orphan in-flight marker persists and deep-scroll hangs because
+                    // EnsureRange sees the page as "already in flight" and skips it.
+                    _deferredRequests.Add(pageIndex);
+                    Resource.ClearInflightSlot(pageIndex);
+                    return;
+                }
             }
             cursor = Resource.GetCursor<TCursor>();
             if (cursor is null)
             {
                 // No cursor means we're already at the end — don't fetch.
+                Resource.ClearInflightSlot(pageIndex);
                 return;
             }
         }
+        _deferredRequests.Remove(pageIndex);
 
         var cts = new CancellationTokenSource();
         _pageCts[pageIndex] = cts;
@@ -309,6 +328,19 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
         _cache.Set(key, page, _options.EffectiveStaleTime, _options.EffectiveCacheTime);
         Resource.ApplyPageResult(pageIndex, page);
         _pageCts.Remove(pageIndex);
+        // Advance any deferred request whose cursor chain this completion unblocks.
+        // We fire only the smallest — cursor paging is serial, so requesting higher
+        // pages now would just add them back to _deferredRequests. As each page in
+        // the chain completes, the next one gets pulled off here and fired.
+        if (_deferredRequests.Count > 0)
+        {
+            int next = _deferredRequests.Min;
+            if (HasLoadedPage(next - 1))
+            {
+                _deferredRequests.Remove(next);
+                RequestPage(next);
+            }
+        }
         NotifyPending();
         _rerender();
     }
@@ -317,6 +349,9 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
     {
         Resource.ApplyPageError(pageIndex, ex);
         _pageCts.Remove(pageIndex);
+        // Drop any deferred requests that depend on this page — the cursor chain is
+        // broken, and Retry() on the errored page is the right way to resume.
+        _deferredRequests.Clear();
         NotifyPending();
         _rerender();
     }
@@ -344,6 +379,7 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
             try { cts.Cancel(); cts.Dispose(); } catch { /* ignore */ }
         }
         _pageCts.Clear();
+        _deferredRequests.Clear();
         foreach (var key in _subscribedKeys.ToArray())
         {
             _cache.Invalidate(key);
@@ -372,6 +408,7 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
             try { cts.Cancel(); cts.Dispose(); } catch { /* ignore */ }
         }
         _pageCts.Clear();
+        _deferredRequests.Clear();
         foreach (var key in _subscribedKeys)
         {
             try { _cache.Unsubscribe(key); } catch (InvalidOperationException) { /* defensive */ }

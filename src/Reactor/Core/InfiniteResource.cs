@@ -329,6 +329,40 @@ public sealed class InfiniteResource<TItem>
         }
     }
 
+    /// <summary>
+    /// Remove an in-flight slot that was claimed by <see cref="MarkPageInFlight"/> but
+    /// whose fetch never actually started (e.g. because the hook could not resolve the
+    /// cursor for a cursor-paginated source yet). Without this, the claim persists and
+    /// <see cref="EnsureRange"/> skips the page forever, producing a hang on deep scroll.
+    /// Loaded pages are left alone.
+    /// </summary>
+    internal void ClearInflightSlot(int pageIndex)
+    {
+        lock (_lock)
+        {
+            if (!_pages.TryGetValue(pageIndex, out var slot)) return;
+            if (slot.Items is not null) return;
+            _pages.Remove(pageIndex);
+            if (_lruNodes.TryGetValue(pageIndex, out var node))
+            {
+                _lruOrder.Remove(node);
+                _lruNodes.Remove(pageIndex);
+            }
+            // Recompute _highestInflightEnd conservatively.
+            int maxEnd = _highestLoadedEnd;
+            foreach (var (idx, s) in _pages)
+            {
+                if (s.Items is null)
+                {
+                    int end = (idx + 1) * _options.PageSize;
+                    if (end > maxEnd) maxEnd = end;
+                }
+            }
+            _highestInflightEnd = maxEnd;
+            RebuildItemsLocked();
+        }
+    }
+
     internal bool HasInFlightFetch
     {
         get
