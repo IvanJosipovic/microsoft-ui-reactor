@@ -388,14 +388,14 @@ Scope: new `Reactor/Core/Hooks/UseMutation.cs`; modifications to `Reactor/Contro
 
 Note: the first three rules below are pre-existing gaps for **all** hooks; file them under `Reactor.Analyzers` with new `REACTOR_HOOKS_*` IDs. They should ship alongside this phase, not be blocked on it.
 
-- [ ] `REACTOR_HOOKS_001` — conditional hook call (inside `if`/`for`/`while`/`try`/early return)
-- [ ] `REACTOR_HOOKS_002` — out-of-order hook calls across render paths
-- [ ] `REACTOR_HOOKS_003` — missing deps (value captured in `fetcher` / `UseEffect` / `UseMemo` lambda not in `deps`)
-- [ ] `REACTOR_HOOKS_004` — non-stable deps (new object/array/lambda each render)
-- [ ] `REACTOR_HOOKS_005` — hook called outside `Render()` or a custom-hook method
-- [ ] `REACTOR_HOOKS_006` — heuristic: `UseResource` with fetcher name matching `Create`/`Post`/`GenerateRandom`/… (non-idempotent)
-- [ ] Unit tests per rule: positive cases (diagnostic fires), negative cases (diagnostic quiet)
-- [ ] Suppression attribute `[SuppressResourceDiagnostic(...)]` for intentional violations
+- [x] `REACTOR_HOOKS_001` — conditional hook call (inside `if`/`for`/`while`/`try`/early return) — shipped in `HookRulesAnalyzer`; covers if/else/for/foreach/while/do/switch/try/catch/finally/lambdas
+- [ ] `REACTOR_HOOKS_002` — out-of-order hook calls across render paths (requires control-flow analysis — deferred)
+- [ ] `REACTOR_HOOKS_003` — missing deps (value captured in `fetcher` / `UseEffect` / `UseMemo` lambda not in `deps`) (requires data-flow analysis — deferred)
+- [x] `REACTOR_HOOKS_004` — non-stable deps (new object/array/lambda each render) — shipped in `HookRulesAnalyzer`
+- [x] `REACTOR_HOOKS_005` — hook called outside `Render()` or a custom-hook method — shipped in `HookRulesAnalyzer`
+- [ ] `REACTOR_HOOKS_006` — heuristic: `UseResource` with fetcher name matching `Create`/`Post`/`GenerateRandom`/… (non-idempotent) (follow-up)
+- [x] Unit tests per rule: positive cases (diagnostic fires), negative cases (diagnostic quiet) — `HookRulesAnalyzerTests` (10 cases)
+- [ ] Suppression attribute `[SuppressResourceDiagnostic(...)]` for intentional violations (follow-up — stdlib `[SuppressMessage]` works today)
 
 ### 4.4 Docs
 
