@@ -152,6 +152,11 @@ public sealed class InfiniteResource<TItem>
             // Unknown page — schedule fetch unless past known end.
             if (_totalCount is { } total && index >= total) return default;
 
+            // Claim the slot before releasing the lock so concurrent ItemAt callers dedup —
+            // they'll observe the in-flight placeholder on their next TryGetValue. The hook's
+            // MarkPageInFlight is still correct: it's idempotent against an existing in-flight
+            // slot and remains the entry point for FetchNext / Retry.
+            MarkPageInFlightLocked(pageIndex);
             scheduleFetch = true;
             pageToFetch = pageIndex;
         }
@@ -177,7 +182,12 @@ public sealed class InfiniteResource<TItem>
             int lastPage = lastIndex / _options.PageSize;
             for (int p = firstPage; p <= lastPage; p++)
             {
-                if (!_pages.ContainsKey(p)) toFetch.Add(p);
+                if (!_pages.ContainsKey(p))
+                {
+                    // Claim the slot inside the lock so concurrent callers dedup.
+                    MarkPageInFlightLocked(p);
+                    toFetch.Add(p);
+                }
                 else TouchLru(p);
             }
         }
@@ -236,20 +246,22 @@ public sealed class InfiniteResource<TItem>
 
     internal void MarkPageInFlight(int pageIndex)
     {
-        lock (_lock)
+        lock (_lock) MarkPageInFlightLocked(pageIndex);
+    }
+
+    private void MarkPageInFlightLocked(int pageIndex)
+    {
+        if (_pages.TryGetValue(pageIndex, out var slot) && slot.Items is not null)
         {
-            if (_pages.TryGetValue(pageIndex, out var slot) && slot.Items is not null)
-            {
-                // Already loaded — ignore (shouldn't happen unless deps changed).
-                return;
-            }
-            _pages[pageIndex] = new PageSlot(null);
-            TouchLru(pageIndex);
-            int endExclusive = (pageIndex + 1) * _options.PageSize;
-            if (endExclusive > _highestInflightEnd) _highestInflightEnd = endExclusive;
-            _loadState = LoadState.Loading.Instance;
-            RebuildItemsLocked();
+            // Already loaded — ignore (shouldn't happen unless deps changed).
+            return;
         }
+        _pages[pageIndex] = new PageSlot(null);
+        TouchLru(pageIndex);
+        int endExclusive = (pageIndex + 1) * _options.PageSize;
+        if (endExclusive > _highestInflightEnd) _highestInflightEnd = endExclusive;
+        _loadState = LoadState.Loading.Instance;
+        RebuildItemsLocked();
     }
 
     internal bool ApplyPageResult<TCursor>(int pageIndex, Page<TItem, TCursor> page)

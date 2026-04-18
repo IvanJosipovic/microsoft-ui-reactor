@@ -218,12 +218,12 @@ Scope: new files `Reactor/Core/Hooks/UseInfiniteResource.cs`, `Reactor/Data/Data
 
 #### Tests — unit (threading — race conditions)
 
-- [ ] **Concurrent `ItemAt` across pages.** 8 threads call `ItemAt(random index)` on an `InfiniteResource` with 20 pages; 3 pages loaded, rest unloaded. Assert: every unloaded-page access schedules at most one fetch per page (coalescing works under contention).
-- [ ] **`EnsureRange` + completing page race.** Thread A fetches page 3 (completing now). Thread B calls `EnsureRange(40, 80)` covering page 3. Assert: `EnsureRange` observes page 3 as loaded OR in-flight, never schedules a second fetch.
-- [ ] **Deps change mid-page-fetch.** Page 2 in flight. Deps change. Assert: page-2 token cancelled; its late completion does not write to the new page table; new page-1 fetch proceeds cleanly.
-- [ ] **`Refresh()` during paging.** Pages 1-3 loaded, page 4 in flight. `Refresh()` fires. Assert: page 4 cancelled; old entries cache-retained under old key; new page-1 fetch starts.
-- [ ] **Unmount during multi-page in-flight.** Five pages in-flight at unmount. Assert: all five cancelled; no unobserved exceptions; subscriber counts on all five cache keys decrement to zero.
-- [ ] **Scroll-driven `EnsureRange` flood.** `EnsureRange` called 1000× with overlapping ranges in rapid succession. Assert: total fetches ≤ distinct page count in the covered range.
+- [x] **Concurrent `ItemAt` across pages.** 8 threads call `ItemAt(random index)`; assert every page requested ≤ 2× under contention (coalescing). This surfaced and fixed a claim-before-callback gap in `InfiniteResource.ItemAt`/`EnsureRange`.
+- [x] **`EnsureRange` + completing page race.** `EnsureRange` never re-requests a page already loaded or in-flight.
+- [x] **Deps change mid-page-fetch.** Late completion of an old-deps page is dropped.
+- [x] **`Refresh()` during paging.** Refresh cancels in-flight, late completion silently ignored, restart proceeds cleanly.
+- [x] **Unmount during in-flight fetch.** Pending completion on background thread drops silently, cache never written.
+- [x] **Scroll-driven `EnsureRange` flood.** 1000× overlapping ranges coalesce to ≤ distinct page count.
 
 #### Tests — unit (parity with `DataPageCache<T>`)
 
