@@ -76,4 +76,22 @@ public class SupervisorArgsTests
         Assert.Equal("C", r.Component);
         Assert.Equal(9000, r.McpPort);
     }
+
+    [Fact]
+    public void PrintConfigFlag_Parses()
+    {
+        var r = DevtoolsSupervisor.ParseArgs(["--print-config", "--mcp-port", "12345"]);
+        Assert.True(r.PrintConfig);
+        Assert.Equal(12345, r.McpPort);
+        Assert.Null(r.Error);
+    }
+
+    [Fact]
+    public void PrintConfigFlag_AloneIsAllowed()
+    {
+        // Without --mcp-port the supervisor will pick one at Run() time.
+        var r = DevtoolsSupervisor.ParseArgs(["--print-config"]);
+        Assert.True(r.PrintConfig);
+        Assert.Null(r.McpPort);
+    }
 }

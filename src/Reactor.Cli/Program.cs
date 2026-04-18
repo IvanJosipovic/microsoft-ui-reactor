@@ -148,6 +148,7 @@ int CreateProject(string name)
     Console.WriteLine("To develop with an AI agent (MCP) and a VS Code preview panel:");
     Console.WriteLine($"    mur devtools                 # prints MCP_ENDPOINT to stdout");
     Console.WriteLine($"    mur devtools --mcp-port 9000 # pin the port across reloads");
+    Console.WriteLine($"    mur devtools --print-config  # emit MCP config for Claude Code / VS Code / Copilot");
 
     return 0;
 }

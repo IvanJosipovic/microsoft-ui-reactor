@@ -9,7 +9,13 @@ namespace Microsoft.UI.Reactor.Cli.Devtools;
 /// Launches <c>dotnet run -- --devtools run</c> against the target project and
 /// respawns after each exit-code-42 from the child (the reload sentinel).
 /// </summary>
-internal sealed record SupervisorArgs(string? Project, string? Component, int? McpPort, bool Help, string? Error);
+internal sealed record SupervisorArgs(
+    string? Project,
+    string? Component,
+    int? McpPort,
+    bool Help,
+    bool PrintConfig,
+    string? Error);
 
 internal static class DevtoolsSupervisor
 {
@@ -20,6 +26,7 @@ internal static class DevtoolsSupervisor
         string? project = null;
         string? component = null;
         int? mcpPort = null;
+        bool printConfig = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -31,16 +38,20 @@ internal static class DevtoolsSupervisor
             else if (a == "--mcp-port" && i + 1 < args.Length)
             {
                 if (!int.TryParse(args[++i], out var p))
-                    return new SupervisorArgs(null, null, null, false, "Invalid --mcp-port value.");
+                    return new SupervisorArgs(null, null, null, false, false, "Invalid --mcp-port value.");
                 mcpPort = p;
+            }
+            else if (a == "--print-config")
+            {
+                printConfig = true;
             }
             else if (a == "--help" || a == "-h")
             {
-                return new SupervisorArgs(null, null, null, true, null);
+                return new SupervisorArgs(null, null, null, true, false, null);
             }
             else if (a.StartsWith("-"))
             {
-                return new SupervisorArgs(null, null, null, false, $"Unknown flag: {a}");
+                return new SupervisorArgs(null, null, null, false, false, $"Unknown flag: {a}");
             }
             else if (project is null)
             {
@@ -48,11 +59,11 @@ internal static class DevtoolsSupervisor
             }
             else
             {
-                return new SupervisorArgs(null, null, null, false, $"Unexpected argument: {a}");
+                return new SupervisorArgs(null, null, null, false, false, $"Unexpected argument: {a}");
             }
         }
 
-        return new SupervisorArgs(project, component, mcpPort, false, null);
+        return new SupervisorArgs(project, component, mcpPort, false, printConfig, null);
     }
 
     public static int Run(string[] args)
@@ -67,6 +78,12 @@ internal static class DevtoolsSupervisor
         {
             Console.Error.WriteLine($"[mur devtools] {parsed.Error}");
             return 1;
+        }
+        if (parsed.PrintConfig)
+        {
+            var port = parsed.McpPort ?? FindFreePort();
+            Console.Write(BuildPrintConfigPayload(port));
+            return 0;
         }
 
         var project = parsed.Project ?? FindDefaultProject(Directory.GetCurrentDirectory());
@@ -174,10 +191,73 @@ internal static class DevtoolsSupervisor
     private static void PrintHelp()
     {
         Console.WriteLine("mur devtools [project] [--component Name] [--mcp-port N]");
+        Console.WriteLine("mur devtools --print-config [--mcp-port N]");
         Console.WriteLine();
         Console.WriteLine("  Launches the target project with --devtools run and respawns on reload.");
         Console.WriteLine("  When the child exits with code 42, rebuilds and relaunches. Any other");
         Console.WriteLine("  exit code propagates. The MCP port is pinned across respawns so an");
         Console.WriteLine("  agent can reconnect at the same endpoint.");
+        Console.WriteLine();
+        Console.WriteLine("  --print-config   Emit MCP config fragments (Claude Code, Copilot, VS Code)");
+        Console.WriteLine("                   wired to the given --mcp-port; prints to stdout only.");
+    }
+
+    /// <summary>
+    /// Builds the <c>--print-config</c> output: one JSON fragment per supported
+    /// agent, each valid JSON on its own, separated by human-readable headers.
+    /// The user picks the one they need and pastes it into the target config
+    /// file themselves — this tool never writes to disk.
+    /// </summary>
+    internal static string BuildPrintConfigPayload(int mcpPort)
+    {
+        var url = $"http://127.0.0.1:{mcpPort}/mcp";
+
+        var claudeCode = new
+        {
+            mcpServers = new Dictionary<string, object>
+            {
+                ["reactor"] = new { type = "http", url },
+            },
+        };
+
+        // VS Code's MCP config nests under `servers` (distinct from Claude Code's
+        // `mcpServers`) per the VS Code MCP docs. Users paste this into their
+        // `.vscode/mcp.json`.
+        var vscode = new
+        {
+            servers = new Dictionary<string, object>
+            {
+                ["reactor"] = new { type = "http", url },
+            },
+        };
+
+        // GitHub Copilot's workspace MCP config follows the VS Code shape today;
+        // we emit the same fragment so the user can drop it into either. If the
+        // format diverges later, bump this and leave the VS Code block alone.
+        var copilot = new
+        {
+            servers = new Dictionary<string, object>
+            {
+                ["reactor"] = new { type = "http", url },
+            },
+        };
+
+        var opts = new global::System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = true,
+        };
+
+        var sb = new global::System.Text.StringBuilder();
+        sb.AppendLine($"# Reactor MCP at {url}");
+        sb.AppendLine();
+        sb.AppendLine("## Claude Code — ~/.claude/settings.json");
+        sb.AppendLine(global::System.Text.Json.JsonSerializer.Serialize(claudeCode, opts));
+        sb.AppendLine();
+        sb.AppendLine("## VS Code — .vscode/mcp.json");
+        sb.AppendLine(global::System.Text.Json.JsonSerializer.Serialize(vscode, opts));
+        sb.AppendLine();
+        sb.AppendLine("## GitHub Copilot (workspace MCP)");
+        sb.AppendLine(global::System.Text.Json.JsonSerializer.Serialize(copilot, opts));
+        return sb.ToString();
     }
 }

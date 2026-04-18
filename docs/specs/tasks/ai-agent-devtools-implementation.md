@@ -434,12 +434,12 @@ Tests for this feature are classified by the infrastructure they require. Every 
 
 ### 4.2 `mur devtools --print-config`
 
-- [ ] Emits a JSON fragment suitable for pasting into:
+- [x] Emits a JSON fragment suitable for pasting into:
   - Claude Code MCP config (`~/.claude/settings.json` `mcpServers.reactor`).
   - Copilot workspace MCP config.
   - VS Code MCP config.
-- [ ] Fragment parameterized with the printed `MCP_ENDPOINT`.
-- [ ] Does NOT write any config file itself — stdout only. The human chooses where to put it.
+- [x] Fragment parameterized with the printed `MCP_ENDPOINT`. *(`--mcp-port N` pins the URL; omitted, the supervisor picks a free port at print time.)*
+- [x] Does NOT write any config file itself — stdout only. The human chooses where to put it.
 
 ### 4.3 Observability
 
@@ -466,7 +466,7 @@ Tests for this feature are classified by the infrastructure they require. Every 
 ### 4.6 Phase 4 tests — Unit
 
 - [ ] `tests/Reactor.Tests/Devtools/StdioTransportTests.cs`: framing parity with HTTP.
-- [ ] `tests/Reactor.Tests/Devtools/PrintConfigTests.cs`: fragment parses as valid JSON for each target agent; endpoint placeholder substituted.
+- [x] `tests/Reactor.Tests/Devtools/PrintConfigTests.cs`: fragment parses as valid JSON for each target agent; endpoint placeholder substituted.
 - [ ] `tests/Reactor.Tests/Devtools/LoggingTests.cs`: every tool call writes one line; rotation at 10 MB.
 
 ### 4.7 Phase 4 tests — Self-host MCP
