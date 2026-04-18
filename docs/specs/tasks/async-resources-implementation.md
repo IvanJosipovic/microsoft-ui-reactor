@@ -399,9 +399,9 @@ Note: the first three rules below are pre-existing gaps for **all** hooks; file 
 
 ### 4.4 Docs
 
-- [ ] Porting guide: `UseEffect + UseState` → `UseResource` (cookbook entry in `docs/cookbook/`)
-- [ ] Infinite scroll cookbook entry: `UseInfiniteResource` + `LazyVStack`
-- [ ] Migration guide for consumers with their own `DataPageCache` analogues
+- [x] Porting guide: `UseEffect + UseState` → `UseResource` (shipped as a single-page cookbook: `docs/guide/async-resources-cookbook.md`)
+- [x] Infinite scroll cookbook entry: `UseInfiniteResource` + `LazyVStack` (section of the same cookbook)
+- [x] Migration guide for consumers with their own `DataPageCache` analogues (section of the same cookbook)
 
 ### 4.5 `UseStream<T>` scoping decision
 
