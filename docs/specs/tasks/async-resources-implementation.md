@@ -166,55 +166,55 @@ Scope: new files `Reactor/Core/Hooks/UseInfiniteResource.cs`, `Reactor/Data/Data
 
 ### 2.1 `Page<TItem, TCursor>` + `LoadState` ADT (§7.1)
 
-- [ ] Add `Page<TItem, TCursor>(IReadOnlyList<TItem> Items, TCursor? NextCursor, int? TotalCount = null)` record
-- [ ] Define `abstract record LoadState` with sealed `Loading`, `Idle`, `EndOfList`, `Error(Exception Exception)`
-- [ ] Exhaustive pattern-match coverage test (same shape as `AsyncValue<T>` tests)
+- [x] Add `Page<TItem, TCursor>(IReadOnlyList<TItem> Items, TCursor? NextCursor, int? TotalCount = null)` record
+- [x] Define `abstract record LoadState` with sealed `Loading`, `Idle`, `EndOfList`, `Error(Exception Exception)`
+- [ ] Exhaustive pattern-match coverage test (not yet — covered indirectly through the hook tests)
 
 ### 2.2 `InfiniteResource<TItem>` class (§7.1)
 
-- [ ] Create `sealed class InfiniteResource<TItem>` with public surface: `Items`, `TotalCount`, `EstimatedRemaining`, `LoadState`, `HasMore`, `ItemAt(int)`, `EnsureRange(int, int)`, `FetchNext()`, `Retry()`, `Refresh()`
-- [ ] Internal storage: page table `Dictionary<int pageIndex, PageEntry>` (loaded or in-flight) + flattened `IReadOnlyList<TItem?>` facade with `null` placeholder slots
-- [ ] `ItemAt(i)` — if page loaded → item; if page in-flight → `null`; if page not requested → schedule fetch (coalesced) → `null`; if past known end → `null` (no fetch)
-- [ ] `EnsureRange(first, last)` — computes the set of pages covering `[first, last]`, dedups already-in-flight, fires fetches in page order
-- [ ] `Refresh()` — invalidates cache entry, clears page table, restarts from page 1; preserves `Items` length during refetch when `TotalCount` is stable (per D17)
-- [ ] `FetchNext()` — no-op if `LoadState != Idle` or `!HasMore`; otherwise fetches with last-known cursor
-- [ ] All mutating methods are **UI-thread-affined**; assert via `RenderContext.AssertUIThread` at entry (document this constraint)
-- [ ] `LoadState` transitions are discrete events consumers can observe via the hook's re-render (D17 contract)
+- [x] Create `sealed class InfiniteResource<TItem>` with full public surface
+- [x] Internal storage: page table + flattened `IReadOnlyList<TItem?>` facade with null placeholder slots
+- [x] `ItemAt(i)` semantics match spec (loaded / in-flight / not-requested / past-end)
+- [x] `EnsureRange(first, last)` computes covering pages, dedups, fires in order
+- [x] `Refresh()` invalidates cache, clears page table, restarts
+- [x] `FetchNext()` no-ops outside `Idle`+`HasMore`
+- [ ] UI-thread affinity assertion (deferred — currently the resource is internally thread-safe)
+- [x] `LoadState` transitions drive re-render via the hook subscription
 
 ### 2.3 `UseInfiniteResource<TItem, TCursor>` hook (§7.2)
 
-- [ ] Create `Reactor/Core/Hooks/UseInfiniteResource.cs`
-- [ ] Register `InfiniteResourceHookState<TItem, TCursor>` with an owned `InfiniteResource<TItem>` instance + per-page `CancellationTokenSource` map
-- [ ] On first render: `Loading`, empty `Items`, schedule first page fetch with `cursor = null`
-- [ ] On page completion: append items, update `NextCursor`, set `LoadState` to `Idle` or `EndOfList`
-- [ ] On deps change: cancel **all** in-flight page fetches; clear page table; restart. Previous pages remain in `QueryCache` under the old key.
-- [ ] On unmount: cancel all in-flight page fetches; unsubscribe from all page cache keys
-- [ ] Per-page cache keys: `$"{CallerHookId}/{DepsHash}/page:{cursor}"` — individual pages can be invalidated / LRU-evicted
-- [ ] Integrate with `QueryCache` subscriber tracking (each `UseInfiniteResource` subscribes to N page keys)
+- [x] Create `Reactor/Hooks/UseInfiniteResource.cs`
+- [x] `InfiniteHookState<TItem, TCursor>` with an owned `InfiniteResource<TItem>` + per-page CTS map
+- [x] First render: Loading, empty Items, schedule first page with cursor=null
+- [x] Page completion: append items, update NextCursor, flip LoadState to Idle/EndOfList
+- [x] Deps change: cancel in-flight, clear page table, restart (prior pages remain in QueryCache under old key)
+- [x] Unmount: cancel in-flight, unsubscribe all page keys
+- [x] Per-page cache keys of shape `{prefix}/{depsHash}/page:{pageIndex}`
+- [x] QueryCache subscriber tracking (each UseInfiniteResource subscribes to N page keys)
 
 ### 2.4 `DataSourceResource.UseDataSource` adapter (§7.3)
 
-- [ ] Create `Reactor/Data/DataSourceResourceExtensions.cs`
-- [ ] `UseDataSource<T>(this RenderContext ctx, IDataSource<T> source, DataRequest request, InfiniteResourceOptions? options = null)` delegates to `UseInfiniteResource<T, string>`
-- [ ] Deps: `[source, request.Sort, request.Filter, request.Search]` (identity-based on source, value-based on descriptors)
-- [ ] Verify existing `GraphQLDataSource` and `ListDataSource` plug in unchanged (no source modifications)
+- [x] Create `Reactor/Data/DataSourceResourceExtensions.cs`
+- [x] `UseDataSource<T>` delegates to `UseInfiniteResource<T, string>`
+- [x] Deps: `[source, request.Sort, request.Filters, request.SearchQuery]`
+- [ ] Parity sweep with existing data sources (spot-checked via InMemorySource in tests; GraphQLDataSource / ListDataSource not yet exercised against the new hook)
 
 ### 2.5 Phase-2 tests
 
 #### Tests — unit (RenderContext)
 
-- [ ] First render → `LoadState = Loading`, `Items = []`, page-1 fetch scheduled with `cursor = null`
-- [ ] Page-1 completes with `NextCursor = "cursor-2"` → `Items = [items]`, `LoadState = Idle`, `HasMore = true`
-- [ ] Page-1 completes with `NextCursor = null` → `LoadState = EndOfList`, `HasMore = false`
-- [ ] `ItemAt(i)` where `i` is in loaded page → returns item
-- [ ] `ItemAt(i)` where `i` is in unloaded page → returns `null`, schedules fetch for containing page
-- [ ] `ItemAt(i)` where `i` is beyond known end → returns `null`, **no** fetch scheduled
-- [ ] `EnsureRange(50, 120)` with page size 20 → schedules fetches for pages 2, 3, 4, 5, 6; dedups against any in-flight page
-- [ ] `Refresh()` → invalidates, clears page table, restarts from page 1; `Items` length retained if `TotalCount` stable per D17
-- [ ] `Retry()` on `LoadState = Error` → refetches the **failed** page; success transitions back to `Idle`
-- [ ] Deps change → all in-flight page `CancellationTokenSource` instances cancelled; page table cleared; page-1 refetched with new key
-- [ ] LRU eviction: configured max N pages; requesting page N+1 evicts the least-recently-accessed page
-- [ ] Placeholder semantics: `Items.Count == LoadedItemCount + PlaceholderCount` matching `DataPageCache` behaviour in `DataGridComponent.cs:490`
+- [x] First render → page-1 fetch scheduled with `cursor = null`; sync-complete fast-path collapses Loading → Idle when fetcher is synchronous
+- [x] Page completes with NextCursor → Items populated, LoadState = Idle, HasMore=true
+- [x] Page completes with NextCursor=null → LoadState = EndOfList, HasMore=false
+- [x] `ItemAt(i)` on loaded page returns the item
+- [x] `ItemAt(i)` on unloaded page → triggers fetch
+- [x] `ItemAt(i)` past known end (via TotalCount) returns null, no fetch
+- [x] `EnsureRange` covers overlapping pages, dedups
+- [ ] `Refresh()` length preservation (basic Refresh works; D17 stable-length contract not explicitly asserted yet)
+- [x] `Retry()` on Error refetches the failed page
+- [x] Deps change cancels in-flight and restarts
+- [x] LRU eviction over `MaxLoadedPages` cap
+- [ ] Placeholder count exact-match with DataPageCache (parity sweep deferred)
 
 #### Tests — unit (threading — race conditions)
 
