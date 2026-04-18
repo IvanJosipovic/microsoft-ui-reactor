@@ -923,6 +923,79 @@ internal static class DevtoolsFixtures
     }
 
     /// <summary>
+    /// §3.11 open item: the <c>fire</c> tool's happy path on the root component.
+    /// Unit tests cover error shapes and lifecycle rejection; this fixture
+    /// confirms a real handler runs on the dispatcher and the response carries
+    /// the <c>via: "reactor-event-injection"</c> tag. Kept separate from the
+    /// <see cref="DevtoolsFixtureRoot"/> since that component's handlers are
+    /// all lambdas (no named method surface for <c>fire</c> to bind to).
+    /// </summary>
+    private sealed class FireFixtureRoot : Component
+    {
+        private int _count;
+        private Action<int>? _setCount;
+
+        public override Element Render()
+        {
+            var (count, setCount) = UseState(0);
+            _count = count;
+            _setCount = setCount;
+            return VStack(
+                Factories.Text($"count:{count}").AutomationId("count-label")
+            );
+        }
+
+        // Named internal handler — the kind of method `fire` is meant to reach
+        // when no UIA pattern exposes the behavior (custom gesture, awaited
+        // test helper, etc.).
+        internal void BumpCount() => _setCount?.Invoke(_count + 1);
+    }
+
+    internal sealed class FireInvokesNamedHandler(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            var root = new FireFixtureRoot();
+            host.Mount(root);
+            await Harness.Render();
+
+            using var mcp = new McpHarness(H.Window, () => root, nameof(FireFixtureRoot));
+            var resp = await mcp.CallAsync("fire", new
+            {
+                component = nameof(FireFixtureRoot),
+                @event = "BumpCount",
+            });
+            var result = Result(resp) ?? throw new Exception("missing result; got " + resp);
+
+            H.Check("Devtools_Fire_Ok", result.GetProperty("ok").GetBoolean());
+            H.Check("Devtools_Fire_ViaTag",
+                result.GetProperty("via").GetString() == "reactor-event-injection");
+
+            // Handler ran on the dispatcher — state bumped by 1 and the live
+            // tree reflects it after the next render tick.
+            await Harness.Render();
+            H.Check("Devtools_Fire_HandlerFired", H.FindText("count:1") is not null);
+
+            // Unknown event name on the root component returns a structured
+            // error (code: unknown-event). Covered in unit tests too but worth
+            // pinning in the self-host path so serialization round-trips.
+            var errResp = await mcp.CallAsync("fire", new
+            {
+                component = nameof(FireFixtureRoot),
+                @event = "NoSuchHandler",
+            });
+            var err = Error(errResp) ?? throw new Exception("expected error envelope");
+            H.Check("Devtools_Fire_UnknownEvent",
+                err.TryGetProperty("data", out var data) &&
+                data.TryGetProperty("code", out var code) &&
+                code.GetString() == "unknown-event");
+
+            H.SetContent(null);
+        }
+    }
+
+    /// <summary>
     /// U7: standard MCP clients hit <c>initialize</c> first. The server must
     /// respond with a well-formed handshake (protocol version + capabilities
     /// + server info) so the client doesn't bail.

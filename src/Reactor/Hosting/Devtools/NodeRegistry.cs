@@ -30,21 +30,27 @@ internal sealed class NodeRegistry
     // typed as object so test code can inject a sentinel; the public API still
     // only hands back UIElement instances.
     private readonly Dictionary<string, WeakReference<object>> _byId = new(StringComparer.Ordinal);
-    private readonly ConditionalWeakTable<UIElement, string> _byElement = new();
+    // Reverse map is typed to object (not UIElement) so the same bookkeeping
+    // path can be exercised from unit tests with sentinel instances. Production
+    // callers still go through the UIElement overload.
+    private readonly ConditionalWeakTable<object, string> _byElement = new();
     private readonly HashSet<string> _tombstones = new(StringComparer.Ordinal);
     private readonly List<object> _testSentinels = new();
 
     /// <summary>Returns the stable id for the given descriptor + element, allocating on first sight.</summary>
     public string GetOrCreate(NodeDescriptor descriptor, UIElement element)
+        => GetOrCreateInternal(descriptor, element);
+
+    private string GetOrCreateInternal(NodeDescriptor descriptor, object target)
     {
         lock (_lock)
         {
-            if (_byElement.TryGetValue(element, out var existing))
+            if (_byElement.TryGetValue(target, out var existing))
                 return existing;
 
             var id = NodeIdBuilder.Build(descriptor);
-            _byElement.Add(element, id);
-            _byId[id] = new WeakReference<object>(element);
+            _byElement.Add(target, id);
+            _byId[id] = new WeakReference<object>(target);
             return id;
         }
     }
@@ -113,4 +119,14 @@ internal sealed class NodeRegistry
             return id;
         }
     }
+
+    /// <summary>
+    /// Test-only overload that exercises the same reverse-map path as the
+    /// production <see cref="GetOrCreate(NodeDescriptor, UIElement)"/> call —
+    /// "same element seen in two walks returns the same id" is the invariant
+    /// behind stable node ids, but a live WinUI element isn't available in
+    /// unit tests. Sentinels held strongly by the caller stand in.
+    /// </summary>
+    internal string GetOrCreateForTests(NodeDescriptor descriptor, object target)
+        => GetOrCreateInternal(descriptor, target);
 }

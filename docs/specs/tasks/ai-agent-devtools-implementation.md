@@ -206,7 +206,7 @@ Tests for this feature are classified by the infrastructure they require. Every 
 
 ### 2.14 Tool: `reactor.reload`
 
-- [x] Args: optional `component` (focus after restart). *(Arg accepted; the post-restart focus is honored once the supervisor passes it as `--component` on respawn — currently it always reuses the original value.)*
+- [x] Args: optional `component` (focus after restart). *(Supervisor now passes the original `--component` positional ahead of `--mcp-port` on every respawn so the child's CLI parser picks it up. The child itself threads the arg through `RunRunSubverb`; honoring a per-reload override lands alongside the reload-rpc enrichment in Phase 4.)*
 - [x] Flushes response `{ ok: true, exitingBuild }` **before** shutdown.
 - [x] Closes MCP and capture listeners; closes the window on the dispatcher; exits with sentinel code `42`.
 - [x] Node registry is NOT transferred across the restart — old ids are gone, by design (process boundary).
@@ -230,7 +230,7 @@ Tests for this feature are classified by the infrastructure they require. Every 
   - [x] Templated-part id is content-addressed from nearest stable ancestor.
   - [ ] A GC'd element's id returns a structured `"gone"` error. *(WeakReference collection semantics asserted indirectly via the live-element path in the self-host fixture; pure unit uses a sentinel that won't be GC'd.)*
   - [x] Window close invalidates every id in scope (InvalidateWindow + tombstones). A new window of the same title gets a new window id — *covered once WindowRegistry §2.3 lands.*
-  - [ ] Two walks of the same live tree return the same ids for the same elements. *(Covered when the tree walker in §2.8 lands; the reverse map via ConditionalWeakTable gives this for free.)*
+  - [x] Two walks of the same live tree return the same ids for the same elements. *(`NodeRegistryTests.GetOrCreate_SameTarget_ReturnsSameId` and friends exercise the reverse-map path via a sentinel — the reverse map is now typed `ConditionalWeakTable<object, string>` so unit tests can share the production code path without a live WinUI element.)*
 - [x] `tests/Reactor.Tests/Devtools/SelectorParserTests.cs`:
   - [x] Each of the five selector forms parses into the right IR.
   - [ ] Ambiguous selector yields `ambiguous-selector` with all candidates. *(Runtime concept; `ResolveByPredicate`/`ResolveTypePath` paths need a live visual tree and land with the §2.17 self-host fixture.)*
@@ -395,7 +395,7 @@ Fixtures live in `tests/Reactor.AppTests.Host/SelfTest/Fixtures/DevtoolsFixtures
 - [x] `Devtools_TreeFullView`: full-view fields (`layout`, `desiredSize`) appear on the walk; the mis-aligned-StackPanel clipping assertion is deferred to a dedicated layout-bug fixture when we seed one.
 - [x] `Devtools_StateReadsHooks`: counter fixture; `state` returns the first `UseState` value; click via MCP; re-read reflects the bump.
 - [x] `Devtools_InvokeDirectPattern` + `Devtools_ToggleFlipsCheckBox`: cover invoke + toggle tools directly; `select` + `scroll` self-host fixtures deferred until we add `ListView`/`ScrollViewer` fixtures.
-- [ ] `Devtools_Fire`: self-host coverage deferred — the `fire` tool is exercised through the root-component path in `FireResolutionTests` (unit) and is Appium-oriented for the "no UIA peer" case.
+- [x] `Devtools_FireInvokesNamedHandler`: root-component handler invocation round-trip — asserts the state mutates, the response tag is `via: "reactor-event-injection"`, and an unknown event name returns `{ code: "unknown-event" }` on the wire.
 
 ### 3.12 Phase 3 tests — E2E Appium
 
@@ -426,7 +426,7 @@ Fixtures live in `tests/Reactor.AppTests.Host/SelfTest/Fixtures/DevtoolsFixtures
 
 - [x] Add stdio transport alongside HTTP. `--devtools run --mcp-transport stdio` switches.
 - [x] Same tool surface, same schema. Spec §16 resolved question #1: HTTP stays the default in v1; stdio is additive. *(`StdioMcpLoop` shares the `McpDispatcher` with the HTTP path; console banners route to stderr on stdio.)*
-- [ ] Self-host test: run the same tool suite against stdio and assert parity. *(Parity is pinned structurally in `StdioTransportTests.ResponseShape_MatchesHttpTransport`; running the full Phase 2/3 suite over stdio lands with the self-host fixture in §4.7.)*
+- [ ] Self-host test: run the same tool suite against stdio and assert parity. *(Wire-shape parity is pinned at the unit level across every dispatcher method class — `StdioTransportTests.StdioAndHttpResponses_ByteIdentical_ForEveryMethodClass` covers `initialize`, `tools/list`, `tools/call` (ok + error), `resources/list`, `prompts/list`, and direct-name invocation; `StdioRun_FeedingMixedSequence_ProducesHttpIdenticalPerLine` replays a realistic agent session. Running the full Phase 2/3 self-host fixture suite over stdio still lands with §4.7.)*
 
 ### 4.2 `mur devtools --print-config`
 
@@ -491,24 +491,26 @@ Use this to verify every MCP tool has both a fast (self-host) and slow (E2E) tes
 
 | Tool | Unit | Self-host MCP | E2E Appium | Phase |
 |---|---|---|---|---|
-| `reactor.windows` | [ ] | [ ] | [ ] | 2 |
-| `reactor.components` | [ ] | [ ] | [ ] | 2 |
-| `reactor.switchComponent` | [ ] | [ ] | [ ] | 2 |
-| `reactor.tree` (summary) | [ ] | [ ] | [ ] | 2 |
-| `reactor.tree` (full) | [ ] | [ ] | [ ] | 3 |
-| `reactor.screenshot` | [ ] | [ ] | [ ] | 2 |
-| `reactor.state` | [ ] | [ ] | [ ] | 3 |
-| `reactor.click` | [ ] | [ ] | [ ] | 2 |
-| `reactor.type` | [ ] | [ ] | [ ] | 2 |
-| `reactor.scroll` | [ ] | [ ] | [ ] | 3 |
-| `reactor.focus` | [ ] | [ ] | [ ] | 2 |
-| `reactor.invoke` | [ ] | [ ] | [ ] | 3 |
-| `reactor.toggle` | [ ] | [ ] | [ ] | 3 |
-| `reactor.select` | [ ] | [ ] | [ ] | 3 |
-| `reactor.waitFor` | [ ] | [ ] | [ ] | 2 |
-| `reactor.fire` | [ ] | [ ] | [ ] | 3 |
-| `reactor.version` | [ ] | [ ] | [ ] | 2 |
+| `reactor.windows` | [ ] | [x] | [ ] | 2 |
+| `reactor.components` | [ ] | [x] | [ ] | 2 |
+| `reactor.switchComponent` | [ ] | [x] | [ ] | 2 |
+| `reactor.tree` (summary) | [x] | [x] | [ ] | 2 |
+| `reactor.tree` (full) | [x] | [x] | [ ] | 3 |
+| `reactor.screenshot` | [ ] | [x] | [ ] | 2 |
+| `reactor.state` | [x] | [x] | [ ] | 3 |
+| `reactor.click` | [ ] | [x] | [ ] | 2 |
+| `reactor.type` | [ ] | [x] | [ ] | 2 |
+| `reactor.scroll` | [ ] | [x] | [ ] | 3 |
+| `reactor.focus` | [ ] | [x] | [ ] | 2 |
+| `reactor.invoke` | [ ] | [x] | [ ] | 3 |
+| `reactor.toggle` | [ ] | [x] | [ ] | 3 |
+| `reactor.select` | [ ] | [x] | [ ] | 3 |
+| `reactor.waitFor` | [x] | [x] | [ ] | 2 |
+| `reactor.fire` | [x] | [x] | [ ] | 3 |
+| `reactor.version` | [ ] | [x] | [ ] | 2 |
 | `reactor.reload` | [ ] | [ ] | [ ] | 2 |
+
+Legend: Unit ticks require a direct `tests/Reactor.Tests/Devtools/*.cs` test for the tool's pure logic (schema, predicate parsing, handler resolution). Self-host ticks require a fixture registered in `SelfTestFixtureRegistry` that exercises the tool via real JSON-RPC against a live `DevtoolsMcpServer`. E2E ticks require an Appium launch via `mur devtools` and remain open across all phases until the Appium rigging lands.
 
 ---
 

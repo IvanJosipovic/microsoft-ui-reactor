@@ -94,4 +94,36 @@ public class SupervisorArgsTests
         Assert.True(r.PrintConfig);
         Assert.Null(r.McpPort);
     }
+
+    // §2.14: the supervisor must forward --component to the child in a position
+    // the child's DevtoolsCliParser will recognize. Prior to this fix the
+    // component positional was placed AFTER --mcp-port N, so the port number
+    // (which doesn't start with '-') was picked up as the component name.
+    [Fact]
+    public void BuildChildArguments_NoComponent_PlacesMcpPortAfterRun()
+    {
+        var a = DevtoolsSupervisor.BuildChildArguments("./x.csproj", null, 42000);
+        // Expected: run --project ./x.csproj -- --devtools run --mcp-port 42000
+        Assert.Equal(new[]
+        {
+            "run", "--project", "./x.csproj", "--",
+            "--devtools", "run",
+            "--mcp-port", "42000",
+        }, a);
+    }
+
+    [Fact]
+    public void BuildChildArguments_WithComponent_PositionsItBeforeMcpPort()
+    {
+        var a = DevtoolsSupervisor.BuildChildArguments("./x.csproj", "CounterDemo", 42000);
+        // The child's parser reads the first positional after `run` as the
+        // component name. It must come BEFORE --mcp-port so the port number
+        // isn't picked up as the component.
+        var idxComponent = a.ToList().IndexOf("CounterDemo");
+        var idxMcpPort = a.ToList().IndexOf("--mcp-port");
+        Assert.True(idxComponent >= 0, "component positional must be present");
+        Assert.True(idxMcpPort >= 0, "--mcp-port flag must be present");
+        Assert.True(idxComponent < idxMcpPort,
+            $"component must come before --mcp-port (got component={idxComponent}, --mcp-port={idxMcpPort})");
+    }
 }

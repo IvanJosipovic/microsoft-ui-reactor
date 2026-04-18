@@ -130,22 +130,41 @@ internal static class DevtoolsSupervisor
             RedirectStandardError = false,
             WorkingDirectory = Directory.GetCurrentDirectory(),
         };
-        psi.ArgumentList.Add("run");
-        psi.ArgumentList.Add("--project");
-        psi.ArgumentList.Add(project);
-        psi.ArgumentList.Add("--");
-        psi.ArgumentList.Add("--devtools");
-        psi.ArgumentList.Add("run");
-        psi.ArgumentList.Add("--mcp-port");
-        psi.ArgumentList.Add(mcpPort.ToString());
-        if (!string.IsNullOrEmpty(component))
-            psi.ArgumentList.Add(component);
+        foreach (var a in BuildChildArguments(project, component, mcpPort))
+            psi.ArgumentList.Add(a);
 
         Console.WriteLine($"[mur devtools] Launching: dotnet {string.Join(' ', psi.ArgumentList)}");
         using var proc = Process.Start(psi)
             ?? throw new InvalidOperationException("Failed to start dotnet.");
         proc.WaitForExit();
         return proc.ExitCode;
+    }
+
+    /// <summary>
+    /// Builds the argv passed to <c>dotnet</c> for the child run. The child's
+    /// <c>DevtoolsCliParser</c> treats the first positional following
+    /// <c>--devtools run</c> as the component name — so the component positional
+    /// must come BEFORE any <c>--flag value</c> pair whose value could be
+    /// mistaken for a positional (notably <c>--mcp-port N</c>, whose <c>N</c>
+    /// doesn't start with <c>-</c> and would otherwise be picked up as the
+    /// component name).
+    /// </summary>
+    internal static IReadOnlyList<string> BuildChildArguments(string project, string? component, int mcpPort)
+    {
+        var args = new List<string>
+        {
+            "run",
+            "--project",
+            project,
+            "--",
+            "--devtools",
+            "run",
+        };
+        if (!string.IsNullOrEmpty(component))
+            args.Add(component);
+        args.Add("--mcp-port");
+        args.Add(mcpPort.ToString());
+        return args;
     }
 
     private static bool RunDotnetBuild(string project)
