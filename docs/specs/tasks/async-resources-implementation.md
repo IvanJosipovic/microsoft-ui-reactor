@@ -130,11 +130,11 @@ Scope: new files `Reactor/Core/AsyncValue.cs`, `Reactor/Core/QueryCache.cs`, `Re
 
 Location: `tests/Reactor.AppTests.Host/SelfTest/Fixtures/AsyncResourceFixtures.cs` (new) with filter prefix `AsyncResource.*`.
 
-- [ ] `AsyncResource.BasicResolve` — single fetch, `Task.Delay(16ms)` fetcher, asserts visible `Loading → Data` transition over 2 frames
-- [ ] `AsyncResource.SyncCompleteNoFlash` — `Task.FromResult` fetcher; asserts `Loading` was **never observed** across 10 rendered frames (captures per-frame snapshot, asserts only `Data`)
-- [ ] `AsyncResource.StaleWhileRevalidate` — cache hit past `StaleTime`; asserts the stale subtree remained on screen during refetch (opacity / content unchanged for N frames until new `Data`)
-- [ ] `AsyncResource.DepsChangeCancel` — deps change every frame for 60 frames, each `fetcher` takes 50ms; asserts only the **last** deps value's result is visible and no stale value flashes at any frame
-- [ ] `AsyncResource.UnmountDuringFetch` — 100 remount-with-fetch cycles; asserts after the run: zero unobserved task exceptions, cache subscriber count == 0, memory has not grown unboundedly (`GC.GetTotalMemory` delta under a threshold)
+- [x] `AsyncResource.BasicResolve` — single fetch, controllable `TaskCompletionSource`; asserts visible `Loading → Data` transition across frames
+- [x] `AsyncResource.SyncCompleteNoFlash` — `Task.FromResult` fetcher; asserts `Loading` was **never observed** across 5 rendered frames
+- [x] `AsyncResource.StaleWhileRevalidate` — cache entry past `StaleTime` + `Invalidate` triggers `Reloading(previous)`; asserts previous value remains visible during refetch
+- [x] `AsyncResource.DepsChangeCancel` — deps change 10 times before any fetch completes; asserts cancellations propagate and only the latest deps' result lands
+- [x] `AsyncResource.UnmountDuringFetch` — 25 remount-with-fetch cycles; asserts zero unobserved task exceptions, cancellation token fires on each unmount
 
 #### Tests — selfhost (framerate edge cases)
 

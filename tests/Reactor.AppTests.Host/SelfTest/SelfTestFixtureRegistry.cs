@@ -411,6 +411,12 @@ internal static class SelfTestFixtureRegistry
         "DataGrid_ScrollPopulatesData",
         "DataGrid_ScrollBackPopulatesData",
         "DataGrid_ScrollPerfRelative",
+        // UseResource integration (real dispatcher)
+        "AsyncResource.BasicResolve",
+        "AsyncResource.SyncCompleteNoFlash",
+        "AsyncResource.StaleWhileRevalidate",
+        "AsyncResource.DepsChangeCancel",
+        "AsyncResource.UnmountDuringFetch",
     ];
 
     public static SelfTestFixtureBase? Create(string name, Harness harness) => name switch
@@ -817,6 +823,12 @@ internal static class SelfTestFixtureRegistry
         "DataGrid_ScrollPopulatesData" => new DataGridScrollFixtures.ScrollPopulatesData(harness),
         "DataGrid_ScrollBackPopulatesData" => new DataGridScrollFixtures.ScrollBackPopulatesData(harness),
         "DataGrid_ScrollPerfRelative" => new DataGridScrollFixtures.ScrollPerfRelative(harness),
+        // UseResource integration fixtures
+        "AsyncResource.BasicResolve" => new AsyncResourceFixtures.BasicResolve(harness),
+        "AsyncResource.SyncCompleteNoFlash" => new AsyncResourceFixtures.SyncCompleteNoFlash(harness),
+        "AsyncResource.StaleWhileRevalidate" => new AsyncResourceFixtures.StaleWhileRevalidate(harness),
+        "AsyncResource.DepsChangeCancel" => new AsyncResourceFixtures.DepsChangeCancel(harness),
+        "AsyncResource.UnmountDuringFetch" => new AsyncResourceFixtures.UnmountDuringFetch(harness),
         _ => null,
     };
 }
