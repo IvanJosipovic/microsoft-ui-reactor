@@ -18,7 +18,7 @@ public class QueryCacheThreadingTests
     // ════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void Concurrent_Set_And_TryGet_Never_Observe_Torn_Entry()
+    public async Task Concurrent_Set_And_TryGet_Never_Observe_Torn_Entry()
     {
         using var cache = new QueryCache();
         using var barrier = new Barrier(8);
@@ -55,7 +55,7 @@ public class QueryCacheThreadingTests
         }
 
         cts.CancelAfter(TimeSpan.FromMilliseconds(250));
-        Task.WaitAll(tasks.ToArray(), TimeSpan.FromSeconds(10));
+        await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(10));
         Assert.Equal(0, tornReads);
     }
 
@@ -64,7 +64,7 @@ public class QueryCacheThreadingTests
     // ════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void Concurrent_Subscribe_Unsubscribe_Converges_To_Zero()
+    public async Task Concurrent_Subscribe_Unsubscribe_Converges_To_Zero()
     {
         using var cache = new QueryCache();
         const int threads = StressThreads;
@@ -90,7 +90,7 @@ public class QueryCacheThreadingTests
                 }
             });
         }
-        Task.WaitAll(tasks, TimeSpan.FromSeconds(10));
+        await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(10));
         Assert.Equal(0, negativeCount);
 
         // Final count should be exactly zero.
@@ -103,7 +103,7 @@ public class QueryCacheThreadingTests
     // ════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void Invalidate_Racing_With_Set_Leaves_Consistent_State()
+    public async Task Invalidate_Racing_With_Set_Leaves_Consistent_State()
     {
         using var cache = new QueryCache();
         var cts = new CancellationTokenSource();
@@ -129,9 +129,9 @@ public class QueryCacheThreadingTests
             }
         });
 
-        Thread.Sleep(250);
+        await Task.Delay(250);
         cts.Cancel();
-        Task.WaitAll(new[] { setter, invalidator, reader }, TimeSpan.FromSeconds(5));
+        await Task.WhenAll(setter, invalidator, reader).WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(0, inconsistencies);
     }
 
@@ -140,7 +140,7 @@ public class QueryCacheThreadingTests
     // ════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void Resubscribe_Racing_Against_EvictNow_Retains_Entry()
+    public async Task Resubscribe_Racing_Against_EvictNow_Retains_Entry()
     {
         // Repeat many times to surface the race — if eviction observes the
         // zero-subscriber count then a Subscribe bumps it before the remove
@@ -167,7 +167,7 @@ public class QueryCacheThreadingTests
                 barrier.SignalAndWait();
                 cache.EvictNow();
             });
-            Task.WaitAll(new[] { sub, evict }, TimeSpan.FromSeconds(2));
+            await Task.WhenAll(sub, evict).WaitAsync(TimeSpan.FromSeconds(2));
 
             // At least one of two things must be true:
             // (a) EvictNow ran first and the entry was cleared; Subscribe created a fresh slot.
@@ -182,7 +182,7 @@ public class QueryCacheThreadingTests
     // ════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void InvalidatePattern_Racing_With_Set_Does_Not_Throw()
+    public async Task InvalidatePattern_Racing_With_Set_Does_Not_Throw()
     {
         using var cache = new QueryCache();
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
@@ -202,7 +202,7 @@ public class QueryCacheThreadingTests
         });
 
         // The test passes iff neither task throws.
-        Task.WaitAll(new[] { setter, invalidator }, TimeSpan.FromSeconds(5));
+        await Task.WhenAll(setter, invalidator).WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(setter.IsCompletedSuccessfully);
         Assert.True(invalidator.IsCompletedSuccessfully);
     }
@@ -227,7 +227,7 @@ public class QueryCacheThreadingTests
     // ════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void Stress_1000_Keys_Mixed_Ops_Terminates_Without_Exceptions()
+    public async Task Stress_1000_Keys_Mixed_Ops_Terminates_Without_Exceptions()
     {
         using var cache = new QueryCache();
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
@@ -265,7 +265,7 @@ public class QueryCacheThreadingTests
                 }
             }));
         }
-        Task.WaitAll(tasks.ToArray(), TimeSpan.FromSeconds(10));
+        await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(10));
         Assert.Equal(0, exceptions);
     }
 }

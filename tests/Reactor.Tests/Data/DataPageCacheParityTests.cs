@@ -80,7 +80,7 @@ public class DataPageCacheParityTests
     // ════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void LRU_Eviction_Drops_Same_Blocks_On_Same_Access_Pattern()
+    public async Task LRU_Eviction_Drops_Same_Blocks_On_Same_Access_Pattern()
     {
         // 5 pages of 10 items each; both caches sized to keep 3 pages. Access 0..4, then 2
         // — legacy and hook path must both evict the same oldest pages (0 and 1).
@@ -93,10 +93,10 @@ public class DataPageCacheParityTests
         var legacy = new DataPageCache<int>(legacySource, blockSize: pageSize, maxBlocks: cap);
         for (int p = 0; p < 5; p++)
         {
-            var block = legacy.GetBlockAsync(p).AsTask().Result;
+            var block = await legacy.GetBlockAsync(p);
             Assert.Equal(BlockStatus.Loaded, block.Status);
         }
-        _ = legacy.GetBlockAsync(2).AsTask().Result; // touch page 2
+        _ = await legacy.GetBlockAsync(2); // touch page 2
         var legacyCached = new HashSet<int>();
         for (int p = 0; p < 5; p++)
             if (legacy.GetBlockStatus(p) == BlockStatus.Loaded) legacyCached.Add(p);
@@ -126,7 +126,7 @@ public class DataPageCacheParityTests
     /// positions must coincide: rows 10..19 (page 1) must read as default on both paths.
     /// </summary>
     [Fact]
-    public void Placeholder_Positions_Match_For_Same_Viewport()
+    public async Task Placeholder_Positions_Match_For_Same_Viewport()
     {
         const int pageSize = 10;
         const int total = 50;
@@ -134,8 +134,8 @@ public class DataPageCacheParityTests
         // Legacy.
         var ls = new ControlledSource(total, pageSize);
         var legacy = new DataPageCache<int>(ls, blockSize: pageSize, maxBlocks: 20);
-        _ = legacy.GetBlockAsync(0).AsTask().Result;
-        _ = legacy.GetBlockAsync(2).AsTask().Result;
+        _ = await legacy.GetBlockAsync(0);
+        _ = await legacy.GetBlockAsync(2);
 
         // Hook.
         var hs = new ControlledSource(total, pageSize);
@@ -169,12 +169,12 @@ public class DataPageCacheParityTests
     // ════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void Deps_Change_Invalidates_Both_Caches()
+    public async Task Deps_Change_Invalidates_Both_Caches()
     {
         const int pageSize = 10;
         var ls = new ControlledSource(total: 50, pageSize);
         var legacy = new DataPageCache<int>(ls, blockSize: pageSize, maxBlocks: 20);
-        _ = legacy.GetBlockAsync(0).AsTask().Result;
+        _ = await legacy.GetBlockAsync(0);
         Assert.Equal(1, legacy.CachedBlockCount);
 
         legacy.SetState(new DataRequest { PageSize = pageSize, SearchQuery = "q" });
