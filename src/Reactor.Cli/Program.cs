@@ -54,6 +54,11 @@ if (arg == "docs")
     return Microsoft.UI.Reactor.Cli.Docs.DocsCommand.Run(args.Skip(1).ToArray());
 }
 
+if (arg == "devtools")
+{
+    return Microsoft.UI.Reactor.Cli.Devtools.DevtoolsSupervisor.Run(args.Skip(1).ToArray());
+}
+
 Console.Error.WriteLine($"Unknown option: {args[0]}");
 Console.Error.WriteLine();
 ShowHelp();
@@ -82,6 +87,7 @@ void ShowHelp()
     Console.WriteLine("  loc status       Show translation coverage per locale");
     Console.WriteLine("  loc prune        Find unused localization keys");
     Console.WriteLine("  docs compile     Compile documentation from templates and doc apps");
+    Console.WriteLine("  devtools         Launch project with --devtools run and supervise reloads");
 }
 
 int ShowSkill()
