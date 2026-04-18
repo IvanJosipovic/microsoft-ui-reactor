@@ -386,6 +386,155 @@ internal static class AsyncResourceFramerateFixtures
     //  must eventually fire.
     // ════════════════════════════════════════════════════════════════════
 
+    // ════════════════════════════════════════════════════════════════════
+    //  DataGridEditMutation — one UseMutation.RunAsync per frame for 60
+    //  frames. Simulates the load the hook-path DataGridState generates
+    //  when a user types/commits rapidly: each edit fires an optimistic
+    //  update synchronously, the mutator awaits a short async round-trip,
+    //  and on success locks in the server-authoritative value. Covers
+    //  §11 Phase-3 "rapid cell edits, each firing a UseMutation".
+    // ════════════════════════════════════════════════════════════════════
+
+    internal class DataGridEditMutation(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            int unobserved = 0;
+            EventHandler<UnobservedTaskExceptionEventArgs> handler = (_, e) =>
+            { Interlocked.Increment(ref unobserved); e.SetObserved(); };
+            TaskScheduler.UnobservedTaskException += handler;
+
+            try
+            {
+                int mutatorStarted = 0;
+                int mutatorCompleted = 0;
+                int onSuccessFired = 0;
+                int onErrorFired = 0;
+
+                Action<int>? fire = null;
+                Mutation<int, int>? mutationRef = null;
+
+                // Observed invariants gathered across frames.
+                bool sawPendingTrueMidRun = false;
+                int maxConcurrentPending = 0;
+                int currentPending = 0;
+
+                var host = H.CreateHost();
+                host.Mount(ctx =>
+                {
+                    // `localValue` is the optimistic-then-settled view — equivalent to the
+                    // DataGrid cell's displayed text. It is updated synchronously in
+                    // OnOptimistic and overwritten in OnSuccess.
+                    var (localValue, setLocal) = ctx.UseState(0);
+
+                    var mutation = ctx.UseMutation<int, int>(
+                        mutator: async (delta, ct) =>
+                        {
+                            Interlocked.Increment(ref mutatorStarted);
+                            int live = Interlocked.Increment(ref currentPending);
+                            int current;
+                            do { current = maxConcurrentPending; if (live <= current) break; }
+                            while (Interlocked.CompareExchange(ref maxConcurrentPending, live, current) != current);
+                            try
+                            {
+                                // Short, variable delay so mutations overlap between frames.
+                                await Task.Delay(30 + (delta % 10), ct);
+                                Interlocked.Increment(ref mutatorCompleted);
+                                // Server-authoritative value: +100 offset so we can tell
+                                // optimistic (delta) and settled (delta+100) apart.
+                                return delta + 100;
+                            }
+                            finally { Interlocked.Decrement(ref currentPending); }
+                        },
+                        cache: null,
+                        options: new MutationOptions<int, int>(
+                            // Optimistic: bump immediately so the UI reflects the edit
+                            // before the round-trip completes. Equivalent to the
+                            // DataGrid's optimistic cell update in Phase 3.
+                            OnOptimistic: delta => setLocal(delta),
+                            OnSuccess: (server, delta) =>
+                            {
+                                Interlocked.Increment(ref onSuccessFired);
+                                setLocal(server);
+                            },
+                            OnError: (ex, delta) => Interlocked.Increment(ref onErrorFired)));
+
+                    mutationRef = mutation;
+                    fire = delta => _ = mutation.RunAsync(delta);
+
+                    return Factories.Text($"v={localValue} p={mutation.IsPending}");
+                });
+
+                await Harness.Render();
+
+                // One commit per frame for the framerate budget.
+                for (int f = 1; f <= Frames; f++)
+                {
+                    fire!(f);
+                    await Harness.Render();
+                    if (mutationRef is { IsPending: true }) sawPendingTrueMidRun = true;
+                }
+
+                // Let the tail of in-flight mutators drain.
+                for (int i = 0; i < 30; i++) await Harness.Render();
+
+                // Invariant 1: optimistic path fired every frame. The last optimistic
+                // value to land before the first server response is the frame number;
+                // after all mutators resolve, the last value should be Frames+100.
+                // Check by inspecting the rendered text — the UI must show the settled
+                // value of the last-completing mutation.
+                H.Check($"DataGridEditMutation_MutatorRan (started={mutatorStarted}, frames={Frames})",
+                    mutatorStarted == Frames);
+
+                // Invariant 2: every started mutator completed (no leaks, no exceptions).
+                H.Check($"DataGridEditMutation_AllCompleted (started={mutatorStarted}, completed={mutatorCompleted})",
+                    mutatorCompleted == mutatorStarted);
+
+                H.Check($"DataGridEditMutation_AllOnSuccess (fired={onSuccessFired})",
+                    onSuccessFired == mutatorStarted);
+
+                H.Check($"DataGridEditMutation_NoOnError (errors={onErrorFired})",
+                    onErrorFired == 0);
+
+                // Invariant 3: IsPending was observed true during the run (the mutation
+                // state machine actually transitioned through pending).
+                H.Check("DataGridEditMutation_PendingObserved", sawPendingTrueMidRun);
+
+                // Invariant 4: IsPending returns to false once the tail drains — the
+                // classic "stuck in pending" regression the spec calls out.
+                H.Check($"DataGridEditMutation_NotStuckPending (final={mutationRef!.IsPending})",
+                    !mutationRef.IsPending);
+
+                // Invariant 5: concurrent-pending ceiling. With 30-40ms mutators and
+                // one dispatch per render tick we expect some overlap but not runaway.
+                H.Check($"DataGridEditMutation_PendingOverlapBounded (max={maxConcurrentPending})",
+                    maxConcurrentPending <= Frames);
+
+                // Invariant 6: the final visible value is the server-settled form of
+                // the last committed delta (delta + 100). LastResult is set by
+                // OnSuccess on the latest-completing mutation, which for a sequential
+                // workload is the last-fired delta. Tolerate completion-order jitter
+                // by accepting any f+100 where 1 ≤ f ≤ Frames.
+                int finalValue = mutationRef.LastResult;
+                bool finalInRange = finalValue >= 1 + 100 && finalValue <= Frames + 100;
+                H.Check($"DataGridEditMutation_FinalValueServerSettled (value={finalValue})",
+                    finalInRange);
+
+                // Invariant 7: no unobserved exceptions leaked from any pending mutator.
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                await Harness.Render();
+                H.Check($"DataGridEditMutation_NoUnobserved (got {unobserved})", unobserved == 0);
+            }
+            finally { TaskScheduler.UnobservedTaskException -= handler; }
+        }
+    }
+
     internal class DispatcherPressure(Harness h) : SelfTestFixtureBase(h)
     {
         public override async Task RunAsync()

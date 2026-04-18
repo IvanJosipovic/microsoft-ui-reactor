@@ -442,6 +442,7 @@ internal static class SelfTestFixtureRegistry
         "AsyncResource.Framerate.CacheChurn",
         "AsyncResource.Framerate.FastRemount",
         "AsyncResource.Framerate.DispatcherPressure",
+        "AsyncResource.Framerate.DataGridEditMutation",
         // Infinite-resource framerate canaries
         "AsyncResource.Framerate.ScrollFlood",
         "AsyncResource.Framerate.RapidEnsureRange",
@@ -887,6 +888,8 @@ internal static class SelfTestFixtureRegistry
         "AsyncResource.Framerate.CacheChurn" => new AsyncResourceFramerateFixtures.CacheChurn(harness),
         "AsyncResource.Framerate.FastRemount" => new AsyncResourceFramerateFixtures.FastRemount(harness),
         "AsyncResource.Framerate.DispatcherPressure" => new AsyncResourceFramerateFixtures.DispatcherPressure(harness),
+        // Framerate canary (Phase 3 — UseMutation under DataGrid edit cadence)
+        "AsyncResource.Framerate.DataGridEditMutation" => new AsyncResourceFramerateFixtures.DataGridEditMutation(harness),
         // Framerate canaries (Phase 2 — UseInfiniteResource)
         "AsyncResource.Framerate.ScrollFlood" => new AsyncInfiniteResourceFramerateFixtures.ScrollFlood(harness),
         "AsyncResource.Framerate.RapidEnsureRange" => new AsyncInfiniteResourceFramerateFixtures.RapidEnsureRange(harness),

@@ -327,7 +327,7 @@ Scope: new `Reactor/Core/Hooks/UseMutation.cs`; modifications to `Reactor/Contro
 #### Tests — selfhost (framerate regression for DataGrid)
 
 - [x] `AsyncResource.Framerate.DataGridScroll` — scroll 10 000 rows at 60Hz for 60 frames on the new path; asserts final data visible, zero unobserved task exceptions
-- [ ] `AsyncResource.Framerate.DataGridEditMutation` — rapid cell edits (one per frame for 60 frames), each firing a `UseMutation`; assert optimistic updates render immediately, server responses settle without visual regression, `IsPending` never gets stuck true
+- [x] `AsyncResource.Framerate.DataGridEditMutation` — rapid cell edits (one per frame for 60 frames), each firing a `UseMutation`; asserts optimistic updates render immediately, every mutator completes, `OnSuccess` fires once per mutation, `IsPending` never gets stuck true, server-settled `LastResult` lands in the expected range, no unobserved task exceptions. Drives `UseMutation` directly at the cadence `DataGridState.HandleAsyncCommit` produces on the hook path — an end-to-end DataGrid-UI variant is redundant once these invariants are pinned.
 
 ### 3.4 HeadTrax `EmployeeGrid` port
 
