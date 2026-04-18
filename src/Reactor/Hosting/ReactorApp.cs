@@ -286,6 +286,7 @@ public static class ReactorApp
                     preferredPort: options.McpPort);
 
                 var windows = new WindowRegistry(mcp.BuildTag);
+                var nodes = new NodeRegistry();
                 windows.Attach(host.Window, isMain: true);
 
                 DevtoolsTools.RegisterCore(mcp, new DevtoolsTools.ToolHostContext
@@ -296,6 +297,7 @@ public static class ReactorApp
                     RequestReload = () => RequestDevtoolsReload(mcp, host),
                     Windows = windows,
                 });
+                DevtoolsUiaTools.RegisterUiaTools(mcp, nodes, windows);
 
                 mcp.Start();
                 // Ready line fires after the first render — subscribe once to the host.
