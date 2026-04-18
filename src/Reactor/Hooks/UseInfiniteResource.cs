@@ -55,12 +55,15 @@ public static class UseInfiniteResourceExtensions
 
         var stateRef = ctx.UseRef<InfiniteHookState<TItem, TCursor>?>(null);
         var (_, rerenderTick) = ctx.UseReducer(0, threadSafe: true);
+        // Nearest Pending scope (null when the hook is outside any <c>Pending</c>).
+        var pendingScope = ctx.UseContext(AppContexts.PendingScope);
 
         var state = stateRef.Current ??= CreateState<TItem, TCursor>(
             ctx, cache, options,
             hookId: hookIdRef.Current!,
             rerender: () => rerenderTick(n => n + 1),
-            dispatcher: dispatcher);
+            dispatcher: dispatcher,
+            pendingScope: pendingScope);
         state.SetFetcher(fetchPage);
 
         ctx.UseEffect(() => () => state.Dispose());
@@ -82,10 +85,12 @@ public static class UseInfiniteResourceExtensions
         InfiniteResourceOptions options,
         string hookId,
         Action rerender,
-        IHookDispatcher? dispatcher)
+        IHookDispatcher? dispatcher,
+        PendingScope? pendingScope)
     {
         return new InfiniteHookState<TItem, TCursor>(cache, options, hookId, rerender,
-            dispatcher ?? TryCaptureCurrentDispatcher());
+            dispatcher ?? TryCaptureCurrentDispatcher(),
+            pendingScope);
     }
 
     private static string BuildKeyPrefix(string hookId, object[] deps, InfiniteResourceOptions opts)
@@ -133,16 +138,33 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
     public InfiniteResource<TItem> Resource { get; private set; } = default!;
     private bool _disposed;
 
+    private readonly PendingScope? _pendingScope;
+
     public InfiniteHookState(
         QueryCache cache, InfiniteResourceOptions options, string hookId,
-        Action rerender, IHookDispatcher? dispatcher)
+        Action rerender, IHookDispatcher? dispatcher, PendingScope? pendingScope = null)
     {
         _cache = cache;
         _options = options;
         _hookId = hookId;
         _rerender = rerender;
         _dispatcher = dispatcher;
+        _pendingScope = pendingScope;
         Resource = CreateResource();
+        // Start as Loading from the scope's perspective — a fresh InfiniteResource
+        // begins with LoadState.Loading and zero items.
+        _pendingScope?.Register(this, isLoading: true);
+    }
+
+    /// <summary>Called from RequestPage / page-completion paths to keep the Pending scope in sync.</summary>
+    private void NotifyPending()
+    {
+        if (_pendingScope is null) return;
+        // Initial-load is the only state that contributes to Pending: once at least one
+        // item is in the flat list the subtree can render meaningfully and <c>Reloading</c>-
+        // style refetches should keep the existing UI visible (spec §10.1).
+        bool loading = Resource.LoadState is LoadState.Loading && Resource.Items.Count == 0;
+        _pendingScope.SetLoading(this, loading);
     }
 
     public void SetFetcher(Func<TCursor?, CancellationToken, Task<Page<TItem, TCursor>>> fetcher)
@@ -169,6 +191,8 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
         KeyPrefix = newPrefix;
         LastDeps = newDeps.ToArray();
         Resource = CreateResource();
+        // Deps change = new page set. Back to Loading from the scope's perspective.
+        _pendingScope?.SetLoading(this, true);
     }
 
     public void KickOffFirstPage()
@@ -198,7 +222,7 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
         {
             Resource.ApplyPageResult(pageIndex, entry.Value);
             SubscribeKey(key);
-            _rerender();
+            NotifyPending(); _rerender();
             return;
         }
 
@@ -285,6 +309,7 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
         _cache.Set(key, page, _options.EffectiveStaleTime, _options.EffectiveCacheTime);
         Resource.ApplyPageResult(pageIndex, page);
         _pageCts.Remove(pageIndex);
+        NotifyPending();
         _rerender();
     }
 
@@ -292,6 +317,7 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
     {
         Resource.ApplyPageError(pageIndex, ex);
         _pageCts.Remove(pageIndex);
+        NotifyPending();
         _rerender();
     }
 
@@ -332,6 +358,7 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
 
         // Reset the resource and kick off page 0.
         Resource = CreateResource();
+        _pendingScope?.SetLoading(this, true);
         _rerender();
         RequestPage(0);
     }
@@ -350,5 +377,6 @@ internal sealed class InfiniteHookState<TItem, TCursor> : IDisposable
             try { _cache.Unsubscribe(key); } catch (InvalidOperationException) { /* defensive */ }
         }
         _subscribedKeys.Clear();
+        _pendingScope?.Unregister(this);
     }
 }

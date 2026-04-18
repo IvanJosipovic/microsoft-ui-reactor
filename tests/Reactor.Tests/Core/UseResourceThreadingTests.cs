@@ -188,6 +188,60 @@ public class UseResourceThreadingTests : IDisposable
     //  Concurrent sibling renders with shared CacheKey don't double-fetch
     // ════════════════════════════════════════════════════════════════
 
+    // ════════════════════════════════════════════════════════════════
+    //  Concurrent invalidation storm — fetch dedup holds
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Cache.Invalidate is an external signal that the cached value is gone. The hook's
+    /// re-render-after-invalidation path (<c>ReconcileWithCache</c>) kicks off a new fetch
+    /// when it observes a cleared cache entry, gated by <c>state.InFlight</c> so concurrent
+    /// re-renders do not stack fetches. This test hammers that invariant: 8 threads spam
+    /// Invalidate on the hook's cache key while renders repeatedly re-enter the hook; the
+    /// fetcher must be invoked a bounded number of times.
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_Invalidate_During_Pending_Fetch_No_Storm()
+    {
+        using var cache = new QueryCache();
+        var dispatcher = new InlineDispatcher();
+        var opts = new ResourceOptions(CacheKey: "shared", StaleTime: TimeSpan.FromMinutes(1));
+
+        var gate = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+        Func<CancellationToken, Task<int>> f = _ => { Interlocked.Increment(ref calls); return gate.Task; };
+
+        var ctx = new RenderContext();
+        ctx.BeginRender(() => { });
+        var v1 = ctx.UseResource(f, cache, Array.Empty<object>(), opts, dispatcher);
+        Assert.IsType<AsyncValue<int>.Loading>(v1);
+        Assert.Equal(1, Volatile.Read(ref calls));
+
+        const int Threads = 8, Spam = 200;
+        var barrier = new Barrier(Threads);
+        var tasks = Enumerable.Range(0, Threads).Select(_ => Task.Run(() =>
+        {
+            barrier.SignalAndWait();
+            for (int i = 0; i < Spam; i++) cache.Invalidate("shared");
+        })).ToArray();
+        await Task.WhenAll(tasks);
+
+        // While the fetch is still pending, InFlight is true — no re-render can kick off a
+        // duplicate fetch. Even issuing re-renders (which call ReconcileWithCache) should
+        // not start new fetches because BeginFetch short-circuits on InFlight.
+        for (int i = 0; i < 10; i++)
+        {
+            ctx.BeginRender(() => { });
+            ctx.UseResource(f, cache, Array.Empty<object>(), opts, dispatcher);
+        }
+        Assert.Equal(1, Volatile.Read(ref calls));
+
+        gate.SetResult(42);
+        await Task.Delay(50);
+
+        AssertNoUnobserved();
+    }
+
     [Fact]
     public void Sibling_Renders_With_Same_Key_Hit_Cache_After_First()
     {

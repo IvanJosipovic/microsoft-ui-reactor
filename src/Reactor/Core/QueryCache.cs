@@ -313,4 +313,12 @@ public static class AppContexts
     /// </summary>
     public static readonly Context<QueryCache> QueryCache =
         new(new QueryCache(), nameof(QueryCache));
+
+    /// <summary>
+    /// Nearest ancestor <see cref="Hooks.PendingScope"/>, or <c>null</c> at the root.
+    /// The <c>Pending</c> element provides a fresh scope to its subtree; hooks that
+    /// participate in Pending-style bubble-up read this via <c>UseContext</c>.
+    /// </summary>
+    public static readonly Context<Hooks.PendingScope?> PendingScope =
+        new(null, nameof(PendingScope));
 }

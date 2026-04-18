@@ -122,7 +122,7 @@ Scope: new files `Reactor/Core/AsyncValue.cs`, `Reactor/Core/QueryCache.cs`, `Re
 - [x] **Sibling cache sharing.** 10 sibling renders with same CacheKey → 1 fetch.
 - [x] **Unmount during pending fetch.** Marshalled callback is a no-op; cache not updated.
 - [x] **Cancel during fetcher body (`Task.Delay(ct)`)** → silent, no Error, no unobserved exception.
-- [ ] **Concurrent invalidation refetch storm** — not explicitly tested yet
+- [x] **Concurrent invalidation refetch storm** — 8 threads × 200 invalidations during a pending fetch; fetcher invoked exactly once (`Concurrent_Invalidate_During_Pending_Fetch_No_Storm`).
 - [x] **Dispatcher-missing path** — inline continuation verified in `No_Dispatcher_Still_Updates_State_Via_Inline_Path`.
 - [x] **`UnobservedTaskException` never fires** — each threading test subscribes and asserts zero.
 
@@ -351,17 +351,18 @@ Scope: new `Reactor/Core/Hooks/UseMutation.cs`; modifications to `Reactor/Contro
 
 ### 4.1 `Pending` element (§10)
 
-- [ ] Create `Reactor/Elements/Pending.cs`
-- [ ] Define `Pending(Element fallback, Element child)` element record
-- [ ] Define `PendingScope` context carrying a registry of `AsyncValue.Loading` resources in the subtree
-- [ ] Every `UseResource` / `UseInfiniteResource` registers with the nearest ancestor `PendingScope` on mount, unregisters on unmount / deps change
-- [ ] `Pending` renders `fallback` iff any registered resource is in `Loading` state (not `Reloading` — explicit per §10.1)
-- [ ] Subtree still renders fully in the background so it's ready to swap in when all resources resolve
+- [x] Create `Reactor/Hooks/Pending.cs` + `Reactor/Hooks/PendingScope.cs`
+- [x] Define `Pending(Element fallback, Element child)` via `PendingFactory.Pending` (a `Component<PendingProps>` under the hood)
+- [x] Define `PendingScope` context (`AppContexts.PendingScope`, nullable default) carrying a registry of `AsyncValue.Loading` resources in the subtree
+- [x] Every `UseResource` / `UseInfiniteResource` registers with the nearest ancestor `PendingScope` on mount, unregisters on unmount / deps change
+- [x] `Pending` renders `fallback` iff any registered resource is in `Loading` state (not `Reloading` — explicit per §10.1)
+- [x] Subtree still renders fully in the background so it's ready to swap in when all resources resolve — both child and fallback are mounted; Visibility toggles between them
 
 #### Tests
 
-- [ ] Unit: `PendingScope` ref-count transitions (one resource Loading → 1; resolves → 0; scope renders child)
-- [ ] Unit: `Reloading` does **not** trigger the fallback (only `Loading`)
+- [x] Unit: `PendingScope` ref-count transitions (Register/SetLoading/Unregister) — 4 tests in `PendingTests`
+- [x] Unit: `Reloading` does **not** trigger the fallback (only `Loading`) — `UseResource_Reloading_Does_Not_Count_As_Loading`
+- [x] Unit: multiple siblings + `UseInfiniteResource` + scope integration — 7 additional tests
 - [ ] Selfhost: `AsyncResource.PendingBubbleUp` — three nested components each fetching; fallback visible until all three resolve
 - [ ] Selfhost: `AsyncResource.PendingWithOverride` — a child matches `AsyncValue` locally and renders its own placeholder; outer `Pending` fallback still waits for that child
 - [ ] Framerate: `AsyncResource.Framerate.PendingChurn` — 16 resources alternately loading/resolving every frame; assert `Pending` toggles correctly and never flashes fallback when all are resolved

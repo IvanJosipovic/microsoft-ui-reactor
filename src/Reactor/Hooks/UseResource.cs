@@ -120,11 +120,15 @@ public static class UseResourceExtensions
 
         var stateRef = ctx.UseRef<ResourceHookState<T>?>(null);
         var (_, rerenderTick) = ctx.UseReducer(0, threadSafe: true);
+        // Peek the nearest Pending scope at the call-site. Null outside any <see cref="Pending"/>
+        // — zero-overhead when no bubble-up is installed.
+        var pendingScope = ctx.UseContext(AppContexts.PendingScope);
 
         var state = stateRef.Current ??= new ResourceHookState<T>(
             cache: cache,
             dispatcher: dispatcher ?? TryCaptureCurrentDispatcher(),
-            requestRerender: () => rerenderTick(n => n + 1));
+            requestRerender: () => rerenderTick(n => n + 1),
+            pendingScope: pendingScope);
 
         // Run-once-on-unmount cleanup. Deps-change is driven synchronously below rather than
         // via UseEffect, because we need the updated value inside this same render.
@@ -378,18 +382,35 @@ internal sealed class ResourceHookState<T> : IDisposable
     public readonly QueryCache Cache;
     public readonly IHookDispatcher? Dispatcher;
     public readonly Action RequestRerender;
+    public readonly PendingScope? PendingScope;
     public string CacheKey = "";
     public object[]? LastDeps;
     public CancellationTokenSource? Cts;
-    public AsyncValue<T> LastValue = AsyncValue<T>.Loading.Instance;
+    private AsyncValue<T> _lastValue = AsyncValue<T>.Loading.Instance;
+    public AsyncValue<T> LastValue
+    {
+        get => _lastValue;
+        set { _lastValue = value; NotifyPending(); }
+    }
     public bool InFlight;
     public bool IsDisposed;
 
-    public ResourceHookState(QueryCache cache, IHookDispatcher? dispatcher, Action requestRerender)
+    public ResourceHookState(QueryCache cache, IHookDispatcher? dispatcher, Action requestRerender, PendingScope? pendingScope = null)
     {
         Cache = cache;
         Dispatcher = dispatcher;
         RequestRerender = requestRerender;
+        PendingScope = pendingScope;
+        // Register with initial Loading state — the bubble-up scope should show the
+        // fallback immediately, before the first fetch round-trip.
+        PendingScope?.Register(this, isLoading: true);
+    }
+
+    private void NotifyPending()
+    {
+        if (PendingScope is null) return;
+        bool loading = _lastValue is AsyncValue<T>.Loading;
+        PendingScope.SetLoading(this, loading);
     }
 
     public void TransitionToKey(string newKey, object[] newDeps)
@@ -435,5 +456,6 @@ internal sealed class ResourceHookState<T> : IDisposable
         {
             try { Cache.Unsubscribe(CacheKey); } catch (InvalidOperationException) { /* defensive */ }
         }
+        PendingScope?.Unregister(this);
     }
 }
