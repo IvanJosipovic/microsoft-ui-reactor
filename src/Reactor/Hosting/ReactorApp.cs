@@ -243,6 +243,26 @@ public static class ReactorApp
             {
                 configure?.Invoke(host);
 
+                // Shared switch-component callback — reused by both the VS Code
+                // capture server and the MCP devtools server so they agree on
+                // the active component.
+                bool SwitchComponentCore(string name)
+                {
+                    var type = FindComponentType(name);
+                    if (type == null) return false;
+
+                    host.Window.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        var instance = (Core.Component)Activator.CreateInstance(type)!;
+                        host.Mount(instance);
+                        host.Window.Title = $"Preview — {name}";
+                    });
+
+                    initialComponentName = name;
+                    Console.WriteLine($"[devtools] Switched to {type.FullName}");
+                    return true;
+                }
+
                 if (vscodeMode)
                 {
                     var server = new PreviewCaptureServer(
@@ -252,26 +272,37 @@ public static class ReactorApp
 
                     server.GetComponents = () => FindAllComponentNames().ToList();
                     server.GetCurrentComponent = () => initialComponentName;
-                    server.SwitchComponent = name =>
-                    {
-                        var type = FindComponentType(name);
-                        if (type == null) return false;
-
-                        host.Window.DispatcherQueue.TryEnqueue(() =>
-                        {
-                            var instance = (Core.Component)Activator.CreateInstance(type)!;
-                            host.Mount(instance);
-                            host.Window.Title = $"Preview — {name}";
-                        });
-
-                        initialComponentName = name;
-                        Console.WriteLine($"[devtools] Switched to {type.FullName}");
-                        return true;
-                    };
+                    server.SwitchComponent = SwitchComponentCore;
 
                     server.Start();
                     host.Window.Closed += (_, _) => server.Dispose();
                 }
+
+                // MCP devtools server — always on when --devtools run is active.
+                // Port pinned by --mcp-port for the supervisor reload loop.
+                var mcp = new DevtoolsMcpServer(
+                    host.Window.DispatcherQueue,
+                    host.Window,
+                    preferredPort: options.McpPort);
+
+                DevtoolsTools.RegisterCore(mcp, new DevtoolsTools.ToolHostContext
+                {
+                    GetComponents = () => FindAllComponentNames().ToList(),
+                    GetCurrentComponent = () => initialComponentName,
+                    SwitchComponent = SwitchComponentCore,
+                    RequestReload = () => RequestDevtoolsReload(mcp, host),
+                });
+
+                mcp.Start();
+                // Ready line fires after the first render — subscribe once to the host.
+                bool announced = false;
+                host.Window.DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (announced) return;
+                    announced = true;
+                    mcp.AnnounceReady();
+                });
+                host.Window.Closed += (_, _) => mcp.Dispose();
             };
 
             Options = new ReactorAppOptions(
@@ -326,6 +357,29 @@ public static class ReactorApp
     internal static void ResetDeprecationWarningForTests()
     {
         Interlocked.Exchange(ref _previewParamDeprecationWarned, 0);
+    }
+
+    /// <summary>
+    /// Sentinel exit code consumed by the `mur devtools` supervisor to mean
+    /// "rebuild and respawn". Any other exit code propagates.
+    /// </summary>
+    internal const int DevtoolsReloadExitCode = 42;
+
+    private static void RequestDevtoolsReload(DevtoolsMcpServer mcp, ReactorHost host)
+    {
+        // Response flush happens before shutdown — the tool returns first, then the
+        // UI thread disposes the listener and closes the window. Exit 42 tells the
+        // supervisor to rebuild and relaunch with the same pinned MCP port.
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100); // Let the HTTP response flush.
+            try { mcp.Dispose(); } catch { }
+            host.Window.DispatcherQueue.TryEnqueue(() =>
+            {
+                try { host.Window.Close(); } catch { }
+                Environment.Exit(DevtoolsReloadExitCode);
+            });
+        });
     }
 
     private static void InitProcess()
