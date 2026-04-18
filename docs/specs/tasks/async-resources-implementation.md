@@ -61,7 +61,7 @@ Scope: new files `Reactor/Core/AsyncValue.cs`, `Reactor/Core/QueryCache.cs`, `Re
 - [x] Eviction timer uses a single shared `Timer` polling evictable entries every N seconds, not one timer per entry (avoid timer storm)
 - [x] `InvalidatePattern` walks keys with `StartsWith(prefix)` — document O(n) semantics in XML doc
 - [x] `EntryChanged` fires on UI dispatcher if `DispatcherPost` set; otherwise inline
-- [ ] Install default `QueryCache` at app root via `Context<QueryCache>` in `ReactorApp.Run` / `ReactorHost` bootstrap
+- [x] Install default `QueryCache` at app root via `Context<QueryCache>` in `ReactorApp.Run` / `ReactorHost` bootstrap
 
 #### Tests — unit (pure)
 
@@ -168,7 +168,7 @@ Scope: new files `Reactor/Core/Hooks/UseInfiniteResource.cs`, `Reactor/Data/Data
 
 - [x] Add `Page<TItem, TCursor>(IReadOnlyList<TItem> Items, TCursor? NextCursor, int? TotalCount = null)` record
 - [x] Define `abstract record LoadState` with sealed `Loading`, `Idle`, `EndOfList`, `Error(Exception Exception)`
-- [ ] Exhaustive pattern-match coverage test (not yet — covered indirectly through the hook tests)
+- [x] Exhaustive pattern-match coverage test (`AsyncValueTests.LoadState_*`)
 
 ### 2.2 `InfiniteResource<TItem>` class (§7.1)
 

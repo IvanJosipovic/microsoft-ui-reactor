@@ -189,4 +189,84 @@ public class AsyncValueTests
         Assert.Equal("Eboom", Render(new AsyncValue<int>.Error(new InvalidOperationException("boom"))));
         Assert.Equal("R9", Render(new AsyncValue<int>.Reloading(9)));
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  LoadState exhaustive pattern match (Phase 2.1)
+    // ════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void LoadState_Every_State_Is_Constructable_And_Discriminable()
+    {
+        LoadState loading = LoadState.Loading.Instance;
+        LoadState idle = LoadState.Idle.Instance;
+        LoadState end = LoadState.EndOfList.Instance;
+        LoadState error = new LoadState.Error(new InvalidOperationException("x"));
+
+        Assert.IsType<LoadState.Loading>(loading);
+        Assert.IsType<LoadState.Idle>(idle);
+        Assert.IsType<LoadState.EndOfList>(end);
+        Assert.IsType<LoadState.Error>(error);
+    }
+
+    [Fact]
+    public void LoadState_Exhaustive_Switch_Covers_All_Arms()
+    {
+        static string Label(LoadState s) => s switch
+        {
+            LoadState.Loading => "L",
+            LoadState.Idle => "I",
+            LoadState.EndOfList => "E",
+            LoadState.Error e => $"X:{e.Exception.Message}",
+            _ => throw new global::System.Diagnostics.UnreachableException(),
+        };
+
+        Assert.Equal("L", Label(LoadState.Loading.Instance));
+        Assert.Equal("I", Label(LoadState.Idle.Instance));
+        Assert.Equal("E", Label(LoadState.EndOfList.Instance));
+        Assert.Equal("X:boom", Label(new LoadState.Error(new InvalidOperationException("boom"))));
+    }
+
+    [Fact]
+    public void LoadState_Singletons_Are_Identity_Equal()
+    {
+        // Idle / Loading / EndOfList have no payload; `.Instance` is the canonical value.
+        // Record-equality also holds (empty records compare equal), but identity is the
+        // usage contract — hook implementations compare via ReferenceEquals for the fast path.
+        Assert.Same(LoadState.Loading.Instance, LoadState.Loading.Instance);
+        Assert.Same(LoadState.Idle.Instance, LoadState.Idle.Instance);
+        Assert.Same(LoadState.EndOfList.Instance, LoadState.EndOfList.Instance);
+
+        Assert.Equal(LoadState.Loading.Instance, LoadState.Loading.Instance);
+        Assert.Equal(LoadState.Idle.Instance, LoadState.Idle.Instance);
+        Assert.Equal(LoadState.EndOfList.Instance, LoadState.EndOfList.Instance);
+    }
+
+    [Fact]
+    public void LoadState_Error_Equality_Follows_Record_Rules()
+    {
+        var ex = new InvalidOperationException("same");
+        var a = new LoadState.Error(ex);
+        var b = new LoadState.Error(ex);
+        Assert.Equal(a, b);
+
+        // Different exception instances compare by reference on the Exception field.
+        var c = new LoadState.Error(new InvalidOperationException("same"));
+        Assert.NotEqual(a, c);
+    }
+
+    [Fact]
+    public void LoadState_Distinct_States_Are_Not_Equal()
+    {
+        LoadState idle = LoadState.Idle.Instance;
+        LoadState loading = LoadState.Loading.Instance;
+        LoadState end = LoadState.EndOfList.Instance;
+        LoadState error = new LoadState.Error(new InvalidOperationException());
+
+        Assert.NotEqual(idle, loading);
+        Assert.NotEqual(idle, end);
+        Assert.NotEqual(loading, end);
+        Assert.NotEqual(error, idle);
+        Assert.NotEqual(error, loading);
+        Assert.NotEqual(error, end);
+    }
 }

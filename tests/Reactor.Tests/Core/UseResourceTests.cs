@@ -387,4 +387,34 @@ public class UseResourceTests
 
         Assert.True(rerendered);
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Ambient-cache overload (reads AppContexts.QueryCache)
+    // ════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Ambient_Cache_Overload_Uses_AppContexts_Default()
+    {
+        // Sync-complete path — the cache-less overload resolves the QueryCache via
+        // ctx.UseContext(AppContexts.QueryCache). With no ContextScope installed, that
+        // returns the process-wide default cache. We assert the entry lands there.
+        var defaultCache = AppContexts.QueryCache.DefaultValue;
+        var key = $"ambient-cache-test/{Guid.NewGuid():N}";
+        defaultCache.Invalidate(key);
+
+        var ctx = new RenderContext();
+        ctx.BeginRender(() => { });
+        var v = ctx.UseResource(
+            _ => Task.FromResult(99),
+            new object[] { key },
+            new ResourceOptions(CacheKey: key, StaleTime: TimeSpan.FromMinutes(1)),
+            new InlineDispatcher());
+
+        Assert.Equal(new AsyncValue<int>.Data(99), v);
+        Assert.True(defaultCache.TryGet<int>(key, out var entry));
+        Assert.Equal(99, entry.Value);
+
+        // Cleanup — don't pollute subsequent tests.
+        defaultCache.Invalidate(key);
+    }
 }

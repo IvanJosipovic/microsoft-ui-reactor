@@ -87,6 +87,29 @@ public static class UseResourceExtensions
         object[] deps,
         ResourceOptions? options = null,
         IHookDispatcher? dispatcher = null)
+        => UseResourceCore(ctx, fetcher, cache, deps, options, dispatcher);
+
+    /// <summary>
+    /// Overload that reads the ambient <see cref="QueryCache"/> from
+    /// <see cref="AppContexts.QueryCache"/>. <see cref="Hosting.ReactorHost"/> installs a
+    /// process-wide default cache at startup; tests or subtrees may override it via
+    /// <c>.Provide(AppContexts.QueryCache, customCache)</c>.
+    /// </summary>
+    public static AsyncValue<T> UseResource<T>(
+        this RenderContext ctx,
+        Func<CancellationToken, Task<T>> fetcher,
+        object[] deps,
+        ResourceOptions? options = null,
+        IHookDispatcher? dispatcher = null)
+        => UseResourceCore(ctx, fetcher, ctx.UseContext(AppContexts.QueryCache), deps, options, dispatcher);
+
+    private static AsyncValue<T> UseResourceCore<T>(
+        RenderContext ctx,
+        Func<CancellationToken, Task<T>> fetcher,
+        QueryCache cache,
+        object[] deps,
+        ResourceOptions? options,
+        IHookDispatcher? dispatcher)
     {
         options ??= ResourceOptions.Default;
 

@@ -94,6 +94,18 @@ public sealed class ReactorHost : IDisposable
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
         ReactorApp.ActiveHost = this;
 
+        // Route QueryCache.EntryChanged notifications through our dispatcher so subscribers
+        // observe cache changes on the UI thread even when Set/Invalidate were called from
+        // a background thread (fetch continuation). First host on the process wins — all
+        // hosts share the same process-wide default cache.
+        var dq = _dispatcherQueue;
+        var defaultCache = AppContexts.QueryCache.DefaultValue;
+        defaultCache.DispatcherPost ??= action =>
+        {
+            if (!dq.TryEnqueue(() => action()))
+                action(); // dispatcher shut down — fall back to inline
+        };
+
         // Register built-in custom element types
         Controls.ResizeGripRegistration.Register(_reconciler);
 

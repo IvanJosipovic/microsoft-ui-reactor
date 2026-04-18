@@ -24,6 +24,29 @@ public static class UseInfiniteResourceExtensions
         object[] deps,
         InfiniteResourceOptions? options = null,
         IHookDispatcher? dispatcher = null)
+        => UseInfiniteResourceCore(ctx, fetchPage, cache, deps, options, dispatcher);
+
+    /// <summary>
+    /// Overload that reads the ambient <see cref="QueryCache"/> from
+    /// <see cref="AppContexts.QueryCache"/>. <see cref="Hosting.ReactorHost"/> installs a
+    /// process-wide default cache at startup; tests or subtrees may override it via
+    /// <c>.Provide(AppContexts.QueryCache, customCache)</c>.
+    /// </summary>
+    public static InfiniteResource<TItem> UseInfiniteResource<TItem, TCursor>(
+        this RenderContext ctx,
+        Func<TCursor?, CancellationToken, Task<Page<TItem, TCursor>>> fetchPage,
+        object[] deps,
+        InfiniteResourceOptions? options = null,
+        IHookDispatcher? dispatcher = null)
+        => UseInfiniteResourceCore(ctx, fetchPage, ctx.UseContext(AppContexts.QueryCache), deps, options, dispatcher);
+
+    private static InfiniteResource<TItem> UseInfiniteResourceCore<TItem, TCursor>(
+        RenderContext ctx,
+        Func<TCursor?, CancellationToken, Task<Page<TItem, TCursor>>> fetchPage,
+        QueryCache cache,
+        object[] deps,
+        InfiniteResourceOptions? options,
+        IHookDispatcher? dispatcher)
     {
         options ??= InfiniteResourceOptions.Default;
 
