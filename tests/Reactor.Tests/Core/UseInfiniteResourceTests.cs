@@ -259,4 +259,35 @@ public class UseInfiniteResourceTests
         // Nothing should have updated the resource after unmount — no assertion beyond
         // no crash. Load state stays at Loading since we unmounted.
     }
+
+    // ────────── Refresh() length preservation (D17 stable-length contract) ──────────
+
+    /// <summary>
+    /// D17 stable-length contract: once the server reports a <c>TotalCount</c>, a
+    /// <c>Refresh()</c> that returns a page of the same shape must preserve the
+    /// <c>Items.Count</c> length so consumer-side scroll position remains valid across
+    /// the refetch. The list is a sparse virtualized view keyed by index — shrinking it
+    /// would force the UI to remap row positions mid-scroll.
+    /// </summary>
+    [Fact]
+    public void Refresh_With_Same_TotalCount_Preserves_Items_Length()
+    {
+        var cache = NewCache();
+        var ctx = new RenderContext();
+        ctx.BeginRender(() => { });
+
+        var resource = ctx.UseInfiniteResource(FakeFetcher(100, 10, reportedTotal: 100), cache,
+            Array.Empty<object>(),
+            new InfiniteResourceOptions(PageSize: 10), new InlineDispatcher());
+
+        Assert.Equal(100, resource.Items.Count); // length set from TotalCount
+        int beforeCount = resource.Items.Count;
+
+        resource.Refresh();
+
+        // After Refresh the resource is a fresh instance but the length should still be 100
+        // because the fetcher reports the same TotalCount on page 0.
+        Assert.Equal(beforeCount, resource.Items.Count);
+        Assert.Equal(0, resource.Items[0]);
+    }
 }

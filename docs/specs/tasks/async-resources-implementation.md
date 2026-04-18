@@ -108,13 +108,13 @@ Scope: new files `Reactor/Core/AsyncValue.cs`, `Reactor/Core/QueryCache.cs`, `Re
 - [x] Cache hit stale (past `StaleTime`) → returns `Reloading(previous)` and fetcher is invoked
 - [x] Deps change → cancellation token of previous fetch is cancelled; new fetch starts with new cache key
 - [x] Unmount while in-flight → token cancelled; late result dropped; cache not updated
-- [ ] Unmount while completed → cache retains entry; subscriber count decrements; eviction timer armed (covered by QueryCache eviction test; not a direct UseResource unit yet)
+- [x] Unmount while completed → cache retains entry (`Unmount_After_Completion_Retains_Cache_Entry`); subscriber count decrement is asserted end-to-end in the QueryCache eviction tests
 - [x] `RefetchOnMount = false` → cache-only; cache miss returns `Loading`; no fetch issued
 - [x] Two siblings with the same auto-derived key **do not** share by default (D6); explicit `CacheKey = "shared"` makes them share
 - [x] `RetryCount = N` → fetcher fails then succeeds; exact invocation count asserted
 - [x] Retry exhausted → surfaces final `Error`
-- [ ] Re-render short-circuit verification (implementation uses record equality but not directly asserted yet)
-- [ ] Non-idempotent fetcher behaviour (stale result drop via cancellation) — implicit in deps-change test
+- [x] Re-render short-circuit verification (`Identical_Data_Across_Refetches_Skips_Rerender`)
+- [~] Non-idempotent fetcher behaviour (stale result drop via cancellation) — implicit in deps-change-mid-flight test; no dedicated test
 
 #### Tests — unit (threading — race conditions)
 
@@ -210,7 +210,7 @@ Scope: new files `Reactor/Core/Hooks/UseInfiniteResource.cs`, `Reactor/Data/Data
 - [x] `ItemAt(i)` on unloaded page → triggers fetch
 - [x] `ItemAt(i)` past known end (via TotalCount) returns null, no fetch
 - [x] `EnsureRange` covers overlapping pages, dedups
-- [ ] `Refresh()` length preservation (basic Refresh works; D17 stable-length contract not explicitly asserted yet)
+- [x] `Refresh()` length preservation (`Refresh_With_Same_TotalCount_Preserves_Items_Length`)
 - [x] `Retry()` on Error refetches the failed page
 - [x] Deps change cancels in-flight and restarts
 - [x] LRU eviction over `MaxLoadedPages` cap
@@ -253,10 +253,11 @@ These tests instantiate **both** `DataPageCache<T>` and `UseInfiniteResource`-ba
 
 ### 2.6 Phase-2 dogfood (§16 Phase 2)
 
-- [ ] `LazyVStack` demo on `AsyncValueSamples` page — pull-model via `ItemAt`, placeholder on `null`
-- [ ] Search-as-you-type over an infinite list — deps + pull model together
-- [ ] `Refresh()` with consumer-side scroll preservation (on `LazyVStack`)
-- [ ] Port `samples/apps/regedit/Components/ValueList.cs` to `UseInfiniteResource` (low-risk, in-memory source)
+- [x] Infinite-list demo on the `AsyncValueSamples` page — pull-model via `ItemAt`, null-placeholder rows (`InfiniteScrollScenario`, uses `VirtualListDsl.VirtualList`)
+- [x] Search-as-you-type over an infinite list — deps + pull model together (`SearchInfiniteScenario`)
+- [x] `Refresh()` demo — button-triggered, epoch-stamped values prove the swap (`InfiniteRefreshScenario`)
+- [x] `UseDataSource` adapter demo — `IDataSource<T>` wired through the hook (`DataSourceAdapterScenario`)
+- [ ] Port `samples/apps/regedit/Components/ValueList.cs` to `UseInfiniteResource` (deferred — separate PR)
 
 **Phase 2 exit criteria:** Parity tests green against `DataPageCache`; regedit `ValueList` runs on `UseInfiniteResource`; all framerate fixtures pass on both x64 and ARM64 in CI.
 

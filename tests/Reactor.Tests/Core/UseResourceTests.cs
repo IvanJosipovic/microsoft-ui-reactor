@@ -417,4 +417,80 @@ public class UseResourceTests
         // Cleanup — don't pollute subsequent tests.
         defaultCache.Invalidate(key);
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Re-render short-circuit — identical AsyncValue does not rerender
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Fast-path: when a fetch completes and the new value is record-equal to <c>LastValue</c>,
+    /// the hook short-circuits and does not call <c>requestRerender</c>. This is how back-to-
+    /// back identical polls avoid a render storm.
+    /// </summary>
+    [Fact]
+    public async Task Identical_Data_Across_Refetches_Skips_Rerender()
+    {
+        var cache = NewCache();
+        int rerenders = 0;
+        var dispatcher = new InlineDispatcher();
+        var ctx = new RenderContext();
+        ctx.BeginRender(() => Interlocked.Increment(ref rerenders));
+
+        // First render: sync-complete with value 5 lands in Data(5) — no rerender requested
+        // because the state settled inside the hook body.
+        var v1 = ctx.UseResource(
+            _ => Task.FromResult(5), cache, new object[] { "k" }, null, dispatcher);
+        Assert.Equal(new AsyncValue<int>.Data(5), v1);
+        int baseline = rerenders;
+
+        // Invalidate the cache entry so the next render re-fetches. Fetcher returns the same
+        // value (5) — the hook's record-equality compare should not trigger a rerender.
+        cache.Invalidate("k");
+
+        ctx.BeginRender(() => Interlocked.Increment(ref rerenders));
+        // Force an async fetch this time so the continuation runs on the continuation thread.
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = ctx.UseResource(_ => tcs.Task, cache, new object[] { "k" }, null, dispatcher);
+        tcs.SetResult(5);
+        for (int i = 0; i < 20 && rerenders == baseline; i++) await Task.Delay(10);
+
+        // If the short-circuit held, rerenders stayed the same across the refetch since the
+        // continuation landed the same Data(5) as what LastValue already held.
+        Assert.Equal(baseline, rerenders);
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Unmount after completion — cache retains entry
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// After a successful fetch has landed in the cache, unmounting the hook must not clear
+    /// the cache entry — another subscriber or a remount within <c>CacheTime</c> should still
+    /// see the value. (The QueryCache eviction tests cover the subscriber-count mechanics
+    /// end-to-end; this test verifies the hook itself doesn't drop data on teardown.)
+    /// </summary>
+    [Fact]
+    public void Unmount_After_Completion_Retains_Cache_Entry()
+    {
+        var cache = NewCache();
+        var dispatcher = new InlineDispatcher();
+        var ctx = new RenderContext();
+        ctx.BeginRender(() => { });
+
+        var v = ctx.UseResource(
+            _ => Task.FromResult(123), cache, new object[] { "retain" },
+            new ResourceOptions(CacheKey: "retain", StaleTime: TimeSpan.FromMinutes(1)),
+            dispatcher);
+        ctx.FlushEffects();
+
+        Assert.Equal(new AsyncValue<int>.Data(123), v);
+        Assert.True(cache.TryGet<int>("retain", out var before));
+        Assert.Equal(123, before.Value);
+
+        // Unmount — the hook's CTS disposes, but the cache entry must remain.
+        ctx.RunCleanups();
+
+        Assert.True(cache.TryGet<int>("retain", out var after));
+        Assert.Equal(123, after.Value);
+    }
 }
