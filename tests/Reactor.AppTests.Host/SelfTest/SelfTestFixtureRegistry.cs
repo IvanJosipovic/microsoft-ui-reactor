@@ -424,6 +424,11 @@ internal static class SelfTestFixtureRegistry
         "AsyncResource.MutationOptimistic",
         "AsyncResource.MutationRollback",
         "AsyncResource.MutationInvalidates",
+        // UseInfiniteResource under real dispatcher
+        "AsyncResource.InfiniteBasic",
+        "AsyncResource.InfinitePlaceholder",
+        "AsyncResource.InfiniteRefresh",
+        "AsyncResource.InfiniteDepsChange",
     ];
 
     public static SelfTestFixtureBase? Create(string name, Harness harness) => name switch
@@ -843,6 +848,11 @@ internal static class SelfTestFixtureRegistry
         "AsyncResource.MutationOptimistic" => new UseMutationFixtures.Optimistic(harness),
         "AsyncResource.MutationRollback" => new UseMutationFixtures.Rollback(harness),
         "AsyncResource.MutationInvalidates" => new UseMutationFixtures.Invalidates(harness),
+        // UseInfiniteResource under real dispatcher
+        "AsyncResource.InfiniteBasic" => new AsyncInfiniteResourceFixtures.InfiniteBasic(harness),
+        "AsyncResource.InfinitePlaceholder" => new AsyncInfiniteResourceFixtures.InfinitePlaceholder(harness),
+        "AsyncResource.InfiniteRefresh" => new AsyncInfiniteResourceFixtures.InfiniteRefresh(harness),
+        "AsyncResource.InfiniteDepsChange" => new AsyncInfiniteResourceFixtures.InfiniteDepsChange(harness),
         _ => null,
     };
 }
