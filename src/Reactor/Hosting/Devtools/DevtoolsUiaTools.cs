@@ -27,6 +27,71 @@ internal static class DevtoolsUiaTools
         Register_Type(server, resolver);
         Register_Focus(server, resolver);
         Register_WaitFor(server, resolver);
+        Register_Screenshot(server, resolver, windows);
+    }
+
+    // -- screenshot --------------------------------------------------------------
+
+    private static void Register_Screenshot(DevtoolsMcpServer server, SelectorResolver resolver, WindowRegistry windows)
+    {
+        server.Tools.Register(
+            new McpToolDescriptor(
+                Name: "screenshot",
+                Description: "Captures a PNG of the window (or a selector-scoped region). Base64-encoded result.",
+                InputSchema: new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        selector = new { type = "string", description = "Optional region to crop to." },
+                        window = new { type = "string" },
+                        waitIdle = new { type = "boolean", description = "Force a layout pass before capture (default true)." },
+                        includeChrome = new { type = "boolean", description = "Include the non-client titlebar frame (default false)." },
+                    },
+                    additionalProperties = false,
+                }),
+            @params => server.OnDispatcher(() =>
+            {
+                var selector = DevtoolsTools.ReadString(@params, "selector");
+                var windowId = DevtoolsTools.ReadString(@params, "window");
+                var waitIdle = DevtoolsTools.ReadBool(@params, "waitIdle") ?? true;
+                var includeChrome = DevtoolsTools.ReadBool(@params, "includeChrome") ?? false;
+
+                var w = ResolveWindowForTools(windows, windowId);
+
+                (double x, double y, double w, double h)? crop = null;
+                if (!string.IsNullOrEmpty(selector))
+                {
+                    var el = resolver.Resolve(selector!, windowId);
+                    if (el is FrameworkElement fe)
+                    {
+                        // Element bounds relative to the window client area.
+                        var transform = fe.TransformToVisual(w.Content);
+                        var origin = transform.TransformPoint(new global::Windows.Foundation.Point(0, 0));
+                        crop = (origin.X, origin.Y, fe.ActualWidth, fe.ActualHeight);
+                    }
+                }
+
+                if (waitIdle)
+                {
+                    // A no-op UpdateLayout on the content tree forces pending layout
+                    // to run before we capture.
+                    if (w.Content is FrameworkElement rootFe) rootFe.UpdateLayout();
+                }
+
+                var capture = ScreenshotCapture.CaptureWindow(w, includeChrome, crop);
+                return new
+                {
+                    png = Convert.ToBase64String(capture.Png),
+                    bounds = new
+                    {
+                        x = capture.X,
+                        y = capture.Y,
+                        width = capture.Width,
+                        height = capture.Height,
+                    },
+                };
+            }, timeoutMs: 10_000));
     }
 
     // -- tree --------------------------------------------------------------------

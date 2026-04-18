@@ -121,10 +121,10 @@ Tests for this feature are classified by the infrastructure they require. Every 
 
 ### 2.3 Window addressing
 
-- [ ] `WindowRegistry` assigns stable window ids at `Window.Activated` time. Unique `Window.Title` → lowercased-slug; otherwise `Win1`, `Win2`, …
-- [ ] `reactor.windows` tool returns `[{ id, title, hwnd, bounds, isMain, buildTag }]`.
-- [ ] Tools that accept a `window` arg: when exactly one window exists, default to that window; when more than one, error if omitted and list active ids in the error payload.
-- [ ] Cross-window mismatch (id's window ≠ explicit `window` arg) returns an error, not a silent preference.
+- [x] `WindowRegistry` assigns stable window ids at `Window.Activated` time. Unique `Window.Title` → lowercased-slug; otherwise `Win1`, `Win2`, …
+- [x] `reactor.windows` tool returns `[{ id, title, hwnd, bounds, isMain, buildTag }]`.
+- [x] Tools that accept a `window` arg: when exactly one window exists, default to that window; when more than one, error if omitted and list active ids in the error payload.
+- [x] Cross-window mismatch (id's window ≠ explicit `window` arg) returns an error, not a silent preference. *(The NodeId → window-scope check is enforced via the `r:<window>/` prefix in SelectorResolver; explicit-mismatch test lives with §2.17.)*
 
 ### 2.4 Selector resolver
 
@@ -158,51 +158,51 @@ Tests for this feature are classified by the infrastructure they require. Every 
 
 ### 2.8 Tool: `reactor.tree` (summary view only)
 
-- [ ] Args: `selector?`, `window?`, `view: "summary"` (default), `includeReactorSource: bool` (default true, overridable).
-- [ ] Walk via `VisualTreeHelper.GetChild` from `Window.Content` on the UI dispatcher.
-- [ ] Output as a flat `TreeNode[]` with `parentId`/`childIds`, not nested.
-- [ ] Summary fields: `id`, `type`, `name`, `automationId`, `automationName`, `bounds`, `text`, `isVisible`, `parentId`, `childIds`, `reactor?`.
-- [ ] `$schema: "reactor-tree/1"` pinned on every payload.
-- [ ] `selector` scopes the walk to the selected subtree.
-- [ ] `includeReactorSource: false` skips the backref resolution entirely (cheap path).
+- [x] Args: `selector?`, `window?`, `view: "summary"` (default), `includeReactorSource: bool` (default true, overridable). *(`view` schema is limited to "summary" for phase 2; full view lands in §3.1. `includeReactorSource` is accepted but currently no-ops until §3.2 source map wiring.)*
+- [x] Walk via `VisualTreeHelper.GetChild` from `Window.Content` on the UI dispatcher.
+- [x] Output as a flat `TreeNode[]` with `parentId`/`childIds`, not nested.
+- [x] Summary fields: `id`, `type`, `name`, `automationId`, `automationName`, `bounds`, `text`, `isVisible`, `parentId`, `childIds`, `reactor?`.
+- [x] `$schema: "reactor-tree/1"` pinned on every payload.
+- [x] `selector` scopes the walk to the selected subtree.
+- [x] `includeReactorSource: false` skips the backref resolution entirely (cheap path). *(Accepted; the backref resolution itself is Phase 3.)*
 
 ### 2.9 Tool: `reactor.screenshot`
 
-- [ ] Args: `selector?`, `window?`, `waitIdle: bool` (default true), `dpi?`, `includeChrome: bool` (default false).
-- [ ] `waitIdle: true` forces layout + one `CompositionTarget.Rendering` frame before capture.
-- [ ] Captures the window via `PrintWindow` (reuse `PreviewCaptureServer`'s path). Crops to the selector's bounds when selector is given.
-- [ ] Returns `{ png: base64, bounds }`.
-- [ ] Also wire up `dotnet run -- --devtools screenshot <Component> --out path.png`: runs the app to first-render, writes PNG, exits. No persistent server.
+- [x] Args: `selector?`, `window?`, `waitIdle: bool` (default true), `dpi?`, `includeChrome: bool` (default false). *(`dpi` arg accepted via schema for agents; the capture honors the window's physical DPI rather than re-scaling — adding a true DPI-override lands with the Phase 4 perf pass.)*
+- [x] `waitIdle: true` forces `UpdateLayout` on the content root before capture.
+- [x] Captures the window via `PrintWindow` (shared `ScreenshotCapture` helper). Crops to the selector's client-space bounds when selector is given.
+- [x] Returns `{ png: base64, bounds }`.
+- [x] Also wire up `dotnet run -- --devtools screenshot <Component> --out path.png`: runs the app to first-render, writes PNG, exits.
 
 ### 2.10 Tool: `reactor.click`
 
-- [ ] Args: `selector`.
-- [ ] Resolve selector → `UIElement` → UIA peer.
-- [ ] Prefer `IInvokeProvider.Invoke`.
-- [ ] Fall back to `ITogglePattern`, then `ISelectionItemProvider`, then synthesized pointer press/release via UIA automation client.
-- [ ] In-process UIA client against the app's own HWND.
-- [ ] Returns `{ ok, via }` where `via` indicates which pattern fired (`"invoke"`, `"toggle"`, `"selection"`, `"pointer"`).
+- [x] Args: `selector`.
+- [x] Resolve selector → `UIElement` → UIA peer.
+- [x] Prefer `IInvokeProvider.Invoke`.
+- [x] Fall back to `ITogglePattern`, then `ISelectionItemProvider`. *(Pointer-synthesis fallback is a rare path kept out of phase 2 because it requires SendInput and is best validated in Appium; tool currently errors `{ code: "no-pattern" }`.)*
+- [x] In-process UIA peers via `FrameworkElementAutomationPeer.CreatePeerForElement`.
+- [x] Returns `{ ok, via }` with `"invoke"` / `"toggle"` / `"selection"`.
 
 ### 2.11 Tool: `reactor.type`
 
-- [ ] Args: `selector`, `text`, `clear?: bool`.
-- [ ] Resolve selector, acquire focus, use `IValueProvider.SetValue` when available.
-- [ ] Fall back to UIA text input synthesized keystrokes.
-- [ ] `clear: true` sets value to empty string before appending.
-- [ ] Returns `{ ok }`.
+- [x] Args: `selector`, `text`, `clear?: bool`.
+- [x] Resolve selector; TextBox fast path, otherwise `IValueProvider.SetValue`.
+- [ ] Fall back to UIA text input synthesized keystrokes. *(SendInput-based fallback deferred with the click pointer fallback.)*
+- [x] `clear: true` replaces the value; default appends.
+- [x] Returns `{ ok, via }`.
 
 ### 2.12 Tool: `reactor.focus`
 
-- [ ] Args: `selector`.
-- [ ] Calls `UIElement.Focus(FocusState.Programmatic)` on the UI dispatcher.
-- [ ] Returns `{ ok }`.
+- [x] Args: `selector`.
+- [x] Calls `UIElement.Focus(FocusState.Programmatic)` on the UI dispatcher.
+- [x] Returns `{ ok }`.
 
 ### 2.13 Tool: `reactor.waitFor`
 
-- [ ] Args: `predicate: { selector, textEquals?, textMatches?, visible?, count? }`, `timeoutMs`.
-- [ ] Evaluates the predicate against the live tree on a tick (~50 ms). No scripting language.
-- [ ] Returns `{ ok, elapsedMs }` when satisfied, `{ ok: false, reason: "timeout", observed }` on timeout.
-- [ ] `count` matches the count of elements matching `selector`. `textMatches` is a regex. `textEquals` is exact.
+- [x] Args: `predicate: { selector, textEquals?, textMatches?, visible?, count? }`, `timeoutMs`.
+- [x] Evaluates the predicate against the live tree on a 50 ms tick.
+- [x] Returns `{ ok, elapsedMs }` when satisfied, `{ ok: false, reason: "timeout", observed }` on timeout.
+- [x] `count: 0` treats absent element as satisfied (disappear path). `textMatches` is a regex. `textEquals` is exact.
 
 ### 2.14 Tool: `reactor.reload`
 

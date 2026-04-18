@@ -177,12 +177,81 @@ public static class ReactorApp
             case DevtoolsSubverb.Run:
                 return RunRunSubverb(options, title, width, height, configure);
             case DevtoolsSubverb.Screenshot:
+                return RunScreenshotSubverb(options, width, height, configure);
             case DevtoolsSubverb.Tree:
-                Console.Error.WriteLine($"[devtools] '--devtools {options.Subverb!.ToString()!.ToLowerInvariant()}' is not implemented in phase 1.");
+                Console.Error.WriteLine($"[devtools] '--devtools tree' (headless) is not implemented yet.");
                 return true;
             default:
                 return false;
         }
+    }
+
+    private static bool RunScreenshotSubverb(DevtoolsCliOptions options, int width, int height, Action<ReactorHost>? configure)
+    {
+        if (string.IsNullOrEmpty(options.ScreenshotOutputPath))
+        {
+            Console.Error.WriteLine("[devtools] '--devtools screenshot' requires --out <path.png>.");
+            return true;
+        }
+
+        var componentName = options.ComponentName ?? FindAllComponentNames().FirstOrDefault();
+        if (componentName == null)
+        {
+            Console.Error.WriteLine("[devtools] No Component subclasses found.");
+            return true;
+        }
+        var type = FindComponentType(componentName);
+        if (type == null)
+        {
+            Console.Error.WriteLine($"[devtools] Component '{componentName}' not found.");
+            return true;
+        }
+
+        string outPath = options.ScreenshotOutputPath!;
+
+        RunOnSta(() =>
+        {
+            InitProcess();
+
+            Options = new ReactorAppOptions(
+                RootFactory: () => (Core.Component)Activator.CreateInstance(type)!,
+                Configure: host =>
+                {
+                    configure?.Invoke(host);
+                    // Capture once after first render, then exit. UpdateLayout flushes
+                    // pending measure/arrange so the first frame is stable.
+                    host.Window.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        try
+                        {
+                            if (host.Window.Content is FrameworkElement fe) fe.UpdateLayout();
+                            var capture = ScreenshotCapture.CaptureWindow(host.Window, includeChrome: false);
+                            File.WriteAllBytes(outPath, capture.Png);
+                            Console.WriteLine($"[devtools] Wrote {capture.Width}x{capture.Height} PNG to {outPath}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.Error.WriteLine($"[devtools] Screenshot failed: {ex.Message}");
+                        }
+                        finally
+                        {
+                            Environment.Exit(0);
+                        }
+                    });
+                },
+                WindowTitle: $"Screenshot — {componentName}",
+                WindowWidth: width,
+                WindowHeight: height);
+
+            Application.Start(_ =>
+            {
+                var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+                SynchronizationContext.SetSynchronizationContext(context);
+                new ReactorApplication();
+            });
+        });
+
+        return true;
     }
 
     private static bool RunListSubverb(DevtoolsCliOptions options)
