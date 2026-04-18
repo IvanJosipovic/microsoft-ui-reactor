@@ -302,9 +302,9 @@ Scope: new `Reactor/Core/Hooks/UseMutation.cs`; modifications to `Reactor/Contro
 
 #### Selfhost
 
-- [ ] `AsyncResource.MutationOptimistic` — button press triggers optimistic update; assert UI reflects optimistic value before the real response lands
-- [ ] `AsyncResource.MutationRollback` — same but fetcher fails; assert UI reverts via `OnError`
-- [ ] `AsyncResource.MutationInvalidates` — mutation with `InvalidateKeys = ["employees.list"]`; assert a sibling `UseResource` of that key re-renders with fresh data
+- [x] `AsyncResource.MutationOptimistic` — `OnOptimistic` updates local state synchronously; asserts optimistic value is visible before server response lands
+- [x] `AsyncResource.MutationRollback` — mutator fails; asserts `OnError` restores the snapshot and surfaces `mutation.Error`
+- [x] `AsyncResource.MutationInvalidates` — mutation with `InvalidateKeys = ["invalidate/target"]`; asserts the sibling `UseResource` refetches and re-renders with fresh data
 
 ### 3.3 DataGrid migration (§11)
 
@@ -363,8 +363,8 @@ Scope: new `Reactor/Core/Hooks/UseMutation.cs`; modifications to `Reactor/Contro
 - [x] Unit: `PendingScope` ref-count transitions (Register/SetLoading/Unregister) — 4 tests in `PendingTests`
 - [x] Unit: `Reloading` does **not** trigger the fallback (only `Loading`) — `UseResource_Reloading_Does_Not_Count_As_Loading`
 - [x] Unit: multiple siblings + `UseInfiniteResource` + scope integration — 7 additional tests
-- [ ] Selfhost: `AsyncResource.PendingBubbleUp` — three nested components each fetching; fallback visible until all three resolve
-- [ ] Selfhost: `AsyncResource.PendingWithOverride` — a child matches `AsyncValue` locally and renders its own placeholder; outer `Pending` fallback still waits for that child
+- [x] Selfhost: `AsyncResource.PendingBubbleUp` — three nested components each fetching; fallback visible until all three resolve
+- [x] Selfhost: `AsyncResource.PendingWithOverride` — a child matches `AsyncValue` locally and renders its own placeholder; outer `Pending` fallback still waits for that child
 - [ ] Framerate: `AsyncResource.Framerate.PendingChurn` — 16 resources alternately loading/resolving every frame; assert `Pending` toggles correctly and never flashes fallback when all are resolved
 
 ### 4.2 Focus revalidation (§15 Q1)

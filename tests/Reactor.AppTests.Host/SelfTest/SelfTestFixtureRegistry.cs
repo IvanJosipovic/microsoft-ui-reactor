@@ -417,6 +417,13 @@ internal static class SelfTestFixtureRegistry
         "AsyncResource.StaleWhileRevalidate",
         "AsyncResource.DepsChangeCancel",
         "AsyncResource.UnmountDuringFetch",
+        // Pending bubble-up scope
+        "AsyncResource.PendingBubbleUp",
+        "AsyncResource.PendingWithOverride",
+        // UseMutation under real dispatcher
+        "AsyncResource.MutationOptimistic",
+        "AsyncResource.MutationRollback",
+        "AsyncResource.MutationInvalidates",
     ];
 
     public static SelfTestFixtureBase? Create(string name, Harness harness) => name switch
@@ -829,6 +836,13 @@ internal static class SelfTestFixtureRegistry
         "AsyncResource.StaleWhileRevalidate" => new AsyncResourceFixtures.StaleWhileRevalidate(harness),
         "AsyncResource.DepsChangeCancel" => new AsyncResourceFixtures.DepsChangeCancel(harness),
         "AsyncResource.UnmountDuringFetch" => new AsyncResourceFixtures.UnmountDuringFetch(harness),
+        // Pending bubble-up scope
+        "AsyncResource.PendingBubbleUp" => new PendingFixtures.BubbleUp(harness),
+        "AsyncResource.PendingWithOverride" => new PendingFixtures.WithOverride(harness),
+        // UseMutation under real dispatcher
+        "AsyncResource.MutationOptimistic" => new UseMutationFixtures.Optimistic(harness),
+        "AsyncResource.MutationRollback" => new UseMutationFixtures.Rollback(harness),
+        "AsyncResource.MutationInvalidates" => new UseMutationFixtures.Invalidates(harness),
         _ => null,
     };
 }
