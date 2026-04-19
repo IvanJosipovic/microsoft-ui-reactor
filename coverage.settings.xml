@@ -3,10 +3,27 @@
   <CodeCoverage>
     <ModulePaths>
       <Include>
+        <!-- Only the product DLL. Reactor.AppTests.Host.dll is the test harness;
+             measuring how much of the harness its own fixtures exercise is
+             circular and inflates the number without saying anything about
+             product-code quality. -->
         <ModulePath>.*[/\\]Reactor\.dll$</ModulePath>
-        <ModulePath>.*[/\\]ReactorD3\.dll$</ModulePath>
-        <ModulePath>.*[/\\]Reactor\.AppTests\.Host\.dll$</ModulePath>
       </Include>
     </ModulePaths>
+    <Sources>
+      <Exclude>
+        <!-- WinRT/AOT source-generator output and other build-time generated code
+             live under obj/. These files are not hand-written and provide no
+             meaningful signal. -->
+        <Source>.*[/\\]obj[/\\].*</Source>
+        <Source>.*\.g\.cs$</Source>
+      </Exclude>
+    </Sources>
+    <Attributes>
+      <Exclude>
+        <Attribute>^System\.CodeDom\.Compiler\.GeneratedCodeAttribute$</Attribute>
+        <Attribute>^System\.Diagnostics\.CodeAnalysis\.ExcludeFromCodeCoverageAttribute$</Attribute>
+      </Exclude>
+    </Attributes>
   </CodeCoverage>
 </Configuration>
