@@ -68,6 +68,33 @@ internal static class DevtoolsSupervisor
 
     public static int Run(string[] args)
     {
+        // Spec 025 routes: session subverbs and the named-verb surface dispatch
+        // before the launcher parser so the launcher doesn't misread them as
+        // project paths.
+        if (args.Length > 0)
+        {
+            var first = args[0].ToLowerInvariant();
+            if (first == "session")
+                return SessionCommands.Run(args.Skip(1).ToArray());
+            if (DevtoolsVerbs.KnownVerbs.Contains(first))
+            {
+                // --launch opts into the old spawn-per-invocation behavior for
+                // verbs that existed as launcher subverbs (tree, screenshot,
+                // list/components). Today those one-shot forms are still served
+                // by the launcher path; named-verb mode without --launch attaches
+                // to the running session via lockfile discovery.
+                bool launch = args.Contains("--launch");
+                if (!launch)
+                {
+                    var verbArgs = args.Skip(1).ToArray();
+                    return DevtoolsVerbs.Run(first, verbArgs);
+                }
+                // Fall through to launcher parsing with --launch stripped;
+                // launcher subverbs don't know the flag.
+                args = args.Where(a => !string.Equals(a, "--launch", StringComparison.Ordinal)).ToArray();
+            }
+        }
+
         var parsed = ParseArgs(args);
         if (parsed.Help)
         {
@@ -164,6 +191,8 @@ internal static class DevtoolsSupervisor
             args.Add(component);
         args.Add("--mcp-port");
         args.Add(mcpPort.ToString());
+        args.Add("--devtools-project");
+        args.Add(Path.GetFullPath(project));
         return args;
     }
 
@@ -219,6 +248,43 @@ internal static class DevtoolsSupervisor
         Console.WriteLine();
         Console.WriteLine("  --print-config   Emit MCP config fragments (Claude Code, Copilot, VS Code)");
         Console.WriteLine("                   wired to the given --mcp-port; prints to stdout only.");
+        Console.WriteLine();
+        Console.WriteLine("Session management:");
+        Console.WriteLine("  mur devtools session list [--pretty]      List running devtools sessions");
+        Console.WriteLine("  mur devtools session clean [--dry-run]    Remove stale lockfiles");
+        Console.WriteLine();
+        Console.WriteLine("Named verbs (attach to the running session via lockfile discovery):");
+        Console.WriteLine("  version                             App build tag, pid, and MCP port");
+        Console.WriteLine("  windows                             List active windows with bounds and mounted component");
+        Console.WriteLine("  components                          List Component classes; marks which is mounted");
+        Console.WriteLine("  switch <component>                  Swap the root component (invalidates node ids)");
+        Console.WriteLine("  tree [--selector S] [--window W]    Dump the visual tree as JSON");
+        Console.WriteLine("       [--view summary|full] [--include-reactor-source]");
+        Console.WriteLine("  screenshot [--selector S] [--out P]  Capture a PNG of the window (or selector region)");
+        Console.WriteLine("             [--wait-idle] [--include-chrome]");
+        Console.WriteLine("  state [--selector S]                Read reactive hook state from the mounted component");
+        Console.WriteLine("  click <selector>                    Click the element via UIA Invoke/Toggle/Selection");
+        Console.WriteLine("  type <selector> <text> [--clear]    Set text on a value-bearing control");
+        Console.WriteLine("  focus <selector>                    Programmatically focus the element");
+        Console.WriteLine("  invoke <selector>                   Call IInvokeProvider.Invoke directly");
+        Console.WriteLine("  toggle <selector>                   Call IToggleProvider.Toggle; returns new state");
+        Console.WriteLine("  select <selector> <item-selector>   Select an item in a ListView / ComboBox");
+        Console.WriteLine("  scroll <selector> [--by H%,V%]      Scroll by percent deltas or scroll an item into view");
+        Console.WriteLine("         [--to <item-selector>]");
+        Console.WriteLine("  expand <selector>                   Expand an ExpandCollapse element (ComboBox, TreeView)");
+        Console.WriteLine("  collapse <selector>                 Collapse an ExpandCollapse element");
+        Console.WriteLine("  wait <selector> [--text X]          Poll until a predicate matches or timeout");
+        Console.WriteLine("       [--text-matches RE] [--visible]");
+        Console.WriteLine("       [--count N] [--timeout MS]");
+        Console.WriteLine("  fire <Component>.<event>            Invoke a named handler method on a Component");
+        Console.WriteLine("       [--args JSON]                  (escape hatch — prefer UIA verbs when possible)");
+        Console.WriteLine("  reload [--component Name]           Rebuild + relaunch via the supervisor sentinel");
+        Console.WriteLine("  shutdown                            Close the app cleanly (supervisor exits 0)");
+        Console.WriteLine("  call <tool|method> [--args JSON]    Generic JSON-RPC passthrough (parity escape hatch)");
+        Console.WriteLine();
+        Console.WriteLine("  Shared flags: --endpoint <url>  override discovery");
+        Console.WriteLine("                --auto            opt-in loopback port scan (slow)");
+        Console.WriteLine("                --pretty          indent JSON output");
     }
 
     /// <summary>

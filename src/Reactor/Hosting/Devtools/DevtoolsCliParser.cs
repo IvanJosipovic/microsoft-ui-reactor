@@ -23,7 +23,8 @@ internal sealed record DevtoolsCliOptions(
     string? LogLevel,
     McpTransport Transport,
     bool UsedDeprecatedPreview,
-    bool PreviewAndDevtoolsConflict);
+    bool PreviewAndDevtoolsConflict,
+    string? ProjectIdentifier = null);
 
 /// <summary>
 /// Pure command-line parser for the devtools entry point. Has no side effects so it is
@@ -151,6 +152,11 @@ internal static class DevtoolsCliParser
         if (outIdx >= 0 && outIdx + 1 < args.Length && subverb == DevtoolsSubverb.Screenshot)
             screenshotOut = args[outIdx + 1];
 
+        string? projectIdentifier = null;
+        int projIdx = IndexOf(args, "--devtools-project");
+        if (projIdx >= 0 && projIdx + 1 < args.Length)
+            projectIdentifier = args[projIdx + 1];
+
         _ = anchorIdx;
 
         return new DevtoolsCliOptions(
@@ -164,7 +170,8 @@ internal static class DevtoolsCliParser
             LogLevel: logLevel,
             Transport: transport,
             UsedDeprecatedPreview: deprecated,
-            PreviewAndDevtoolsConflict: false);
+            PreviewAndDevtoolsConflict: false,
+            ProjectIdentifier: projectIdentifier);
     }
 
     private static (DevtoolsSubverb Subverb, int TrailingArgStart) ParseSubverbAfter(string[] args, int devtoolsIdx)

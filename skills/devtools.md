@@ -1,23 +1,30 @@
 ---
 name: reactor-devtools
 description: >
-  Drive a running Reactor app from code via the devtools MCP server —
+  Drive a running Reactor app from code via the `mur devtools` CLI —
   inspect the visual tree, capture screenshots, click/type/scroll, read
   component state, and fire named handlers. Load this when diagnosing a
   visible bug (layout, contrast, wrong text), verifying a change landed,
   or doing any UI automation against a live build.
 ---
 
-# Reactor Devtools — MCP-driven UI automation
+# Reactor Devtools — CLI-driven UI automation
 
-The Reactor devtools are a **JSON-RPC over HTTP loopback** surface that a
-debug-build app exposes when launched with `--devtools run`. You use it to
-look at the app the way a user does (screenshots, rendered text, layout
-bounds) and drive it the way a user does (click, type, toggle, scroll).
+The Reactor devtools let you look at a running debug-build app the way a
+user does (screenshots, rendered text, layout bounds) and drive it the way
+a user does (click, type, toggle, scroll). **Always prefer the `mur devtools`
+CLI** — every action composes with shell pipes and `jq`, each invocation is
+a complete audit record, and no MCP client setup is needed.
+
+Under the hood the CLI talks JSON-RPC to a loopback HTTP endpoint the app
+exposes. The MCP endpoint is still available at `http://127.0.0.1:PORT/mcp`
+as a parity escape hatch, but reach for it only when the CLI can't express
+what you need (structured args the CLI flattens, or another MCP client
+that's already wired up).
 
 Loopback-only, no auth — **DEBUG builds only**, never ship it.
 
-## Launching the app with devtools
+## Attaching to a running app
 
 The app author enables devtools in their `Program.cs`:
 
@@ -29,66 +36,114 @@ ReactorApp.Run<MyApp>("Title", width: 1200, height: 800
 );
 ```
 
-Then launch with the `--devtools run` CLI flag:
+**Prefer attaching to an app that's already running.** Any devtools-enabled
+app writes a lockfile to `%TEMP%/reactor-devtools/` on first render, and
+`mur devtools <verb>` discovers it automatically — **no port, no config,
+no parsing stdout.**
+
+```bash
+mur devtools session list --pretty   # confirm a session is up
+```
+
+Exit 0 with a row means you're good to go; every other verb will find it.
+Exit 4 means no live session — you need to launch one yourself (next
+section).
+
+## Launching an app yourself
+
+Two launch modes, from simplest to most featured:
+
+### Plain `dotnet run` (the default)
 
 ```bash
 dotnet run --project path/to/App.csproj -- --devtools run \
   > /tmp/app-stdout.log 2>&1 &
 ```
 
-Parse the stdout for the machine-readable ready line (one JSON object on
-its own line after first render):
+This is what you want in almost every AI session: spawn the app, drive it
+with `mur devtools <verb>`, call `mur devtools shutdown` when you're done.
+No supervisor machinery, no pinned port — the CLI finds the session via
+the lockfile regardless.
 
-```
-{"event":"devtools-ready","endpoint":"http://127.0.0.1:54610/mcp",...}
+### `mur devtools <project>` — the supervisor
+
+Reach for this **only** when you need a stable MCP endpoint across
+`reload` cycles:
+
+```bash
+mur devtools path/to/App.csproj --mcp-port 54931
 ```
 
-Everything after that is keyed off that `endpoint`. **Always wait for
-`devtools-ready` before calling tools** — the port is chosen at random
-per-run.
+The supervisor pins the port (reload-proof) and catches the child's exit
+code 42 to rebuild and relaunch. Useful if you've wired an external MCP
+client to `http://127.0.0.1:54931/mcp` and want it to survive code
+edits. Overkill for one-shot automation.
 
 ## Discovering the tool surface
 
-`GET /mcp` returns a self-describing document: protocol version, selector
-grammar, tree schema version, and the full tool list with input schemas.
-Read this once per session instead of guessing:
-
 ```bash
-curl -s http://127.0.0.1:PORT/mcp | jq '.tools[].name'
+mur devtools call tools/list --pretty    # names + input schemas
+mur devtools call tools/list | jq '.tools[].name'
 ```
 
-Every other call is JSON-RPC `tools/call`:
+`mur devtools --help` lists every named verb with one-line descriptions.
 
-```bash
-curl -s http://127.0.0.1:PORT/mcp -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
-       "params":{"name":"click","arguments":{"selector":"[name=\"Save\"]"}}}'
-```
+## CLI verb catalog
 
-## Tool catalog
+Each verb attaches to the running session via lockfile discovery; no flags
+needed when only one session is active. Pass `--pretty` to any verb for
+indented JSON.
 
-| Tool | What it does |
+| Verb | What it does |
 |---|---|
 | `version` | Build tag + pid + port — confirm the app is the one you expect. |
-| `components` | Class names of every `Component` subclass; `current` is what's mounted. `isNested:true` marks helper components. |
-| `switchComponent` | Swap the root component by class name. Invalidates all node ids. |
-| `reload` | Exits with sentinel code 42 so `mur devtools` rebuilds. Old ids dead. |
-| `windows` | Active window ids, titles, bounds, currently-mounted component. Use `window:"<id>"` when >1. |
-| `tree` | Flat array of visual-tree nodes. `view:"full"` adds layout/automation/visual fields. Optional `selector` scopes the walk. |
-| `screenshot` | Base64 PNG of the window. `selector` crops to that element's bounds; `includeChrome:true` includes the titlebar. |
-| `click` | Prefers Invoke → Toggle → SelectionItem. Returns `via` so you know which pattern fired. |
-| `invoke` / `toggle` / `select` | Direct UIA pattern access when you want one specifically. `select` auto-expands ComboBoxes. |
-| `type` | Sets TextBox / IValueProvider text. `clear:true` replaces, else appends. |
-| `focus` | Programmatic focus on a Control. |
-| `scroll` | `by:{vertical:N,horizontal:N}` as **percentage deltas** 0–100 (not pixels), or `to:"<itemSelector>"` for `ScrollIntoView`. Returns both percent and pixel offsets. |
-| `expand` / `collapse` | ExpandCollapse pattern (ComboBox popup, TreeViewItem, Expander). |
-| `waitFor` | Polls a predicate (`selector`, `textEquals`, `textMatches`, `visible`, `count`) until satisfied or `timeoutMs`. |
-| `state` | Dumps every hook value (useState/useReducer/etc.) across mounted components. Great for "why is the UI showing X?". |
-| `fire` | Calls a NAMED METHOD on a live component by reflection. Escape hatch for handlers that aren't reachable via UIA. **Inline lambdas (`() => setCount(...)`) are NOT reachable** — only declared methods on the Component class. |
+| `components` | Class names of every `Component` subclass; marks which is mounted. |
+| `switch <name>` | Swap the root component by class name. **Invalidates all node ids.** |
+| `reload [--component N]` | Rebuild + relaunch via the supervisor sentinel. Old ids dead. |
+| `shutdown` | Close the app cleanly (supervisor exits 0). Releases the build output file lock. |
+| `windows` | Active window ids, titles, bounds, currently-mounted component. |
+| `tree [--selector S] [--window W] [--view summary\|full]` | Dump the visual tree as JSON. `full` adds layout/automation/visual fields. |
+| `screenshot [--selector S] [--out path]` | PNG of the window (or selector-cropped region). `--out path.png` writes to file; `--out -` streams bytes to stdout. |
+| `click <selector>` | UIA click. Prefers Invoke → Toggle → SelectionItem; returns `via`. |
+| `invoke` / `toggle` / `select` | Direct UIA pattern access. `select <container> <item>` auto-expands ComboBoxes. |
+| `type <selector> <text> [--clear]` | Set text on a value-bearing control. |
+| `focus <selector>` | Programmatic focus on a Control. |
+| `scroll <selector> [--by H%,V%] [--to <item-selector>]` | Scroll by **percentage deltas** 0–100 (not pixels), or scroll an item into view. |
+| `expand <selector>` / `collapse <selector>` | ExpandCollapse pattern (ComboBox popup, TreeViewItem, Expander). |
+| `wait <selector> [--text X \| --text-matches RE \| --visible \| --count N] [--timeout MS]` | Poll a predicate until satisfied or timeout. |
+| `state [--selector S]` | Dump every hook value (useState/useReducer/etc.) across mounted components. |
+| `fire <Component>.<event> [--args JSON]` | Call a NAMED METHOD on a live component by reflection. **Inline lambdas aren't reachable**. |
+| `call <tool\|method> [--args JSON]` | Generic JSON-RPC passthrough — parity escape hatch. |
+
+### Session management
+
+```bash
+mur devtools session list             # JSONL, one live session per line
+mur devtools session list --pretty    # human table
+mur devtools session clean            # GC stale lockfiles
+mur devtools session clean --dry-run  # show what would be removed
+```
+
+### Shared flags (before any verb)
+
+- `--endpoint <url>` — skip lockfile discovery and talk to this endpoint.
+- `--pretty` — indent JSON output.
+- `--auto` — loopback port scan (slow; use only when lockfile discovery fails).
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Success. |
+| 1 | Usage error (unknown flag, missing argument). |
+| 2 | Transport error (endpoint unreachable, timeout). |
+| 3 | Another devtools session is already active for this project. |
+| 4 | No live devtools session found. |
+| 5 | Tool returned a JSON-RPC error. stdout has the error envelope. |
 
 ## Selector grammar (5 forms)
 
-1. **Node id** — `r:main/CounterDemo.SubmitButton` — copy from `tree`. Stable within a window's lifetime; invalidated by `switchComponent` / `reload`.
+1. **Node id** — `r:main/CounterDemo.SubmitButton` — copy from `tree`. Stable within a window's lifetime; invalidated by `switch` / `reload`.
 2. **AutomationId** — `#btn-inc`. Matches `AutomationProperties.AutomationId` exactly.
 3. **AutomationName** — `[name='Increment']` or `[name="+ 1"]`. Matches `AutomationProperties.Name` OR the visible caption of Buttons / TextBlocks / TextBoxes / ContentControls.
 4. **TypePath** — `Button`, `Button[2]`, `StackPanel > Button`. Type name is `GetType().Name`. Index disambiguates.
@@ -100,10 +155,10 @@ curl -s http://127.0.0.1:PORT/mcp -H 'Content-Type: application/json' \
 
 ### "Does the app look right?" — visual diagnosis
 
-```
-screenshot {}            → PNG of full client area
-screenshot {selector:"[name='Submit']"}   → cropped to one control
-tree {selector:"#login-form", view:"full"}  → layout numbers for that region
+```bash
+mur devtools screenshot --out /tmp/shot.png
+mur devtools screenshot --selector "[name='Submit']" --out /tmp/btn.png
+mur devtools tree --selector "#login-form" --view full --pretty
 ```
 
 Full-view `tree` nodes carry `bounds`, `actualSize`, `desiredSize`,
@@ -113,42 +168,73 @@ or a zero-size child without running the app in a debugger.
 
 ### Diagnosing a layout issue
 
-1. `screenshot {}` — confirm what's actually on screen vs. what you expect.
-2. `tree {selector:"<suspect container>", view:"full"}` — read `bounds` and `actualSize` down the subtree. A child with `actualSize:{width:0,height:0}` under a parent that's sized means the child isn't getting space (missing `Flex(grow:1)` on a ScrollView inside a FlexColumn is a classic).
-3. Edit the Reactor code, rebuild, then `reload` (or relaunch) and re-screenshot.
-4. `waitFor {predicate:{selector:"…",visible:true}}` if the state is async — don't screenshot-before-mount.
+1. `mur devtools screenshot --out /tmp/shot.png` — confirm what's actually on screen.
+2. `mur devtools tree --selector "<container>" --view full | jq '.nodes[] | select(.actualSize.width == 0)'` — find zero-sized children. A child with `actualSize:{width:0,height:0}` under a parent that's sized means the child isn't getting space (missing `Flex(grow:1)` on a ScrollView inside a FlexColumn is a classic).
+3. Edit the Reactor code, then `mur devtools reload` (rebuild + relaunch) and re-screenshot.
+4. `mur devtools wait "<selector>" --visible --timeout 2000` if the state is async — don't screenshot before mount.
 
 ### Diagnosing a contrast / color issue
 
-1. `screenshot {selector:"<element>"}` — pull the cropped PNG.
-2. Decode the PNG client-side and sample foreground/background pixels. Compute WCAG 2.1 ratio = (L1 + 0.05) / (L2 + 0.05) where L is relative luminance. Target ≥ 4.5:1 for body text, ≥ 3:1 for large text / UI chrome.
-3. If low, check whether the color came from a Theme token (correct — rebind to the right token for the surface) or a hardcoded hex (wrong — replace with a `Theme.*` token; see `skills/design.md`). Hardcoded colors are the usual culprit and also break High Contrast.
-4. Edit, rebuild, screenshot, re-measure.
+1. `mur devtools screenshot --selector "<element>" --out /tmp/el.png` — pull the cropped PNG.
+2. Decode the PNG and sample foreground/background pixels. Compute WCAG 2.1 ratio = `(L1 + 0.05) / (L2 + 0.05)` where L is relative luminance. Target ≥ 4.5:1 for body text, ≥ 3:1 for large text / UI chrome.
+3. If low, check whether the color came from a Theme token (correct — rebind to the right token for the surface) or a hardcoded hex (wrong — replace with a `Theme.*` token; see `skills/design.md`).
+4. Edit, `mur devtools reload`, re-screenshot, re-measure.
 
 ### Verifying a state-driven change
 
-```
-click {selector:"[name='+ 1']"}
-waitFor {predicate:{selector:"[name='Current count: 1']"},timeoutMs:1000}
-state {}                      → confirm the underlying UseState value
+```bash
+mur devtools click "[name='+ 1']"
+mur devtools wait "[name='Current count: 1']" --timeout 1000
+mur devtools state                    # confirm the underlying UseState value
 ```
 
 `state` is particularly useful when the UI text doesn't obviously encode
 the value (e.g. a slider position or a theme toggle).
 
+### Cleaning up when done
+
+```bash
+mur devtools shutdown     # close the app; release build-output file locks
+```
+
+A running Reactor app holds open handles on its own build output, which
+blocks `dotnet build` from overwriting the DLLs. Use `shutdown` between
+rebuilds when you're iterating on the app's source. If the app was started
+under `mur devtools <project>` (supervisor mode), `shutdown` also makes the
+supervisor return 0 so the `mur.exe` binary frees up.
+
 ## Gotchas
 
-1. **Both the source AND the CLI flag are required.** The MCP server only starts if the app was compiled with `devtools: true` passed to `ReactorApp.Run(...)` (usually wrapped in `#if DEBUG`) **and** launched with `--devtools run` on the command line. Miss either and the app boots normally with no MCP port, no banner, no log file. If `curl http://127.0.0.1:PORT/mcp` hangs or you never see `devtools-ready` on stdout, this is almost always why — check `Program.cs` first, then the launch args.
-2. **`switchComponent` and `reload` invalidate every node id.** Re-walk the tree after them; do not cache `r:…` ids across swaps.
+1. **Both the source AND the supervisor are required.** The MCP server only starts if the app was compiled with `devtools: true` passed to `ReactorApp.Run(...)` (usually wrapped in `#if DEBUG`) **and** launched with `mur devtools …` (or `--devtools run` directly). Miss either and the app boots normally with no MCP port, no lockfile, no banner. If `mur devtools session list` reports exit 4 indefinitely, this is almost always why — check `Program.cs` first, then the launch command.
+2. **`switch` and `reload` invalidate every node id.** Re-walk the tree after them; do not cache `r:…` ids across swaps.
 3. **Popups aren't in the main visual tree.** `tree` walks `window.Content` — ComboBox dropdown items, flyouts, and context menus live in separate popup roots and won't show up. `select` auto-expands the container but item resolution through the main tree will still miss them. Prefer `ISelectionItemProvider` via a node-id that `tree` emitted while the popup was open, or switch to a selector that targets the SelectorItem ancestor directly.
 4. **`fire` only sees declared methods.** Inline lambdas (`Button("+1", () => setCount(...))`) are unreachable. Hoist the handler to a method on the Component class when you need `fire` access.
-5. **Scroll percent read-back can lag one call.** Right after `scroll {by:{vertical:50}}`, the next tool may report `scrollPercent:0` before the engine settles. If the offset matters, call `scroll {by:{vertical:0}}` once more to read the settled value, or use `to:"<itemSelector>"` (ScrollIntoView) which is deterministic.
-6. **Use `waitFor` before asserting on async UI.** Many demos render on a dispatcher hop; a `screenshot` immediately after `click` may capture the pre-state.
+5. **Scroll percent read-back can lag one call.** Right after `mur devtools scroll … --by 0,50`, the next verb may report `scrollPercent.vertical:0` before the engine settles. If the offset matters, call `scroll … --by 0,0` once more to read the settled value, or use `--to <item-selector>` (ScrollIntoView) which is deterministic.
+6. **Use `wait` before asserting on async UI.** Many demos render on a dispatcher hop; a `screenshot` immediately after `click` may capture the pre-state.
 7. **Devtools log is authoritative.** Every call lands in `%LOCALAPPDATA%\Reactor\devtools\{pid}.log` (tab-separated: ts, tool, selector, latency, ok/err, rpc code). Tail it to reconstruct a failed run.
+8. **Single-instance per project.** Two `mur devtools` against the same `.csproj` is a hard error (exit 3). Use `mur devtools shutdown` or close the window to release the lockfile before starting another.
+
+## Raw MCP (escape hatch)
+
+If you have to talk MCP directly — another MCP client, an existing script,
+or a structured argument shape the CLI flattens — the endpoint is
+discoverable from the lockfile:
+
+```bash
+ENDPOINT=$(mur devtools session list | jq -r '.endpoint')
+curl -s $ENDPOINT -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+       "params":{"name":"click","arguments":{"selector":"[name=\"Save\"]"}}}'
+```
+
+`GET $ENDPOINT` returns the self-describing schema document (protocol
+version, selector grammar, tool inventory). Prefer the CLI for everything
+else.
 
 ## Spec + source pointers
 
-- Spec: `docs/specs/024-ai-agent-devtools.md`
+- Specs: `docs/specs/024-ai-agent-devtools.md`, `docs/specs/025-devtools-cli-parity.md`
 - Server: `src/Reactor/Hosting/Devtools/DevtoolsMcpServer.cs`
 - Tool registration: `DevtoolsTools.cs`, `DevtoolsUiaTools.cs`, `DevtoolsFireTool.cs`, `DevtoolsStateTool.cs`
+- CLI verbs: `src/Reactor.Cli/Devtools/DevtoolsVerbs.cs`
 - Selector grammar / parser: `SelectorParser.cs`

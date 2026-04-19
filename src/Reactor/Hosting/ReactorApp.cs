@@ -367,12 +367,22 @@ public static class ReactorApp
                     DevtoolsLogger.DefaultDirectory(),
                     global::System.Diagnostics.Process.GetCurrentProcess().Id,
                     DevtoolsLogger.ParseLevel(options.LogLevel));
+                var projectId = options.ProjectIdentifier ?? DeriveProjectIdentifier();
+                if (projectId is not null && DevtoolsMcpServer.IsAnotherSessionActive(projectId, out var existing))
+                {
+                    Console.Error.WriteLine(
+                        $"[devtools] another session for this project is active at {existing!.Endpoint} (pid {existing.Pid}); stop it first");
+                    Environment.Exit(3);
+                    return;
+                }
+
                 var mcp = new DevtoolsMcpServer(
                     host.Window.DispatcherQueue,
                     host.Window,
                     preferredPort: options.McpPort,
                     logger: logger,
-                    transport: options.Transport);
+                    transport: options.Transport,
+                    projectIdentifier: projectId);
 
                 var windows = new WindowRegistry(mcp.BuildTag);
                 var nodes = new NodeRegistry();
@@ -387,6 +397,7 @@ public static class ReactorApp
                     GetCurrentComponent = () => initialComponentName,
                     SwitchComponent = SwitchComponentCore,
                     RequestReload = () => RequestDevtoolsReload(mcp, host),
+                    RequestShutdown = () => RequestDevtoolsShutdown(mcp, host),
                     Windows = windows,
                     Nodes = nodes,
                 });
@@ -470,6 +481,23 @@ public static class ReactorApp
             .Select(g => g.First());
     }
 
+    /// <summary>
+    /// Identifier used to hash this session's lockfile path when the supervisor
+    /// didn't pass <c>--devtools-project</c>. Falls back to the entry assembly
+    /// location — stable per build output, sufficient for single-instance.
+    /// </summary>
+    private static string? DeriveProjectIdentifier()
+    {
+        try
+        {
+            var asm = global::System.Reflection.Assembly.GetEntryAssembly();
+            var loc = asm?.Location;
+            if (!string.IsNullOrEmpty(loc)) return loc;
+        }
+        catch { }
+        return null;
+    }
+
     internal static void ResetDeprecationWarningForTests()
     {
         Interlocked.Exchange(ref _previewParamDeprecationWarned, 0);
@@ -494,6 +522,24 @@ public static class ReactorApp
             {
                 try { host.Window.Close(); } catch { }
                 Environment.Exit(DevtoolsReloadExitCode);
+            });
+        });
+    }
+
+    /// <summary>
+    /// Same shape as the reload path, but exits with code 0 so the `mur devtools`
+    /// supervisor returns cleanly without rebuilding.
+    /// </summary>
+    private static void RequestDevtoolsShutdown(DevtoolsMcpServer mcp, ReactorHost host)
+    {
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100); // Let the HTTP response flush.
+            try { mcp.Dispose(); } catch { }
+            host.Window.DispatcherQueue.TryEnqueue(() =>
+            {
+                try { host.Window.Close(); } catch { }
+                Environment.Exit(0);
             });
         });
     }
