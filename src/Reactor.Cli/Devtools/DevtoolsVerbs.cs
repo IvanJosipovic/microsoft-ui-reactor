@@ -432,24 +432,28 @@ internal static class DevtoolsVerbs
                 ["level"] = level,
                 ["waitMs"] = pollMs,
             };
-            JsonDocument doc;
-            try { doc = client.InvokeTool("logs", ArgsFromDict(fields)); }
+            try
+            {
+                using var doc = client.InvokeTool("logs", ArgsFromDict(fields));
+                if (HasError(doc)) return EmitResult(doc, shared);
+
+                if (doc.RootElement.TryGetProperty("result", out var result))
+                {
+                    if (result.TryGetProperty("entries", out var entries) && entries.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var e in entries.EnumerateArray())
+                            PrintFollowLine(e);
+                    }
+                    // Server semantics are inclusive: pass nextSeq directly as
+                    // the next `since`. (Was `- 1` when the server used >.)
+                    if (result.TryGetProperty("nextSeq", out var ns) && ns.TryGetInt64(out var nsv))
+                        cursor = nsv;
+                }
+            }
             catch (HttpRequestException ex)
             {
                 Console.Error.WriteLine($"[mur devtools] logs: transport closed: {ex.Message}");
                 return (int)DevtoolsCliExit.Transport;
-            }
-            if (HasError(doc)) return EmitResult(doc, shared);
-
-            if (doc.RootElement.TryGetProperty("result", out var result))
-            {
-                if (result.TryGetProperty("entries", out var entries) && entries.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var e in entries.EnumerateArray())
-                        PrintFollowLine(e);
-                }
-                if (result.TryGetProperty("nextSeq", out var ns) && ns.TryGetInt64(out var nsv))
-                    cursor = nsv - 1; // -1 because the server uses > (exclusive)
             }
             // Tight loop is safe because InvokeTool blocks server-side up to
             // waitMs; only empty-on-timeout returns fast, and that's the rate

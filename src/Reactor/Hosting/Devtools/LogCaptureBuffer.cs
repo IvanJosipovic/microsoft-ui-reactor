@@ -7,7 +7,6 @@ internal enum LogSource
     Stdout,
     Stderr,
     Debug,
-    Trace,
 }
 
 /// <summary>
@@ -60,8 +59,10 @@ internal sealed class LogCaptureBuffer
         if (string.IsNullOrEmpty(text)) return;
 
         // Cap single-entry size so one rogue dump doesn't flush the whole ring.
-        const int MaxEntryBytes = 1 << 20; // 1 MB
-        if (text.Length > MaxEntryBytes) text = text[..MaxEntryBytes];
+        // Char count, not bytes — UTF-16 in-memory is 2 bytes/char, so this
+        // caps a single entry at ~2 MB of storage.
+        const int MaxEntryChars = 1 << 20;
+        if (text.Length > MaxEntryChars) text = text[..MaxEntryChars];
 
         var entry = new LogEntry(
             Seq: 0, // replaced under lock
@@ -97,7 +98,8 @@ internal sealed class LogCaptureBuffer
 
     /// <summary>
     /// Snapshot entries matching the filters. <paramref name="sinceSeq"/> is
-    /// exclusive — pass the previous call's <c>nextSeq</c> to continue.
+    /// inclusive — pass the previous call's <c>nextSeq</c> directly to continue.
+    /// <c>nextSeq</c> in the result is the value to pass on the next call.
     /// </summary>
     public LogQueryResult Query(
         long sinceSeq = 0,
@@ -128,7 +130,7 @@ internal sealed class LogCaptureBuffer
             var buf = new List<LogEntry>(Math.Min(_entries.Count, 1024));
             foreach (var e in _entries)
             {
-                if (e.Seq <= sinceSeq) continue;
+                if (e.Seq < sinceSeq) continue;
                 if (source is { } s && e.Source != s) continue;
                 if (!string.IsNullOrEmpty(level) && !string.Equals(e.Level, level, StringComparison.OrdinalIgnoreCase)) continue;
                 if (re is not null && !re.IsMatch(e.Text)) continue;
@@ -143,7 +145,7 @@ internal sealed class LogCaptureBuffer
     }
 
     /// <summary>
-    /// Waits up to <paramref name="timeoutMs"/> for an entry with seq &gt;
+    /// Waits up to <paramref name="timeoutMs"/> for an entry with seq &gt;=
     /// <paramref name="sinceSeq"/>. Returns immediately if one already exists.
     /// Long-poll primitive for the <c>reactor.logs</c> tool.
     /// </summary>
@@ -152,7 +154,7 @@ internal sealed class LogCaptureBuffer
         Task wait;
         lock (_lock)
         {
-            if (_nextSeq - 1 > sinceSeq) return;
+            if (_nextSeq - 1 >= sinceSeq) return;
             wait = _signal.Task;
         }
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);

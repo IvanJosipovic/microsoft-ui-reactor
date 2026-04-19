@@ -115,10 +115,10 @@ internal sealed class BufferTraceListener : TraceListener
     private readonly StringBuilder _pending = new();
     private readonly object _lock = new();
 
-    public BufferTraceListener(LogCaptureBuffer buffer, LogSource source = LogSource.Debug)
+    public BufferTraceListener(LogCaptureBuffer buffer)
     {
         _buffer = buffer;
-        _source = source;
+        _source = LogSource.Debug;
         Name = "ReactorDevtoolsCapture";
     }
 
@@ -163,50 +163,58 @@ internal sealed class BufferTraceListener : TraceListener
 /// </summary>
 internal static class LogCaptureInstall
 {
-    private static int _installed;
+    private static readonly object _installLock = new();
     private static LogCaptureBuffer? _shared;
 
     /// <summary>Process-wide shared buffer, lazily created on first install.</summary>
     public static LogCaptureBuffer? Shared => Volatile.Read(ref _shared);
 
     /// <summary>
-    /// Installs capture. When <paramref name="forwardConsole"/> is false (stdio
-    /// MCP transport), Console.Out writes land in the buffer but are NOT
-    /// passed through to the underlying stream — vital, because stdout is the
-    /// JSON-RPC transport in that mode. Console.Error always forwards; stderr
-    /// is never the MCP channel.
+    /// Installs capture. When <paramref name="forwardConsole"/> is false
+    /// (stdio MCP transport), Console.Out writes land in the buffer but are
+    /// NOT passed through to the underlying stream. Safe because
+    /// <c>DevtoolsMcpServer</c> writes stdio responses via
+    /// <c>Console.OpenStandardOutput</c>, bypassing <c>Console.Out</c>.
+    /// Console.Error always forwards; stderr is never the MCP channel.
     /// </summary>
     public static LogCaptureBuffer Install(long capacityBytes, bool forwardConsole)
     {
-        if (Interlocked.Exchange(ref _installed, 1) == 1)
-            return _shared!;
+        // Lock on install so concurrent callers don't see _shared null after
+        // another thread has latched _installed. Install runs once per process
+        // from TryRunDevtools today, but a lock is cheaper than a spin-wait
+        // and closes the race regardless of call site.
+        lock (_installLock)
+        {
+            if (_shared is { } existing) return existing;
 
-        var buf = new LogCaptureBuffer(capacityBytes);
-        Volatile.Write(ref _shared, buf);
+            var buf = new LogCaptureBuffer(capacityBytes);
 
-        // Trace/Debug: add a listener rather than clearing the defaults — the
-        // debugger's DefaultTraceListener must still see events so breakpoints
-        // and the VS Output window keep working.
-        Trace.Listeners.Add(new BufferTraceListener(buf, LogSource.Debug));
+            // Debug/Trace share a single listener collection
+            // (Trace.Listeners == Debug.Listeners). One add covers both
+            // Debug.WriteLine and Trace.WriteLine. Add rather than clear so
+            // the debugger's DefaultTraceListener still routes to the VS
+            // Output window.
+            Trace.Listeners.Add(new BufferTraceListener(buf));
 
-        // Console tee. Wrap whatever was set previously so later installers
-        // (test loggers, xunit capture) still see output.
-        Console.SetOut(new TeeTextWriter(
-            forward: forwardConsole ? Console.Out : null,
-            buffer: buf,
-            source: LogSource.Stdout));
-        Console.SetError(new TeeTextWriter(
-            forward: Console.Error,
-            buffer: buf,
-            source: LogSource.Stderr));
+            // Console tee. Wrap whatever was set previously so later installers
+            // (test loggers, xunit capture) still see output.
+            Console.SetOut(new TeeTextWriter(
+                forward: forwardConsole ? Console.Out : null,
+                buffer: buf,
+                source: LogSource.Stdout));
+            Console.SetError(new TeeTextWriter(
+                forward: Console.Error,
+                buffer: buf,
+                source: LogSource.Stderr));
 
-        return buf;
+            Volatile.Write(ref _shared, buf);
+            return buf;
+        }
     }
 
-    /// <summary>Test hook: reset the install latch. Do not call in product code.</summary>
+    /// <summary>Test hook: reset the shared buffer. Do not call in product code.</summary>
     internal static void ResetForTests()
     {
-        Interlocked.Exchange(ref _installed, 0);
-        Volatile.Write(ref _shared, null);
+        lock (_installLock) Volatile.Write(ref _shared, null);
     }
 }

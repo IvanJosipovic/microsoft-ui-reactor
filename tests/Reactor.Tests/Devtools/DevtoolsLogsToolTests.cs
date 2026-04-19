@@ -72,12 +72,39 @@ public class DevtoolsLogsToolTests
 
         buf.Append(LogSource.Stdout, null, "c");
 
-        var args = JsonDocument.Parse($"{{\"since\":{nextSeq - 1}}}").RootElement;
+        // Inclusive semantics: pass the previous response's nextSeq directly.
+        var args = JsonDocument.Parse($"{{\"since\":{nextSeq}}}").RootElement;
         var page2 = DevtoolsLogsTool.BuildPayload(buf, args);
         var json = JsonSerializer.Serialize(page2);
         using var doc = JsonDocument.Parse(json);
         var entries = doc.RootElement.GetProperty("entries");
         Assert.Equal(1, entries.GetArrayLength());
         Assert.Equal("c", entries[0].GetProperty("text").GetString());
+    }
+
+    [Fact]
+    public void Payload_AcceptsLongSince_AboveInt32Max()
+    {
+        // A long-running process can emit > int.MaxValue log entries. The
+        // handler must accept a long `since` or follow breaks after 2B lines.
+        var buf = new LogCaptureBuffer();
+        long huge = (long)int.MaxValue + 100L;
+        var args = JsonDocument.Parse($"{{\"since\":{huge}}}").RootElement;
+        var payload = DevtoolsLogsTool.BuildPayload(buf, args);
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(payload));
+        // No throw; empty entries; nextSeq is the buffer's _nextSeq (1).
+        Assert.Equal(0, doc.RootElement.GetProperty("entries").GetArrayLength());
+    }
+
+    [Fact]
+    public void Payload_TraceSourceIsAliasForDebug()
+    {
+        var buf = new LogCaptureBuffer();
+        buf.Append(LogSource.Debug, null, "from-debug");
+
+        var args = JsonDocument.Parse("{\"source\":\"trace\"}").RootElement;
+        var payload = DevtoolsLogsTool.BuildPayload(buf, args);
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(payload));
+        Assert.Equal(1, doc.RootElement.GetProperty("entries").GetArrayLength());
     }
 }

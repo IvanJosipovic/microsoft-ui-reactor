@@ -25,7 +25,7 @@ public class LogCaptureBufferTests
     }
 
     [Fact]
-    public void Query_SinceSeq_IsExclusive()
+    public void Query_SinceSeq_IsInclusive()
     {
         var buf = new LogCaptureBuffer();
         for (int i = 0; i < 5; i++) buf.Append(LogSource.Stdout, null, $"line-{i}");
@@ -35,8 +35,16 @@ public class LogCaptureBufferTests
         Assert.Equal(2, page1.Entries.Count);
         Assert.Equal(4, page1.Entries[0].Seq);
 
-        var page2 = buf.Query(sinceSeq: page1.NextSeq - 1);
+        // Pass nextSeq directly as the next `since` — with inclusive semantics
+        // and no new entries, the window is empty.
+        var page2 = buf.Query(sinceSeq: page1.NextSeq);
         Assert.Empty(page2.Entries);
+
+        // But the very next appended entry should come back on the same cursor.
+        buf.Append(LogSource.Stdout, null, "after");
+        var page3 = buf.Query(sinceSeq: page1.NextSeq);
+        Assert.Single(page3.Entries);
+        Assert.Equal("after", page3.Entries[0].Text);
     }
 
     [Fact]
@@ -101,9 +109,10 @@ public class LogCaptureBufferTests
     public async Task WaitForNewAsync_WakesOnAppend()
     {
         var buf = new LogCaptureBuffer();
-        var wait = buf.WaitForNewAsync(0, 5_000);
+        // Wait for seq >= 1. Empty buffer has no entry yet, so the wait blocks
+        // until the first append lands.
+        var wait = buf.WaitForNewAsync(1, 5_000);
 
-        // Not yet — no entries.
         Assert.False(wait.IsCompleted);
 
         buf.Append(LogSource.Stdout, null, "first");
@@ -116,10 +125,10 @@ public class LogCaptureBufferTests
     {
         var buf = new LogCaptureBuffer();
         var sw = global::System.Diagnostics.Stopwatch.StartNew();
-        await buf.WaitForNewAsync(0, 150);
+        // Wait for seq >= 1 on an empty buffer — exercises the timeout path.
+        await buf.WaitForNewAsync(1, 150);
         sw.Stop();
-        // Allow slack for scheduler jitter; the point is it returned without
-        // an append and didn't hang for 5s.
+        Assert.True(sw.ElapsedMilliseconds >= 100, $"WaitForNewAsync returned after only {sw.ElapsedMilliseconds}ms (expected ≥ ~150ms)");
         Assert.True(sw.ElapsedMilliseconds < 2_000, $"WaitForNewAsync blocked for {sw.ElapsedMilliseconds}ms");
     }
 
@@ -156,7 +165,7 @@ public class LogCaptureBufferTests
     {
         // Isolate the listener — don't pollute global Debug.Listeners.
         var buf = new LogCaptureBuffer();
-        var listener = new BufferTraceListener(buf, LogSource.Debug);
+        var listener = new BufferTraceListener(buf);
         listener.WriteLine("hello from debug");
         listener.Write("half-");
         listener.WriteLine("line");
