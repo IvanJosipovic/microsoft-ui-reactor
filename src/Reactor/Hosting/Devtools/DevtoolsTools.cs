@@ -32,6 +32,7 @@ internal static class DevtoolsTools
         public required Func<string?> GetCurrentComponent { get; init; }
         public required Func<string, bool> SwitchComponent { get; init; }
         public required Action RequestReload { get; init; }
+        public required Action RequestShutdown { get; init; }
         public required WindowRegistry Windows { get; init; }
 
         /// <summary>
@@ -57,6 +58,7 @@ internal static class DevtoolsTools
         Register_Components(server, ctx);
         Register_SwitchComponent(server, ctx);
         Register_Reload(server, ctx);
+        Register_Shutdown(server, ctx);
         Register_Windows(server, ctx);
     }
 
@@ -189,6 +191,26 @@ internal static class DevtoolsTools
                 // Return the response immediately; the reload fires after the HTTP write flushes.
                 var exitingBuild = server.BuildTag;
                 ctx.RequestReload();
+                return new { ok = true, exitingBuild };
+            });
+    }
+
+    // -- shutdown ----------------------------------------------------------------
+
+    private static void Register_Shutdown(DevtoolsMcpServer server, ToolHostContext ctx)
+    {
+        server.Tools.Register(
+            new McpToolDescriptor(
+                Name: "shutdown",
+                Description:
+                    "Closes the app cleanly. Flushes the HTTP response, disposes the MCP listener, " +
+                    "closes the window, and exits with code 0 so the `mur devtools` supervisor " +
+                    "returns without rebuilding. Use to release file locks on the build output.",
+                InputSchema: new { type = "object", properties = new { }, additionalProperties = false }),
+            @params =>
+            {
+                var exitingBuild = server.BuildTag;
+                ctx.RequestShutdown();
                 return new { ok = true, exitingBuild };
             });
     }

@@ -103,13 +103,22 @@ public class SupervisorArgsTests
     public void BuildChildArguments_NoComponent_PlacesMcpPortAfterRun()
     {
         var a = DevtoolsSupervisor.BuildChildArguments("./x.csproj", null, 42000);
-        // Expected: run --project ./x.csproj -- --devtools run --mcp-port 42000
-        Assert.Equal(new[]
-        {
-            "run", "--project", "./x.csproj", "--",
-            "--devtools", "run",
-            "--mcp-port", "42000",
-        }, a);
+        // Expected: run --project ./x.csproj -- --devtools run --mcp-port 42000 --devtools-project <abs-path>
+        Assert.Equal(new[] { "run", "--project", "./x.csproj", "--", "--devtools", "run" },
+            a.Take(6).ToArray());
+        Assert.Contains("--mcp-port", a);
+        Assert.Contains("42000", a);
+        Assert.Contains("--devtools-project", a);
+    }
+
+    [Fact]
+    public void BuildChildArguments_PassesDevtoolsProjectFlag()
+    {
+        var a = DevtoolsSupervisor.BuildChildArguments("./x.csproj", null, 42000);
+        var idx = a.ToList().IndexOf("--devtools-project");
+        Assert.True(idx >= 0, "--devtools-project must be forwarded");
+        Assert.True(idx + 1 < a.Count, "--devtools-project must have a value");
+        Assert.True(Path.IsPathRooted(a[idx + 1]), "--devtools-project must be an absolute path");
     }
 
     [Fact]

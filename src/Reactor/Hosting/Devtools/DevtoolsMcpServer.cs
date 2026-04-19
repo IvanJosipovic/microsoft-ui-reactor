@@ -23,6 +23,8 @@ internal sealed class DevtoolsMcpServer : IDisposable
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly DevtoolsLogger? _logger;
     private readonly McpTransport _transport;
+    private readonly string? _projectIdentifier;
+    private string? _lockfilePath;
     private StdioMcpLoop? _stdioLoop;
     private bool _disposed;
 
@@ -47,7 +49,8 @@ internal sealed class DevtoolsMcpServer : IDisposable
         Window window,
         int? preferredPort = null,
         DevtoolsLogger? logger = null,
-        McpTransport transport = McpTransport.Http)
+        McpTransport transport = McpTransport.Http,
+        string? projectIdentifier = null)
     {
         _dispatcherQueue = dispatcherQueue;
         _window = window;
@@ -55,10 +58,32 @@ internal sealed class DevtoolsMcpServer : IDisposable
         _buildTag = ResolveBuildTag();
         _logger = logger;
         _transport = transport;
+        _projectIdentifier = projectIdentifier;
 
         Port = preferredPort ?? FindFreePort();
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
+    }
+
+    /// <summary>
+    /// Single-instance check per spec §6. Called before <see cref="Start"/> by
+    /// the host bring-up. Returns true when a live lockfile names another
+    /// session for the same project; emits the one stderr line the spec
+    /// mandates. When the existing lockfile is stale it's silently deleted
+    /// and the method returns false.
+    /// </summary>
+    public static bool IsAnotherSessionActive(string projectIdentifier, out LockfileEntry? existing)
+    {
+        existing = null;
+        var path = LockfileRegistry.PathFor(projectIdentifier);
+        if (!LockfileRegistry.TryRead(path, out var entry) || entry is null) return false;
+        if (LockfileRegistry.IsLive(entry))
+        {
+            existing = entry;
+            return true;
+        }
+        LockfileRegistry.TryDelete(path);
+        return false;
     }
 
     public void Start()
@@ -116,6 +141,38 @@ internal sealed class DevtoolsMcpServer : IDisposable
         });
         BannerWriter.WriteLine(readyJson);
         BannerWriter.Flush();
+
+        WriteLockfile();
+    }
+
+    private void WriteLockfile()
+    {
+        if (string.IsNullOrEmpty(_projectIdentifier)) return;
+        try
+        {
+            var path = LockfileRegistry.PathFor(_projectIdentifier);
+            var transportStr = _transport == McpTransport.Http ? "http" : "stdio";
+            var endpoint = _transport == McpTransport.Http
+                ? $"http://127.0.0.1:{Port}/mcp"
+                : "stdio";
+            var entry = new LockfileEntry
+            {
+                Schema = LockfileRegistry.SchemaTag,
+                Endpoint = endpoint,
+                Transport = transportStr,
+                Port = Port,
+                Pid = global::System.Diagnostics.Process.GetCurrentProcess().Id,
+                BuildTag = _buildTag,
+                Project = _projectIdentifier,
+                StartedAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            };
+            LockfileRegistry.Write(path, entry);
+            _lockfilePath = path;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[devtools] Failed to write lockfile: {ex.Message}");
+        }
     }
 
     public void Dispose()
@@ -127,6 +184,8 @@ internal sealed class DevtoolsMcpServer : IDisposable
         try { _listener.Close(); } catch { }
         try { _stdioLoop?.Dispose(); } catch { }
         try { _logger?.Dispose(); } catch { }
+        if (!string.IsNullOrEmpty(_lockfilePath))
+            LockfileRegistry.TryDelete(_lockfilePath);
     }
 
     // -- HTTP Loop ---------------------------------------------------------------
