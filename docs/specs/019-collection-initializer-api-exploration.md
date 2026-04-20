@@ -881,6 +881,293 @@ help with properties. They create a split between child specification (`[ ]`) an
 
 ---
 
+## Part 6B: Option F — Factory Initializers (prototype of csharplang #6602)
+
+### Status
+
+**Working compiler prototype** on `dotnet/roslyn` branch
+[`features/reactor-extensions`](https://github.com/dotnet/roslyn/tree/features/reactor-extensions),
+with an LDM-facing request at
+[`docs/features/reactor-extensions/ldm-request.md`](https://github.com/dotnet/roslyn/blob/features/reactor-extensions/docs/features/reactor-extensions/ldm-request.md).
+74 tests green across parsing / semantic / emit / IOperation / classification; a sample solution
+covers seven scenarios including a TodoApp, an Outlook-style MessageRow, and the other shapes used
+throughout this document. This is the C# language change that Spec 008 §5 and Part 9 ("Long Term")
+below speculate about, now with a concrete design and a working compiler.
+
+### The Idea
+
+Let object-initializer syntax follow a method call, not just `new`:
+
+```csharp
+var v = Factory(args) { X = value, Y = value };
+```
+
+A library author opts a method into this by marking it with a new `factory` modifier; the trailing
+`{ … }` behaves exactly like the initializer block on `new T(args) { … }` — `init` and `required`
+members are assignable inside the block, and the returned instance is sealed afterwards. Parens
+can be dropped when a zero-arg overload resolves:
+
+```csharp
+var v = Factory { X = value };   // binds to Factory() when an overload exists
+```
+
+The `factory` modifier is the gate: trailing initializers are legal only on calls that resolve to a
+`factory` method. This preserves immutability by default — a library author has to opt a method in
+before callers can use this shape.
+
+### What v1 deliberately does NOT include
+
+The prototype's v1 scope is the **receiver-shape change only**. One ergonomic follow-up that Reactor
+would especially care about is **explicitly deferred**:
+
+- **Bare children in `{ }`.** `VStack { child1, child2 }` (children listed directly inside the block
+  without `Children =`) is rejected in v1. Callers must write `VStack { Children = [child1, child2] }`.
+  The LDM request calls this "the single biggest further ergonomic win for the Reactor scenarios"
+  and explicitly flags it as a follow-up feature that stacks cleanly on top of v1.
+
+So for Reactor today, Option F delivers **Option A' minus the `new` keyword** — not the dream
+`VStack { child1, child2 }` shape that earlier parts of this document speculated about. That shape
+remains one language feature away.
+
+### Required Library Changes
+
+Two things on the library side:
+
+1. **Add the `factory` modifier** to every factory method that should accept a trailing initializer.
+2. **Keep `Children` as an `init` collection property** (same as Option A'). Factory Initializers
+   v1 does not change how children are passed — `Children = [...]` is still the way.
+
+```csharp
+// Before (current Reactor):
+public static StackElement VStack(double spacing = 8, params Element?[] children) =>
+    new StackElement { Spacing = spacing, Children = children };
+
+// After (Option F):
+public static factory StackElement VStack(double spacing = 8) =>
+    new StackElement { Spacing = spacing };
+// Children are passed through the trailing { Children = [...] } initializer, not through params.
+
+public static factory TextElement Text(string content) =>
+    new TextElement { Content = content };
+
+public static factory ButtonElement Button(string label, Action? onClick = null) =>
+    new ButtonElement { Label = label, OnClick = onClick };
+```
+
+All element records need the same property-surface promotion Option A' requires (layout/styling
+properties as `init` members on the record). Nothing else changes.
+
+The `factory` modifier works on ordinary static methods, extension methods, instance methods, and
+local functions — the prototype covers all of those.
+
+### TodoApp — Option F
+
+```csharp
+return VStack {
+    Spacing = 0,
+    Background = SolidBackground,
+    MaxWidth = 600,
+    HAlign = HorizontalAlignment.Center,
+    Children = [
+        // Header
+        Text("todos") {
+            FontSize = 36,
+            Weight = FontWeights.Light,
+            Foreground = AccentText,
+            HAlign = HorizontalAlignment.Center,
+            Margin = Thick(0, 16, 0, 8),
+        },
+
+        // Input bar
+        HStack {
+            Spacing = 8,
+            Padding = Thick(16, 8, 16, 8),
+            Background = CardBackground,
+            Children = [
+                TextField(state.NewItemText, v => dispatch(new SetNewItemText(v))) {
+                    Placeholder = "What needs to be done?",
+                    HAlign = HorizontalAlignment.Stretch,
+                },
+                Button(addCmd),
+            ],
+        },
+
+        // List — spread still works
+        ScrollView {
+            Flex = new(grow: 1, basis: 0),
+            Child = VStack {
+                Spacing = 0,
+                Children = [..filtered.Select(item => TodoRow(item, dispatch))],
+            },
+        },
+
+        // Footer
+        HStack {
+            Spacing = 8,
+            Padding = Thick(12, 8, 12, 8),
+            Border = new(DividerStroke),
+            Children = [
+                Text($"{remaining} items left") {
+                    FontSize = 12, Foreground = SecondaryText,
+                    VAlign = VerticalAlignment.Center,
+                },
+                Spacer(),
+                FilterButton("All", "all", state.Filter, dispatch),
+                FilterButton("Active", "active", state.Filter, dispatch),
+                FilterButton("Completed", "completed", state.Filter, dispatch),
+            ],
+        },
+    ],
+};
+```
+
+### Outlook MessageRow — Option F
+
+```csharp
+var senderLine = FlexRow {
+    ColumnGap = 8,
+    Children = [
+        Text(msg.SenderName) {
+            FontSize = 14,
+            Weight = bold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Flex = new(grow: 1),
+        },
+        Text(dateStr) { FontSize = 12, Foreground = TertiaryText },
+    ],
+};
+
+return Button(Props.OnSelected) {
+    Background = bg,
+    BorderThickness = Thick(0, 0, 0, 1),
+    BorderBrush = BorderBrush,
+    Padding = Thick(0),
+    HAlign = HorizontalAlignment.Stretch,
+    HContentAlign = HorizontalAlignment.Stretch,
+    CornerRadius = 0,
+    Resources = r => r
+        .Set("ButtonBackgroundPointerOver", HoverBrush)
+        .Set("ButtonBackgroundPressed", SelectedBrush),
+    Content = Grid(["*"], ["*"]) {
+        Children = [
+            content with { Padding = Thick(14, 10, 14, 10), Grid = new(0, 0) },
+            unreadBar with { Grid = new(0, 0) },
+        ],
+    },
+};
+```
+
+### Analysis — Option F
+
+**Compared to Option A' (`new VStack { Children = [...] }`), what's different:**
+
+| | Option A' (`new VStack { … }`) | Option F (`VStack { … }`) |
+|---|---|---|
+| Construction keyword | `new` on every container | None — factory call reads as the name |
+| Library opt-in | None — any `new T` works today | `factory` modifier on every exposed factory |
+| Positional + named mix | `new Text("hi") { FontSize = 14 }` works | `Text("hi") { FontSize = 14 }` works |
+| Parens-optional | N/A (`new` always present) | `VStack { … }` when a zero-arg overload exists |
+| Bare children `{ c1, c2 }` | No (requires `Children = [...]`) | **No in v1** — requires `Children = [...]` (follow-up feature) |
+| Spread via `[..expr]` | Works | Works (identical — property side is unchanged) |
+| C# version required | C# 12+ (collection expressions) | New C# version shipping this feature |
+| `with { }` precedence gotcha | Same as A' | Same as A' — `factory() { X = V }.M()` currently parses initializer-first; post-initializer chains still want parens |
+
+**What's better than Option A':**
+- **No `new` keyword.** Every container call-site is 4 characters shorter and reads as the
+  factory name rather than an allocation. Over a 100-line component that is real.
+- **Factories keep their positional ergonomics.** `Text("hi")`, `Button(cmd)`, `Grid(rows, cols)`
+  stay as they are — the positional parameters the library already exposes are preserved, and the
+  trailing `{ … }` only covers the additional config. A' loses this unless you also add a
+  constructor that mirrors every factory's signature.
+- **Parens-optional `Name { … }`.** For the "configuration-only" case (`VStack { Children = [...] }`,
+  `FlexRow { ColumnGap = 8, Children = [...] }`), call-sites drop one more level of noise. The
+  prototype allows this only when an overload resolves with zero args, so it's opt-in on the
+  library side via default-valued parameters.
+- **Library surface stays factory-shaped.** No need to expose a public constructor taking every
+  permutation of factory parameters — existing `VStack(spacing)` / `Text(content)` / `Button(label)`
+  signatures keep working.
+
+**What's worse than Option A':**
+- **Requires an unshipped C# feature.** A' works on C# 12 today; F requires a C# language version
+  that ships this. Until then it's a prototype-compiler-only shape.
+- **Library opt-in per method.** Every factory needs `factory` added to its signature. For Reactor
+  that's a one-time mechanical change to the element factories and extension methods, but it is
+  churn — and any third-party factory a consumer writes must also be marked `factory` to be
+  usable in the new shape.
+- **Honor-system v1.** The prototype does not verify that a `factory` method actually returns a
+  freshly-constructed instance; verification is planned as a follow-up. A library author could
+  mark a method `factory` that returns a shared cached instance, and callers would then mutate
+  that shared instance through the trailing initializer. Reactor would need to avoid this pattern
+  (not hard — factories already allocate).
+
+**What's the same as Option A':**
+- **Property setting** (`{ FontSize = 14, Weight = bold }`) — identical.
+- **Children mechanism** — still `Children = [...]` in v1. The deep nesting pressure from
+  repeated `Children = [` is the same as A'.
+- **No `.Set()` needed** — same as A'.
+- **API surface reduction** — same as A'. The 1400-line `ElementExtensions.cs` collapses the same
+  way, since properties move onto records in both options.
+- **`with { }` still works for post-construction overrides** on existing instances (`content with
+  { … }` in the MessageRow sample above).
+
+**Compared to Option B** (factory + `with { }`):
+- F replaces the `with { }` copy with an in-place initializer on the just-constructed instance.
+  That's both clearer (one construction, one config block, zero copies) and cheaper (no record
+  clone per property-setting round).
+- F avoids B's `with { }`-precedence gotcha for the common "factory + configuration" case: you
+  write `Factory(args) { … }` and there's no "with-binds-tighter-than-dot" trap. (The gotcha
+  returns if you then chain `.Method()` after the initializer, same as on `new T(args) { … }` today.)
+
+**Compared to Current** (fluent):
+- Same visual grouping win as A' — `{ }` groups everything belonging to one element, instead
+  of splitting across fluent chain / `with { }` / `.Set()`.
+- Unlike A', the factory-call shape is preserved, so `.Bold()`-style one-liners could still exist
+  as fluent extensions **on the record** and be chained before the initializer if desired:
+  `Text("hi").Bold() { FontSize = 14 }` — though the LDM request notes post-initializer chaining
+  wants parentheses in some shapes (same trap as A').
+
+### Open questions for Reactor specifically
+
+1. **Is "Option A' minus `new`" enough of a win on its own to bet on an unshipped C# feature?**
+   Concretely: if `Children = [...]` boilerplate stays, the savings are the `new` keyword plus
+   parens-optional on zero-arg factories. That's a real per-call-site win but not a structural
+   one. The structural win (bare children `VStack { c1, c2 }`) is deferred to a follow-up language
+   feature that has no prototype yet.
+
+2. **Appetite for a prototype migration.** Option A' was already flagged in Part 9 as worth a
+   prototype branch migrating 2–3 production components. A parallel branch using the
+   `features/reactor-extensions` compiler would answer the ergonomics question at the
+   component level, and the diff between the A' branch and the F branch is exactly the ergonomic
+   delta this option provides.
+
+3. **Signal back to the LDM.** The Roslyn prototype's design decisions (especially the deferral of
+   bare children, and the honor-system v1) have direct implications for Reactor. If Reactor is the
+   motivating scenario, the LDM request is the place to push on whether bare-children should be
+   v1 rather than a follow-up.
+
+### Verdict
+
+Option F is **strictly better than Option A' for v1 and strictly weaker than the "ideal" factory
+initializer the earlier parts of this document hoped for**. It delivers the `new`-less factory
+call with trailing initializer, it keeps positional parameters on factories, and it works in
+combination with collection expressions for children — but the bare-children form (`VStack { c1,
+c2 }`) that would make this feel like SwiftUI/JSX is explicitly deferred, and the whole thing
+depends on an unshipped C# feature.
+
+For a **Reactor v2 that plans to land 12–24 months out**, Option F is the right target: every
+element record would already be A'-shaped (so the migration cost is paid once, not twice), and
+flipping from `new VStack { … }` to `VStack { … }` once the language ships is a mechanical rename.
+The practical short-term plan is therefore: **adopt Option A' now, ensure every Reactor factory is
+trivially addable to Option F later** (single-responsibility allocation, no hidden state, no
+shared-instance returns), and feed concrete ergonomic feedback into the
+`features/reactor-extensions` LDM discussion.
+
+For **Reactor v1 / the currently-shipping API**, Option F is premature: shipping against a
+prototype compiler is not viable, and migrating the API surface to the `factory` modifier before
+the language feature is approved risks reworking twice if design details change.
+
+---
+
 ## Part 7: Comparative Summary
 
 ### TodoRow helper — all options side-by-side
@@ -2511,6 +2798,18 @@ properties inline. This is the "Option A without the `new`" future that Spec 008
 A' would transition cleanly to this future — replace `new VStack { Children = [...] }` with
 `VStack() { children }` — since the property-setting side is identical.
 
+**Update (2026-04):** A working compiler prototype of this feature now exists on `dotnet/roslyn`
+branch `features/reactor-extensions`, with an LDM-facing request targeting the next C# release
+cycle. See **Part 6B: Option F — Factory Initializers** above for the full analysis. Important
+caveat: the prototype's v1 scope **does not** include the bare-children form
+(`VStack { child1, child2 }`); callers must still write `VStack { Children = [...] }`. The
+bare-children sugar is called out as a follow-up feature. So "Option F today" is best understood
+as "Option A' minus the `new` keyword" — a real ergonomic win, but not the full SwiftUI/JSX
+shape. The strategic implication for Reactor is unchanged from above: **adopt Option A' now**,
+shape the element types so that adding `factory` modifiers later is mechanical, and feed Reactor's
+preference for bare-children into the `features/reactor-extensions` LDM discussion while v1 scope
+is still open.
+
 ### What NOT to Do
 
 1. **Don't pursue Option A (mutable `Add()` initializers) today.** A' is strictly better — same
@@ -2593,6 +2892,7 @@ equivalents.
 | **Reactor (current)** | Factory methods | Fluent + `.Set()` + `with { }` | `params Element?[]` |
 | **Reactor (Option A')** | `new` constructors | Object initializer `{ }` | `Children = [...]` collection expr |
 | **Reactor (Option B)** | Factory methods | `with { }` record copy | `params Element?[]` |
+| **Reactor (Option F)** | `factory` methods + trailing `{ }` | Object initializer `{ }` | `Children = [...]` collection expr (bare-children deferred) |
 
 **Key observation:** Every successful declarative UI framework lands on one of two models:
 1. **Function + modifier chain** (SwiftUI, Compose, Reactor current) — construction is a function call,
