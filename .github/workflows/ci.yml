@@ -19,14 +19,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Filter non-Markdown changes
+      - name: Detect non-Markdown changes
         id: filter
-        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
-        with:
-          filters: |
-            non-md:
-              - '**'
-              - '!**/*.md'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ]; then
+            files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          else
+            files=$(git diff --name-only HEAD^ HEAD)
+          fi
+          echo "Changed files:"
+          echo "$files"
+          if [ -z "$files" ] || echo "$files" | grep -qv '\.md$'; then
+            echo "non-md=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "non-md=false" >> "$GITHUB_OUTPUT"
+          fi
 
   unit-tests:
     name: Unit Tests
