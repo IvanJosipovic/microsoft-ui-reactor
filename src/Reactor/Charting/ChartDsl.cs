@@ -56,6 +56,13 @@ public sealed class ChartElement<T> : IChartAccessibilityData
     private string? _xUnits, _yUnits;
     private string? _xAxisLabel, _yAxisLabel;
 
+    // Double-encoding / palette fields
+    private Accessibility.ChartPalette? _palette;
+    private bool _colorOnly;
+    private bool _rawColors;
+    private Accessibility.MarkerShape[]? _seriesShapes;
+    private Accessibility.DashStyle[]? _seriesDashes;
+
     public ChartElement<T> Width(double w) { _width = w; return this; }
     public ChartElement<T> Height(double h) { _height = h; return this; }
     public ChartElement<T> Margin(double top, double right, double bottom, double left) { _marginTop = top; _marginRight = right; _marginBottom = bottom; _marginLeft = left; return this; }
@@ -94,6 +101,30 @@ public sealed class ChartElement<T> : IChartAccessibilityData
         return this;
     }
 
+    // ── Double-encoding modifiers ────────────────────────────────────
+
+    /// <summary>Sets a curated accessible palette (Tier 1).</summary>
+    public ChartElement<T> Palette(Accessibility.ChartPalette palette) { _palette = palette; return this; }
+
+    /// <summary>Sets custom series colors (Tier 3 — scanner-validated).</summary>
+    public ChartElement<T> SeriesColors(params D3.D3Color[] colors) { _palette = Accessibility.ChartPalette.FromColors(colors); return this; }
+
+    /// <summary>Sets raw series colors — escape hatch with no validation (Tier 4). Triggers scanner warning A11Y_CHART_012.</summary>
+    public ChartElement<T> RawColors(params D3.D3Color[] colors) { _palette = Accessibility.ChartPalette.FromRaw(colors); _rawColors = true; return this; }
+
+    /// <summary>Disables shape/dash double-encoding — color is sole series differentiator. Triggers scanner warning A11Y_CHART_004.</summary>
+    public ChartElement<T> ColorOnly() { _colorOnly = true; return this; }
+
+    /// <summary>Explicit marker shapes for series (overrides default cycle).</summary>
+    public ChartElement<T> SeriesShapes(params Accessibility.MarkerShape[] shapes) { _seriesShapes = shapes; return this; }
+
+    /// <summary>Explicit dash patterns for series (overrides default cycle).</summary>
+    public ChartElement<T> SeriesDashes(params Accessibility.DashStyle[] dashes) { _seriesDashes = dashes; return this; }
+
+    // ── Internal accessors for scanner ───────────────────────────────
+    internal bool IsColorOnly => _colorOnly;
+    internal Accessibility.ChartPalette? CustomPalette => _palette;
+
     /// <summary>
     /// Called after the chart Canvas is mounted. The handle exposes the Canvas for
     /// escape-hatch scenarios. Prefer state-driven re-renders for data updates.
@@ -106,7 +137,7 @@ public sealed class ChartElement<T> : IChartAccessibilityData
     private Element BuildElement(IReadOnlyList<T> data)
     {
         if (data.Count == 0)
-            return D3Canvas(_width, _height);
+            return AttachChartData(D3Canvas(_width, _height));
 
         double plotLeft = _marginLeft, plotTop = _marginTop;
         double plotWidth = _width - _marginLeft - _marginRight;
@@ -125,8 +156,17 @@ public sealed class ChartElement<T> : IChartAccessibilityData
         if (_onReady is { } cb)
             canvas = canvas.Set(c => cb(new ChartHandle<T>(c)));
 
-        return canvas;
+        return AttachChartData(canvas);
     }
+
+    private Core.CanvasElement AttachChartData(Core.CanvasElement canvas) =>
+        canvas with
+        {
+            ChartData = this,
+            IsColorOnly = _colorOnly,
+            IsRawColors = _rawColors,
+            CustomPalette = _palette,
+        };
 
     private Element[] RenderData(IReadOnlyList<T> data, LinearScale xScale, LinearScale yScale,
         double plotLeft, double plotTop, double plotWidth, double plotHeight)
@@ -186,6 +226,7 @@ public sealed class ChartElement<T> : IChartAccessibilityData
 
     string? IChartAccessibilityData.Name => _title;
     string? IChartAccessibilityData.Description => _description;
+    string IChartAccessibilityData.ChartTypeName => ChartType.ToString();
 
     IReadOnlyList<ChartSeriesDescriptor> IChartAccessibilityData.Series
     {
@@ -265,6 +306,10 @@ public sealed class PieChartElement<T> : IChartAccessibilityData
     private string[]? _seriesNames;
     private Func<T, int, string>? _dataLabel;
 
+    // Double-encoding / palette fields
+    private Accessibility.ChartPalette? _palette;
+    private bool _colorOnly;
+
     public PieChartElement<T> Width(double w) { _width = w; return this; }
     public PieChartElement<T> Height(double h) { _height = h; return this; }
     public PieChartElement<T> InnerRadius(double r) { _innerRadius = r; return this; }
@@ -284,13 +329,23 @@ public sealed class PieChartElement<T> : IChartAccessibilityData
     /// <summary>Per-slice label override.</summary>
     public PieChartElement<T> DataLabel(Func<T, int, string> labeller) { _dataLabel = labeller; return this; }
 
+    /// <summary>Sets a curated accessible palette (Tier 1).</summary>
+    public PieChartElement<T> Palette(Accessibility.ChartPalette palette) { _palette = palette; return this; }
+
+    /// <summary>Disables shape/dash double-encoding. Triggers scanner warning A11Y_CHART_004.</summary>
+    public PieChartElement<T> ColorOnly() { _colorOnly = true; return this; }
+
+    // Internal accessors for scanner
+    internal bool IsColorOnly => _colorOnly;
+    internal Accessibility.ChartPalette? CustomPalette => _palette;
+
     public Element ToElement() => BuildElement(Data);
     public static implicit operator Element(PieChartElement<T> chart) => chart.ToElement();
 
     private Element BuildElement(IReadOnlyList<T> data)
     {
         if (data.Count == 0)
-            return D3Canvas(_width, _height);
+            return AttachChartData(D3Canvas(_width, _height));
 
         var palette = _colorPalette ?? D3Color.Category10;
         double cx = _width / 2, cy = _height / 2;
@@ -306,8 +361,16 @@ public sealed class PieChartElement<T> : IChartAccessibilityData
         if (_onReady is { } cb)
             canvas = canvas.Set(c => cb(new PieChartHandle<T>(c)));
 
-        return canvas;
+        return AttachChartData(canvas);
     }
+
+    private Core.CanvasElement AttachChartData(Core.CanvasElement canvas) =>
+        canvas with
+        {
+            ChartData = this,
+            IsColorOnly = _colorOnly,
+            CustomPalette = _palette,
+        };
 
     private Element[] RenderLabels(IReadOnlyList<T> data, double cx, double cy, double outerRadius)
     {
@@ -327,6 +390,7 @@ public sealed class PieChartElement<T> : IChartAccessibilityData
 
     string? IChartAccessibilityData.Name => _title;
     string? IChartAccessibilityData.Description => _description;
+    string IChartAccessibilityData.ChartTypeName => "Pie";
 
     IReadOnlyList<ChartSeriesDescriptor> IChartAccessibilityData.Series
     {

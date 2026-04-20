@@ -177,6 +177,9 @@ public static class AccessibilityScanner
         CheckHeadingStyle(el, ctx, findings);
         CheckConcreteBrushOnInteractive(el, ctx, findings);
 
+        // Chart-specific checks
+        CheckChartRules(el, ctx, findings);
+
         // Collect data for post-walk checks
         CollectTabIndex(el, ctx);
         CollectLabeledBy(el, ctx);
@@ -434,6 +437,254 @@ public static class AccessibilityScanner
                 CodeSnippet = ".Background(Theme.Accent) or another ThemeRef token",
             },
             Context = ctx.BuildContext(el, GetSiblingTexts(ctx)),
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Chart-specific checks (A11Y_CHART_001 – A11Y_CHART_012)
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>Runs all chart-specific accessibility rules on chart CanvasElements.</summary>
+    private static void CheckChartRules(Element el, ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        if (el is not CanvasElement canvas || canvas.ChartData is null)
+            return;
+
+        var chartData = canvas.ChartData;
+
+        CheckChartTitle(canvas, chartData, ctx, findings);
+        CheckChartDescription(canvas, chartData, ctx, findings);
+        CheckChartColorOnly(canvas, ctx, findings);
+        CheckChartPaletteContrast(canvas, ctx, findings);
+        CheckChartPaletteColorblind(canvas, ctx, findings);
+        CheckChartPaletteBackground(canvas, ctx, findings);
+        CheckChartRawColors(canvas, ctx, findings);
+    }
+
+    /// <summary>A11Y_CHART_001: Chart has no Title/AutomationName and no derivable name.</summary>
+    private static void CheckChartTitle(CanvasElement canvas, Charting.Accessibility.IChartAccessibilityData data,
+        ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        // Has explicit AutomationName?
+        if (HasAutomationName(canvas)) return;
+        // Has Title?
+        if (!string.IsNullOrWhiteSpace(data.Name)) return;
+
+        findings.Add(new A11yDiagnostic
+        {
+            Id = "A11Y_CHART_001",
+            Severity = "warning",
+            Message = "Chart has no accessible name — set .Title(\"...\") or .AutomationName(\"...\")",
+            WcagCriterion = "1.1.1",
+            ElementType = "CanvasElement (Chart)",
+            AutomationId = GetAutomationId(canvas),
+            ComponentType = ctx.CurrentComponent,
+            Fix = new A11yFixSuggestion
+            {
+                Modifier = "Title",
+                SuggestedValue = null,
+                CodeSnippet = ".Title(\"descriptive chart title\")",
+            },
+            Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
+        });
+    }
+
+    /// <summary>A11Y_CHART_002: Chart has no Description and auto-summary is empty.</summary>
+    private static void CheckChartDescription(CanvasElement canvas, Charting.Accessibility.IChartAccessibilityData data,
+        ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        // Has explicit description?
+        if (!string.IsNullOrWhiteSpace(data.Description)) return;
+
+        // Does the auto-summarizer produce a non-empty summary?
+        var summary = Charting.Accessibility.ChartSummarizer.Summarize(data);
+        var formatted = Charting.Accessibility.ChartSummarizer.FormatSummary(summary);
+        if (!string.IsNullOrWhiteSpace(formatted) && formatted != "Empty chart chart.")
+            return;
+
+        findings.Add(new A11yDiagnostic
+        {
+            Id = "A11Y_CHART_002",
+            Severity = "warning",
+            Message = "Chart has no description and auto-summary is empty — set .Description(\"...\") or provide data with labels",
+            WcagCriterion = "1.1.1",
+            ElementType = "CanvasElement (Chart)",
+            AutomationId = GetAutomationId(canvas),
+            ComponentType = ctx.CurrentComponent,
+            Fix = new A11yFixSuggestion
+            {
+                Modifier = "Description",
+                SuggestedValue = null,
+                CodeSnippet = ".Description(\"what this chart shows\")",
+            },
+            Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
+        });
+    }
+
+    /// <summary>A11Y_CHART_004: .ColorOnly() used — color is the sole series encoding.</summary>
+    private static void CheckChartColorOnly(CanvasElement canvas, ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        if (!canvas.IsColorOnly) return;
+
+        findings.Add(new A11yDiagnostic
+        {
+            Id = "A11Y_CHART_004",
+            Severity = "warning",
+            Message = "Chart uses .ColorOnly() — color is the sole series differentiator, which is inaccessible to colorblind users",
+            WcagCriterion = "1.4.1",
+            ElementType = "CanvasElement (Chart)",
+            AutomationId = GetAutomationId(canvas),
+            ComponentType = ctx.CurrentComponent,
+            Fix = new A11yFixSuggestion
+            {
+                Modifier = "ColorOnly",
+                SuggestedValue = "Remove .ColorOnly() or add .SeriesShapes(...)",
+                CodeSnippet = "Remove .ColorOnly() to enable default shape+dash encoding",
+            },
+            Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
+        });
+    }
+
+    /// <summary>A11Y_CHART_009: Custom palette fails pairwise WCAG 3:1 contrast.</summary>
+    private static void CheckChartPaletteContrast(CanvasElement canvas, ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        if (canvas.CustomPalette is not { } palette) return;
+        if (palette.Count < 2) return;
+
+        for (int i = 0; i < palette.Count; i++)
+        {
+            for (int j = i + 1; j < palette.Count; j++)
+            {
+                double contrast = Charting.Accessibility.ChartPalette.ContrastRatio(palette[i], palette[j]);
+                if (contrast < 3.0)
+                {
+                    // Generate hardened alternative
+                    var hardenResult = Charting.Accessibility.ChartPalette.Harden(
+                        Enumerable.Range(0, palette.Count).Select(k => palette[k]).ToArray());
+
+                    findings.Add(new A11yDiagnostic
+                    {
+                        Id = "A11Y_CHART_009",
+                        Severity = "warning",
+                        Message = $"Custom palette: colors {i} and {j} have contrast ratio {contrast:F1}:1, below the 3:1 minimum",
+                        WcagCriterion = "1.4.11",
+                        ElementType = "CanvasElement (Chart)",
+                        AutomationId = GetAutomationId(canvas),
+                        ComponentType = ctx.CurrentComponent,
+                        Fix = new A11yFixSuggestion
+                        {
+                            Modifier = "SeriesColors",
+                            SuggestedValue = string.Join(", ", hardenResult.Palette.Colors.Select(c => c.ToHex())),
+                            CodeSnippet = ".Palette(ChartPalette.OkabeIto) or use .SeriesColors() with the suggested values",
+                        },
+                        Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
+                    });
+                    return; // Report first failure only
+                }
+            }
+        }
+    }
+
+    /// <summary>A11Y_CHART_010: Custom palette fails colorblind ΔE &lt; 10.</summary>
+    private static void CheckChartPaletteColorblind(CanvasElement canvas, ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        if (canvas.CustomPalette is not { } palette) return;
+        if (palette.Count < 2) return;
+
+        for (int i = 0; i < palette.Count; i++)
+        {
+            for (int j = i + 1; j < palette.Count; j++)
+            {
+                double minDE = Charting.Accessibility.ChartPalette.MinColorblindDeltaE(palette[i], palette[j]);
+                if (minDE < 10.0)
+                {
+                    var hardenResult = Charting.Accessibility.ChartPalette.Harden(
+                        Enumerable.Range(0, palette.Count).Select(k => palette[k]).ToArray());
+
+                    findings.Add(new A11yDiagnostic
+                    {
+                        Id = "A11Y_CHART_010",
+                        Severity = "warning",
+                        Message = $"Custom palette: colors {i} and {j} have ΔE {minDE:F1} under colorblind simulation, below the 10.0 minimum",
+                        WcagCriterion = "1.4.1",
+                        ElementType = "CanvasElement (Chart)",
+                        AutomationId = GetAutomationId(canvas),
+                        ComponentType = ctx.CurrentComponent,
+                        Fix = new A11yFixSuggestion
+                        {
+                            Modifier = "SeriesColors",
+                            SuggestedValue = string.Join(", ", hardenResult.Palette.Colors.Select(c => c.ToHex())),
+                            CodeSnippet = ".Palette(ChartPalette.OkabeIto) or use hardened alternative",
+                        },
+                        Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
+                    });
+                    return;
+                }
+            }
+        }
+    }
+
+    /// <summary>A11Y_CHART_011: Custom palette fails background contrast.</summary>
+    private static void CheckChartPaletteBackground(CanvasElement canvas, ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        if (canvas.CustomPalette is not { } palette) return;
+
+        var lightBg = new Charting.D3.D3Color(255, 255, 255);
+        var darkBg = new Charting.D3.D3Color(32, 32, 32);
+
+        for (int i = 0; i < palette.Count; i++)
+        {
+            double lightContrast = Charting.Accessibility.ChartPalette.ContrastRatio(palette[i], lightBg);
+            double darkContrast = Charting.Accessibility.ChartPalette.ContrastRatio(palette[i], darkBg);
+
+            if (lightContrast < 3.0 && darkContrast < 3.0)
+            {
+                var hardenResult = Charting.Accessibility.ChartPalette.Harden(
+                    Enumerable.Range(0, palette.Count).Select(k => palette[k]).ToArray());
+
+                findings.Add(new A11yDiagnostic
+                {
+                    Id = "A11Y_CHART_011",
+                    Severity = "warning",
+                    Message = $"Custom palette: color {i} fails background contrast on both light ({lightContrast:F1}:1) and dark ({darkContrast:F1}:1) backgrounds",
+                    WcagCriterion = "1.4.11",
+                    ElementType = "CanvasElement (Chart)",
+                    AutomationId = GetAutomationId(canvas),
+                    ComponentType = ctx.CurrentComponent,
+                    Fix = new A11yFixSuggestion
+                    {
+                        Modifier = "SeriesColors",
+                        SuggestedValue = string.Join(", ", hardenResult.Palette.Colors.Select(c => c.ToHex())),
+                        CodeSnippet = "Adjust color lightness to ensure ≥3:1 contrast against chart backgrounds",
+                    },
+                    Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
+                });
+                return;
+            }
+        }
+    }
+
+    /// <summary>A11Y_CHART_012: .RawColors() escape hatch used — informational.</summary>
+    private static void CheckChartRawColors(CanvasElement canvas, ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        if (!canvas.IsRawColors) return;
+
+        findings.Add(new A11yDiagnostic
+        {
+            Id = "A11Y_CHART_012",
+            Severity = "info",
+            Message = "Chart uses .RawColors() — palette accessibility checks are bypassed",
+            WcagCriterion = "1.4.1",
+            ElementType = "CanvasElement (Chart)",
+            AutomationId = GetAutomationId(canvas),
+            ComponentType = ctx.CurrentComponent,
+            Fix = new A11yFixSuggestion
+            {
+                Modifier = "RawColors",
+                SuggestedValue = null,
+                CodeSnippet = "Consider using .Palette(ChartPalette.OkabeIto) or .SeriesColors() for accessible colors",
+            },
+            Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
         });
     }
 

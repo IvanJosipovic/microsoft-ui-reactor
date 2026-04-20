@@ -12,6 +12,12 @@ internal interface IChartAccessibilityData
     IReadOnlyList<ChartSeriesDescriptor> Series { get; }
     IReadOnlyList<ChartAxisDescriptor> Axes { get; }
     ChartViewport? Viewport { get; }
+
+    /// <summary>
+    /// Human-readable chart type name for auto-generated accessible names
+    /// (e.g., "Line", "Bar", "Pie", "Tree", "Force graph").
+    /// </summary>
+    string ChartTypeName => "Chart";
 }
 
 // ═══════════════════════════════════════════════════════════════════

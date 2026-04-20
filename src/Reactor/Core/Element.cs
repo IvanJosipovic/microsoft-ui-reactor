@@ -1392,6 +1392,26 @@ public record CanvasElement(Element[] Children) : Element
     public double? Height { get; init; }
     public Brush? Background { get; init; }
     internal Action<WinUI.Canvas>[] Setters { get; init; } = [];
+
+    /// <summary>
+    /// When this Canvas was created by a chart element, carries the chart's
+    /// accessibility data so the scanner can inspect chart-specific properties.
+    /// Null for non-chart canvases.
+    /// </summary>
+    internal Charting.Accessibility.IChartAccessibilityData? ChartData { get; init; }
+
+    /// <summary>
+    /// When set, indicates this chart used <c>.ColorOnly()</c> — scanner flags as A11Y_CHART_004.
+    /// </summary>
+    internal bool IsColorOnly { get; init; }
+
+    /// <summary>
+    /// When set, indicates this chart used <c>.RawColors()</c> — scanner flags as A11Y_CHART_012.
+    /// </summary>
+    internal bool IsRawColors { get; init; }
+
+    /// <summary>Custom palette set on the chart, if any — scanner validates for contrast.</summary>
+    internal Charting.Accessibility.ChartPalette? CustomPalette { get; init; }
 }
 
 // ════════════════════════════════════════════════════════════════════════

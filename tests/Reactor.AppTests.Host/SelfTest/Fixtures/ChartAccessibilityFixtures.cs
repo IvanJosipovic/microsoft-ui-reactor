@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using static Microsoft.UI.Reactor.Factories;
 using static Microsoft.UI.Reactor.Charting.ChartDsl;
+using static Microsoft.UI.Reactor.Charting.D3Dsl;
 
 namespace Microsoft.UI.Reactor.AppTests.Host.SelfTest.Fixtures;
 
@@ -369,6 +370,204 @@ internal static class ChartAccessibilityFixtures
             XamlInterop.Register(host.Reconciler);
             host.Mount(ctx => chart.ToElement());
             await Harness.Render();
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  3.9 — Forced-colors and double-encoding
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// In forced-colors mode, series brushes use system high-contrast colors.
+    /// </summary>
+    internal class ForcedColorsPalette(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            D3Dsl.IsForcedColors = true;
+            try
+            {
+                var brush0 = D3Dsl.ChartSeries(0);
+                var brush1 = D3Dsl.ChartSeries(1);
+                var brush2 = D3Dsl.ChartSeries(2);
+                var brush3 = D3Dsl.ChartSeries(3);
+
+                H.Check("ChartA11y_ForcedColorsPalette_Series0",
+                    brush0.Color == Microsoft.UI.Colors.White);
+                H.Check("ChartA11y_ForcedColorsPalette_Series1",
+                    brush1.Color == Microsoft.UI.Colors.Cyan);
+                H.Check("ChartA11y_ForcedColorsPalette_Series2",
+                    brush2.Color == Microsoft.UI.Colors.Yellow);
+                H.Check("ChartA11y_ForcedColorsPalette_Series3",
+                    brush3.Color == Microsoft.UI.Colors.Green);
+            }
+            finally
+            {
+                D3Dsl.IsForcedColors = false;
+            }
+            await Harness.Render();
+        }
+    }
+
+    /// <summary>
+    /// Multi-series chart has distinct marker shape AND dash pattern for each series.
+    /// </summary>
+    internal class DoubleEncoding(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var palette = ChartPalette.OkabeIto;
+
+            // Verify first 4 series have distinct markers
+            var markers = Enumerable.Range(0, 4).Select(i => palette.GetMarker(i)).ToList();
+            H.Check("ChartA11y_DoubleEncoding_DistinctMarkers",
+                markers.Distinct().Count() == 4);
+
+            // Verify first 4 series have distinct dashes
+            var dashes = Enumerable.Range(0, 4).Select(i => palette.GetDash(i)).ToList();
+            H.Check("ChartA11y_DoubleEncoding_DistinctDashes",
+                dashes.Distinct().Count() == 4);
+
+            await Harness.Render();
+        }
+    }
+
+    /// <summary>
+    /// .ColorOnly() suppresses shape/dash encoding.
+    /// </summary>
+    internal class ColorOnlyWarning(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var chart = ChartDsl.LineChart(SampleLine, d => d.X, d => d.Y)
+                .Title("Revenue")
+                .ColorOnly();
+
+            H.Check("ChartA11y_ColorOnlyWarning_IsColorOnly",
+                chart.IsColorOnly);
+
+            // Mount and verify scanner flags it
+            var host = H.CreateHost();
+            XamlInterop.Register(host.Reconciler);
+            host.Mount(ctx => chart.ToElement());
+            await Harness.Render();
+
+            // Run scanner on the element tree
+            var tree = VStack(chart.ToElement());
+            var findings = AccessibilityScanner.Scan(tree);
+            H.Check("ChartA11y_ColorOnlyWarning_ScannerFlagsIt",
+                findings.Any(f => f.Id == "A11Y_CHART_004"));
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  4.3 — Scanner rules
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Chart without title triggers A11Y_CHART_001 with correct fix suggestion.
+    /// </summary>
+    internal class ScannerMissingTitle(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var chart = ChartDsl.LineChart(SampleLine, d => d.X, d => d.Y);
+
+            var host = H.CreateHost();
+            XamlInterop.Register(host.Reconciler);
+            host.Mount(ctx => chart.ToElement());
+            await Harness.Render();
+
+            var tree = VStack(chart.ToElement());
+            var findings = AccessibilityScanner.Scan(tree);
+
+            var titleFinding = findings.FirstOrDefault(f => f.Id == "A11Y_CHART_001");
+            H.Check("ChartA11y_Scanner_MissingTitle_Found",
+                titleFinding is not null);
+            H.Check("ChartA11y_Scanner_MissingTitle_FixModifier",
+                titleFinding?.Fix.Modifier == "Title");
+            H.Check("ChartA11y_Scanner_MissingTitle_FixSnippet",
+                titleFinding?.Fix.CodeSnippet?.Contains(".Title(") == true);
+        }
+    }
+
+    /// <summary>
+    /// Chart with .ColorOnly() triggers A11Y_CHART_004.
+    /// </summary>
+    internal class ScannerColorOnly(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var chart = ChartDsl.LineChart(SampleLine, d => d.X, d => d.Y)
+                .Title("Revenue")
+                .ColorOnly();
+
+            var host = H.CreateHost();
+            XamlInterop.Register(host.Reconciler);
+            host.Mount(ctx => chart.ToElement());
+            await Harness.Render();
+
+            var tree = VStack(chart.ToElement());
+            var findings = AccessibilityScanner.Scan(tree);
+
+            H.Check("ChartA11y_Scanner_ColorOnly_Found",
+                findings.Any(f => f.Id == "A11Y_CHART_004"));
+        }
+    }
+
+    /// <summary>
+    /// Chart with known-bad palette triggers A11Y_CHART_009 or _010 with hardened alternative.
+    /// </summary>
+    internal class ScannerUnsafePalette(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var chart = ChartDsl.LineChart(SampleLine, d => d.X, d => d.Y)
+                .Title("Revenue")
+                .SeriesColors(
+                    new D3Color(128, 128, 128),
+                    new D3Color(135, 135, 135)); // Very similar grays
+
+            var host = H.CreateHost();
+            XamlInterop.Register(host.Reconciler);
+            host.Mount(ctx => chart.ToElement());
+            await Harness.Render();
+
+            var tree = VStack(chart.ToElement());
+            var findings = AccessibilityScanner.Scan(tree);
+
+            var paletteFinding = findings.FirstOrDefault(
+                f => f.Id == "A11Y_CHART_009" || f.Id == "A11Y_CHART_010");
+            H.Check("ChartA11y_Scanner_UnsafePalette_Found",
+                paletteFinding is not null);
+            H.Check("ChartA11y_Scanner_UnsafePalette_HasHardenedAlternative",
+                paletteFinding?.Fix.SuggestedValue is not null);
+        }
+    }
+
+    /// <summary>
+    /// Chart with .Title() and defaults passes scanner with zero chart violations.
+    /// </summary>
+    internal class ScannerClean(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var chart = ChartDsl.LineChart(SampleLine, d => d.X, d => d.Y)
+                .Title("Monthly Revenue")
+                .SeriesName("Revenue")
+                .Units("months", "USD");
+
+            var host = H.CreateHost();
+            XamlInterop.Register(host.Reconciler);
+            host.Mount(ctx => chart.ToElement());
+            await Harness.Render();
+
+            var tree = VStack(chart.ToElement());
+            var findings = AccessibilityScanner.Scan(tree);
+            var chartViolations = findings.Where(f => f.Id.StartsWith("A11Y_CHART_")).ToList();
+
+            H.Check("ChartA11y_Scanner_Clean_ZeroViolations",
+                chartViolations.Count == 0);
         }
     }
 }

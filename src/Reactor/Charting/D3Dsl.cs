@@ -57,21 +57,85 @@ public static class D3Dsl
         set => _isDarkTheme = value;
     }
 
+    // ── Forced-colors (high-contrast) mode ───────────────────────────
+    //
+    // When the system is in High Contrast / forced-colors mode, charts must
+    // use system colors rather than their normal palette. The host sets this
+    // flag alongside IsDarkTheme so all chart helpers automatically adapt.
+
+    [ThreadStatic] private static bool _isForcedColors;
+
+    /// <summary>
+    /// When true, chart brushes use system high-contrast colors instead of
+    /// the normal palette. Set automatically by the host when
+    /// <c>AccessibilitySettings.HighContrast</c> is active.
+    /// </summary>
+    public static bool IsForcedColors
+    {
+        get => _isForcedColors;
+        set => _isForcedColors = value;
+    }
+
+    // ── System high-contrast color mapping for series ────────────────
+
+    /// <summary>System colors used for series 0–3 in forced-colors mode.</summary>
+    private static readonly global::Windows.UI.Color[] ForcedColorsSeries =
+    [
+        Microsoft.UI.Colors.White,   // CanvasText (approximation)
+        Microsoft.UI.Colors.Cyan,    // Highlight (approximation)
+        Microsoft.UI.Colors.Yellow,  // LinkText (approximation)
+        Microsoft.UI.Colors.Green,   // GrayText (approximation)
+    ];
+
+    /// <summary>
+    /// Returns the brush for a chart series. In forced-colors mode, returns
+    /// system high-contrast colors; otherwise returns the normal palette color.
+    /// </summary>
+    public static SolidColorBrush ChartSeries(int seriesIndex)
+    {
+        if (_isForcedColors)
+        {
+            var color = ForcedColorsSeries[((seriesIndex % ForcedColorsSeries.Length) + ForcedColorsSeries.Length) % ForcedColorsSeries.Length];
+            return new SolidColorBrush(color);
+        }
+        return Brush(Palette[seriesIndex % Palette.Count]);
+    }
+
+    /// <summary>
+    /// Returns the dash pattern for a chart series from the default cycle.
+    /// </summary>
+    public static Accessibility.DashStyle ChartSeriesDash(int seriesIndex) =>
+        Accessibility.ChartPalette.DefaultDashCycle[
+            ((seriesIndex % Accessibility.ChartPalette.DefaultDashCycle.Length) + Accessibility.ChartPalette.DefaultDashCycle.Length)
+            % Accessibility.ChartPalette.DefaultDashCycle.Length];
+
+    /// <summary>
+    /// Returns the marker shape for a chart series from the default cycle.
+    /// </summary>
+    public static Accessibility.MarkerShape ChartSeriesMarker(int seriesIndex) =>
+        Accessibility.ChartPalette.DefaultMarkerCycle[
+            ((seriesIndex % Accessibility.ChartPalette.DefaultMarkerCycle.Length) + Accessibility.ChartPalette.DefaultMarkerCycle.Length)
+            % Accessibility.ChartPalette.DefaultMarkerCycle.Length];
+
     /// <summary>Primary text on a chart surface — titles, strong labels.</summary>
     public static SolidColorBrush ChartForeground =>
-        _isDarkTheme ? Gray(235) : Gray(40);
+        _isForcedColors ? new SolidColorBrush(Microsoft.UI.Colors.White)
+        : _isDarkTheme ? Gray(235) : Gray(40);
 
     /// <summary>Secondary text — tick labels, subtle annotations, legend labels.</summary>
     public static SolidColorBrush ChartMutedForeground =>
-        _isDarkTheme ? Gray(190) : Gray(90);
+        _isForcedColors ? new SolidColorBrush(Microsoft.UI.Colors.White)
+        : _isDarkTheme ? Gray(190) : Gray(90);
 
     /// <summary>Axis lines + their tick labels.</summary>
     public static SolidColorBrush ChartAxis =>
-        _isDarkTheme ? Gray(190, 200) : Gray(100, 180);
+        _isForcedColors ? new SolidColorBrush(Microsoft.UI.Colors.White)
+        : _isDarkTheme ? Gray(190, 200) : Gray(100, 180);
 
     /// <summary>Subtle horizontal/vertical gridlines behind the plot.</summary>
     public static SolidColorBrush ChartGrid =>
-        _isDarkTheme ? Gray(200, 50) : Gray(128, 50);
+        _isForcedColors ? new SolidColorBrush(Microsoft.UI.Colors.White)
+        : _isDarkTheme ? Gray(200, 50) : Gray(128, 50);
 
     /// <summary>Solid fill matching the chart's surrounding card — use for gap strokes between colored slices (pie / sunburst / icicle).</summary>
     public static SolidColorBrush ChartSurface =>
@@ -88,6 +152,21 @@ public static class D3Dsl
     /// <summary>Subtle neutral stroke — baselines, separators, non-accented borders.</summary>
     public static SolidColorBrush ChartSubtleStroke =>
         _isDarkTheme ? Gray(90) : Gray(185);
+
+    /// <summary>Selection highlight brush — Highlight in forced-colors, blue otherwise.</summary>
+    public static SolidColorBrush ChartSelection =>
+        _isForcedColors ? new SolidColorBrush(Microsoft.UI.Colors.Cyan)
+        : Brush("#4285f4");
+
+    /// <summary>Selection text — HighlightText in forced-colors, white otherwise.</summary>
+    public static SolidColorBrush ChartSelectionText =>
+        _isForcedColors ? new SolidColorBrush(Microsoft.UI.Colors.Black)
+        : new SolidColorBrush(Microsoft.UI.Colors.White);
+
+    /// <summary>Disabled element brush — GrayText in forced-colors, gray otherwise.</summary>
+    public static SolidColorBrush ChartDisabled =>
+        _isForcedColors ? new SolidColorBrush(Microsoft.UI.Colors.Green)
+        : Gray(160);
 
     public static string Fmt(double v) =>
         Math.Abs(v) >= 1e6 ? (v / 1e6).ToString("0.#", global::System.Globalization.CultureInfo.InvariantCulture) + "M" :

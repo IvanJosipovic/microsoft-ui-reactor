@@ -104,6 +104,14 @@ internal static class SelfTestFixtureRegistry
         "ChartA11y_AutoSummary",
         "ChartA11y_AutoNameFromTitle",
         "ChartA11y_AutoNameFallback",
+        // Chart accessibility (Phase 3 + 4)
+        "ChartA11y_ForcedColorsPalette",
+        "ChartA11y_DoubleEncoding",
+        "ChartA11y_ColorOnlyWarning",
+        "ChartA11y_Scanner_MissingTitle",
+        "ChartA11y_Scanner_ColorOnly",
+        "ChartA11y_Scanner_UnsafePalette",
+        "ChartA11y_Scanner_Clean",
 
         "MdHtml_HtmlGeneration",
         "MdHtml_HtmlInWebView2",
@@ -609,6 +617,14 @@ internal static class SelfTestFixtureRegistry
         "ChartA11y_AutoSummary" => new ChartAccessibilityFixtures.AutoSummary(harness),
         "ChartA11y_AutoNameFromTitle" => new ChartAccessibilityFixtures.AutoNameFromTitle(harness),
         "ChartA11y_AutoNameFallback" => new ChartAccessibilityFixtures.AutoNameFallback(harness),
+        // Chart accessibility (Phase 3 + 4)
+        "ChartA11y_ForcedColorsPalette" => new ChartAccessibilityFixtures.ForcedColorsPalette(harness),
+        "ChartA11y_DoubleEncoding" => new ChartAccessibilityFixtures.DoubleEncoding(harness),
+        "ChartA11y_ColorOnlyWarning" => new ChartAccessibilityFixtures.ColorOnlyWarning(harness),
+        "ChartA11y_Scanner_MissingTitle" => new ChartAccessibilityFixtures.ScannerMissingTitle(harness),
+        "ChartA11y_Scanner_ColorOnly" => new ChartAccessibilityFixtures.ScannerColorOnly(harness),
+        "ChartA11y_Scanner_UnsafePalette" => new ChartAccessibilityFixtures.ScannerUnsafePalette(harness),
+        "ChartA11y_Scanner_Clean" => new ChartAccessibilityFixtures.ScannerClean(harness),
 
         "MdHtml_HtmlGeneration" => new MarkdownHtmlFixtures.HtmlGeneration(harness),
         "MdHtml_HtmlInWebView2" => new MarkdownHtmlFixtures.HtmlInWebView2(harness),

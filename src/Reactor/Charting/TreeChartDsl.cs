@@ -127,13 +127,14 @@ public sealed class TreeChartElement<T> : IChartAccessibilityData
         if (_onReady is { } cb)
             canvas = canvas.Set(c => cb(new TreeChartHandle(c)));
 
-        return canvas;
+        return canvas with { ChartData = this };
     }
 
     // ── IChartAccessibilityData ──────────────────────────────────────
 
     string? IChartAccessibilityData.Name => _title;
     string? IChartAccessibilityData.Description => _description;
+    string IChartAccessibilityData.ChartTypeName => "Tree";
 
     IReadOnlyList<ChartSeriesDescriptor> IChartAccessibilityData.Series
     {
@@ -338,12 +339,12 @@ public sealed class ForceGraphElement : IChartAccessibilityData
 
     string? IChartAccessibilityData.Name => _title;
     string? IChartAccessibilityData.Description => _description;
+    string IChartAccessibilityData.ChartTypeName => "Force graph";
 
     IReadOnlyList<ChartSeriesDescriptor> IChartAccessibilityData.Series
     {
         get
         {
-            if (InputLinks.Count == 0) return [];
 
             // Force graphs expose edges as {source, target, weight} rows
             var points = InputLinks.Select((link, i) =>

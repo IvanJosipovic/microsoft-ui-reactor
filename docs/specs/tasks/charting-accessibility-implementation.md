@@ -152,11 +152,11 @@ values, series headers, and axis labels without any visible table.
 
 ### 2.4 — Auto-name derivation
 
-- [ ] If `.AutomationName()` / `.Title()` not set, derive from:
+- [x] If `.AutomationName()` / `.Title()` not set, derive from:
       1. Parent `Section(title: ...)` if any
       2. Preceding `Heading()` in the same Stack
       3. Fallback: `"{ChartType} chart with {seriesCount} series"`
-- [ ] Implement derivation logic in the reconciler mount path, matching spec 006's
+- [x] Implement derivation logic in the reconciler mount path, matching spec 006's
       form-field derivation rules
 
 ### 2.5 — Selftest fixtures: labels and summary
@@ -193,15 +193,15 @@ values, series headers, and axis labels without any visible table.
 
 ### 3.1 — `IsForcedColors` flag on `D3Dsl`
 
-- [ ] Add `[ThreadStatic] private static bool _isForcedColors` to `D3Dsl.cs`,
+- [x] Add `[ThreadStatic] private static bool _isForcedColors` to `D3Dsl.cs`,
       following the existing `IsDarkTheme` pattern
-- [ ] Add public property `IsForcedColors { get; set; }`
-- [ ] Add `ChartSeries(int seriesIndex)` brush: returns system high-contrast
+- [x] Add public property `IsForcedColors { get; set; }`
+- [x] Add `ChartSeries(int seriesIndex)` brush: returns system high-contrast
       color when `IsForcedColors` (CanvasText, Highlight, LinkText, GrayText
       for series 0–3), normal palette color otherwise
-- [ ] Add `ChartSeriesDash(int seriesIndex)` returning dash pattern from cycle
-- [ ] Add `ChartSeriesMarker(int seriesIndex)` returning marker shape from cycle
-- [ ] When `IsForcedColors`, axes/labels → `CanvasText`, selection → `Highlight` /
+- [x] Add `ChartSeriesDash(int seriesIndex)` returning dash pattern from cycle
+- [x] Add `ChartSeriesMarker(int seriesIndex)` returning marker shape from cycle
+- [x] When `IsForcedColors`, axes/labels → `CanvasText`, selection → `Highlight` /
       `HighlightText`, disabled → `GrayText`
 
 ### 3.2 — Host integration for forced-colors
@@ -211,38 +211,38 @@ values, series headers, and axis labels without any visible table.
 - [ ] Listen for `AccessibilitySettings.HighContrastChanged` and
       `UISettings.ColorValuesChanged`; set `D3Dsl.IsForcedColors` and trigger
       re-render
-- [ ] Propagate automatically — no author opt-in required
+- [x] Propagate automatically — no author opt-in required
 
 ### 3.3 — Double-encoding defaults
 
-- [ ] Default palette: Okabe-Ito 8-color set — define as
+- [x] Default palette: Okabe-Ito 8-color set — define as
       `ChartPalette.OkabeIto` static constant
-- [ ] Default marker shape cycle: circle, square, triangle, diamond, plus, cross,
+- [x] Default marker shape cycle: circle, square, triangle, diamond, plus, cross,
       star, hexagon — always applied unless `.ColorOnly()`
-- [ ] Default dash cycle: solid, `4-2`, `2-2`, `6-2-2-2`, `8-4`, `1-1`
-- [ ] Implement `.ColorOnly()` modifier that disables shape/dash (triggers scanner
+- [x] Default dash cycle: solid, `4-2`, `2-2`, `6-2-2-2`, `8-4`, `1-1`
+- [x] Implement `.ColorOnly()` modifier that disables shape/dash (triggers scanner
       warning `A11Y_CHART_004`)
-- [ ] Implement `.SeriesShapes(params MarkerShape[])` and
+- [x] Implement `.SeriesShapes(params MarkerShape[])` and
       `.SeriesDashes(params DashStyle[])` for explicit overrides
 
 ### 3.4 — `ChartPalette` sealed class
 
-- [ ] Create `src/Reactor/Charting/Accessibility/ChartPalette.cs`
-- [ ] Private constructor — only constructible via curated statics or `Harden()`
-- [ ] Static palettes: `OkabeIto`, `IBM`, `Viridis`, `Cividis`, `FluentDefault`
-- [ ] `.Palette(ChartPalette)` modifier (Tier 1 — curated)
-- [ ] `.SeriesColors(params Color[])` modifier (Tier 3 — scanner-validated)
-- [ ] `.RawColors(params Color[])` modifier (Tier 4 — escape hatch)
+- [x] Create `src/Reactor/Charting/Accessibility/ChartPalette.cs`
+- [x] Private constructor — only constructible via curated statics or `Harden()`
+- [x] Static palettes: `OkabeIto`, `IBM`, `Viridis`, `Cividis`, `FluentDefault`
+- [x] `.Palette(ChartPalette)` modifier (Tier 1 — curated)
+- [x] `.SeriesColors(params Color[])` modifier (Tier 3 — scanner-validated)
+- [x] `.RawColors(params Color[])` modifier (Tier 4 — escape hatch)
 
 ### 3.5 — `ChartPalette.Harden()` utility
 
-- [ ] Implement `Harden(Color[] input, HardenOptions?)` returning `HardenResult`
-- [ ] Algorithm operates in LCH color space
-- [ ] Check pairwise WCAG non-text contrast ≥ 3:1
-- [ ] Check pairwise ΔE ≥ 10 under deuteranopia/protanopia/tritanopia simulation
-- [ ] Check each color vs `ChartBackground` (light + dark) ≥ 3:1
-- [ ] For failing pairs, push lightness apart preserving hue/chroma; max 8 passes
-- [ ] Return `HardenResult` with `Palette`, `Diffs`, `PassedWithoutChanges`
+- [x] Implement `Harden(Color[] input, HardenOptions?)` returning `HardenResult`
+- [x] Algorithm operates in LCH color space
+- [x] Check pairwise WCAG non-text contrast ≥ 3:1
+- [x] Check pairwise ΔE ≥ 10 under deuteranopia/protanopia/tritanopia simulation
+- [x] Check each color vs `ChartBackground` (light + dark) ≥ 3:1
+- [x] For failing pairs, push lightness apart preserving hue/chroma; max 8 passes
+- [x] Return `HardenResult` with `Palette`, `Diffs`, `PassedWithoutChanges`
 
 ### 3.6 — Reduced-motion integration
 
@@ -269,12 +269,12 @@ values, series headers, and axis labels without any visible table.
 
 ### 3.9 — Selftest fixtures: forced-colors and encoding
 
-- [ ] Fixture `ChartA11y_ForcedColorsPalette`: set `D3Dsl.IsForcedColors = true`,
+- [x] Fixture `ChartA11y_ForcedColorsPalette`: set `D3Dsl.IsForcedColors = true`,
       mount a 4-series `LineChart`, assert series brushes use system colors
       (CanvasText, Highlight, LinkText, GrayText)
-- [ ] Fixture `ChartA11y_DoubleEncoding`: mount a multi-series chart, assert each
+- [x] Fixture `ChartA11y_DoubleEncoding`: mount a multi-series chart, assert each
       series has distinct marker shape AND dash pattern in addition to color
-- [ ] Fixture `ChartA11y_ColorOnlyWarning`: use `.ColorOnly()`, verify shape/dash
+- [x] Fixture `ChartA11y_ColorOnlyWarning`: use `.ColorOnly()`, verify shape/dash
       are absent (visual regression anchor)
 - [ ] Fixture `ChartA11y_ReducedMotion`: set reduced-motion, mount chart with
       animation, assert animation skipped (final state reached in < 200ms)
@@ -284,17 +284,17 @@ values, series headers, and axis labels without any visible table.
 
 ### 3.10 — Unit tests: palette and color math
 
-- [ ] Create `tests/Reactor.Tests/D3/ChartPaletteTests.cs`
-- [ ] Test `OkabeIto` palette has 8 colors with pairwise contrast ≥ 3:1
-- [ ] Test `Harden()` with a palette that fails pairwise contrast — verify output
+- [x] Create `tests/Reactor.Tests/D3/ChartPaletteTests.cs`
+- [x] Test `OkabeIto` palette has 8 colors with pairwise contrast ≥ 3:1
+- [x] Test `Harden()` with a palette that fails pairwise contrast — verify output
       passes all checks
-- [ ] Test `Harden()` with colorblind-unsafe palette — verify ΔE ≥ 10 in output
-- [ ] Test `Harden()` with already-safe palette — verify `PassedWithoutChanges`
-- [ ] Test `Harden()` max iterations bound (does not infinite-loop on adversarial
+- [x] Test `Harden()` with colorblind-unsafe palette — verify ΔE ≥ 10 in output
+- [x] Test `Harden()` with already-safe palette — verify `PassedWithoutChanges`
+- [x] Test `Harden()` max iterations bound (does not infinite-loop on adversarial
       input)
-- [ ] Test forced-colors series color assignment (index → system color mapping)
-- [ ] Test dash cycle wraps correctly for > 6 series
-- [ ] Test marker shape cycle wraps correctly for > 8 series
+- [x] Test forced-colors series color assignment (index → system color mapping)
+- [x] Test dash cycle wraps correctly for > 6 series
+- [x] Test marker shape cycle wraps correctly for > 8 series
 
 ---
 
@@ -302,54 +302,54 @@ values, series headers, and axis labels without any visible table.
 
 ### 4.1 — Scanner rule infrastructure
 
-- [ ] Extend `AccessibilityScanner.cs` with chart-specific scan methods
-- [ ] All new rules emit `A11yDiagnostic` in the same JSON shape as existing
+- [x] Extend `AccessibilityScanner.cs` with chart-specific scan methods
+- [x] All new rules emit `A11yDiagnostic` in the same JSON shape as existing
       A11Y_001–008 (same records: `A11yDiagnostic`, `A11yFixSuggestion`,
       `A11yContext`)
-- [ ] Rules fire during the scan pass, not at mount time
+- [x] Rules fire during the scan pass, not at mount time
 
 ### 4.2 — Implement chart scanner rules
 
-- [ ] `A11Y_CHART_001`: Chart has no `Title`/`AutomationName` and no derivable
+- [x] `A11Y_CHART_001`: Chart has no `Title`/`AutomationName` and no derivable
       name → suggest `.Title("...")` or `.AutomationName("...")`
-- [ ] `A11Y_CHART_002`: Chart has no `Description` and `ChartSummarizer` produced
+- [x] `A11Y_CHART_002`: Chart has no `Description` and `ChartSummarizer` produced
       empty → suggest `.Description("...")` or provide accessors with labels
 - [ ] `A11Y_CHART_003`: Chart is `.Interactive()` but `ChartKeyboardNavigator`
       disabled → suggest removing `.DisableKeyboard()`
-- [ ] `A11Y_CHART_004`: `.ColorOnly()` used — color is sole series encoding →
+- [x] `A11Y_CHART_004`: `.ColorOnly()` used — color is sole series encoding →
       suggest removing `.ColorOnly()` or providing `.SeriesShapes(...)`
 - [ ] `A11Y_CHART_005`: `.TightHitTest()` on marker < 24 px → suggest removal
 - [ ] `A11Y_CHART_006`: Focus indicator contrast < 3:1 → suggest default focus ring
 - [ ] `A11Y_CHART_007`: `.AnnounceEveryFrame()` floods live region → suggest removal
-- [ ] `A11Y_CHART_009`: Custom palette fails pairwise WCAG 3:1 → embed
+- [x] `A11Y_CHART_009`: Custom palette fails pairwise WCAG 3:1 → embed
       `Harden()` result in fix suggestion
-- [ ] `A11Y_CHART_010`: Custom palette fails colorblind ΔE < 10 → embed hardened
+- [x] `A11Y_CHART_010`: Custom palette fails colorblind ΔE < 10 → embed hardened
       alternative
-- [ ] `A11Y_CHART_011`: Custom palette fails background contrast → embed hardened
+- [x] `A11Y_CHART_011`: Custom palette fails background contrast → embed hardened
       alternative with adjusted lightness
-- [ ] `A11Y_CHART_012`: `.RawColors()` escape hatch used → informational, no
+- [x] `A11Y_CHART_012`: `.RawColors()` escape hatch used → informational, no
       blocking
 
 ### 4.3 — Selftest fixtures: scanner rules
 
-- [ ] Fixture `ChartA11y_Scanner_MissingTitle`: mount chart without title, run
+- [x] Fixture `ChartA11y_Scanner_MissingTitle`: mount chart without title, run
       scanner, assert `A11Y_CHART_001` emitted with correct fix suggestion
-- [ ] Fixture `ChartA11y_Scanner_ColorOnly`: mount chart with `.ColorOnly()`, run
+- [x] Fixture `ChartA11y_Scanner_ColorOnly`: mount chart with `.ColorOnly()`, run
       scanner, assert `A11Y_CHART_004` emitted
-- [ ] Fixture `ChartA11y_Scanner_UnsafePalette`: mount chart with known-bad
+- [x] Fixture `ChartA11y_Scanner_UnsafePalette`: mount chart with known-bad
       `.SeriesColors(...)`, run scanner, assert `A11Y_CHART_009` or `_010` emitted
       with hardened alternative in the fix JSON
-- [ ] Fixture `ChartA11y_Scanner_Clean`: mount chart with `.Title()` and defaults,
+- [x] Fixture `ChartA11y_Scanner_Clean`: mount chart with `.Title()` and defaults,
       run scanner, assert zero chart-rule violations
-- [ ] Register all in `SelfTestFixtureRegistry`
+- [x] Register all in `SelfTestFixtureRegistry`
 
 ### 4.4 — Unit tests: scanner rule logic
 
-- [ ] Create `tests/Reactor.Tests/D3/ChartScannerRuleTests.cs`
-- [ ] Test each rule's detection logic in isolation (mock `IChartAccessibilityData`)
-- [ ] Test fix suggestion JSON structure matches expected schema
-- [ ] Test that `A11Y_CHART_012` is severity `"info"`, not `"warning"`
-- [ ] Test that scanner skips chart rules for non-chart elements
+- [x] Create `tests/Reactor.Tests/D3/ChartScannerRuleTests.cs`
+- [x] Test each rule's detection logic in isolation (mock `IChartAccessibilityData`)
+- [x] Test fix suggestion JSON structure matches expected schema
+- [x] Test that `A11Y_CHART_012` is severity `"info"`, not `"warning"`
+- [x] Test that scanner skips chart rules for non-chart elements
 
 ---
 

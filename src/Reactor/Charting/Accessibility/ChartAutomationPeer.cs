@@ -37,12 +37,13 @@ internal sealed class ChartAutomationPeer : FrameworkElementAutomationPeer, IGri
             return _data.Name;
 
         // Fallback: derive from chart type + series count
+        var chartType = _data.ChartTypeName;
         var seriesCount = _data.Series.Count;
         return seriesCount switch
         {
-            0 => "Empty chart",
-            1 => $"Chart with 1 series",
-            _ => $"Chart with {seriesCount} series",
+            0 => $"Empty {chartType.ToLowerInvariant()} chart",
+            1 => $"{chartType} chart with 1 series",
+            _ => $"{chartType} chart with {seriesCount} series",
         };
     }
 
