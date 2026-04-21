@@ -468,9 +468,15 @@ public static class AccessibilityScanner
         CheckChartTitle(canvas, chartData, ctx, findings);
         CheckChartDescription(canvas, chartData, ctx, findings);
         CheckChartColorOnly(canvas, ctx, findings);
-        CheckChartPaletteContrast(canvas, ctx, findings);
-        CheckChartPaletteColorblind(canvas, ctx, findings);
-        CheckChartPaletteBackground(canvas, ctx, findings);
+
+        // Skip palette checks when .RawColors() opted out — those would produce
+        // incorrect warnings for charts that intentionally use custom colors.
+        if (!canvas.IsRawColors)
+        {
+            CheckChartPaletteContrast(canvas, ctx, findings);
+            CheckChartPaletteColorblind(canvas, ctx, findings);
+            CheckChartPaletteBackground(canvas, ctx, findings);
+        }
         CheckChartRawColors(canvas, ctx, findings);
         CheckChartInteractiveKeyboard(canvas, ctx, findings);
         CheckChartTightHitTest(canvas, ctx, findings);
@@ -515,8 +521,7 @@ public static class AccessibilityScanner
 
         // Does the auto-summarizer produce a non-empty summary?
         var summary = Charting.Accessibility.ChartSummarizer.Summarize(data);
-        var formatted = Charting.Accessibility.ChartSummarizer.FormatSummary(summary);
-        if (!string.IsNullOrWhiteSpace(formatted) && formatted != "Empty chart chart.")
+        if (data.Series.Count > 0)
             return;
 
         findings.Add(new A11yDiagnostic

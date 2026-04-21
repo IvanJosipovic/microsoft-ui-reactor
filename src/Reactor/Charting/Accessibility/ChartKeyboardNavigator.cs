@@ -292,9 +292,7 @@ internal static class ChartKeyboardNavigator
 
         if (point is not null && xAxis is not null && (xAxis.Max - xAxis.Min) > 1e-10)
         {
-            // Map the point's x position via the axis range
-            double xFraction = (point.YValue - xAxis.Min) / (xAxis.Max - xAxis.Min);
-            // For categorical x axes, fall back to index-based positioning
+            // For categorical x axes, use index-based positioning
             x = maxPoints > 1
                 ? plotLeft + (double)pointIndex / (maxPoints - 1) * plotWidth
                 : plotLeft + plotWidth / 2;

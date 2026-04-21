@@ -59,9 +59,19 @@ internal static class ChartSummarizer
             return $"Empty {type.ToLowerInvariant()} chart.";
 
         var totalPoints = data.Series.Sum(s => s.Points.Count);
-        var pointsDesc = data.Series.Count == 1
-            ? $"{totalPoints} points"
-            : $"{totalPoints} points each";
+        string pointsDesc;
+        if (data.Series.Count == 1)
+        {
+            pointsDesc = $"{totalPoints} points";
+        }
+        else
+        {
+            // For multiple series, report per-series counts if uniform, else total
+            var counts = data.Series.Select(s => s.Points.Count).Distinct().ToArray();
+            pointsDesc = counts.Length == 1
+                ? $"{counts[0]} points each"
+                : $"{totalPoints} points total";
+        }
 
         return $"{type} chart, {seriesCount} series, {pointsDesc}.";
     }

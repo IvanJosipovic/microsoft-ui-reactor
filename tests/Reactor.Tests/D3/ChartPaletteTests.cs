@@ -2,7 +2,7 @@ using Microsoft.UI.Reactor.Charting.Accessibility;
 using Microsoft.UI.Reactor.Charting.D3;
 using Xunit;
 
-namespace Reactor.Tests.D3;
+namespace Microsoft.UI.Reactor.Tests.D3;
 
 public class ChartPaletteTests
 {

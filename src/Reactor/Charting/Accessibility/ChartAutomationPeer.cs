@@ -36,8 +36,10 @@ internal sealed class ChartAutomationPeer : FrameworkElementAutomationPeer, IGri
     protected override string GetNameCore()
     {
         // Priority: explicit AutomationName > Title > auto-derived fallback
+        // Ignore "Plot area" — that's an auto-set structural label from D3Dsl,
+        // not an intentional chart name.
         var explicitName = base.GetNameCore();
-        if (!string.IsNullOrWhiteSpace(explicitName))
+        if (!string.IsNullOrWhiteSpace(explicitName) && explicitName != "Plot area")
             return explicitName;
 
         if (!string.IsNullOrWhiteSpace(_data.Name))
@@ -56,7 +58,13 @@ internal sealed class ChartAutomationPeer : FrameworkElementAutomationPeer, IGri
 
     protected override string GetFullDescriptionCore()
     {
-        return _data.Description ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(_data.Description))
+            return _data.Description;
+
+        // Auto-generate a summary when no explicit description is set
+        var summary = ChartSummarizer.Summarize(_data, _data.ChartTypeName);
+        var formatted = ChartSummarizer.FormatSummary(summary);
+        return string.IsNullOrWhiteSpace(formatted) ? string.Empty : formatted;
     }
 
     protected override IList<AutomationPeer> GetChildrenCore()

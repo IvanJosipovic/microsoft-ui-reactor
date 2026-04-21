@@ -213,13 +213,21 @@ public sealed class ChartPalette
     /// <summary>
     /// Creates a palette from user-provided colors, to be scanner-validated (Tier 3).
     /// </summary>
-    public static ChartPalette FromColors(params D3.D3Color[] colors) => new([.. colors]);
+    public static ChartPalette FromColors(params D3.D3Color[] colors)
+    {
+        if (colors.Length == 0) throw new ArgumentException("At least one color is required.", nameof(colors));
+        return new([.. colors]);
+    }
 
     /// <summary>
     /// Creates a palette from raw colors — escape hatch with no validation (Tier 4).
     /// Triggers scanner warning A11Y_CHART_012.
     /// </summary>
-    public static ChartPalette FromRaw(params D3.D3Color[] colors) => new([.. colors]);
+    public static ChartPalette FromRaw(params D3.D3Color[] colors)
+    {
+        if (colors.Length == 0) throw new ArgumentException("At least one color is required.", nameof(colors));
+        return new([.. colors]);
+    }
 
     // ── Harden utility ──────────────────────────────────────────────
 
