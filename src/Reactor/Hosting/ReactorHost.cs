@@ -41,8 +41,9 @@ public sealed class ReactorHost : IDisposable
     // Accessibility: forced-colors and reduced-motion auto-propagation
     private global::Windows.UI.ViewManagement.AccessibilitySettings? _accessibilitySettings;
     private global::Windows.UI.ViewManagement.UISettings? _uiSettings;
-    private bool _isForcedColors;
-    private bool _isReducedMotion;
+    private volatile bool _isForcedColors;
+    private volatile bool _isReducedMotion;
+    private Charting.ForcedColorsTheme? _forcedColorsTheme;
 
     // Captured AnimationScope curve — when a state setter is called inside
     // WithAnimation, the scope is synchronous but the render is async.
@@ -144,6 +145,8 @@ public sealed class ReactorHost : IDisposable
         {
             _accessibilitySettings = new global::Windows.UI.ViewManagement.AccessibilitySettings();
             _isForcedColors = _accessibilitySettings.HighContrast;
+            if (_isForcedColors)
+                _forcedColorsTheme = Charting.ForcedColorsTheme.FromSystem();
             _accessibilitySettings.HighContrastChanged += OnHighContrastChanged;
         }
         catch { /* headless / unit-test host — no accessibility settings */ }
@@ -249,6 +252,7 @@ public sealed class ReactorHost : IDisposable
             // rendering picks up forced-colors / reduced-motion automatically.
             Charting.D3Dsl.IsForcedColors = _isForcedColors;
             Charting.D3Dsl.IsReducedMotion = _isReducedMotion;
+            Charting.D3Dsl.ForcedColors = _forcedColorsTheme;
 
             if (_rootComponent is not null)
             {
@@ -426,6 +430,7 @@ public sealed class ReactorHost : IDisposable
         global::Windows.UI.ViewManagement.AccessibilitySettings sender, object args)
     {
         _isForcedColors = sender.HighContrast;
+        _forcedColorsTheme = _isForcedColors ? Charting.ForcedColorsTheme.FromSystem() : null;
         _logger.LogDebug("High-contrast changed to {IsHighContrast} — re-rendering", _isForcedColors);
         RequestRender();
     }
@@ -438,7 +443,10 @@ public sealed class ReactorHost : IDisposable
         _isReducedMotion = !sender.AnimationsEnabled;
         // High-contrast palette may also change — re-read to be safe.
         if (_accessibilitySettings is { } a11y)
+        {
             _isForcedColors = a11y.HighContrast;
+            _forcedColorsTheme = _isForcedColors ? Charting.ForcedColorsTheme.FromSystem() : null;
+        }
         RequestRender();
     }
 

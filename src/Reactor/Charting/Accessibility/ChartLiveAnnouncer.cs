@@ -10,6 +10,7 @@ namespace Microsoft.UI.Reactor.Charting.Accessibility;
 internal sealed class ChartLiveAnnouncer
 {
     private readonly Stopwatch _lastAnnounceTimer = new();
+    private readonly object _lock = new();
     private string? _pendingMessage;
     private ChartAnnouncePriority _pendingPriority;
     private bool _animationInFlight;
@@ -31,36 +32,39 @@ internal sealed class ChartLiveAnnouncer
     /// </summary>
     public void Announce(string message, ChartAnnouncePriority priority = ChartAnnouncePriority.Polite)
     {
-        // Assertive messages (errors) bypass debounce
-        if (priority == ChartAnnouncePriority.Assertive)
+        lock (_lock)
         {
+            // Assertive messages (errors) bypass debounce
+            if (priority == ChartAnnouncePriority.Assertive)
+            {
+                CurrentMessage = message;
+                CurrentPriority = priority;
+                _lastAnnounceTimer.Restart();
+                _pendingMessage = null;
+                return;
+            }
+
+            // Suppress during animation unless reduced motion
+            if (_animationInFlight)
+            {
+                _pendingMessage = message;
+                _pendingPriority = priority;
+                return;
+            }
+
+            // Debounce: if within the window, replace pending message
+            if (_lastAnnounceTimer.IsRunning && _lastAnnounceTimer.ElapsedMilliseconds < DebounceMs)
+            {
+                _pendingMessage = message;
+                _pendingPriority = priority;
+                return;
+            }
+
             CurrentMessage = message;
             CurrentPriority = priority;
             _lastAnnounceTimer.Restart();
             _pendingMessage = null;
-            return;
         }
-
-        // Suppress during animation unless reduced motion
-        if (_animationInFlight)
-        {
-            _pendingMessage = message;
-            _pendingPriority = priority;
-            return;
-        }
-
-        // Debounce: if within the window, replace pending message
-        if (_lastAnnounceTimer.IsRunning && _lastAnnounceTimer.ElapsedMilliseconds < DebounceMs)
-        {
-            _pendingMessage = message;
-            _pendingPriority = priority;
-            return;
-        }
-
-        CurrentMessage = message;
-        CurrentPriority = priority;
-        _lastAnnounceTimer.Restart();
-        _pendingMessage = null;
     }
 
     /// <summary>
@@ -69,21 +73,24 @@ internal sealed class ChartLiveAnnouncer
     /// </summary>
     public (string? Message, ChartAnnouncePriority Priority) Flush()
     {
-        if (_pendingMessage is null)
-            return (null, ChartAnnouncePriority.Polite);
-
-        if (!_lastAnnounceTimer.IsRunning || _lastAnnounceTimer.ElapsedMilliseconds >= DebounceMs)
+        lock (_lock)
         {
-            var msg = _pendingMessage;
-            var pri = _pendingPriority;
-            CurrentMessage = msg;
-            CurrentPriority = pri;
-            _pendingMessage = null;
-            _lastAnnounceTimer.Restart();
-            return (msg, pri);
-        }
+            if (_pendingMessage is null)
+                return (null, ChartAnnouncePriority.Polite);
 
-        return (null, ChartAnnouncePriority.Polite);
+            if (!_lastAnnounceTimer.IsRunning || _lastAnnounceTimer.ElapsedMilliseconds >= DebounceMs)
+            {
+                var msg = _pendingMessage;
+                var pri = _pendingPriority;
+                CurrentMessage = msg;
+                CurrentPriority = pri;
+                _pendingMessage = null;
+                _lastAnnounceTimer.Restart();
+                return (msg, pri);
+            }
+
+            return (null, ChartAnnouncePriority.Polite);
+        }
     }
 
     /// <summary>
@@ -92,42 +99,51 @@ internal sealed class ChartLiveAnnouncer
     /// </summary>
     public void RequestSummary(string summaryText)
     {
-        // Queue after current announcement completes
-        if (_lastAnnounceTimer.IsRunning && _lastAnnounceTimer.ElapsedMilliseconds < DebounceMs)
+        lock (_lock)
         {
-            _pendingMessage = summaryText;
-            _pendingPriority = ChartAnnouncePriority.Polite;
-        }
-        else
-        {
-            CurrentMessage = summaryText;
-            CurrentPriority = ChartAnnouncePriority.Polite;
-            _lastAnnounceTimer.Restart();
+            // Queue after current announcement completes
+            if (_lastAnnounceTimer.IsRunning && _lastAnnounceTimer.ElapsedMilliseconds < DebounceMs)
+            {
+                _pendingMessage = summaryText;
+                _pendingPriority = ChartAnnouncePriority.Polite;
+            }
+            else
+            {
+                CurrentMessage = summaryText;
+                CurrentPriority = ChartAnnouncePriority.Polite;
+                _lastAnnounceTimer.Restart();
+            }
         }
     }
 
     /// <summary>Mark animation as in-flight. Suppresses intermediate announcements.</summary>
     public void BeginAnimation()
     {
-        _animationInFlight = true;
+        lock (_lock)
+        {
+            _animationInFlight = true;
+        }
     }
 
     /// <summary>Mark animation as settled. Flushes any pending announcement.</summary>
     public void EndAnimation()
     {
-        _animationInFlight = false;
-        // Flush pending message that was suppressed during animation
-        if (_pendingMessage is not null)
+        lock (_lock)
         {
-            CurrentMessage = _pendingMessage;
-            CurrentPriority = _pendingPriority;
-            _pendingMessage = null;
-            _lastAnnounceTimer.Restart();
+            _animationInFlight = false;
+            // Flush pending message that was suppressed during animation
+            if (_pendingMessage is not null)
+            {
+                CurrentMessage = _pendingMessage;
+                CurrentPriority = _pendingPriority;
+                _pendingMessage = null;
+                _lastAnnounceTimer.Restart();
+            }
         }
     }
 
     /// <summary>Whether an animation is currently in flight.</summary>
-    public bool IsAnimating => _animationInFlight;
+    public bool IsAnimating { get { lock (_lock) { return _animationInFlight; } } }
 
     // ── Message templates ──────────────────────────────────────────
 

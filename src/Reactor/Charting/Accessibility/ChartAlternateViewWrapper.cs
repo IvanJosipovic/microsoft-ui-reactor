@@ -64,11 +64,14 @@ internal static class ChartAlternateViewWrapper
             return Factories.VStack(
                 chart.Visible(!isShowingAlternate),
                 alternate.Visible(isShowingAlternate),
-                // Hidden text block for live-region announcement
+                // Visually hidden text block for live-region announcement.
+                // Uses 1×1 size at far offscreen position instead of zero-size,
+                // because some screen readers skip zero-dimension elements.
                 Factories.TextBlock(announcement)
                     .LiveRegion(Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite)
                     .AccessibilityView(AccessibilityView.Content)
-                    .Width(0).Height(0).Opacity(0)
+                    .Width(1).Height(1)
+                    .Margin(-10000, 0, 0, 0)
             ).OnKeyDown(HandleKeyDown);
         });
     }

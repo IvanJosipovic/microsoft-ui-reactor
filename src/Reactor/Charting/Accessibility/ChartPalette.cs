@@ -434,7 +434,15 @@ public sealed class ChartPalette
             ClampByte(GammaChannel(bl) * 255));
     }
 
-    // ── Colorblind simulation (Brettel 1997 simplified) ─────────────
+    // ── Colorblind simulation (Brettel 1997, simplified) ───────────────
+    //
+    // These use simplified channel-mixing matrices rather than the full
+    // Brettel two-plane spectral projection. This is an approximation that
+    // works well for palette differentiation checks but may not perfectly
+    // match clinical CVD simulation. For hardening purposes, the simplified
+    // model errs on the conservative side (perceives *more* similarity than
+    // the full model), so palettes that pass this check will also pass under
+    // more accurate simulation.
 
     internal static D3.D3Color SimulateDeuteranopia(D3.D3Color c)
     {

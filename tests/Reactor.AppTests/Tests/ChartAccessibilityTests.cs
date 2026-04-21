@@ -58,13 +58,11 @@ public class ChartAccessibilityTests : AppTestBase
         Assert.IsNotNull(chart, "Line chart element should be findable via UIA");
 
         var name = chart.GetAttribute("Name");
-        // The chart may expose "Plot area" as its Name since that's set on the Canvas,
-        // or the Title may override it through the peer. Accept either as valid.
         Assert.IsNotNull(name,
             "WCAG 1.1.1: Chart must have an accessible name visible to screen readers");
         Assert.IsTrue(
-            name.Contains("Monthly Revenue") || name.Contains("Plot area"),
-            $"WCAG 1.1.1: Chart Name should contain 'Monthly Revenue' or 'Plot area', got: '{name}'");
+            name.Contains("Monthly Revenue"),
+            $"WCAG 1.1.1: Chart Name should contain 'Monthly Revenue' from .Title(), got: '{name}'");
     }
 
     // ════════════════════════════════════════════════════════════════════

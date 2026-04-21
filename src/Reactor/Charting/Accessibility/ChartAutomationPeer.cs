@@ -175,12 +175,14 @@ internal sealed class ChartAutomationPeer : FrameworkElementAutomationPeer, IGri
     /// </summary>
     internal void UpdateViewport(double hPercent, double vPercent, double hViewSize, double vViewSize)
     {
+        double oldH = _horizontalScrollPercent;
+        double oldV = _verticalScrollPercent;
         _horizontalScrollPercent = hPercent;
         _verticalScrollPercent = vPercent;
         _horizontalViewSize = Math.Clamp(hViewSize, 0, 100);
         _verticalViewSize = Math.Clamp(vViewSize, 0, 100);
-        RaisePropertyChangedEvent(ScrollPatternIdentifiers.HorizontalScrollPercentProperty,
-            _horizontalScrollPercent, hPercent);
+        RaisePropertyChangedEvent(ScrollPatternIdentifiers.HorizontalScrollPercentProperty, oldH, hPercent);
+        RaisePropertyChangedEvent(ScrollPatternIdentifiers.VerticalScrollPercentProperty, oldV, vPercent);
     }
 
     // ── IScrollProvider ──────────────────────────────────────────────
@@ -194,12 +196,18 @@ internal sealed class ChartAutomationPeer : FrameworkElementAutomationPeer, IGri
 
     public void SetScrollPercent(double horizontalPercent, double verticalPercent)
     {
-        // Charts are read-only for scroll — pan is done via keyboard/mouse
+        // Charts handle panning via keyboard/mouse — AT-initiated scroll is not
+        // supported. Use keyboard arrow keys with Alt modifier to pan.
+        throw new InvalidOperationException(
+            "Chart panning is not available via IScrollProvider. Use keyboard navigation (Alt+Arrow keys) to pan.");
     }
 
     public void Scroll(ScrollAmount horizontalAmount, ScrollAmount verticalAmount)
     {
-        // Charts are read-only for scroll — pan is done via keyboard/mouse
+        // Charts handle panning via keyboard/mouse — AT-initiated scroll is not
+        // supported. Use keyboard arrow keys with Alt modifier to pan.
+        throw new InvalidOperationException(
+            "Chart panning is not available via IScrollProvider. Use keyboard navigation (Alt+Arrow keys) to pan.");
     }
 }
 

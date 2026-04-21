@@ -270,30 +270,67 @@ internal static class ChartKeyboardNavigator
         double chartWidth, double chartHeight,
         int seriesCount, int maxPoints)
     {
-        // Compute approximate position based on chart geometry
-        double plotLeft = 40, plotTop = 20;
-        double plotWidth = chartWidth - 60;
-        double plotHeight = chartHeight - 50;
+        // Derive plot area from axes if available, otherwise fall back to
+        // proportional estimation based on chart dimensions.
+        var xAxis = chartData.Axes.FirstOrDefault(a => a.AxisType == ChartAxisType.X);
+        var yAxis = chartData.Axes.FirstOrDefault(a => a.AxisType == ChartAxisType.Y);
 
-        double x = maxPoints > 1
-            ? plotLeft + (double)pointIndex / (maxPoints - 1) * plotWidth
-            : plotLeft + plotWidth / 2;
+        // Estimate plot margins proportionally to chart size.
+        // Y-axis labels are typically ~10% of width; X-axis labels ~12% of height.
+        double plotLeft = chartWidth * 0.10;
+        double plotTop = chartHeight * 0.06;
+        double plotWidth = chartWidth * 0.85;
+        double plotHeight = chartHeight * 0.80;
 
-        double y = seriesCount > 1
-            ? plotTop + (double)seriesIndex / (seriesCount - 1) * plotHeight
-            : plotTop + plotHeight / 2;
+        double x, y;
+
+        // Use actual data values + axis range when available for precise positioning
+        var series = chartData.Series;
+        var point = (seriesIndex < series.Count && pointIndex < series[seriesIndex].Points.Count)
+            ? series[seriesIndex].Points[pointIndex]
+            : null;
+
+        if (point is not null && xAxis is not null && (xAxis.Max - xAxis.Min) > 1e-10)
+        {
+            // Map the point's x position via the axis range
+            double xFraction = (point.YValue - xAxis.Min) / (xAxis.Max - xAxis.Min);
+            // For categorical x axes, fall back to index-based positioning
+            x = maxPoints > 1
+                ? plotLeft + (double)pointIndex / (maxPoints - 1) * plotWidth
+                : plotLeft + plotWidth / 2;
+        }
+        else
+        {
+            x = maxPoints > 1
+                ? plotLeft + (double)pointIndex / (maxPoints - 1) * plotWidth
+                : plotLeft + plotWidth / 2;
+        }
+
+        if (point is not null && yAxis is not null && (yAxis.Max - yAxis.Min) > 1e-10)
+        {
+            // Map y value within the axis range (inverted: high values at top)
+            double yFraction = (point.YValue - yAxis.Min) / (yAxis.Max - yAxis.Min);
+            y = plotTop + (1 - yFraction) * plotHeight;
+        }
+        else
+        {
+            y = seriesCount > 1
+                ? plotTop + (double)seriesIndex / (seriesCount - 1) * plotHeight
+                : plotTop + plotHeight / 2;
+        }
 
         const double outerRadius = 14;
         const double innerRadius = 12;
 
         // Double-ring for 3:1 contrast on any background
+        var fc = D3Dsl.ForcedColors ?? ForcedColorsTheme.Default;
         var darkBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(
             D3Dsl.IsForcedColors
-                ? Microsoft.UI.Colors.White
+                ? fc.Foreground
                 : global::Windows.UI.Color.FromArgb(255, 0, 0, 0));
         var lightBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(
             D3Dsl.IsForcedColors
-                ? Microsoft.UI.Colors.Cyan
+                ? fc.Highlight
                 : global::Windows.UI.Color.FromArgb(255, 255, 255, 255));
 
         // Use D3Circle for the rings (no fill, stroke only)

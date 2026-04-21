@@ -766,7 +766,11 @@ public sealed class RenderContext
             // UISettings.ColorValuesChanged also fires for AnimationsEnabled changes
             state.Settings.ColorValuesChanged += OnChanged;
             state.IsReducedMotion = !state.Settings.AnimationsEnabled;
-            return () => state.Settings.ColorValuesChanged -= OnChanged;
+            return () =>
+            {
+                if (state.Settings is not null)
+                    state.Settings.ColorValuesChanged -= OnChanged;
+            };
         });
 
         return state;
