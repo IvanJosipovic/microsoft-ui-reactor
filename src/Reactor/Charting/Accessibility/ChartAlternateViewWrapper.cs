@@ -72,7 +72,7 @@ internal static class ChartAlternateViewWrapper
                     .AccessibilityView(AccessibilityView.Content)
                     .Width(1).Height(1)
                     .Margin(-10000, 0, 0, 0)
-            ).OnKeyDown(HandleKeyDown);
+            ).IsTabStop(true).OnKeyDown(HandleKeyDown);
         });
     }
 

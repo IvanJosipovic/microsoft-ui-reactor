@@ -91,8 +91,8 @@ return ChartDsl.WithAlternateView(chart, table);
     /// </summary>
     private static Element BuildDataTable(string[] months, string[] seriesNames, double[][] allSeries)
     {
-        var headerBrush = ChartMutedForeground;
-        var textBrush = ChartForeground;
+        var headerBrush = Theme.SecondaryText;
+        var textBrush = Theme.PrimaryText;
 
         // Column definitions: Month + one per series
         var colDefs = Enumerable.Range(0, seriesNames.Length + 1)
