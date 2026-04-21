@@ -569,6 +569,51 @@ internal static class SelfTestFixtureRegistry
         "CovBoost2_ElementPoolInteractiveReset",
         "CovBoost2_DataGridSearchSort",
         "CovBoost2_FocusTrapExercise",
+
+        // Input modifiers — spec 027 Tier 1
+        "PointerMod_DoubleTappedAutoEnables",
+        "PointerMod_RightTappedAutoEnables",
+        "PointerMod_HoldingAutoEnables",
+        "PointerMod_ShapePointerHandlerAutoFillsTransparent",
+        "PointerMod_ShapeWithExplicitFillNotOverwritten",
+        "PointerMod_GotLostFocusFires",
+        "PointerMod_AutoEnableClearsOnDetach",
+
+        // Trampoline dispatch — spec 027 Tier 2
+        "Trampoline_LatestHandlerWinsAfterRerender",
+        "Trampoline_HandlerRemovedBecomesNoOp",
+        "Trampoline_ReRenderSameControlUnderlyingRefStable",
+
+        // Gesture recognizers — spec 027 Tier 3
+        "Gesture_OnPanSetsManipulationMode",
+        "Gesture_OnPanWithInertiaAddsInertiaFlag",
+        "Gesture_OnPinchSetsScaleFlag",
+        "Gesture_OnRotateSetsRotateFlag",
+        "Gesture_PanAndPinchCombine",
+
+        // LongPress + focus — spec 027 Tier 3 Part 2 / Tier 5 (Phase 4)
+        "Gesture_OnLongPressAutoEnablesHolding",
+        "Gesture_OnLongPressMouseEmulationOptIn",
+        "Focus_AccessKeySetsProperty",
+        "Focus_IsTabStopFalseSkipsTabNav",
+        "Focus_XYFocusKeyboardNavigationSets",
+        "Focus_RefModifierPopulatesOnMount",
+        "Focus_FocusManagerFocusReturnsTrueWhenMounted",
+
+        // Commanding coverage — spec 027 Tier 4 (Phase 5)
+        "Commanding_SplitButtonCommandInvokesExecute",
+        "Commanding_HyperlinkButtonCommandInvokesExecute",
+        "Commanding_ToggleButtonCommandFiresOnToggle",
+        "Commanding_RepeatButtonCommandInvokesExecute",
+        "Commanding_DisabledCommandDisablesControl",
+
+        // Drag-and-drop — spec 027 Tier 6 (Phase 6a)
+        "DragDrop_OnDragStartAutoSetsCanDrag",
+        "DragDrop_OnDropAutoSetsAllowDrop",
+        "DragDrop_RawOnDropAutoSetsAllowDrop",
+        "DragDrop_DragEnterHandlerAutoSetsAllowDrop",
+        "DragDrop_SourceAndTargetOnSameElement",
+        "DragDrop_DraggableWhenWithoutPayloadStillSetsCanDrag",
     ];
 
     public static SelfTestFixtureBase? Create(string name, Harness harness) => name switch
@@ -1134,6 +1179,52 @@ internal static class SelfTestFixtureRegistry
         "CovBoost2_ElementPoolInteractiveReset" => new CoverageBoostFixtures2.ElementPoolInteractiveReset(harness),
         "CovBoost2_DataGridSearchSort" => new CoverageBoostFixtures2.DataGridSearchSort(harness),
         "CovBoost2_FocusTrapExercise" => new CoverageBoostFixtures2.SplitViewExercise(harness),
+
+        // Input modifiers — spec 027 Tier 1
+        "PointerMod_DoubleTappedAutoEnables" => new PointerModifierFixtures.DoubleTappedAutoEnables(harness),
+        "PointerMod_RightTappedAutoEnables" => new PointerModifierFixtures.RightTappedAutoEnables(harness),
+        "PointerMod_HoldingAutoEnables" => new PointerModifierFixtures.HoldingAutoEnables(harness),
+        "PointerMod_ShapePointerHandlerAutoFillsTransparent" => new PointerModifierFixtures.ShapePointerHandlerAutoFillsTransparent(harness),
+        "PointerMod_ShapeWithExplicitFillNotOverwritten" => new PointerModifierFixtures.ShapeWithExplicitFillNotOverwritten(harness),
+        "PointerMod_GotLostFocusFires" => new PointerModifierFixtures.GotLostFocusFires(harness),
+        "PointerMod_AutoEnableClearsOnDetach" => new PointerModifierFixtures.AutoEnableClearsOnDetach(harness),
+
+        // Trampoline dispatch — spec 027 Tier 2
+        "Trampoline_LatestHandlerWinsAfterRerender" => new TrampolineFixtures.LatestHandlerWinsAfterRerender(harness),
+        "Trampoline_HandlerRemovedBecomesNoOp" => new TrampolineFixtures.HandlerRemovedBecomesNoOp(harness),
+        "Trampoline_ReRenderSameControlUnderlyingRefStable" => new TrampolineFixtures.ReRenderSameControlUnderlyingRefStable(harness),
+
+        // Gesture recognizers — spec 027 Tier 3
+        "Gesture_OnPanSetsManipulationMode" => new GestureFixtures.OnPanSetsManipulationMode(harness),
+        "Gesture_OnPanWithInertiaAddsInertiaFlag" => new GestureFixtures.OnPanWithInertiaAddsInertiaFlag(harness),
+        "Gesture_OnPinchSetsScaleFlag" => new GestureFixtures.OnPinchSetsScaleFlag(harness),
+        "Gesture_OnRotateSetsRotateFlag" => new GestureFixtures.OnRotateSetsRotateFlag(harness),
+        "Gesture_PanAndPinchCombine" => new GestureFixtures.PanAndPinchCombine(harness),
+
+        // LongPress + focus — spec 027 Tier 3 Part 2 / Tier 5 (Phase 4)
+        "Gesture_OnLongPressAutoEnablesHolding" => new GestureFixtures.OnLongPressAutoEnablesHolding(harness),
+        "Gesture_OnLongPressMouseEmulationOptIn" => new GestureFixtures.OnLongPressMouseEmulationOptIn(harness),
+        "Focus_AccessKeySetsProperty" => new FocusFixtures.AccessKeySetsProperty(harness),
+        "Focus_IsTabStopFalseSkipsTabNav" => new FocusFixtures.IsTabStopFalseSkipsTabNav(harness),
+        "Focus_XYFocusKeyboardNavigationSets" => new FocusFixtures.XYFocusKeyboardNavigationSets(harness),
+        "Focus_RefModifierPopulatesOnMount" => new FocusFixtures.RefModifierPopulatesOnMount(harness),
+        "Focus_FocusManagerFocusReturnsTrueWhenMounted" => new FocusFixtures.FocusManagerFocusReturnsTrueWhenMounted(harness),
+
+        // Commanding coverage — spec 027 Tier 4 (Phase 5)
+        "Commanding_SplitButtonCommandInvokesExecute" => new CommandingCoverageFixtures.SplitButtonCommandInvokesExecute(harness),
+        "Commanding_HyperlinkButtonCommandInvokesExecute" => new CommandingCoverageFixtures.HyperlinkButtonCommandInvokesExecute(harness),
+        "Commanding_ToggleButtonCommandFiresOnToggle" => new CommandingCoverageFixtures.ToggleButtonCommandFiresOnToggle(harness),
+        "Commanding_RepeatButtonCommandInvokesExecute" => new CommandingCoverageFixtures.RepeatButtonCommandInvokesExecute(harness),
+        "Commanding_DisabledCommandDisablesControl" => new CommandingCoverageFixtures.DisabledCommandDisablesControl(harness),
+
+        // Drag-and-drop — spec 027 Tier 6 (Phase 6a)
+        "DragDrop_OnDragStartAutoSetsCanDrag" => new DragDropFixtures.OnDragStartAutoSetsCanDrag(harness),
+        "DragDrop_OnDropAutoSetsAllowDrop" => new DragDropFixtures.OnDropAutoSetsAllowDrop(harness),
+        "DragDrop_RawOnDropAutoSetsAllowDrop" => new DragDropFixtures.RawOnDropAutoSetsAllowDrop(harness),
+        "DragDrop_DragEnterHandlerAutoSetsAllowDrop" => new DragDropFixtures.DragEnterHandlerAutoSetsAllowDrop(harness),
+        "DragDrop_SourceAndTargetOnSameElement" => new DragDropFixtures.SourceAndTargetOnSameElement(harness),
+        "DragDrop_DraggableWhenWithoutPayloadStillSetsCanDrag" => new DragDropFixtures.DraggableWhenWithoutPayloadStillSetsCanDrag(harness),
+
         _ => null,
     };
 }

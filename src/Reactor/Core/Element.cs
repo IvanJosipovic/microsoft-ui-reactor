@@ -543,8 +543,33 @@ public record ElementModifiers
     public Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs>? OnPointerPressed { get; init; }
     public Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs>? OnPointerMoved { get; init; }
     public Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs>? OnPointerReleased { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs>? OnPointerEntered { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs>? OnPointerExited { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs>? OnPointerCanceled { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs>? OnPointerCaptureLost { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs>? OnPointerWheelChanged { get; init; }
     public Action<object, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs>? OnTapped { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs>? OnDoubleTapped { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs>? OnRightTapped { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.HoldingRoutedEventArgs>? OnHolding { get; init; }
     public Action<object, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs>? OnKeyDown { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs>? OnKeyUp { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs>? OnPreviewKeyDown { get; init; }
+    public Action<object, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs>? OnPreviewKeyUp { get; init; }
+    public Action<UIElement, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs>? OnCharacterReceived { get; init; }
+    public Action<object, RoutedEventArgs>? OnGotFocus { get; init; }
+    public Action<object, RoutedEventArgs>? OnLostFocus { get; init; }
+
+    // ── Declarative gesture recognizers (spec 027 Tier 3) ───────────
+    // Drive a single ManipulationStarted/Delta/Completed subscription per element.
+    public Microsoft.UI.Reactor.Input.PanGestureConfig? Pan { get; init; }
+    public Microsoft.UI.Reactor.Input.PinchGestureConfig? Pinch { get; init; }
+    public Microsoft.UI.Reactor.Input.RotateGestureConfig? Rotate { get; init; }
+    public Microsoft.UI.Reactor.Input.LongPressGestureConfig? LongPress { get; init; }
+
+    // ── Drag-and-drop (spec 027 Tier 6 — Phase 6a typed in-process) ─
+    public Microsoft.UI.Reactor.Input.DragSourceConfig? DragSource { get; init; }
+    public Microsoft.UI.Reactor.Input.DropTargetConfig? DropTarget { get; init; }
 
     // ── Logical (BiDi-aware) layout properties ──────────────────────
     // These resolve to physical left/right based on FlowDirection at mount/update time.
@@ -569,6 +594,15 @@ public record ElementModifiers
     public bool? IsTabStop { get; init; }
     public int? TabIndex { get; init; }
     public string? AccessKey { get; init; }
+    public Microsoft.UI.Xaml.Input.XYFocusKeyboardNavigationMode? XYFocusKeyboardNavigation { get; init; }
+    public Action<UIElement, Microsoft.UI.Xaml.Input.AccessKeyDisplayRequestedEventArgs>? OnAccessKeyDisplayRequested { get; init; }
+
+    /// <summary>
+    /// Imperative ref slot (spec 027 Tier 5). The reconciler writes the mounted
+    /// <see cref="FrameworkElement"/> into <see cref="Microsoft.UI.Reactor.Input.ElementRef._current"/>
+    /// so <c>FocusManager.Focus(ref)</c> (and future ref-based imperative APIs) can target it.
+    /// </summary>
+    public Microsoft.UI.Reactor.Input.ElementRef? Ref { get; init; }
 
     // ── Accessibility — Tier 2/3 (lazy sub-record, zero allocation unless used) ─
     public AccessibilityModifiers? Accessibility { get; init; }
@@ -614,8 +648,28 @@ public record ElementModifiers
             OnPointerPressed = other.OnPointerPressed ?? OnPointerPressed,
             OnPointerMoved = other.OnPointerMoved ?? OnPointerMoved,
             OnPointerReleased = other.OnPointerReleased ?? OnPointerReleased,
+            OnPointerEntered = other.OnPointerEntered ?? OnPointerEntered,
+            OnPointerExited = other.OnPointerExited ?? OnPointerExited,
+            OnPointerCanceled = other.OnPointerCanceled ?? OnPointerCanceled,
+            OnPointerCaptureLost = other.OnPointerCaptureLost ?? OnPointerCaptureLost,
+            OnPointerWheelChanged = other.OnPointerWheelChanged ?? OnPointerWheelChanged,
             OnTapped = other.OnTapped ?? OnTapped,
+            OnDoubleTapped = other.OnDoubleTapped ?? OnDoubleTapped,
+            OnRightTapped = other.OnRightTapped ?? OnRightTapped,
+            OnHolding = other.OnHolding ?? OnHolding,
             OnKeyDown = other.OnKeyDown ?? OnKeyDown,
+            OnKeyUp = other.OnKeyUp ?? OnKeyUp,
+            OnPreviewKeyDown = other.OnPreviewKeyDown ?? OnPreviewKeyDown,
+            OnPreviewKeyUp = other.OnPreviewKeyUp ?? OnPreviewKeyUp,
+            OnCharacterReceived = other.OnCharacterReceived ?? OnCharacterReceived,
+            OnGotFocus = other.OnGotFocus ?? OnGotFocus,
+            OnLostFocus = other.OnLostFocus ?? OnLostFocus,
+            Pan = other.Pan ?? Pan,
+            Pinch = other.Pinch ?? Pinch,
+            Rotate = other.Rotate ?? Rotate,
+            LongPress = other.LongPress ?? LongPress,
+            DragSource = other.DragSource ?? DragSource,
+            DropTarget = other.DropTarget ?? DropTarget,
             MarginInlineStart = other.MarginInlineStart ?? MarginInlineStart,
             MarginInlineEnd = other.MarginInlineEnd ?? MarginInlineEnd,
             PaddingInlineStart = other.PaddingInlineStart ?? PaddingInlineStart,
@@ -626,6 +680,9 @@ public record ElementModifiers
             IsTabStop = other.IsTabStop ?? IsTabStop,
             TabIndex = other.TabIndex ?? TabIndex,
             AccessKey = other.AccessKey ?? AccessKey,
+            XYFocusKeyboardNavigation = other.XYFocusKeyboardNavigation ?? XYFocusKeyboardNavigation,
+            OnAccessKeyDisplayRequested = other.OnAccessKeyDisplayRequested ?? OnAccessKeyDisplayRequested,
+            Ref = other.Ref ?? Ref,
             Accessibility = other.Accessibility is not null
                 ? (Accessibility is not null ? Accessibility.Merge(other.Accessibility) : other.Accessibility)
                 : Accessibility,

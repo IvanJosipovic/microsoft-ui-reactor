@@ -193,6 +193,295 @@ public static class ElementExtensions
     public static T OnKeyDown<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs> handler) where T : Element =>
         Modify(el, new ElementModifiers { OnKeyDown = handler });
 
+    public static T OnPointerEntered<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnPointerEntered = handler });
+
+    public static T OnPointerExited<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnPointerExited = handler });
+
+    public static T OnPointerCanceled<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnPointerCanceled = handler });
+
+    public static T OnPointerCaptureLost<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnPointerCaptureLost = handler });
+
+    public static T OnPointerWheelChanged<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnPointerWheelChanged = handler });
+
+    public static T OnDoubleTapped<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnDoubleTapped = handler });
+
+    public static T OnRightTapped<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnRightTapped = handler });
+
+    public static T OnHolding<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.HoldingRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnHolding = handler });
+
+    public static T OnKeyUp<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnKeyUp = handler });
+
+    public static T OnPreviewKeyDown<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnPreviewKeyDown = handler });
+
+    public static T OnPreviewKeyUp<T>(this T el, Action<object, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnPreviewKeyUp = handler });
+
+    public static T OnCharacterReceived<T>(this T el, Action<UIElement, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnCharacterReceived = handler });
+
+    public static T OnGotFocus<T>(this T el, Action<object, RoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnGotFocus = handler });
+
+    public static T OnLostFocus<T>(this T el, Action<object, RoutedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnLostFocus = handler });
+
+    // ── Gesture recognizers (spec 027 Tier 3) ───────────────────────
+
+    /// <summary>
+    /// Attaches a pan (single-finger translation) gesture recognizer. The reconciler
+    /// wires <see cref="FrameworkElement.ManipulationDelta"/> and computes
+    /// <see cref="UIElement.ManipulationMode"/> based on the chosen <paramref name="axis"/>
+    /// and <paramref name="withInertia"/> flag. <paramref name="minimumDistance"/> gates
+    /// callbacks until the cumulative translation exceeds that distance — on first
+    /// crossing, <paramref name="onBegan"/> fires once with <see cref="Microsoft.UI.Reactor.Input.GesturePhase.Began"/>,
+    /// then a <see cref="Microsoft.UI.Reactor.Input.GesturePhase.Changed"/> follows.
+    /// </summary>
+    public static T OnPan<T>(this T el,
+        Action<Microsoft.UI.Reactor.Input.PanGesture> onChanged,
+        Action<Microsoft.UI.Reactor.Input.PanGesture>? onEnded = null,
+        Action<Microsoft.UI.Reactor.Input.PanGesture>? onBegan = null,
+        Action<Microsoft.UI.Reactor.Input.PanGesture>? onCancelled = null,
+        double minimumDistance = 0.0,
+        Microsoft.UI.Reactor.Input.PanAxis axis = Microsoft.UI.Reactor.Input.PanAxis.Both,
+        bool withInertia = false) where T : Element =>
+        Modify(el, new ElementModifiers
+        {
+            Pan = new Microsoft.UI.Reactor.Input.PanGestureConfig(onChanged)
+            {
+                OnBegan = onBegan,
+                OnEnded = onEnded,
+                OnCancelled = onCancelled,
+                MinimumDistance = minimumDistance,
+                Axis = axis,
+                WithInertia = withInertia,
+            },
+        });
+
+    /// <summary>Attaches a pinch (two-finger scale) gesture recognizer.</summary>
+    public static T OnPinch<T>(this T el,
+        Action<Microsoft.UI.Reactor.Input.PinchGesture> onChanged,
+        Action<Microsoft.UI.Reactor.Input.PinchGesture>? onEnded = null,
+        Action<Microsoft.UI.Reactor.Input.PinchGesture>? onBegan = null,
+        Action<Microsoft.UI.Reactor.Input.PinchGesture>? onCancelled = null,
+        bool withInertia = false) where T : Element =>
+        Modify(el, new ElementModifiers
+        {
+            Pinch = new Microsoft.UI.Reactor.Input.PinchGestureConfig(onChanged)
+            {
+                OnBegan = onBegan,
+                OnEnded = onEnded,
+                OnCancelled = onCancelled,
+                WithInertia = withInertia,
+            },
+        });
+
+    /// <summary>Attaches a rotate (two-finger twist) gesture recognizer.</summary>
+    public static T OnRotate<T>(this T el,
+        Action<Microsoft.UI.Reactor.Input.RotateGesture> onChanged,
+        Action<Microsoft.UI.Reactor.Input.RotateGesture>? onEnded = null,
+        Action<Microsoft.UI.Reactor.Input.RotateGesture>? onBegan = null,
+        Action<Microsoft.UI.Reactor.Input.RotateGesture>? onCancelled = null,
+        bool withInertia = false) where T : Element =>
+        Modify(el, new ElementModifiers
+        {
+            Rotate = new Microsoft.UI.Reactor.Input.RotateGestureConfig(onChanged)
+            {
+                OnBegan = onBegan,
+                OnEnded = onEnded,
+                OnCancelled = onCancelled,
+                WithInertia = withInertia,
+            },
+        });
+
+    /// <summary>
+    /// Attaches a long-press gesture recognizer (spec 027 Tier 3 Part 2). Touch and pen
+    /// route through <see cref="UIElement.Holding"/> (<c>IsHoldingEnabled = true</c> is auto-set).
+    /// Mouse input is ignored by default — WinUI's <c>Holding</c> event does not raise for
+    /// mouse pointers. Pass <paramref name="enableMouseEmulation"/> <c>true</c> to arm a
+    /// dispatcher timer on <see cref="UIElement.PointerPressed"/> that fires after
+    /// <paramref name="minimumDuration"/> and cancels on motion &gt; <paramref name="cancelDistance"/>,
+    /// pointer release, or capture loss.
+    /// </summary>
+    /// <example>card.OnLongPress(g => ShowContextMenu(g.Position))</example>
+    public static T OnLongPress<T>(this T el,
+        Action<Microsoft.UI.Reactor.Input.LongPressGesture> onTriggered,
+        TimeSpan? minimumDuration = null,
+        double cancelDistance = 10.0,
+        bool enableMouseEmulation = false) where T : Element =>
+        Modify(el, new ElementModifiers
+        {
+            LongPress = new Microsoft.UI.Reactor.Input.LongPressGestureConfig(onTriggered)
+            {
+                MinimumDuration = minimumDuration ?? TimeSpan.FromMilliseconds(500),
+                CancelDistance = cancelDistance,
+                EnableMouseEmulation = enableMouseEmulation,
+            },
+        });
+
+    /// <summary>
+    /// Zero-argument convenience overload for long-press. Use when you don't need the
+    /// gesture snapshot (Position, Duration, Phase).
+    /// </summary>
+    public static T OnLongPress<T>(this T el,
+        Action onTriggered,
+        TimeSpan? minimumDuration = null,
+        double cancelDistance = 10.0,
+        bool enableMouseEmulation = false) where T : Element =>
+        el.OnLongPress(_ => onTriggered(), minimumDuration, cancelDistance, enableMouseEmulation);
+
+    /// <summary>
+    /// Zero-argument convenience overload for double-tap. Equivalent to
+    /// <c>.OnDoubleTapped((_, _) =&gt; handler())</c>.
+    /// </summary>
+    public static T OnDoubleTap<T>(this T el, Action handler) where T : Element =>
+        el.OnDoubleTapped((_, _) => handler());
+
+    /// <summary>
+    /// Position-aware convenience overload for double-tap. Hands back the tap position
+    /// in element-local space.
+    /// </summary>
+    public static T OnDoubleTap<T>(this T el, Action<global::Windows.Foundation.Point> handler) where T : Element =>
+        el.OnDoubleTapped((s, e) => handler(e.GetPosition(s as UIElement)));
+
+    // ── Drag-and-drop (spec 027 Tier 6 / Phase 6a) ──────────────────
+
+    /// <summary>
+    /// Typed drag source. Auto-sets <see cref="UIElement.CanDrag"/> so the element reports
+    /// as draggable. <paramref name="getPayload"/> is called each time a drag starts;
+    /// the returned value is wrapped in a typed-payload <see cref="Microsoft.UI.Reactor.Input.DragData"/>
+    /// keyed by <typeparamref name="TPayload"/>. Use <paramref name="allowedOperations"/> to
+    /// declare which final operations (Copy/Move/Link) the source will accept.
+    /// <paramref name="onEnd"/> fires after <c>DropCompleted</c> with the final negotiated
+    /// operation (or <see cref="Microsoft.UI.Reactor.Input.DragOperations.None"/> on cancel).
+    /// </summary>
+    public static T OnDragStart<T, TPayload>(this T el,
+        Func<TPayload> getPayload,
+        Microsoft.UI.Reactor.Input.DragOperations? allowedOperations = null,
+        Action<Microsoft.UI.Reactor.Input.DragEndContext>? onEnd = null) where T : Element =>
+        Modify(el, new ElementModifiers
+        {
+            DragSource = new Microsoft.UI.Reactor.Input.DragSourceConfig(
+                () => Microsoft.UI.Reactor.Input.DragData.Typed(getPayload()))
+            {
+                AllowedOperations = allowedOperations,
+                OnEnd = onEnd,
+            },
+        });
+
+    /// <summary>
+    /// Raw drag source — the caller builds the <see cref="Microsoft.UI.Reactor.Input.DragData"/>
+    /// directly. Useful when advertising multiple formats at once (Phase 6b) or attaching
+    /// additional metadata.
+    /// </summary>
+    public static T OnDragStart<T>(this T el,
+        Func<Microsoft.UI.Reactor.Input.DragData> getData,
+        Microsoft.UI.Reactor.Input.DragOperations? allowedOperations = null,
+        Action<Microsoft.UI.Reactor.Input.DragEndContext>? onEnd = null) where T : Element =>
+        Modify(el, new ElementModifiers
+        {
+            DragSource = new Microsoft.UI.Reactor.Input.DragSourceConfig(getData)
+            {
+                AllowedOperations = allowedOperations,
+                OnEnd = onEnd,
+            },
+        });
+
+    /// <summary>
+    /// Gates an attached <c>.OnDragStart</c> — when <paramref name="canDrag"/> returns false,
+    /// the drag is cancelled in <c>DragStarting</c> before any UI feedback appears. Merge with
+    /// an existing <see cref="Microsoft.UI.Reactor.Input.DragSourceConfig"/> so previously-set
+    /// allowed ops / onEnd are preserved.
+    /// </summary>
+    public static T DraggableWhen<T>(this T el, Func<bool> canDrag) where T : Element
+    {
+        var existing = el.Modifiers?.DragSource;
+        var cfg = existing is not null
+            ? existing with { CanDrag = canDrag }
+            : new Microsoft.UI.Reactor.Input.DragSourceConfig(() => new Microsoft.UI.Reactor.Input.DragData()) { CanDrag = canDrag };
+        return Modify(el, new ElementModifiers { DragSource = cfg });
+    }
+
+    /// <summary>
+    /// Typed drop target. Auto-sets <see cref="UIElement.AllowDrop"/>. The handler is invoked
+    /// when a drag with a matching typed payload is dropped on this element; the accepted
+    /// operation is set to the intersection of <paramref name="acceptedOps"/> and the source's
+    /// allowed operations (preferring Move &gt; Copy &gt; Link).
+    /// </summary>
+    public static T OnDrop<T, TPayload>(this T el,
+        Action<TPayload> onDrop,
+        Microsoft.UI.Reactor.Input.DragOperations acceptedOps = Microsoft.UI.Reactor.Input.DragOperations.All) where T : Element
+    {
+        var existing = el.Modifiers?.DropTarget ?? new Microsoft.UI.Reactor.Input.DropTargetConfig();
+        var typedCallback = new Action<Microsoft.UI.Reactor.Input.DragTargetArgs>(args =>
+        {
+            if (args.Data.TryGetTypedPayload<TPayload>(out var payload))
+            {
+                onDrop(payload);
+                // Auto-accept if caller didn't already set.
+                if (args.AcceptedOperation == Microsoft.UI.Reactor.Input.DragOperations.None)
+                {
+                    args.AcceptedOperation = Microsoft.UI.Reactor.Input.DragOperationNegotiation.Negotiate(
+                        args.AllowedOperations, acceptedOps);
+                }
+            }
+        });
+        var cfg = existing with
+        {
+            TypedDrop = typedCallback,
+            AcceptedOperations = acceptedOps,
+        };
+        return Modify(el, new ElementModifiers { DropTarget = cfg });
+    }
+
+    /// <summary>Raw drop handler — receives the full <see cref="Microsoft.UI.Reactor.Input.DragTargetArgs"/>
+    /// so multi-format targets can inspect available formats and accept operation manually.</summary>
+    public static T OnDrop<T>(this T el,
+        Action<Microsoft.UI.Reactor.Input.DragTargetArgs> onDrop,
+        Microsoft.UI.Reactor.Input.DragOperations acceptedOps = Microsoft.UI.Reactor.Input.DragOperations.All) where T : Element
+    {
+        var existing = el.Modifiers?.DropTarget ?? new Microsoft.UI.Reactor.Input.DropTargetConfig();
+        var cfg = existing with
+        {
+            OnDrop = onDrop,
+            AcceptedOperations = acceptedOps,
+        };
+        return Modify(el, new ElementModifiers { DropTarget = cfg });
+    }
+
+    /// <summary>DragEnter callback — caller updates <see cref="Microsoft.UI.Reactor.Input.DragTargetArgs.UIOverride"/>
+    /// to customize the drop indicator, or sets <see cref="Microsoft.UI.Reactor.Input.DragTargetArgs.AcceptedOperation"/>
+    /// to override default negotiation.</summary>
+    public static T OnDragEnter<T>(this T el, Action<Microsoft.UI.Reactor.Input.DragTargetArgs> handler) where T : Element
+    {
+        var existing = el.Modifiers?.DropTarget ?? new Microsoft.UI.Reactor.Input.DropTargetConfig();
+        return Modify(el, new ElementModifiers { DropTarget = existing with { OnDragEnter = handler } });
+    }
+
+    /// <summary>DragOver callback — fires repeatedly as the pointer moves. Use for hover highlighting
+    /// that depends on position within the target.</summary>
+    public static T OnDragOver<T>(this T el, Action<Microsoft.UI.Reactor.Input.DragTargetArgs> handler) where T : Element
+    {
+        var existing = el.Modifiers?.DropTarget ?? new Microsoft.UI.Reactor.Input.DropTargetConfig();
+        return Modify(el, new ElementModifiers { DropTarget = existing with { OnDragOver = handler } });
+    }
+
+    /// <summary>DragLeave callback — fires when the drag exits the target without dropping.</summary>
+    public static T OnDragLeave<T>(this T el, Action<Microsoft.UI.Reactor.Input.DragTargetArgs> handler) where T : Element
+    {
+        var existing = el.Modifiers?.DropTarget ?? new Microsoft.UI.Reactor.Input.DropTargetConfig();
+        return Modify(el, new ElementModifiers { DropTarget = existing with { OnDragLeave = handler } });
+    }
+
     // ── Decoration ──────────────────────────────────────────────────
 
     public static T ToolTip<T>(this T el, string tip) where T : Element =>
@@ -1071,7 +1360,7 @@ public static class ElementExtensions
     /// Works on any element type (Panel, Control, etc.) in WinUI 3.
     /// </summary>
     /// <example>Border(content).IsTabStop(false)</example>
-    public static T IsTabStop<T>(this T el, bool isTabStop) where T : Element =>
+    public static T IsTabStop<T>(this T el, bool isTabStop = true) where T : Element =>
         Modify(el, new ElementModifiers { IsTabStop = isTabStop });
 
     /// <summary>
@@ -1083,10 +1372,46 @@ public static class ElementExtensions
 
     /// <summary>
     /// Sets UIElement.AccessKey — the Alt+Key shortcut (underlined hint shown on Alt press).
+    /// When used on a button bound to a <see cref="Command"/>, this per-site access key
+    /// overrides <see cref="Command.AccessKey"/> (per-site override always wins).
     /// </summary>
     /// <example>Button("File", onClick).AccessKey("F")</example>
     public static T AccessKey<T>(this T el, string key) where T : Element =>
         Modify(el, new ElementModifiers { AccessKey = key });
+
+    /// <summary>
+    /// Sets UIElement.XYFocusKeyboardNavigation — enables directional (Xbox-style)
+    /// focus navigation with arrow keys or gamepad DPad.
+    /// </summary>
+    /// <example>Grid(tiles).XYFocusKeyboardNavigation(XYFocusKeyboardNavigationMode.Enabled)</example>
+    public static T XYFocusKeyboardNavigation<T>(this T el, Microsoft.UI.Xaml.Input.XYFocusKeyboardNavigationMode mode) where T : Element =>
+        Modify(el, new ElementModifiers { XYFocusKeyboardNavigation = mode });
+
+    /// <summary>
+    /// Handler for UIElement.AccessKeyDisplayRequested — fires when the access-key
+    /// bubble should appear (e.g., user pressed Alt). Use to customize the visual.
+    /// </summary>
+    public static T AccessKeyDisplayRequested<T>(this T el, Action handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnAccessKeyDisplayRequested = (_, _) => handler() });
+
+    /// <summary>
+    /// Handler for UIElement.AccessKeyDisplayRequested with full event args.
+    /// </summary>
+    public static T AccessKeyDisplayRequested<T>(this T el, Action<UIElement, Microsoft.UI.Xaml.Input.AccessKeyDisplayRequestedEventArgs> handler) where T : Element =>
+        Modify(el, new ElementModifiers { OnAccessKeyDisplayRequested = handler });
+
+    /// <summary>
+    /// Binds this element to an imperative <see cref="Microsoft.UI.Reactor.Input.ElementRef"/>.
+    /// Obtain the ref from <c>ctx.UseElementFocus()</c> (or construct one manually) and use
+    /// <see cref="Microsoft.UI.Reactor.Input.FocusManager.Focus"/> to imperatively focus the
+    /// referenced element after mount.
+    /// </summary>
+    /// <example>
+    /// var (inputRef, requestFocus) = ctx.UseElementFocus();
+    /// return TextField(value, setValue).Ref(inputRef);
+    /// </example>
+    public static T Ref<T>(this T el, Microsoft.UI.Reactor.Input.ElementRef target) where T : Element =>
+        Modify(el, new ElementModifiers { Ref = target });
 
     // ════════════════════════════════════════════════════════════════
     //  Accessibility — Tier 2/3 (lazy AccessibilityModifiers sub-record)
