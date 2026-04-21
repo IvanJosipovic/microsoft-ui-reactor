@@ -427,12 +427,14 @@ public sealed class ForcedColorsTheme
         HighlightText = global::Windows.UI.Color.FromArgb(255, 0, 0, 0),
         GrayText = global::Windows.UI.Color.FromArgb(255, 128, 128, 128),
         Hotlight = global::Windows.UI.Color.FromArgb(255, 255, 255, 0),
+        // Series colors maximize visual distinction on black HC backgrounds.
+        // Green (not GrayText gray) is used for series[3] for better contrast.
         SeriesColors =
         [
-            global::Windows.UI.Color.FromArgb(255, 255, 255, 255), // Foreground
-            global::Windows.UI.Color.FromArgb(255, 0, 255, 255),   // Highlight
-            global::Windows.UI.Color.FromArgb(255, 255, 255, 0),   // Hotlight
-            global::Windows.UI.Color.FromArgb(255, 128, 128, 128), // GrayText
+            global::Windows.UI.Color.FromArgb(255, 255, 255, 255), // White (Foreground)
+            global::Windows.UI.Color.FromArgb(255, 0, 255, 255),   // Cyan (Highlight)
+            global::Windows.UI.Color.FromArgb(255, 255, 255, 0),   // Yellow (Hotlight)
+            global::Windows.UI.Color.FromArgb(255, 0, 128, 0),     // Green (distinct from gray)
         ],
     };
 

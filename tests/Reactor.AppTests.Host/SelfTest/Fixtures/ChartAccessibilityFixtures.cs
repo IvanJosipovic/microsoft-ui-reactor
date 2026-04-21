@@ -837,7 +837,7 @@ internal static class ChartAccessibilityFixtures
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Viewport UIA: verify chart canvas gets "Plot area" automation name
+    /// Viewport UIA: verify chart canvas gets title as automation name
     /// and LiveRegion is set.
     /// </summary>
     internal class ViewportUIA(Harness h) : SelfTestFixtureBase(h)
@@ -861,7 +861,7 @@ internal static class ChartAccessibilityFixtures
             {
                 var autoName = Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(canvas);
                 H.Check("ChartA11y_ViewportUIA_PlotAreaName",
-                    autoName == "Plot area");
+                    autoName == "Revenue");
 
                 var liveSetting = Microsoft.UI.Xaml.Automation.AutomationProperties.GetLiveSetting(canvas);
                 H.Check("ChartA11y_ViewportUIA_LiveRegionSet",
@@ -1119,7 +1119,7 @@ internal static class ChartAccessibilityFixtures
             {
                 var autoName = Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(canvas);
                 H.Check("FullIntegration_PlotAreaName",
-                    autoName == "Plot area");
+                    autoName == "Integration Revenue Chart");
 
                 var liveSetting = Microsoft.UI.Xaml.Automation.AutomationProperties.GetLiveSetting(canvas);
                 H.Check("FullIntegration_LiveRegion",

@@ -240,9 +240,10 @@ public sealed class ChartElement<T> : IChartAccessibilityData
 
     private Element BuildElement(IReadOnlyList<T> data)
     {
+        var chartName = _title ?? "Plot area";
         if (data.Count == 0)
             return AttachChartData(D3Canvas(_width, _height))
-                .AutomationName("Plot area");
+                .AutomationName(chartName);
 
         double plotLeft = _marginLeft, plotTop = _marginTop;
         double plotWidth = _width - _marginLeft - _marginRight;
@@ -273,7 +274,7 @@ public sealed class ChartElement<T> : IChartAccessibilityData
         }
 
         return canvas
-            .AutomationName("Plot area")
+            .AutomationName(chartName)
             .LiveRegion(Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite)
             .ItemStatus(itemStatus);
     }
@@ -482,9 +483,10 @@ public sealed class PieChartElement<T> : IChartAccessibilityData
 
     private Element BuildElement(IReadOnlyList<T> data)
     {
+        var chartName = _title ?? "Plot area";
         if (data.Count == 0)
             return AttachChartData(D3Canvas(_width, _height))
-                .AutomationName("Plot area");
+                .AutomationName(chartName);
 
         var palette = _colorPalette ?? D3Color.Category10;
         double cx = _width / 2, cy = _height / 2;
@@ -505,7 +507,7 @@ public sealed class PieChartElement<T> : IChartAccessibilityData
         // Viewport UIA: plot area gets accessible name, live region, and item status
         var itemStatus = $"1 series, {data.Count} slices";
         return canvas
-            .AutomationName("Plot area")
+            .AutomationName(chartName)
             .LiveRegion(Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite)
             .ItemStatus(itemStatus);
     }
