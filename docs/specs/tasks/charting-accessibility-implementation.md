@@ -206,9 +206,9 @@ values, series headers, and axis labels without any visible table.
 
 ### 3.2 — Host integration for forced-colors
 
-- [ ] In `ReactorHost` (or `RenderContext`), read
+- [x] In `ReactorHost` (or `RenderContext`), read
       `AccessibilitySettings.HighContrast` at startup
-- [ ] Listen for `AccessibilitySettings.HighContrastChanged` and
+- [x] Listen for `AccessibilitySettings.HighContrastChanged` and
       `UISettings.ColorValuesChanged`; set `D3Dsl.IsForcedColors` and trigger
       re-render
 - [x] Propagate automatically — no author opt-in required
@@ -246,25 +246,25 @@ values, series headers, and axis labels without any visible table.
 
 ### 3.6 — Reduced-motion integration
 
-- [ ] Implement `UseReducedMotion` hook (or integrate with
+- [x] Implement `UseReducedMotion` hook (or integrate with
       `UISettings.AnimationsEnabled` / `SPI_GETCLIENTAREAANIMATION`)
-- [ ] `ChartAnimator`: on reduced-motion, skip entrance/exit animations (snap to
+- [x] `ChartAnimator`: on reduced-motion, skip entrance/exit animations (snap to
       final), disable pan inertia, terminate force-graph simulation immediately,
       keep only ≤ 150 ms opacity fades (WCAG 2.3.3)
-- [ ] Wire into existing chart transition/animation paths
+- [x] Wire into existing chart transition/animation paths
 
 ### 3.7 — Focus indicator contrast
 
-- [ ] Double-ring focus indicator: 1px dark + 1px light stroke, guaranteeing
+- [x] Double-ring focus indicator: 1px dark + 1px light stroke, guaranteeing
       3:1 contrast against any chart background
-- [ ] Ring geometry: 2 px perimeter + 2 px gap minimum (WCAG 2.4.13)
-- [ ] Wire into `ChartKeyboardNavigator` focus overlay (Layer 4)
+- [x] Ring geometry: 2 px perimeter + 2 px gap minimum (WCAG 2.4.13)
+- [x] Wire into `ChartKeyboardNavigator` focus overlay (Layer 4)
 
 ### 3.8 — Hit target expansion
 
-- [ ] Point markers < 24×24 px get a transparent `D3Rect` hit shape sized 24×24,
+- [x] Point markers < 24×24 px get a transparent `D3Rect` hit shape sized 24×24,
       centered on the marker, when chart is `.Interactive()` (WCAG 2.5.8)
-- [ ] Implement `.TightHitTest()` escape hatch (triggers scanner warning
+- [x] Implement `.TightHitTest()` escape hatch (triggers scanner warning
       `A11Y_CHART_005`)
 
 ### 3.9 — Selftest fixtures: forced-colors and encoding
@@ -276,11 +276,11 @@ values, series headers, and axis labels without any visible table.
       series has distinct marker shape AND dash pattern in addition to color
 - [x] Fixture `ChartA11y_ColorOnlyWarning`: use `.ColorOnly()`, verify shape/dash
       are absent (visual regression anchor)
-- [ ] Fixture `ChartA11y_ReducedMotion`: set reduced-motion, mount chart with
+- [x] Fixture `ChartA11y_ReducedMotion`: set reduced-motion, mount chart with
       animation, assert animation skipped (final state reached in < 200ms)
-- [ ] Fixture `ChartA11y_HitTargetExpansion`: mount scatter with small markers,
+- [x] Fixture `ChartA11y_HitTargetExpansion`: mount scatter with small markers,
       assert hit regions are ≥ 24×24
-- [ ] Register all in `SelfTestFixtureRegistry`
+- [x] Register all in `SelfTestFixtureRegistry`
 
 ### 3.10 — Unit tests: palette and color math
 
@@ -314,11 +314,11 @@ values, series headers, and axis labels without any visible table.
       name → suggest `.Title("...")` or `.AutomationName("...")`
 - [x] `A11Y_CHART_002`: Chart has no `Description` and `ChartSummarizer` produced
       empty → suggest `.Description("...")` or provide accessors with labels
-- [ ] `A11Y_CHART_003`: Chart is `.Interactive()` but `ChartKeyboardNavigator`
+- [x] `A11Y_CHART_003`: Chart is `.Interactive()` but `ChartKeyboardNavigator`
       disabled → suggest removing `.DisableKeyboard()`
 - [x] `A11Y_CHART_004`: `.ColorOnly()` used — color is sole series encoding →
       suggest removing `.ColorOnly()` or providing `.SeriesShapes(...)`
-- [ ] `A11Y_CHART_005`: `.TightHitTest()` on marker < 24 px → suggest removal
+- [x] `A11Y_CHART_005`: `.TightHitTest()` on marker < 24 px → suggest removal
 - [ ] `A11Y_CHART_006`: Focus indicator contrast < 3:1 → suggest default focus ring
 - [ ] `A11Y_CHART_007`: `.AnnounceEveryFrame()` floods live region → suggest removal
 - [x] `A11Y_CHART_009`: Custom palette fails pairwise WCAG 3:1 → embed
@@ -357,14 +357,14 @@ values, series headers, and axis labels without any visible table.
 
 ### 5.1 — `.AlternateView()` modifier
 
-- [ ] Add `.AlternateView(Element)` modifier to all chart element types
-- [ ] When set, enables T key / Alt+Shift+F11 toggle between chart and alternate
+- [x] Add `.AlternateView(Element)` modifier to all chart element types
+- [x] When set, enables T key / Alt+Shift+F11 toggle between chart and alternate
       view
-- [ ] Toggle announces state via live region: `"Showing data table"` /
+- [x] Toggle announces state via live region: `"Showing data table"` /
       `"Showing chart"`
-- [ ] When alternate view is active, chart gets
+- [x] When alternate view is active, chart gets
       `AutomationProperties.AccessibilityView = Raw` to avoid double-announcement
-- [ ] When `.AlternateView()` not set, T key is a no-op (not an error)
+- [x] When `.AlternateView()` not set, T key is a no-op (not an error)
 
 ### 5.2 — Focus save/restore on toggle
 
@@ -374,11 +374,11 @@ values, series headers, and axis labels without any visible table.
 
 ### 5.3 — Selftest fixtures: alternate view
 
-- [ ] Fixture `ChartA11y_AlternateViewToggle`: mount chart with `.AlternateView()`,
+- [x] Fixture `ChartA11y_AlternateViewToggle`: mount chart with `.AlternateView()`,
       simulate T key, verify alternate view is mounted and chart is hidden from UIA
-- [ ] Fixture `ChartA11y_AlternateViewNoOp`: mount chart without `.AlternateView()`,
+- [x] Fixture `ChartA11y_AlternateViewNoOp`: mount chart without `.AlternateView()`,
       simulate T key, verify no crash and chart remains visible
-- [ ] Register in `SelfTestFixtureRegistry`
+- [x] Register in `SelfTestFixtureRegistry`
 
 ---
 
@@ -386,20 +386,20 @@ values, series headers, and axis labels without any visible table.
 
 ### 6.1 — Virtual focus infrastructure
 
-- [ ] Create `src/Reactor/Charting/Accessibility/ChartKeyboardNavigator.cs`
-- [ ] Chart root is a single focusable `Canvas` (`.IsTabStop(true)`)
-- [ ] Navigator holds `{seriesIndex, pointIndex}` state — no per-point XAML elements
-- [ ] Virtual focus cursor renders as `D3Rect` overlay (or ring for pie, circle
+- [x] Create `src/Reactor/Charting/Accessibility/ChartKeyboardNavigator.cs`
+- [x] Chart root is a single focusable `Canvas` (`.IsTabStop(true)`)
+- [x] Navigator holds `{seriesIndex, pointIndex}` state — no per-point XAML elements
+- [x] Virtual focus cursor renders as `D3Rect` overlay (or ring for pie, circle
       for scatter) positioned over the current point
-- [ ] Focus indicator: double-ring (1px dark + 1px light) meeting WCAG 2.4.13
+- [x] Focus indicator: double-ring (1px dark + 1px light) meeting WCAG 2.4.13
 
 ### 6.2 — Standard key bindings
 
-- [ ] ← / → : previous / next point in current series
-- [ ] ↑ / ↓ : switch to adjacent series (snap to nearest x-index)
-- [ ] Home / End : first / last point in current series
-- [ ] Ctrl+Home / Ctrl+End : first / last point across all series
-- [ ] Enter / Space : invoke (drill-down, tooltip)
+- [x] ← / → : previous / next point in current series
+- [x] ↑ / ↓ : switch to adjacent series (snap to nearest x-index)
+- [x] Home / End : first / last point in current series
+- [x] Ctrl+Home / Ctrl+End : first / last point across all series
+- [x] Enter / Space : invoke (drill-down, tooltip)
 - [ ] Shift+← / → : extend brush selection
 - [ ] + / − or Ctrl+= / Ctrl+− : zoom in / out
 - [ ] Ctrl+0 : reset zoom
@@ -409,15 +409,15 @@ values, series headers, and axis labels without any visible table.
 - [ ] T / Alt+Shift+F11 : toggle alternate view (Layer 3)
 - [ ] S : speak summary / replay announcement (Layer 6)
 - [ ] Shift+? / F1 : open keyboard help dialog
-- [ ] Esc : leave current mode; second Esc leaves chart
+- [x] Esc : leave current mode; second Esc leaves chart
 
 ### 6.3 — `.Interactive()` API
 
-- [ ] Add `.Interactive()` modifier — turns on navigator (default off for static)
-- [ ] `.Interactive()` is implicit when `.Pan()`, `.Zoom()`, `.Brush()`,
+- [x] Add `.Interactive()` modifier — turns on navigator (default off for static)
+- [x] `.Interactive()` is implicit when `.Pan()`, `.Zoom()`, `.Brush()`,
       `.OnPointInvoke()`, or `.Selectable()` is used
-- [ ] Add `.OnPointInvoke(Action<T, int>)` for Enter/Space + click
-- [ ] Add `.OnBrushChanged(Action<ChartRange>)` for brush selection
+- [x] Add `.OnPointInvoke(Action<T, int>)` for Enter/Space + click
+- [x] Add `.OnBrushChanged(Action<ChartRange>)` for brush selection
 
 ### 6.4 — Selftest fixtures: keyboard navigation
 

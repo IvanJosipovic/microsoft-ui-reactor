@@ -61,6 +61,7 @@ public sealed class TreeChartElement<T> : IChartAccessibilityData
     // Accessibility fields
     private string? _title;
     private string? _description;
+    private Element? _alternateView;
 
     public TreeChartElement<T> Width(double w) { _width = w; return this; }
     public TreeChartElement<T> Height(double h) { _height = h; return this; }
@@ -75,7 +76,16 @@ public sealed class TreeChartElement<T> : IChartAccessibilityData
     /// <summary>Overrides auto-generated accessible description/summary.</summary>
     public TreeChartElement<T> Description(string description) { _description = description; return this; }
 
-    public Element ToElement() => BuildElement(Root);
+    /// <summary>Enables alternate-view toggle (T / Alt+Shift+F11).</summary>
+    public TreeChartElement<T> AlternateView(Element view) { _alternateView = view; return this; }
+
+    public Element ToElement()
+    {
+        var chart = BuildElement(Root);
+        if (_alternateView is { } alt)
+            chart = Accessibility.ChartAlternateViewWrapper.Wrap(chart, alt);
+        return chart;
+    }
     public static implicit operator Element(TreeChartElement<T> chart) => chart.ToElement();
 
     private Element BuildElement(T rootData)
@@ -200,6 +210,7 @@ public sealed class ForceGraphElement : IChartAccessibilityData
     // Accessibility fields
     private string? _title;
     private string? _description;
+    private Element? _alternateView;
 
     public ForceGraphElement Width(double w) { _width = w; return this; }
     public ForceGraphElement Height(double h) { _height = h; return this; }
@@ -215,6 +226,9 @@ public sealed class ForceGraphElement : IChartAccessibilityData
     /// <summary>Overrides auto-generated accessible description/summary.</summary>
     public ForceGraphElement Description(string description) { _description = description; return this; }
 
+    /// <summary>Enables alternate-view toggle (T / Alt+Shift+F11).</summary>
+    public ForceGraphElement AlternateView(Element view) { _alternateView = view; return this; }
+
     /// <summary>
     /// Called after the graph is rendered with a handle that exposes the simulation,
     /// WinUI elements, and a <c>SyncPositions</c> method. Use this to wire up
@@ -222,7 +236,13 @@ public sealed class ForceGraphElement : IChartAccessibilityData
     /// </summary>
     public ForceGraphElement OnReady(Action<ForceGraphHandle> callback) { _onReady = callback; return this; }
 
-    public Element ToElement() => new XamlHostElement(BuildCanvas, UpdateCanvas) { TypeKey = "ChartingD3Force" };
+    public Element ToElement()
+    {
+        Element chart = new XamlHostElement(BuildCanvas, UpdateCanvas) { TypeKey = "ChartingD3Force" };
+        if (_alternateView is { } alt)
+            chart = Accessibility.ChartAlternateViewWrapper.Wrap(chart, alt);
+        return chart;
+    }
     public static implicit operator Element(ForceGraphElement chart) => chart.ToElement();
 
     private ForceSimulation? _sim;

@@ -459,6 +459,8 @@ public static class AccessibilityScanner
         CheckChartPaletteColorblind(canvas, ctx, findings);
         CheckChartPaletteBackground(canvas, ctx, findings);
         CheckChartRawColors(canvas, ctx, findings);
+        CheckChartInteractiveKeyboard(canvas, ctx, findings);
+        CheckChartTightHitTest(canvas, ctx, findings);
     }
 
     /// <summary>A11Y_CHART_001: Chart has no Title/AutomationName and no derivable name.</summary>
@@ -683,6 +685,55 @@ public static class AccessibilityScanner
                 Modifier = "RawColors",
                 SuggestedValue = null,
                 CodeSnippet = "Consider using .Palette(ChartPalette.OkabeIto) or .SeriesColors() for accessible colors",
+            },
+            Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
+        });
+    }
+
+    /// <summary>A11Y_CHART_003: Chart is .Interactive() but keyboard navigation is disabled.</summary>
+    private static void CheckChartInteractiveKeyboard(CanvasElement canvas, ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        if (!canvas.IsInteractive) return;
+        if (!canvas.IsKeyboardDisabled) return;
+
+        findings.Add(new A11yDiagnostic
+        {
+            Id = "A11Y_CHART_003",
+            Severity = "warning",
+            Message = "Interactive chart has keyboard navigation disabled — users who rely on keyboard cannot navigate data points",
+            WcagCriterion = "2.1.1",
+            ElementType = "CanvasElement (Chart)",
+            AutomationId = GetAutomationId(canvas),
+            ComponentType = ctx.CurrentComponent,
+            Fix = new A11yFixSuggestion
+            {
+                Modifier = "DisableKeyboard",
+                SuggestedValue = null,
+                CodeSnippet = "Remove .DisableKeyboard() to enable keyboard navigation",
+            },
+            Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
+        });
+    }
+
+    /// <summary>A11Y_CHART_005: .TightHitTest() on markers that may be smaller than 24px.</summary>
+    private static void CheckChartTightHitTest(CanvasElement canvas, ScanContext ctx, List<A11yDiagnostic> findings)
+    {
+        if (!canvas.IsTightHitTest) return;
+
+        findings.Add(new A11yDiagnostic
+        {
+            Id = "A11Y_CHART_005",
+            Severity = "warning",
+            Message = "Chart uses .TightHitTest() — point markers may have hit targets smaller than 24×24 CSS pixels",
+            WcagCriterion = "2.5.8",
+            ElementType = "CanvasElement (Chart)",
+            AutomationId = GetAutomationId(canvas),
+            ComponentType = ctx.CurrentComponent,
+            Fix = new A11yFixSuggestion
+            {
+                Modifier = "TightHitTest",
+                SuggestedValue = null,
+                CodeSnippet = "Remove .TightHitTest() to enable automatic 24×24 hit target expansion",
             },
             Context = ctx.BuildContext(canvas, GetSiblingTexts(ctx)),
         });

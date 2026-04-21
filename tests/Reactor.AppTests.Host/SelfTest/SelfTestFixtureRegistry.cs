@@ -112,6 +112,12 @@ internal static class SelfTestFixtureRegistry
         "ChartA11y_Scanner_ColorOnly",
         "ChartA11y_Scanner_UnsafePalette",
         "ChartA11y_Scanner_Clean",
+        // Chart accessibility (Phase 3 remaining + Phase 5)
+        "ChartA11y_ReducedMotion",
+        "ChartA11y_HitTargetExpansion",
+        "ChartA11y_Scanner_InteractiveNoKeyboard",
+        "ChartA11y_AlternateViewToggle",
+        "ChartA11y_AlternateViewNoOp",
 
         "MdHtml_HtmlGeneration",
         "MdHtml_HtmlInWebView2",
@@ -625,6 +631,12 @@ internal static class SelfTestFixtureRegistry
         "ChartA11y_Scanner_ColorOnly" => new ChartAccessibilityFixtures.ScannerColorOnly(harness),
         "ChartA11y_Scanner_UnsafePalette" => new ChartAccessibilityFixtures.ScannerUnsafePalette(harness),
         "ChartA11y_Scanner_Clean" => new ChartAccessibilityFixtures.ScannerClean(harness),
+        // Chart accessibility (Phase 3 remaining + Phase 5)
+        "ChartA11y_ReducedMotion" => new ChartAccessibilityFixtures.ReducedMotion(harness),
+        "ChartA11y_HitTargetExpansion" => new ChartAccessibilityFixtures.HitTargetExpansion(harness),
+        "ChartA11y_Scanner_InteractiveNoKeyboard" => new ChartAccessibilityFixtures.ScannerInteractiveNoKeyboard(harness),
+        "ChartA11y_AlternateViewToggle" => new ChartAccessibilityFixtures.AlternateViewToggle(harness),
+        "ChartA11y_AlternateViewNoOp" => new ChartAccessibilityFixtures.AlternateViewNoOp(harness),
 
         "MdHtml_HtmlGeneration" => new MarkdownHtmlFixtures.HtmlGeneration(harness),
         "MdHtml_HtmlInWebView2" => new MarkdownHtmlFixtures.HtmlInWebView2(harness),

@@ -30,6 +30,11 @@ public static partial class ChartDsl
 
 public enum ChartType { Line, Bar, Area }
 
+/// <summary>
+/// Represents a range of x-axis values selected via brush interaction.
+/// </summary>
+public record ChartRange(double Start, double End);
+
 // ════════════════════════════════════════════════════════════════════════════
 //  ChartElement — Line / Bar / Area
 // ════════════════════════════════════════════════════════════════════════════
@@ -62,6 +67,16 @@ public sealed class ChartElement<T> : IChartAccessibilityData
     private bool _rawColors;
     private Accessibility.MarkerShape[]? _seriesShapes;
     private Accessibility.DashStyle[]? _seriesDashes;
+
+    // Alternate view
+    private Element? _alternateView;
+
+    // Interactive / keyboard navigation fields
+    private bool _interactive;
+    private bool _disableKeyboard;
+    private bool _tightHitTest;
+    private Action<T, int>? _onPointInvoke;
+    private Action<ChartRange>? _onBrushChanged;
 
     public ChartElement<T> Width(double w) { _width = w; return this; }
     public ChartElement<T> Height(double h) { _height = h; return this; }
@@ -121,8 +136,36 @@ public sealed class ChartElement<T> : IChartAccessibilityData
     /// <summary>Explicit dash patterns for series (overrides default cycle).</summary>
     public ChartElement<T> SeriesDashes(params Accessibility.DashStyle[] dashes) { _seriesDashes = dashes; return this; }
 
+    // ── Alternate-view modifier ──────────────────────────────────────
+
+    /// <summary>
+    /// Enables alternate-view toggle (T / Alt+Shift+F11). When toggled, the chart is
+    /// hidden from UIA and <paramref name="view"/> is shown instead (typically a data table).
+    /// </summary>
+    public ChartElement<T> AlternateView(Element view) { _alternateView = view; return this; }
+
+    // ── Interactive / keyboard navigation modifiers ──────────────────
+
+    /// <summary>Enables keyboard navigation and virtual focus on the chart.</summary>
+    public ChartElement<T> Interactive() { _interactive = true; return this; }
+
+    /// <summary>Disables keyboard navigation on an interactive chart. Triggers scanner warning A11Y_CHART_003.</summary>
+    public ChartElement<T> DisableKeyboard() { _disableKeyboard = true; return this; }
+
+    /// <summary>Uses tight (non-expanded) hit areas for markers. Triggers scanner warning A11Y_CHART_005.</summary>
+    public ChartElement<T> TightHitTest() { _tightHitTest = true; return this; }
+
+    /// <summary>Callback invoked when Enter/Space is pressed on a focused point or a point is clicked.</summary>
+    public ChartElement<T> OnPointInvoke(Action<T, int> handler) { _onPointInvoke = handler; _interactive = true; return this; }
+
+    /// <summary>Callback invoked when brush selection changes.</summary>
+    public ChartElement<T> OnBrushChanged(Action<ChartRange> handler) { _onBrushChanged = handler; _interactive = true; return this; }
+
     // ── Internal accessors for scanner ───────────────────────────────
     internal bool IsColorOnly => _colorOnly;
+    internal bool IsInteractive => _interactive;
+    internal bool IsKeyboardDisabled => _disableKeyboard;
+    internal bool IsTightHitTest => _tightHitTest;
     internal Accessibility.ChartPalette? CustomPalette => _palette;
 
     /// <summary>
@@ -131,7 +174,32 @@ public sealed class ChartElement<T> : IChartAccessibilityData
     /// </summary>
     public ChartElement<T> OnReady(Action<ChartHandle<T>> callback) { _onReady = callback; return this; }
 
-    public Element ToElement() => BuildElement(Data);
+    public Element ToElement()
+    {
+        var chart = BuildElement(Data);
+
+        // Wrap with keyboard navigator if interactive
+        if (_interactive)
+        {
+            chart = Accessibility.ChartKeyboardNavigator.Wrap(
+                chart, this, _width, _height, _disableKeyboard,
+                new Accessibility.ChartKeyboardOptions
+                {
+                    OnPointInvoke = _onPointInvoke is { } handler
+                        ? (si, pi) =>
+                        {
+                            if (pi < Data.Count)
+                                handler(Data[pi], pi);
+                        }
+                        : null,
+                });
+        }
+
+        if (_alternateView is { } alt)
+            chart = Accessibility.ChartAlternateViewWrapper.Wrap(chart, alt);
+
+        return chart;
+    }
     public static implicit operator Element(ChartElement<T> chart) => chart.ToElement();
 
     private Element BuildElement(IReadOnlyList<T> data)
@@ -166,6 +234,9 @@ public sealed class ChartElement<T> : IChartAccessibilityData
             IsColorOnly = _colorOnly,
             IsRawColors = _rawColors,
             CustomPalette = _palette,
+            IsInteractive = _interactive,
+            IsKeyboardDisabled = _disableKeyboard,
+            IsTightHitTest = _tightHitTest,
         };
 
     private Element[] RenderData(IReadOnlyList<T> data, LinearScale xScale, LinearScale yScale,
@@ -335,11 +406,25 @@ public sealed class PieChartElement<T> : IChartAccessibilityData
     /// <summary>Disables shape/dash double-encoding. Triggers scanner warning A11Y_CHART_004.</summary>
     public PieChartElement<T> ColorOnly() { _colorOnly = true; return this; }
 
+    // Alternate view
+    private Element? _alternateView;
+
+    /// <summary>
+    /// Enables alternate-view toggle (T / Alt+Shift+F11).
+    /// </summary>
+    public PieChartElement<T> AlternateView(Element view) { _alternateView = view; return this; }
+
     // Internal accessors for scanner
     internal bool IsColorOnly => _colorOnly;
     internal Accessibility.ChartPalette? CustomPalette => _palette;
 
-    public Element ToElement() => BuildElement(Data);
+    public Element ToElement()
+    {
+        var chart = BuildElement(Data);
+        if (_alternateView is { } alt)
+            chart = Accessibility.ChartAlternateViewWrapper.Wrap(chart, alt);
+        return chart;
+    }
     public static implicit operator Element(PieChartElement<T> chart) => chart.ToElement();
 
     private Element BuildElement(IReadOnlyList<T> data)

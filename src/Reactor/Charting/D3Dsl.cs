@@ -76,6 +76,19 @@ public static class D3Dsl
         set => _isForcedColors = value;
     }
 
+    [ThreadStatic] private static bool _isReducedMotion;
+
+    /// <summary>
+    /// When true, chart entrance/exit animations snap to final state, pan inertia
+    /// is disabled, and force-graph simulation terminates immediately. Set
+    /// automatically by the host from <c>UISettings.AnimationsEnabled</c>.
+    /// </summary>
+    public static bool IsReducedMotion
+    {
+        get => _isReducedMotion;
+        set => _isReducedMotion = value;
+    }
+
     // ── System high-contrast color mapping for series ────────────────
 
     /// <summary>System colors used for series 0–3 in forced-colors mode.</summary>

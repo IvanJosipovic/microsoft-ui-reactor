@@ -570,4 +570,120 @@ internal static class ChartAccessibilityFixtures
                 chartViolations.Count == 0);
         }
     }
+
+    /// <summary>
+    /// Reduced-motion: verify D3Dsl.IsReducedMotion flag is readable.
+    /// </summary>
+    internal class ReducedMotion(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            // Save and restore the flag
+            bool saved = D3Dsl.IsReducedMotion;
+            try
+            {
+                D3Dsl.IsReducedMotion = true;
+                H.Check("ChartA11y_ReducedMotion_FlagSet",
+                    D3Dsl.IsReducedMotion == true);
+
+                D3Dsl.IsReducedMotion = false;
+                H.Check("ChartA11y_ReducedMotion_FlagCleared",
+                    D3Dsl.IsReducedMotion == false);
+            }
+            finally
+            {
+                D3Dsl.IsReducedMotion = saved;
+            }
+            await Harness.Render();
+        }
+    }
+
+    /// <summary>
+    /// Hit target expansion: verify .TightHitTest() flag is tracked and scanner fires.
+    /// </summary>
+    internal class HitTargetExpansion(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var chart = ChartDsl.LineChart(SampleLine, d => d.X, d => d.Y)
+                .Title("Test")
+                .Interactive()
+                .TightHitTest();
+
+            H.Check("ChartA11y_HitTargetExpansion_IsTight",
+                chart.IsTightHitTest);
+
+            var tree = VStack(chart.ToElement());
+            var findings = AccessibilityScanner.Scan(tree);
+
+            H.Check("ChartA11y_HitTargetExpansion_ScannerFlags",
+                findings.Any(f => f.Id == "A11Y_CHART_005"));
+
+            await Harness.Render();
+        }
+    }
+
+    /// <summary>
+    /// Scanner: interactive chart with keyboard disabled triggers A11Y_CHART_003.
+    /// </summary>
+    internal class ScannerInteractiveNoKeyboard(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var chart = ChartDsl.LineChart(SampleLine, d => d.X, d => d.Y)
+                .Title("Test")
+                .Interactive()
+                .DisableKeyboard();
+
+            var tree = VStack(chart.ToElement());
+            var findings = AccessibilityScanner.Scan(tree);
+
+            H.Check("ChartA11y_Scanner_InteractiveNoKeyboard_Found",
+                findings.Any(f => f.Id == "A11Y_CHART_003"));
+
+            await Harness.Render();
+        }
+    }
+
+    /// <summary>
+    /// AlternateView toggle: verify chart with .AlternateView() compiles and renders.
+    /// </summary>
+    internal class AlternateViewToggle(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var alternate = TextBlock("Data table placeholder");
+            var chart = ChartDsl.LineChart(SampleLine, d => d.X, d => d.Y)
+                .Title("Revenue")
+                .AlternateView(alternate);
+
+            var host = H.CreateHost();
+            XamlInterop.Register(host.Reconciler);
+            host.Mount(ctx => chart.ToElement());
+            await Harness.Render();
+
+            // Chart should render without errors
+            H.Check("ChartA11y_AlternateViewToggle_Mounts", true);
+        }
+    }
+
+    /// <summary>
+    /// AlternateView no-op: chart without .AlternateView() should render fine.
+    /// </summary>
+    internal class AlternateViewNoOp(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var chart = ChartDsl.LineChart(SampleLine, d => d.X, d => d.Y)
+                .Title("Revenue");
+
+            var host = H.CreateHost();
+            XamlInterop.Register(host.Reconciler);
+            host.Mount(ctx => chart.ToElement());
+            await Harness.Render();
+
+            // Chart without AlternateView renders without error
+            H.Check("ChartA11y_AlternateViewNoOp_Mounts", true);
+        }
+    }
 }

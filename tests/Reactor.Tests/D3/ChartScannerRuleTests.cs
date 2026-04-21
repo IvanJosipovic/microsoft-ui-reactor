@@ -23,7 +23,10 @@ public class ChartScannerRuleTests
         bool isColorOnly = false,
         bool isRawColors = false,
         ChartPalette? customPalette = null,
-        string? automationName = null)
+        string? automationName = null,
+        bool isInteractive = false,
+        bool isKeyboardDisabled = false,
+        bool isTightHitTest = false)
     {
         var canvas = new CanvasElement([])
         {
@@ -33,6 +36,9 @@ public class ChartScannerRuleTests
             IsColorOnly = isColorOnly,
             IsRawColors = isRawColors,
             CustomPalette = customPalette,
+            IsInteractive = isInteractive,
+            IsKeyboardDisabled = isKeyboardDisabled,
+            IsTightHitTest = isTightHitTest,
         };
 
         if (automationName != null)
@@ -322,5 +328,84 @@ public class ChartScannerRuleTests
 
         var findings = AccessibilityScanner.Scan(tree);
         Assert.DoesNotContain(findings, f => f.Id == "A11Y_CHART_001");
+    }
+
+    // ── A11Y_CHART_003: Interactive chart with keyboard disabled ──────
+
+    [Fact]
+    public void A11Y_CHART_003_InteractiveKeyboardDisabled_Flagged()
+    {
+        var canvas = MakeChartCanvas(
+            chartData: DataWithSeries(name: "Revenue"),
+            isInteractive: true,
+            isKeyboardDisabled: true);
+        var tree = VStack(canvas);
+
+        var findings = AccessibilityScanner.Scan(tree);
+        Assert.Contains(findings, f => f.Id == "A11Y_CHART_003");
+    }
+
+    [Fact]
+    public void A11Y_CHART_003_InteractiveKeyboardEnabled_Passes()
+    {
+        var canvas = MakeChartCanvas(
+            chartData: DataWithSeries(name: "Revenue"),
+            isInteractive: true,
+            isKeyboardDisabled: false);
+        var tree = VStack(canvas);
+
+        var findings = AccessibilityScanner.Scan(tree);
+        Assert.DoesNotContain(findings, f => f.Id == "A11Y_CHART_003");
+    }
+
+    [Fact]
+    public void A11Y_CHART_003_NonInteractiveKeyboardDisabled_Passes()
+    {
+        var canvas = MakeChartCanvas(
+            chartData: DataWithSeries(name: "Revenue"),
+            isInteractive: false,
+            isKeyboardDisabled: true);
+        var tree = VStack(canvas);
+
+        var findings = AccessibilityScanner.Scan(tree);
+        Assert.DoesNotContain(findings, f => f.Id == "A11Y_CHART_003");
+    }
+
+    // ── A11Y_CHART_005: TightHitTest ──────────────────────────────────
+
+    [Fact]
+    public void A11Y_CHART_005_TightHitTest_Flagged()
+    {
+        var canvas = MakeChartCanvas(
+            chartData: DataWithSeries(name: "Revenue"),
+            isTightHitTest: true);
+        var tree = VStack(canvas);
+
+        var findings = AccessibilityScanner.Scan(tree);
+        Assert.Contains(findings, f => f.Id == "A11Y_CHART_005");
+    }
+
+    [Fact]
+    public void A11Y_CHART_005_NoTightHitTest_Passes()
+    {
+        var canvas = MakeChartCanvas(
+            chartData: DataWithSeries(name: "Revenue"),
+            isTightHitTest: false);
+        var tree = VStack(canvas);
+
+        var findings = AccessibilityScanner.Scan(tree);
+        Assert.DoesNotContain(findings, f => f.Id == "A11Y_CHART_005");
+    }
+
+    // ── Scanner skips chart rules for non-chart elements ──────────────
+
+    [Fact]
+    public void Scanner_NonChartCanvas_SkipsChartRules()
+    {
+        var canvas = new CanvasElement([]) { Width = 100, Height = 100 };
+        var tree = VStack(canvas);
+
+        var findings = AccessibilityScanner.Scan(tree);
+        Assert.DoesNotContain(findings, f => f.Id.StartsWith("A11Y_CHART_"));
     }
 }
