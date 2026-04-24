@@ -173,13 +173,108 @@ public sealed partial class Reconciler : IDisposable
             "<ContentControl HorizontalContentAlignment='Stretch' VerticalContentAlignment='Stretch'/>" +
             "</DataTemplate>"));
 
-    internal static void SetElementTag(FrameworkElement control, Element element) => control.Tag = element;
+    // ════════════════════════════════════════════════════════════════════
+    //  ReactorAttached.StateProperty  (ReactorState)
+    // ════════════════════════════════════════════════════════════════════
+    //
+    // A single attached DP carrying a ReactorState wrapper that bundles
+    //   (a) the current Reactor Element for this native element, and
+    //   (b) the per-element EventHandlerState (current user handlers +
+    //       stable trampoline delegates).
+    //
+    // The DP lives on the native DependencyObject, so every C# RCW pointing
+    // at the same native element observes the same ReactorState — fixing the
+    // duplicate-RCW event-subscription bug where ConditionalWeakTable keyed
+    // per-RCW would return a different EventHandlerState for each wrapper
+    // and attach duplicate trampolines on the native event source.
+    //
+    // Lifecycle:
+    //   - Pool return / ListView recycle: ClearElementTag nulls state.Element
+    //     only, preserving state.Events. Attached trampolines survive; next
+    //     rent/realize flows through Ensure*Subscribed which refreshes
+    //     state.Current* rather than attaching duplicates. Re-attaching on
+    //     every rent would re-introduce the bug this module exists to fix.
+    //   - Permanent unmount (XamlHost/XamlPage — not pooled, may stay rooted
+    //     by app code): DetachReactorState nulls Element, clears Current*,
+    //     drops state.Events. Any orphan trampoline still on the native event
+    //     source becomes a no-op if it fires.
+    internal sealed class ReactorState
+    {
+        public Element? Element;
+        public EventHandlerState? Events;
+    }
+
+    internal static class ReactorAttached
+    {
+        public static readonly DependencyProperty StateProperty =
+            DependencyProperty.RegisterAttached(
+                "ReactorState",
+                typeof(ReactorState),
+                typeof(ReactorAttached),
+                new PropertyMetadata(null));
+    }
+
+    internal static ReactorState GetOrCreateReactorState(FrameworkElement fe)
+    {
+        if (fe.GetValue(ReactorAttached.StateProperty) is ReactorState state)
+            return state;
+        state = new ReactorState();
+        fe.SetValue(ReactorAttached.StateProperty, state);
+        return state;
+    }
+
+    internal static void SetElementTag(FrameworkElement control, Element? element)
+    {
+        if (control.GetValue(ReactorAttached.StateProperty) is ReactorState state)
+        {
+            state.Element = element;
+            return;
+        }
+        if (element is null) return; // nothing to store
+        state = new ReactorState { Element = element };
+        control.SetValue(ReactorAttached.StateProperty, state);
+    }
 
     /// <summary>
-    /// Retrieves the element associated with a control via Tag, or null.
+    /// Retrieves the element associated with a control, or null.
     /// </summary>
     internal static Element? GetElementTag(UIElement control) =>
-        control is FrameworkElement fe ? fe.Tag as Element : null;
+        control is FrameworkElement fe
+            ? (fe.GetValue(ReactorAttached.StateProperty) as ReactorState)?.Element
+            : null;
+
+    internal static Element? GetElementTag(FrameworkElement fe) =>
+        (fe.GetValue(ReactorAttached.StateProperty) as ReactorState)?.Element;
+
+    /// <summary>
+    /// Clears the Element pointer while preserving EventHandlerState. Call on
+    /// pool return — attached trampolines stay valid so that rent/re-mount
+    /// reuses the same subscriptions (re-attaching would re-introduce the
+    /// duplicate-subscription bug).
+    /// </summary>
+    internal static void ClearElementTag(FrameworkElement fe)
+    {
+        if (fe.GetValue(ReactorAttached.StateProperty) is ReactorState state)
+            state.Element = null;
+    }
+
+    /// <summary>
+    /// Fully detaches reactor state from a control: nulls the Element and
+    /// clears the EventHandlerState's Current* delegates so any already-
+    /// attached trampoline on the native event source becomes a no-op if it
+    /// fires. Use when the control leaves reactor's ownership for good
+    /// (XamlHost / XamlPage unmount) but may remain alive because the app
+    /// holds a reference — without this, captured closures stay reachable
+    /// and stale reactor callbacks can still fire.
+    /// </summary>
+    internal static void DetachReactorState(FrameworkElement fe)
+    {
+        if (fe.GetValue(ReactorAttached.StateProperty) is not ReactorState state)
+            return;
+        state.Element = null;
+        state.Events?.ClearCurrentHandlers();
+        state.Events = null;
+    }
 
     // ════════════════════════════════════════════════════════════════════
     //  Lazy event wiring for poolable types
@@ -669,7 +764,7 @@ public sealed partial class Reconciler : IDisposable
     private void UnmountRecursive(UIElement control)
     {
         // Capture connected animation snapshot while element is still in the visual tree
-        if (control is FrameworkElement caFe && caFe.Tag is Element caEl
+        if (control is FrameworkElement caFe && GetElementTag(caFe) is Element caEl
             && caEl.ConnectedAnimationKey is not null)
         {
             try
@@ -682,7 +777,7 @@ public sealed partial class Reconciler : IDisposable
         }
 
         // Clean up animation state (mirrors UnmountAndCollect)
-        if (control is FrameworkElement animFe && animFe.Tag is Element animEl)
+        if (control is FrameworkElement animFe && GetElementTag(animFe) is Element animEl)
         {
             if (animEl.InteractionStates is not null)
                 ClearInteractionStates(control);
@@ -715,8 +810,8 @@ public sealed partial class Reconciler : IDisposable
             return; // Children already handled above; don't recurse into Grid children again
         }
 
-        // Check registered type unmount handlers via Tag
-        if (control is FrameworkElement fe && fe.Tag is Element tagEl
+        // Check registered type unmount handlers via the attached element
+        if (control is FrameworkElement fe && GetElementTag(fe) is Element tagEl
             && _typeRegistry.TryGetValue(tagEl.GetType(), out var reg) && reg.HasUnmount)
         {
             reg.Unmount(control, this);
@@ -725,18 +820,20 @@ public sealed partial class Reconciler : IDisposable
 
         // XamlHostElement children were created outside Reactor's tree —
         // do NOT recurse into them (they may have stale parent references
-        // or be types Reactor doesn't know how to clean).
-        if (control is FrameworkElement hostFe && hostFe.Tag is XamlHostElement)
+        // or be types Reactor doesn't know how to clean). Fully detach
+        // reactor state so retained-by-app references can't fire stale
+        // callbacks through orphaned trampolines.
+        if (control is FrameworkElement hostFe && GetElementTag(hostFe) is XamlHostElement)
         {
-            hostFe.Tag = null;
+            DetachReactorState(hostFe);
             return;
         }
 
         // XamlPageElement — clear content to trigger Page.OnNavigatedFrom cleanup
-        if (control is WinUI.Frame pageFrame && pageFrame.Tag is XamlPageElement)
+        if (control is WinUI.Frame pageFrame && GetElementTag(pageFrame) is XamlPageElement)
         {
             pageFrame.Content = null;
-            pageFrame.Tag = null;
+            DetachReactorState(pageFrame);
             return;
         }
 
@@ -777,7 +874,7 @@ public sealed partial class Reconciler : IDisposable
     internal void RemoveChildWithExitTransition(IChildCollection children, int index)
     {
         var control = children.Get(index);
-        var transition = (control is FrameworkElement fe && fe.Tag is Element el)
+        var transition = (control is FrameworkElement fe && GetElementTag(fe) is Element el)
             ? el.ElementTransition : null;
 
         if (transition?.GetExitTransition() is not null)
@@ -812,7 +909,7 @@ public sealed partial class Reconciler : IDisposable
     internal void ReplaceChildWithExitTransition(IChildCollection children, int index, UIElement newControl)
     {
         var oldControl = children.Get(index);
-        var transition = (oldControl is FrameworkElement fe && fe.Tag is Element el)
+        var transition = (oldControl is FrameworkElement fe && GetElementTag(fe) is Element el)
             ? el.ElementTransition : null;
 
         if (transition?.GetExitTransition() is not null)
@@ -857,7 +954,7 @@ public sealed partial class Reconciler : IDisposable
     private void UnmountAndCollect(UIElement control, List<FrameworkElement> toPool)
     {
         // Capture connected animation snapshot while element is still in the visual tree
-        if (control is FrameworkElement caFe && caFe.Tag is Element caEl
+        if (control is FrameworkElement caFe && GetElementTag(caFe) is Element caEl
             && caEl.ConnectedAnimationKey is not null)
         {
             try
@@ -870,7 +967,7 @@ public sealed partial class Reconciler : IDisposable
         }
 
         // Clean up animation state
-        if (control is FrameworkElement animFe && animFe.Tag is Element animEl)
+        if (control is FrameworkElement animFe && GetElementTag(animFe) is Element animEl)
         {
             if (animEl.InteractionStates is not null)
                 ClearInteractionStates(control);
@@ -890,7 +987,7 @@ public sealed partial class Reconciler : IDisposable
             _componentNodes.Remove(control);
         }
 
-        if (control is FrameworkElement fe && fe.Tag is Element tagEl
+        if (control is FrameworkElement fe && GetElementTag(fe) is Element tagEl
             && _typeRegistry.TryGetValue(tagEl.GetType(), out var reg) && reg.HasUnmount)
         {
             reg.Unmount(control, this);
@@ -1418,8 +1515,7 @@ public sealed partial class Reconciler : IDisposable
 
     /// <summary>
     /// State tracking for elements with InteractionStates — stores current state and cached animations.
-    /// Stored on FrameworkElement.Tag cannot be used (already used for Element reference),
-    /// so we use a static dictionary keyed by UIElement.
+    /// Uses a static dictionary keyed by UIElement.
     /// </summary>
     private static readonly Dictionary<UIElement, InteractionStateTracker> _interactionTrackers = new();
 
@@ -2341,21 +2437,47 @@ public sealed partial class Reconciler : IDisposable
         public RoutedEventHandler? GotFocusTrampoline;
         public RoutedEventHandler? LostFocusTrampoline;
         public global::Windows.Foundation.TypedEventHandler<UIElement, Microsoft.UI.Xaml.Input.AccessKeyDisplayRequestedEventArgs>? AccessKeyDisplayRequestedTrampoline;
+
+        /// <summary>
+        /// Null out every Current* user delegate so trampolines already attached
+        /// on the native event source become no-ops. Trampoline delegate fields
+        /// are left intact — they're rooted by WinUI's subscription list and
+        /// can't be detached here without access to the native element.
+        /// </summary>
+        public void ClearCurrentHandlers()
+        {
+            CurrentSizeChanged = null;
+            CurrentPointerPressed = null;
+            CurrentPointerMoved = null;
+            CurrentPointerReleased = null;
+            CurrentPointerEntered = null;
+            CurrentPointerExited = null;
+            CurrentPointerCanceled = null;
+            CurrentPointerCaptureLost = null;
+            CurrentPointerWheelChanged = null;
+            CurrentTapped = null;
+            CurrentDoubleTapped = null;
+            CurrentRightTapped = null;
+            CurrentHolding = null;
+            CurrentKeyDown = null;
+            CurrentKeyUp = null;
+            CurrentPreviewKeyDown = null;
+            CurrentPreviewKeyUp = null;
+            CurrentCharacterReceived = null;
+            CurrentGotFocus = null;
+            CurrentLostFocus = null;
+            CurrentAccessKeyDisplayRequested = null;
+        }
     }
 
-    // Key for storing EventHandlerState in a dictionary attached to the element.
-    // We use FrameworkElement's Tag only when no setter has claimed it.
-    // To avoid conflicts, we use an attached-property-like pattern via a ConditionalWeakTable.
-    private static readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<FrameworkElement, EventHandlerState> _eventStates = new();
-
+    // EventHandlerState lives on the ReactorState wrapper attached to the
+    // native DependencyObject via ReactorAttached.StateProperty. That keys
+    // on native identity, so two RCWs pointing at the same element share one
+    // EventHandlerState and one set of trampolines — fixing issue #86.
     private static EventHandlerState GetOrCreateEventState(FrameworkElement fe)
     {
-        if (!_eventStates.TryGetValue(fe, out var state))
-        {
-            state = new EventHandlerState();
-            _eventStates.AddOrUpdate(fe, state);
-        }
-        return state;
+        var state = GetOrCreateReactorState(fe);
+        return state.Events ??= new EventHandlerState();
     }
 
     private static bool HasAnyEventHandler(ElementModifiers? m)
