@@ -33,9 +33,31 @@ public class AppTestBase
         if (_currentFixture == name)
             return;
 
-        var navElement = Session.FindElement(MobileBy.AccessibilityId($"Nav_{name}"));
-        navElement.Click();
-        WaitForText("FixtureStatus", $"Loaded: {name}");
+        var expected = $"Loaded: {name}";
+
+        // Click + wait. If the click is silently absorbed (observed when the
+        // previous test left a flyout open, or when a Reset re-render races the
+        // navigator's hit-test rebuild), the wait times out — retry the click
+        // once before giving up. This keeps fast paths fast (no extra waits in
+        // the common case) but absorbs the occasional missed click.
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            Session.FindElement(MobileBy.AccessibilityId($"Nav_{name}")).Click();
+            try
+            {
+                WaitForText("FixtureStatus", expected, timeoutMs: 5000);
+                _currentFixture = name;
+                return;
+            }
+            catch (WebDriverTimeoutException) when (attempt == 0)
+            {
+                // Brief pause before the retry so the next click doesn't land in
+                // the same window that swallowed the first one.
+                Thread.Sleep(250);
+            }
+        }
+        // Final attempt: longer timeout, no further retry.
+        WaitForText("FixtureStatus", expected, timeoutMs: 5000);
         _currentFixture = name;
     }
 

@@ -375,17 +375,25 @@ public class UseResourceTests
     {
         var cache = NewCache();
         var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        bool rerendered = false;
+        // The continuation runs on the threadpool, so the polling loop on the test
+        // thread needs an explicit memory barrier to observe the write — Volatile.Write
+        // on the producer side, Volatile.Read on the consumer side.
+        var rerendered = 0;
 
         var ctx = new RenderContext();
-        ctx.BeginRender(() => rerendered = true);
+        ctx.BeginRender(() => Volatile.Write(ref rerendered, 1));
         ctx.UseResource(_ => tcs.Task, cache, Array.Empty<object>(), null, dispatcher: null);
 
         tcs.SetResult(7);
-        await Task.Yield();
-        await Task.Delay(10);
 
-        Assert.True(rerendered);
+        // Continuation hops to the threadpool (RunContinuationsAsynchronously). Under
+        // heavy parallel test load the threadpool can take longer than a single 10ms
+        // tick, causing this assertion to flake. Poll up to 1s for the rerender flag.
+        var sw = global::System.Diagnostics.Stopwatch.StartNew();
+        while (Volatile.Read(ref rerendered) == 0 && sw.Elapsed < TimeSpan.FromSeconds(1))
+            await Task.Delay(10);
+
+        Assert.Equal(1, Volatile.Read(ref rerendered));
     }
 
     // ════════════════════════════════════════════════════════════════
