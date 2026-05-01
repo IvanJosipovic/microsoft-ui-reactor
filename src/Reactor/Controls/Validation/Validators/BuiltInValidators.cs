@@ -145,9 +145,23 @@ internal sealed class MatchValidator : IValidator
     private readonly string _message;
     private readonly string _code;
 
+    /// <summary>
+    /// Hard cap on user-supplied pattern length. TASK-094: validation
+    /// patterns must be developer-authored constants; an enormous pattern
+    /// is itself a backtracking hazard.
+    /// </summary>
+    public const int MaxPatternLength = 4096;
+
     public MatchValidator(string pattern, string message, string code = "MATCH")
     {
-        _regex = new Regex(pattern, RegexOptions.Compiled);
+        if (pattern is null) throw new ArgumentNullException(nameof(pattern));
+        if (pattern.Length > MaxPatternLength)
+            throw new ArgumentException($"Match pattern too long (>{MaxPatternLength} chars).", nameof(pattern));
+        // SECURITY (TASK-094): cap regex execution at 200ms so a pathological
+        // pattern can't tarpit the UI thread on every keystroke. 200ms matches
+        // the cap used elsewhere (DevtoolsPropertyTools, LogCaptureBuffer,
+        // WaitForPredicate) and tolerates cold-JIT under CI load.
+        _regex = new Regex(pattern, RegexOptions.Compiled, TimeSpan.FromMilliseconds(200));
         _message = message;
         _code = code;
     }
@@ -155,7 +169,10 @@ internal sealed class MatchValidator : IValidator
     public ValidationMessage? Validate(object? value, string field)
     {
         if (value is not string s || string.IsNullOrEmpty(s)) return null; // empty handled by Required
-        return !_regex.IsMatch(s)
+        bool ok;
+        try { ok = _regex.IsMatch(s); }
+        catch (RegexMatchTimeoutException) { ok = false; }
+        return !ok
             ? new ValidationMessage(field, _message, Severity.Error, _code)
             : null;
     }

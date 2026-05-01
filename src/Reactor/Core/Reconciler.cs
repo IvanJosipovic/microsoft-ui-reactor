@@ -34,6 +34,17 @@ public sealed partial class Reconciler : IDisposable
     private readonly List<(ConnectedAnimation Animation, UIElement Target)> _pendingConnectedAnimationStarts = new();
     private readonly ContextScope _contextScope = new();
     private int _errorBoundaryDepth;
+    /// <summary>
+    /// Active rerender-callback depth. Throws past
+    /// <see cref="MaxRerenderReentrancy"/> so a component that synchronously
+    /// invokes its own <c>requestRerender</c> from inside <c>Render()</c> or
+    /// effect cleanup fails fast instead of recursing to a stack overflow.
+    /// TASK-059.
+    /// </summary>
+    [ThreadStatic]
+    private static int t_rerenderDepth;
+    /// <summary>Hard depth cap — see <see cref="t_rerenderDepth"/>.</summary>
+    private const int MaxRerenderReentrancy = 50;
 
     // ── Style cache: avoids redundant XamlReader.Load() for identical theme binding sets ──
     private static readonly global::System.Collections.Concurrent.ConcurrentDictionary<string, Style> _styleCache = new();
@@ -303,6 +314,19 @@ public sealed partial class Reconciler : IDisposable
     {
         if (fe.GetValue(ReactorAttached.StateProperty) is ReactorState state)
             state.Element = null;
+    }
+
+    /// <summary>
+    /// Clears the Current* user-handler delegates from the per-element
+    /// EventHandlerState while leaving the trampoline subscription on the
+    /// underlying control. Call from <see cref="ElementPool.CleanElement"/>
+    /// so the next rent doesn't fire the previous component's captured
+    /// rerender closure. TASK-060.
+    /// </summary>
+    internal static void ClearCurrentEventHandlers(FrameworkElement fe)
+    {
+        if (fe.GetValue(ReactorAttached.StateProperty) is ReactorState state)
+            state.Events?.ClearCurrentHandlers();
     }
 
     /// <summary>
@@ -709,9 +733,52 @@ public sealed partial class Reconciler : IDisposable
     {
         return () =>
         {
+            // SECURITY (TASK-059): bound rerender re-entrancy. A component
+            // that calls its own requestRerender synchronously from Render()
+            // or an effect's cleanup would otherwise blow the stack.
+            if (t_rerenderDepth >= MaxRerenderReentrancy)
+                throw new InvalidOperationException(
+                    "Render loop detected: requestRerender re-entered more than " +
+                    $"{MaxRerenderReentrancy} times. Likely cause: setState called " +
+                    "synchronously inside Render() or effect cleanup.");
+
+            // SECURITY (TASK-063): if invoked off the UI thread (e.g.,
+            // setState(threadSafe:true) firing from a worker, or a worker
+            // that owns its own DispatcherQueue), marshal onto the UI
+            // dispatcher captured at host bring-up so we don't race the
+            // reconciler and ElementPool from a background thread.
+            // A non-null GetForCurrentThread() doesn't imply UI affinity —
+            // the only authoritative check is HasThreadAccess on the UI DQ.
+            var uiDq = ReactorHost.MainDispatcherQueue;
+            bool onUiThread = false;
+            if (uiDq is not null)
+            {
+                try { onUiThread = uiDq.HasThreadAccess; }
+                catch { onUiThread = false; }
+            }
+
+            if (!onUiThread && uiDq is not null)
+            {
+                uiDq.TryEnqueue(() =>
+                {
+                    node.SelfTriggered = true;
+                    InvokeRerenderTracked(requestRerender);
+                });
+                return;
+            }
+
+            // Either we're on the UI thread, or no UI DQ has been captured
+            // (test/headless host) — run inline.
             node.SelfTriggered = true;
-            requestRerender();
+            InvokeRerenderTracked(requestRerender);
         };
+    }
+
+    private static void InvokeRerenderTracked(Action requestRerender)
+    {
+        t_rerenderDepth++;
+        try { requestRerender(); }
+        finally { t_rerenderDepth--; }
     }
 
     /// <summary>
