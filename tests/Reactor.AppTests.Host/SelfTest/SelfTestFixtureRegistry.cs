@@ -625,6 +625,11 @@ internal static class SelfTestFixtureRegistry
         "Focus_XYFocusKeyboardNavigationSets",
         "Focus_RefModifierPopulatesOnMount",
         "Focus_FocusManagerFocusReturnsTrueWhenMounted",
+        // Spec 033 §3 — typed ElementRef<T>
+        "Focus_TypedRefPopulatesAsConcreteType",
+        "Focus_TypedRefIdentityStableAcrossRenders",
+        "Focus_TypedRefMultipleControlsPopulateIndependently",
+        "Focus_TypedRefPreservesAutomationName",
 
         // Commanding coverage — spec 027 Tier 4 (Phase 5)
         "Commanding_SplitButtonCommandInvokesExecute",
@@ -1351,6 +1356,11 @@ internal static class SelfTestFixtureRegistry
         "Focus_XYFocusKeyboardNavigationSets" => new FocusFixtures.XYFocusKeyboardNavigationSets(harness),
         "Focus_RefModifierPopulatesOnMount" => new FocusFixtures.RefModifierPopulatesOnMount(harness),
         "Focus_FocusManagerFocusReturnsTrueWhenMounted" => new FocusFixtures.FocusManagerFocusReturnsTrueWhenMounted(harness),
+        // Spec 033 §3 — typed ElementRef<T>
+        "Focus_TypedRefPopulatesAsConcreteType" => new FocusFixtures.TypedRefPopulatesAsConcreteType(harness),
+        "Focus_TypedRefIdentityStableAcrossRenders" => new FocusFixtures.TypedRefIdentityStableAcrossRenders(harness),
+        "Focus_TypedRefMultipleControlsPopulateIndependently" => new FocusFixtures.TypedRefMultipleControlsPopulateIndependently(harness),
+        "Focus_TypedRefPreservesAutomationName" => new FocusFixtures.TypedRefPreservesAutomationName(harness),
 
         // Commanding coverage — spec 027 Tier 4 (Phase 5)
         "Commanding_SplitButtonCommandInvokesExecute" => new CommandingCoverageFixtures.SplitButtonCommandInvokesExecute(harness),
