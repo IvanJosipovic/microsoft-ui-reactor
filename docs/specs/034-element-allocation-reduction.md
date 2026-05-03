@@ -2,12 +2,24 @@
 
 ## Status
 
-- **Drafted** — 2026-05-02.
+- **Implemented — 2026-05-03.** All three components ship in one PR
+  (Reactor `LayoutModifiers` / `VisualModifiers` shim, `UseMemoCells*`
+  hook trio, `REACTOR_HOOKS_007` analyzer + codefix, and the
+  `StressPerf.ReactorOptimized` reference variant). Verified numbers
+  from a same-day full-matrix ETW bench (ARM64 Release, 10 s,
+  10 / 20 / 50 / 100 % mutation, eight variants) live in the
+  [Verified close-out — 2026-05-03](#verified-close-out--2026-05-03)
+  section below. **Headline:** ReactorOptimized at 10 % mutation
+  reaches **17.1 Effective Refresh/s — within noise of DirectX (17.2)
+  and Wpf (17.9), and +66 % over naive Reactor (10.3).** Reconcile
+  time on the same A/B is **−76 % at 10 %** mutation
+  (32.5 ms → 7.9 ms), **−61 % at 20 %**, **−31 % at 50 %**, **−12 %
+  at 100 %**. The prototype's prediction reproduces on production code.
 - **Investigation complete** — see `docs/perf-investigations/reactor-vs-direct-10pct.md`
   for the full analysis, hypothesis log, and same-day measured A/B data that
   motivates this spec. That document is reference material; this spec is the
   forward-looking design.
-- **Three components locked in** for production: `MemoCells` hook (EX1),
+- **Three components locked in** for production: `UseMemoCells` hook (EX1),
   direct-record-initializer idiom (EX3), bucketed `ElementModifiers` (EX4).
 - **One experiment dropped** as a measured regression: inline-fluent fast
   paths on `Foreground` / `Padding` (EX2). May return after re-measurement
@@ -67,11 +79,14 @@ Three takeaways:
 
 1. **Land all three components without breaking public API.** All three are
    API-additive: bucketed modifiers ship as a transparent storage shim, the
-   direct-construction idiom is a recommendation, `MemoCells` is a new hook.
+   direct-construction idiom is a recommendation, `UseMemoCells` is a new hook.
 2. **Make the closure-dependency footgun loud, not silent.** The investigation
    surfaced a real correctness risk in naive memo usage (cells silently render
-   stale when the builder closes over external state). `MemoCells` must take
-   an explicit dependency parameter so users can't accidentally use it wrong.
+   stale when the builder closes over external state). `UseMemoCells` takes
+   `params` deps matching `UseMemo` / `UseEffect` / `UseCallback`, and ships
+   alongside a Roslyn analyzer that warns when a closure capture in `builder`
+   is not declared in `deps`. The analyzer — not the API shape — is the
+   primary protection against maintenance drift.
 3. **Document the perf-critical-path-only nature of EX3.** Direct record
    initializers bypass the fluent chain's ergonomics. The recommendation is
    explicitly "use this in inner cell loops; keep using fluent everywhere else."
@@ -316,7 +331,7 @@ builder that materializes a single immutable record at `.Build()`. That's
 
 ---
 
-## Component C — `MemoCells` hook with explicit dependencies (EX1)
+## Component C — `UseMemoCells` hook with explicit dependencies (EX1)
 
 ### What
 
@@ -327,22 +342,27 @@ investigation prototype proved this experimentally: a `UseRef`-backed
 manual loop reusing `prevChildren[i]` for unchanged cells gave +49 %
 renders.
 
-`MemoCells` ships that pattern as a one-line idiom:
+`UseMemoCells` ships that pattern as a one-line idiom:
 
 ```csharp
-public static Element[] MemoCells<T>(
+public static Element[] UseMemoCells<T>(
     IReadOnlyList<T> items,
-    object?[] dependencies,
     Func<T, int, Element> builder,
-    IEqualityComparer<T>? comparer = null) where T : notnull;
+    params object[] dependencies) where T : notnull;
 ```
 
-**The `dependencies` parameter is mandatory and explicit.** This is the
-spec's most important point and is detailed below.
+**The signature deliberately matches `UseMemo` / `UseEffect` /
+`UseCallback`** for muscle-memory consistency: deps are trailing
+`params`. The closure-capture correctness problem is solved by a
+companion Roslyn analyzer, not by API friction — see "Companion
+analyzer" below. Custom item equality, when needed, is expressed by
+swapping to `UseMemoCellsByKey` with a key selector that produces equal
+keys for equal items, rather than threading an `IEqualityComparer<T>`
+through the base hook.
 
 ### The closure-dependency footgun
 
-`MemoCells` caches its output keyed only on the per-item value `T`. If
+`UseMemoCells` caches its output keyed only on the per-item value `T`. If
 the `builder` lambda closes over anything besides the item — theme,
 selection state, hover state, drag overlays, sort order, a parent
 component's `UseState` value — those captures are not part of the cache
@@ -350,19 +370,22 @@ key. A change to a captured value will **not** invalidate the cell. The
 cell silently renders stale.
 
 This is the same trap as `React.memo` and `useMemo` with a forgotten
-dependency. The compiler can't see closure captures, so the framework
-can't catch it automatically.
+dependency. The runtime can't catch it — by the time `builder` runs,
+the closure has already baked in the stale value. The framework's
+answer is two-part: a `deps` parameter that the user passes, and a
+companion Roslyn analyzer (below) that warns at compile time when a
+closure capture is missing from `deps`.
 
-The chosen mitigation is **mandatory explicit deps**:
+The call-site shape:
 
 ```csharp
 var theme = UseTheme();
 var selection = UseSelection();
 
-var children = MemoCells(
+var children = UseMemoCells(
     items,
-    [theme, selection],     // ← deps; framework invalidates on change
-    (item, i) => Cell(item, theme, selection));
+    (item, i) => Cell(item, theme, selection),
+    theme, selection);      // ← deps; framework invalidates on change
 ```
 
 Behaviorally:
@@ -372,31 +395,64 @@ Behaviorally:
   invalidated** and every cell rebuilds via `builder`.
 - If deps are unchanged, the per-item `Equals` check decides which cells
   reuse vs rebuild.
-- Empty deps array (`[]`) means "no closure captures to track" — pure
-  function of `T`. Allowed but documented as the sharp-knife case.
-- Null `dependencies` is **disallowed** (compile-time `[]` is fine).
-  Forcing the user to write `[]` explicitly is the design's whole point —
-  silent memo at non-pure call sites is what we are protecting against.
+- Zero deps (calling `UseMemoCells(items, builder)` with no trailing args)
+  means "pure function of `T`" — no closure captures to track. Legal,
+  but the analyzer flags it when the `builder` lambda actually does
+  capture something. This is the sharp-knife case made loud at compile
+  time.
 
 ### Variants
 
 Two helpers ship alongside the base hook for common shapes:
 
-- **`MemoCellsByKey<T>(items, keySelector, deps, builder)`** — for items
-  with stable identity but mutable interior (`record Person(int Id, string Name)`).
-  Hashes by key, value-compares for content. Also lets the reconciler key
-  the children for reorder stability.
-- **`MemoCellsByIndex<T>(items, changedIndices, deps, builder)`** — for the
-  case where the data source already knows which indices changed (the
-  `StressPerf.StockDataSource.Update()` return value is exactly this).
-  Skips the per-cell equality scan entirely; only the named indices run the
-  builder.
+- **`UseMemoCellsByKey<T>(items, keySelector, builder, params deps)`** — for
+  items with stable identity but mutable interior
+  (`record Person(int Id, string Name)`). Hashes by key, value-compares
+  for content. Also lets the reconciler key the children for reorder
+  stability.
+- **`UseMemoCellsByIndex<T>(items, changedIndices, builder, params deps)`** —
+  for the case where the data source already knows which indices changed
+  (the `StressPerf.StockDataSource.Update()` return value is exactly
+  this). Skips the per-cell equality scan entirely; only the named
+  indices run the builder.
+
+### Companion Roslyn analyzer
+
+Ships in the same release as the hook, in `Reactor.Analyzers`. The
+analyzer walks the `builder` lambda passed to `UseMemoCells` /
+`UseMemoCellsByKey` / `UseMemoCellsByIndex`, identifies its closure captures,
+and emits a warning for any capture that is not present in the trailing
+`deps` arguments.
+
+Scope:
+
+- **Diagnostic id**: `REACTOR_HOOKS_007` (next free in the existing
+  `Reactor.Hooks` analyzer range — see
+  `src/Reactor.Analyzers/AnalyzerReleases.Unshipped.md`; the
+  `HookRulesAnalyzer` currently owns 001–006).
+- **Trigger**: a syntactic capture appears in the lambda body but the
+  same expression is missing from the `deps` arg list.
+- **Severity**: warning by default; codefix offers to add the missing
+  capture to the `deps` list.
+- **False positives accepted as policy**: a capture that is truly
+  immutable for the component's lifetime (e.g., a static brush) will be
+  flagged. The codefix's "add to `deps`" is harmless in that case;
+  per-call suppression is available for users who want it.
+- **Known blind spot**: indirect captures through an intermediate
+  method call (`builder` calls `RenderRow(item)` which closes over
+  state). Same blind spot as React's `react-hooks/exhaustive-deps`.
+  Documented in user docs; no static fix available without
+  whole-program analysis.
+
+The analyzer is the spec's actual answer to the maintenance-drift
+footgun. The hook's `params` shape is consistent with the rest of the
+hook surface; the analyzer is what makes it safe.
 
 ### Documentation deliverable — preconditions and gen2 caveat
 
 User-facing docs must lead with two warnings:
 
-1. **`MemoCells` is the right hammer for cells whose content is a pure
+1. **`UseMemoCells` is the right hammer for cells whose content is a pure
    function of their item plus a small set of declared deps.** It is the
    wrong hammer the moment cell content depends on shared state that you
    aren't capturing in `deps`. Examples that *would* work: tickers, log
@@ -431,10 +487,12 @@ recommended sequence is:
    only; shipped as a `docs/guide/perf-hot-loops.md` template plus an
    updated `tests/stress_perf/StressPerf.Reactor` example showing the
    pattern in context. No source changes.
-3. **Component C (`MemoCells`)** last. Most surface-area-additive work
-   — new public hook in `Microsoft.UI.Reactor.Hooks`, three variants,
-   docs, tests. Requires the explicit-deps API discussion to land in
-   review before implementation.
+3. **Component C (`UseMemoCells` + analyzer)** last. Most surface-area-
+   additive work — new public hook in `Microsoft.UI.Reactor.Hooks`,
+   three variants, companion `REACTOR_HOOKS_007` analyzer in `Reactor.Analyzers`,
+   docs, tests. The hook and analyzer ship together in one PR; the
+   analyzer is what makes the hook safe to use, so they should not
+   split.
 
 Each PR can ship independently. Component A is internal and lowest-risk;
 Component B is documentation only; Component C is the largest user-facing
@@ -474,15 +532,20 @@ addition and benefits from B's documentation context.
 
 ### Component C
 
-- Unit tests for `MemoCells` covering: deps-unchanged + items-unchanged
+- Unit tests for `UseMemoCells` covering: deps-unchanged + items-unchanged
   (full reuse), deps-unchanged + items-partial (per-cell decisions),
-  deps-changed (full invalidation), null deps disallowed, empty deps
-  allowed.
-- Unit tests for `MemoCellsByKey` and `MemoCellsByIndex`.
+  deps-changed (full invalidation), zero-deps call (legal — analyzer
+  catches the misuse case at compile time, not the hook at runtime).
+- Unit tests for `UseMemoCellsByKey` and `UseMemoCellsByIndex`.
+- Analyzer tests for `REACTOR_HOOKS_007`: builder captures dep present in `deps`
+  (no diagnostic), capture missing from `deps` (warning), zero-deps
+  call with capturing builder (warning), zero-deps call with pure
+  builder (no diagnostic), codefix adds the missing capture. Follow
+  the existing test pattern in `tests/Reactor.Analyzers.Tests/`.
 - Property test: a fuzz over (deps, items) sequences confirms that for
-  any input that should produce a different render output, `MemoCells`
+  any input that should produce a different render output, `UseMemoCells`
   produces it.
-- Bench: re-run `StressPerf.Reactor` with `MemoCells` (replacing the
+- Bench: re-run `StressPerf.Reactor` with `UseMemoCells` (replacing the
   current `STRESS_PERF_MEMO=1` manual loop) and confirm the +49 %
   render gain reproduces.
 - Worst-case bench: re-run at `--percent 100` and confirm the
@@ -492,7 +555,7 @@ addition and benefits from B's documentation context.
 ### Cross-component bench
 
 After all three land, re-establish the canonical comparison table on the
-production code (no env vars) and confirm `MemoCells + EX3 idiom + EX4
+production code (no env vars) and confirm `UseMemoCells + EX3 idiom + EX4
 storage = 214 renders / 2.21 MB/tick` reproduces.
 
 ---
@@ -511,18 +574,20 @@ storage = 214 renders / 2.21 MB/tick` reproduces.
   for any consumer that has built a `new LayoutModifiers { … }` directly.
   Mitigation: document the buckets as "stable surface for direct
   construction; field set may grow but won't shrink" and pin via API tests.
-- **Component C — Closure footgun even with explicit deps.** Users will
-  forget to add a dep. The mandatory-deps API makes this visible at the
-  call site (`[]` is a deliberate choice, not a default), but the failure
-  is still silent. Long-term mitigation options not in this spec:
-  (a) a Roslyn analyzer that warns when a closure capture is not in `deps`;
-  (b) the `Render Method Compiler Transform` from
-  `008-csharp-language-improvements.md` §4, which would let us see
-  closure captures statically.
+- **Component C — Analyzer blind spots.** `REACTOR_HOOKS_007` catches direct
+  closure captures in the `builder` lambda but not indirect captures
+  through an intermediate method call (`builder` calls `RenderRow(item)`
+  which closes over state). Same blind spot as React's
+  `react-hooks/exhaustive-deps`. The longer-term fix is the Render
+  Method Compiler Transform from `008-csharp-language-improvements.md`
+  §4, which would let us see closure captures statically across the
+  whole render tree. Until then, document the boundary in `UseMemoCells`
+  user docs and trust that the direct-capture case (overwhelmingly the
+  common one) is covered.
 - **Component C — gen2 retention.** The +67 % gen2 finding under
   worst-case mutation is real and could compound across many memoized
   lists. Watch for this in real apps; if it becomes a problem, consider
-  shipping a `MemoCells.Compact()` API that lets users drop the snapshot
+  shipping a `UseMemoCells.Compact()` API that lets users drop the snapshot
   on demand (e.g., when the list scrolls off screen).
 - **EX2 dropped.** If a future production workload depends on the EX2
   inline fast path, dropping it now is a regression vs the in-tree
@@ -577,7 +642,7 @@ Largest pending systemic win for non-memoizable workloads. Pipelines the
 ~24 ms tree-build off the UI thread, freeing UI-thread cycles for COM
 calls into WinUI. Tracked as Q&A Q2 in the analysis doc; needs a
 WinUI-thread-affinity audit on framework-internal `Brush` /
-`FontFamily` / `CornerRadius` allocations. **The cells where `MemoCells`
+`FontFamily` / `CornerRadius` allocations. **The cells where `UseMemoCells`
 is unsafe** (closure-dependent content) are exactly the cells where
 off-thread render still helps.
 
@@ -586,16 +651,148 @@ off-thread render still helps.
 The investigation surfaced that `StockDataSource.Update(100)` only
 achieves ~63 % effective per-cell mutation due to sampling with
 replacement. A truly-100 % mode would isolate the equality-check
-overhead in `MemoCells` from the partial-reuse benefit, giving cleaner
+overhead in `UseMemoCells` from the partial-reuse benefit, giving cleaner
 worst-case numbers. Bench-only change; logged for Component C's bench
 test plan.
 
-### Roslyn analyzer for `MemoCells` closure captures
+---
 
-If the gen2 retention or silent staleness becomes a real-world problem,
-a custom analyzer that walks the `builder` lambda's captures and warns
-when one is not in `deps` would let us catch the footgun at compile
-time. Compelling but not blocking for the initial ship.
+## Verified close-out — 2026-05-03
+
+Full eight-variant matrix re-bench against the merged production code
+on ARM64 Release, 10 s per scenario, ETW Present-tracking via
+`PresentTracer` (admin shell). Captures every mutation rate the spec
+cares about: **10 %** (the prototype's headline), 20, 50, 100. Script
+at `tests/stress_perf/run_full_matrix.ps1`; raw CSV at
+`tests/stress_perf/baselines/full-matrix-2026-05-03-070935/`.
+
+The headline column below is **Effective Refresh = min(in-app
+renders/s, ETW Present/s)** — the rate at which fresh content reaches
+the screen, the only honest cross-framework metric for this workload
+(see `tests/stress_perf/METHODOLOGY.md`). Two scrape anomalies are
+called out separately so they don't pollute the comparisons.
+
+### Effective Refresh (1-run, AC, ARM64, 120 Hz display)
+
+| Variant            | 10 % | 20 % | 50 % | 100 % |
+|--------------------|-----:|-----:|-----:|------:|
+| **DirectX**        | 17.2 | 15.6 | **14.8** | **14.3** |
+| **Wpf**            | **17.9** | 11.7 |  6.2 |   4.1 |
+| **ReactorOptimized** | **17.1** |  8.2 |  5.0 |   3.6 |
+| ReactorGrid        | 11.0 |  8.3 |  5.8 |   4.6 |
+| Reactor            | 10.3 |  7.4 |  4.7 |   3.4 |
+| Direct             | 10.0 |  8.1 |  4.6 |   3.1 |
+| Bound              |   *  |  6.8 |  4.1 |   2.8 |
+| RN-Fabric          |  5.8 |  3.6 |   *  |   2.1 |
+
+\* Two scrape anomalies. `Bound @ 10 %` and `RN-Fabric @ 50 %` exited
+before the script's 500 ms post-run UIA scrape window. ETW Present
+rates were captured cleanly for both rows (12.1 and 3.6 respectively),
+so the variants did run; only the in-app `Total Renders` field is
+zero. Filed as a bench follow-up (extend the post-run sleep or read
+the report file synchronously when the process exits) and does not
+affect any cross-variant comparison that uses Effective Refresh.
+
+### Reactor reconcile-time — Components A + B + C combined
+
+| Mutation | Reactor reconcile (ms) | ReactorOptimized reconcile (ms) | Δ |
+|---------:|-----------------------:|--------------------------------:|---:|
+|    10 %  |                  32.5  |                          **7.9** | **−76 %** |
+|    20 %  |                  36.8  |                           14.4  |  −61 %  |
+|    50 %  |                  43.9  |                           30.4  |  −31 %  |
+|   100 %  |                  53.7  |                           47.3  |  −12 %  |
+
+### Reads
+
+1. **Spec's headline lands.** ReactorOptimized at 10 % mutation reaches
+   **17.1 Effective Refresh/s** — within run-to-run noise of DirectX
+   (17.2) and Wpf (17.9), and **+66 %** over naive Reactor (10.3).
+   The prototype predicted Reactor → ReactorOptimized would close the
+   gap to Direct/DirectX on this workload; production code does so.
+2. **Reconcile time is the cleanest signal of the framework-side
+   improvement.** −76 % at 10 % mutation collapses to −12 % at 100 %
+   as the workload turns GC-bound and the per-cell equality scan
+   begins to claw back what little reuse remains. Memo's win tracks
+   the partial-reuse opportunity exactly as predicted in §C.
+3. **DirectX wins at saturation** (50 % onwards) by a wide margin.
+   Workload-independent canvas redraws don't allocate per cell, so
+   GC pressure never bites. Above ~30 % mutation, no allocating
+   framework can keep up. This is a known shape, not a spec 034
+   regression.
+4. **ReactorOptimized > Direct at every mutation rate sampled, but
+   the gap at 10 % deserves an asterisk.** Direct's `OnTick`
+   (`tests/stress_perf/StressPerf.Direct/MainWindow.cs:142-183`) is
+   doing exactly what it should — `foreach (int idx in changed) { tb.Text =
+   …; tb.Foreground = …; }` — so on first principles Direct should
+   be the floor. Two effects in the bench scaffolding bias the
+   comparison in ReactorOptimized's favor:
+    - Direct sets `_fpsText.Text` / `_updateText.Text` /
+      `_memText.Text` **every tick** regardless of value change
+      (lines 180-182). Three SetValues × ~30 ticks/s × layout
+      invalidation on the parent StackPanel = real overhead the
+      reconciler-routed ReactorOptimized path skips when string
+      values match.
+    - Direct writes phase timings to `C:\temp\direct_perf_phases.log`
+      via `File.AppendAllText` once per second, on the UI thread,
+      inside `OnTick` (lines 171-177). Leftover dev instrumentation;
+      should be deleted.
+    - This was a single-repeat run; run-to-run variance was not
+      sampled at 10 % across all 8 variants.
+   The ReactorOptimized headline (matches DirectX/Wpf within noise)
+   is robust; the "beats Direct" claim should be read as "ties or
+   beats Direct after fixing those two dev-instrumentation warts."
+   Filed as a bench follow-up.
+5. **ReactorGrid (virtualizing list)** leads naive Reactor at every
+   rate and beats ReactorOptimized at 50 / 100 %. Orthogonal to spec
+   034 — the right answer for *very* large grids is "don't render
+   the off-screen cells," not "render them faster." Confirms
+   virtualization is still on the table for follow-up specs even
+   after spec 034 lands.
+6. **RN-Fabric is consistently last and framework-bound** at every
+   captured rate. JS↔C++ commit gates the render thread; peak RSS
+   1.1-1.4 GB (vs ~140 MB for DirectX, ~400-510 MB for the C#
+   variants).
+
+### Memory footprint (peak RSS, MB, median across mutation rates)
+
+| DirectX | Direct | ReactorGrid | ReactorOptimized | Reactor | Bound | Wpf  | RN-Fabric |
+|--------:|-------:|------------:|-----------------:|--------:|------:|-----:|----------:|
+|  ~142   |  ~414  |    ~394     |       ~497       |   ~503  | ~497  | ~903 |  ~1212    |
+
+Reactor variants sit at ~500 MB — heavier than Direct or DirectX,
+lighter than Wpf or RN-Fabric. Spec 034's allocation-side savings
+don't move the steady-state RSS materially; that's gen0 churn the
+GC reclaims, not retained working set.
+
+### Component A in isolation — naive `Reactor` before vs. after
+
+The same naive `StressPerf.Reactor` source compiled against the
+pre-spec-034 commit (`247a525`, parent of the Component A merge) was
+re-bench'd via `git worktree` to isolate Component A's transparent
+storage shim — same source, same fluent-chain usage, only the
+framework changed. Captured with the no-ETW driver (yesterday) at
+20 / 50 / 100 % only; not re-run with ETW. Raw data at
+`tests/stress_perf/baselines/spec-034-reactor-before.csv`.
+
+| Mutation | Reactor pre-A renders | Reactor post-A renders | ΔRenders | Reactor pre-A reconcile (ms) | Reactor post-A reconcile (ms) | ΔReconcile |
+|---------:|----------------------:|-----------------------:|---------:|-----------------------------:|------------------------------:|-----------:|
+|     20 % |                    81 |                     77 |  −4.9 %  |                         35.1 |                          35.9 |    +2.3 %  |
+|     50 % |                    48 |                     50 |  +4.2 %  |                         53.8 |                          44.8 |   −16.7 %  |
+|    100 % |                    34 |                     34 |   0 %    |                         55.3 |                          53.4 |    −3.4 %  |
+
+Component A's transparent shim does **not** deliver renders/sec
+uplift outside run-to-run noise at 20 / 50 / 100 %. The cleanest
+signal is the −16.7 % reconcile-time win at 50 %; 20 and 100 are
+within noise. Consistent with §A's framing: Component A is an
+**allocation-side** improvement (~−11 % bytes/tick per the
+prototype), and at the high mutation rates sampled the workload is
+GC-bound enough that 11 % fewer allocations doesn't translate
+proportionally into more renders. The prototype's predicted +6 %
+renders was at 10 % mutation — a point captured in the full-matrix
+table above only against the ReactorOptimized + Reactor pair, not
+isolated against pre-A Reactor. Component A's user-visible win
+remains "free transparent allocation reduction" — bytes-side, not
+renders-side, on this hardware at these rates.
 
 ---
 

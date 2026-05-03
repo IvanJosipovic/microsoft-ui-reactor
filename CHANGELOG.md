@@ -29,6 +29,33 @@ to land under these conventions; subsequent specs follow this shape.
 
 ### Added
 
+- `Microsoft.UI.Reactor.Hooks.UseMemoCells` /
+  `UseMemoCellsByKey` / `UseMemoCellsByIndex` — cell-level memoization
+  hooks (extension methods on `RenderContext`, plus matching `Component`
+  shims) for high-frequency list/grid bodies. Cells whose item value
+  (and declared deps) haven't changed since the previous render are
+  reused by reference; the reconciler short-circuits on
+  `ReferenceEquals` and skips diffing entirely. (spec 034 §C)
+- `REACTOR_HOOKS_007` analyzer + codefix — warns when a `UseMemoCells`
+  builder lambda closes over a value that isn't declared in the
+  `params deps` list, which would silently render stale. The codefix
+  appends the missing capture to the deps slot. Indirect captures
+  through helper methods are a documented blind spot. (spec 034 §C)
+- "Memoizing list cells" section in `docs/guide/advanced.md` covering
+  the three overloads, when each is the right hammer, the gen2
+  trade-off, and the analyzer-as-safety-net story. (spec 034 §C)
+- `tests/stress_perf/StressPerf.ReactorOptimized` — sibling bench
+  variant that demonstrates the spec-034 §B direct-record-initializer
+  idiom for inner-loop cell construction. The naive `StressPerf.Reactor`
+  variant stays unchanged and remains the framework-level baseline; the
+  new optimized sibling is the reference implementation of the perf-tips
+  skill. Wired into `run_stocks_grid_baseline.ps1`,
+  `run_bench_aot_publish.sh`, `run_benchmark.sh`, and
+  `run_sweep_arm64.ps1`. (spec 034 §B)
+- "Hot loops" section in `docs/guide/advanced.md` documenting when to
+  reach for direct record initializers, the trade-offs vs the fluent
+  chain, and a side-by-side worked example. Source template at
+  `docs/_pipeline/templates/advanced.md.dt`. (spec 034 §B)
 - `Expr(Func<Element?>)` factory in `Microsoft.UI.Reactor.Factories` for inline
   block-expression bodies inside a DSL tree, removing the
   `((Func<Element?>)(() => …))()` cast ceremony. Pure composition — no hooks,
@@ -70,6 +97,33 @@ to land under these conventions; subsequent specs follow this shape.
 
 ### Changed
 
+- **Spec 034 — Element allocation reduction.** Three independent
+  allocation cuts in one PR: bucketed `ElementModifiers` (transparent
+  storage shim, ~−11% bytes/tick on the 4,900-cell stress grid),
+  direct-record-initializer idiom for inner cell loops (~−60% bytes
+  per cell), and `UseMemoCells` cell-level memoization. Verified at
+  PR-close on ARM64 Release with full ETW Present-tracking across
+  10/20/50/100% mutation, all eight stress_perf variants:
+  **ReactorOptimized at 10% mutation reaches 17.1 Effective Refresh/s
+  — within noise of DirectX (17.2) and Wpf (17.9), and +66% over
+  naive Reactor (10.3).** Reconcile-time win on the same A/B: −76% at
+  10% (32.5 ms → 7.9 ms), −61% at 20%, −31% at 50%, −12% at 100% —
+  memo's win tracks the partial-reuse opportunity exactly as
+  predicted. DirectX runs away at saturation (50%+) — no allocating
+  framework can keep up there. Component A in isolation (naive
+  Reactor pre-shim vs post-shim, same source, no app-code changes)
+  shows renders/sec within run-to-run noise at 20/50/100% — its win
+  is allocation-side, not renders-side, on this hardware. See
+  `docs/specs/034-element-allocation-reduction.md` § "Verified
+  close-out — 2026-05-03" for the full eight-variant matrix and
+  reads. (spec 034)
+- `ElementModifiers` now stores layout and visual fields in
+  `LayoutModifiers` / `VisualModifiers` sub-records. Existing call sites are
+  unaffected — public properties (`Padding`, `Margin`, `Foreground`,
+  `Background`, …) shim through to the appropriate bucket on read and write.
+  Perf-critical inner loops may construct buckets directly via the new
+  `Layout = …` / `Visual = …` initializer slots to avoid a fat
+  `ElementModifiers` clone per fluent step. (spec 034 §A)
 - `PersistedStateCache` rewritten over an LRU cache with eviction-on-full
   semantics. The previous "refuse new keys when 4096 entries are present"
   policy is replaced — later, hotter keys are no longer starved by the

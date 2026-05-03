@@ -253,6 +253,113 @@ mutate the original `ObservableCollection` in event handlers. Reactor
 subscribes to `CollectionChanged` and triggers a re-render on any
 modification.
 
+## Hot loops
+
+The fluent modifier chain is ergonomic but allocates an `ElementModifiers`
+clone per `with`-step. For ordinary UI that is invisible — a button has
+five modifiers, the cost is two extra small records on a click handler.
+For inner-loop cell construction in a 4,900-cell grid that re-renders
+30× per second, those clones dominate the allocation profile.
+
+The escape hatch is to construct the `Element` and its `ElementModifiers`
+record directly, skipping the fluent chain entirely. The
+`LayoutModifiers` and `VisualModifiers` sub-records are public types
+specifically so perf-critical code can build them once instead of having
+the fluent chain rebuild them step-by-step.
+
+```csharp
+// Fluent — five clones per cell. Right tool for ordinary UI.
+var cell = TextBlock(label)
+    .FontSize(8)
+    .Foreground(item.IsUp ? GreenBrush : RedBrush)
+    .Padding(2, 1, 2, 1)
+    .Grid(row: r, column: c);
+
+// Direct record initializer — one TextBlockElement, one ElementModifiers,
+// two bucket sub-records, one Attached dictionary. Use only when the
+// allocation cost shows up in profiles.
+var cell = new TextBlockElement(label)
+{
+    FontSize = 8,
+    Modifiers = new ElementModifiers
+    {
+        Layout = new LayoutModifiers { Padding = new Thickness(2, 1, 2, 1) },
+        Visual = new VisualModifiers { Foreground = item.IsUp ? GreenBrush : RedBrush },
+    },
+    Attached = new Dictionary<Type, object>(1)
+    {
+        [typeof(GridAttached)] = new GridAttached(r, c, 1, 1),
+    },
+};
+```
+
+**Workload shape.** Use this idiom in lists or grids with hundreds-plus
+elements per render — tickers, log tables, observability dashboards. Don't
+adopt it for ordinary screens. The fluent chain remains the right tool for
+everything except the inner cell loop.
+
+**Trade-offs.** Roughly halves the allocation cost of cell construction
+on the 4,900-cell stress grid, but loses fluent ergonomics. The direct
+form is more brittle to refactor — changing one field touches an explicit
+initializer block instead of a chain step. Restrict it to the
+identifiable hot loop and keep the rest of the file fluent.
+
+**Reference implementation.** The canonical before/after pair lives in
+`tests/stress_perf/StressPerf.Reactor` (naive — fluent chain, the shape
+unaware users write) and `tests/stress_perf/StressPerf.ReactorOptimized`
+(idiomatic perf-tuned variant). Same workload, side-by-side diffable.
+
+**Forward reference.** Spec 008's builder-pattern element factories
+would let the fluent chain match this allocation profile, eliminating
+the dichotomy. Until then, treat direct-initializer as a targeted
+optimization.
+
+## Memoizing list cells
+
+`UseMemoCells` skips the cell-build for indices whose item value (and
+declared dependencies) haven't changed since the previous render. The
+reconciler's `ReferenceEquals` shortcut means a reused cell allocates
+nothing and skips diffing entirely.
+
+```csharp
+var theme = ctx.UseTheme();
+var children = ctx.UseMemoCells(
+    stocks,
+    (item, i) => Cell(item, theme),
+    theme);   // ← deps; framework invalidates on change
+```
+
+**When it's the right hammer.** Tickers, log tables, file lists, large
+read-only grids — anywhere the cell content is a pure function of `T`
+plus a small set of declared deps.
+
+**When it's the wrong hammer.** Rows whose chrome depends on focus,
+drag, selection, or hover state that you aren't capturing in deps.
+Memo silently renders stale when an external state change isn't
+declared as a dep — the analyzer below catches the obvious cases, but
+indirect captures through helper methods aren't visible to it.
+
+**Three overloads:**
+
+| Overload | Use when |
+|----------|----------|
+| `UseMemoCells<T>` | Per-item value equality. Default choice. |
+| `UseMemoCellsByKey<T, TKey>` | Items have stable identity but mutable interior (`record Person(int Id, string Name)`). Hashes by key, value-compares for content. Reordered keys reuse cells via the reconciler's keyed-children path. |
+| `UseMemoCellsByIndex<T>` | Data source already knows which indices changed. Skips the per-cell equality scan; only the named indices run the builder. |
+
+**gen2 caveat.** Memo trades short-lived gen0 churn for longer-lived
+gen1/gen2 retention. Many memoized lists across an app can compound
+gen2 pressure even when bytes-per-tick drops. Profile before adopting
+across the board.
+
+**Compile-time safety net.** The companion Roslyn analyzer
+`REACTOR_HOOKS_007` warns when a builder closure captures a value that
+isn't declared in the deps list. Codefix is "add the missing capture to
+deps". Indirect captures through intermediate methods are a documented
+blind spot — the analyzer can't see through a method call without
+whole-program analysis (same blind spot as React's
+`react-hooks/exhaustive-deps`).
+
 ## Tips
 
 **Wrap third-party components in `ErrorBoundary`.** If a plugin or external
