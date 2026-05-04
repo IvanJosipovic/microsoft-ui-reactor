@@ -193,7 +193,6 @@ string GenerateCsproj() =>
         <Nullable>enable</Nullable>
         <UseWinUI>true</UseWinUI>
         <WindowsPackageType>None</WindowsPackageType>
-        <WindowsSdkPackageVersion>10.0.22621.52</WindowsSdkPackageVersion>
       </PropertyGroup>
       <ItemGroup>
         <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.1" />
