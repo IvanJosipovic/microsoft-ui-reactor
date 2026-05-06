@@ -309,16 +309,23 @@ public static class D3Charts
     }
 
     /// <summary>Creates pie/donut slice elements directly from data, collapsing PieGenerator + ArcGenerator + iteration into one expression.</summary>
+    /// <param name="palette">
+    /// Optional color palette. When null or empty, falls back to <see cref="Palette"/>
+    /// (D3 Category10). Callers that want slice colors to match an external label
+    /// computation should pass the same palette here that they use for those labels.
+    /// </param>
     public static Element[] D3Pie<T>(IReadOnlyList<T> data, Func<T, double> value, double cx, double cy,
         double outerRadius = 150, double innerRadius = 0,
         double padAngle = 0, bool sort = true,
-        Brush? stroke = null, double strokeWidth = 1.5)
+        Brush? stroke = null, double strokeWidth = 1.5,
+        IReadOnlyList<D3Color>? palette = null)
     {
         var arcs = PieGenerator.Generate(data, value, sort, padAngle);
         var arc = new ArcGenerator().SetOuterRadius(outerRadius).SetInnerRadius(innerRadius);
+        var resolved = palette is { Count: > 0 } p ? p : Palette;
         return arcs.Select((a, i) =>
             (Element)D3PathTranslated(arc.Generate(a), cx, cy,
-                fill: Brush(Palette[i % Palette.Count]),
+                fill: Brush(resolved[i % resolved.Count]),
                 stroke: stroke,
                 strokeWidth: strokeWidth)
         ).ToArray();
@@ -348,8 +355,28 @@ public static class D3Charts
 
 
     /// <summary>Creates X and Y axis lines with tick labels as a flat array of Elements.</summary>
+    /// <param name="xs">Scale that maps domain values to X-axis pixel positions.</param>
+    /// <param name="ys">Scale that maps domain values to Y-axis pixel positions.</param>
+    /// <param name="left">X coordinate of the plot area's left edge.</param>
+    /// <param name="top">Y coordinate of the plot area's top edge.</param>
+    /// <param name="width">Plot area width.</param>
+    /// <param name="height">Plot area height.</param>
+    /// <param name="xTicks">Approximate number of ticks to generate on the X axis.</param>
+    /// <param name="yTicks">Approximate number of ticks to generate on the Y axis.</param>
+    /// <param name="xTickLabel">
+    /// Optional custom renderer for X-axis tick labels. Receives the tick value and returns
+    /// any <see cref="Element"/>; the chart anchors it horizontally centered on the tick mark.
+    /// When null, a built-in numeric <c>TextBlock</c> is rendered.
+    /// </param>
+    /// <param name="yTickLabel">
+    /// Optional custom renderer for Y-axis tick labels. The returned element is right-anchored
+    /// to the axis edge and vertically centered on the tick. When null, a built-in numeric
+    /// <c>TextBlock</c> is rendered.
+    /// </param>
     public static Element[] D3Axes(LinearScale xs, LinearScale ys,
-        double left, double top, double width, double height, int xTicks = 6, int yTicks = 5)
+        double left, double top, double width, double height, int xTicks = 6, int yTicks = 5,
+        Func<double, Element>? xTickLabel = null,
+        Func<double, Element>? yTickLabel = null)
     {
         var ab = ChartAxis;
         double bot = top + height;
@@ -362,12 +389,38 @@ public static class D3Charts
         };
 
         foreach (var t in xs.Ticks(xTicks))
-            elements.Add(Text(xs.Map(t) - 12, bot + 4, Fmt(t), 10, ab)
-                .AccessibilityView(Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw));
+        {
+            if (xTickLabel is null)
+            {
+                elements.Add(Text(xs.Map(t) - 12, bot + 4, Fmt(t), 10, ab)
+                    .AccessibilityView(Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw));
+            }
+            else
+            {
+                elements.Add(xTickLabel(t)
+                    .Canvas(xs.Map(t), bot + 4, anchorX: 0.5, anchorY: 0)
+                    // OnMountAdd preserves the caller's own mount hook, if any.
+                    .OnMountAdd(static fe => fe.IsHitTestVisible = false)
+                    .AccessibilityView(Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw));
+            }
+        }
 
         foreach (var t in ys.Ticks(yTicks))
-            elements.Add(TextRight(0, ys.Map(t) - 7, Fmt(t), left - 6, 10, ab)
-                .AccessibilityView(Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw));
+        {
+            if (yTickLabel is null)
+            {
+                elements.Add(TextRight(0, ys.Map(t) - 7, Fmt(t), left - 6, 10, ab)
+                    .AccessibilityView(Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw));
+            }
+            else
+            {
+                elements.Add(yTickLabel(t)
+                    .Canvas(left - 6, ys.Map(t), anchorX: 1.0, anchorY: 0.5)
+                    // OnMountAdd preserves the caller's own mount hook, if any.
+                    .OnMountAdd(static fe => fe.IsHitTestVisible = false)
+                    .AccessibilityView(Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw));
+            }
+        }
 
         return elements.ToArray();
     }
