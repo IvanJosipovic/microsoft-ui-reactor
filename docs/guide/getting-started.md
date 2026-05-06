@@ -2,7 +2,7 @@
 # Getting Started with Reactor
 
 <!-- ai:lock -->
-> **Prerequisites:** .NET 9+ and the Windows App SDK.
+> **Prerequisites:** .NET 10+ and the Windows App SDK.
 <!-- /ai:lock -->
 
 Reactor is a declarative UI framework for building native Windows apps in pure C#.
@@ -25,7 +25,7 @@ Edit your `.csproj` to target WinUI:
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
   </PropertyGroup>

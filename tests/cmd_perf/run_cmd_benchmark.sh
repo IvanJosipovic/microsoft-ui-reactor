@@ -36,8 +36,8 @@ echo ""
 # Clear previous results
 > "$RESULTS_FILE"
 
-TFM_WINUI="net9.0-windows10.0.22621.0"
-TFM_WPF="net9.0-windows"
+TFM_WINUI="net10.0-windows10.0.22621.0"
+TFM_WPF="net10.0-windows"
 
 REACTOR_EXE="$BASE/CmdPerf.Reactor/bin/$PLATFORM/$CONFIG/$TFM_WINUI/CmdPerf.Reactor.exe"
 XAML_EXE="$BASE/CmdPerf.XamlCmd/bin/$PLATFORM/$CONFIG/$TFM_WINUI/CmdPerf.XamlCmd.exe"

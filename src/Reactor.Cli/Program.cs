@@ -187,7 +187,7 @@ string GenerateCsproj() =>
     <Project Sdk="Microsoft.NET.Sdk">
       <PropertyGroup>
         <OutputType>WinExe</OutputType>
-        <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
+        <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
         <Platforms>x64;ARM64</Platforms>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>

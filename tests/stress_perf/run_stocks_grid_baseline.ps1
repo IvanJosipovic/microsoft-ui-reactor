@@ -28,15 +28,15 @@ Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes -ErrorAction Stop
 # ── Variant table ──────────────────────────────────────────────────────────
 $repo = 'C:\Users\andersonch\Code\reactor3'
 $variants = @(
-  [pscustomobject]@{ Name='Direct';    Exe="$repo\tests\stress_perf\StressPerf.Direct\bin\ARM64\Release\net9.0-windows10.0.22621.0\StressPerf.Direct.exe";   IsRN=$false; ReportName='StressPerf.Direct' }
-  [pscustomobject]@{ Name='Bound';     Exe="$repo\tests\stress_perf\StressPerf.Bound\bin\ARM64\Release\net9.0-windows10.0.22621.0\StressPerf.Bound.exe";     IsRN=$false; ReportName='StressPerf.Bound' }
-  [pscustomobject]@{ Name='Wpf';       Exe="$repo\tests\stress_perf\StressPerf.Wpf\bin\ARM64\Release\net9.0-windows\StressPerf.Wpf.exe";                     IsRN=$false; ReportName='StressPerf.Wpf' }
-  [pscustomobject]@{ Name='DirectX';   Exe="$repo\tests\stress_perf\StressPerf.DirectX\bin\ARM64\Release\net9.0-windows10.0.22621.0\StressPerf.DirectX.exe"; IsRN=$false; ReportName='StressPerf.DirectX' }
-  [pscustomobject]@{ Name='Reactor';   Exe="$repo\tests\stress_perf\StressPerf.Reactor\bin\ARM64\Release\net9.0-windows10.0.22621.0\StressPerf.Reactor.exe"; IsRN=$false; ReportName='StressPerf.Reactor' }
-  [pscustomobject]@{ Name='ReactorOptimized'; Exe="$repo\tests\stress_perf\StressPerf.ReactorOptimized\bin\ARM64\Release\net9.0-windows10.0.22621.0\StressPerf.ReactorOptimized.exe"; IsRN=$false; ReportName='StressPerf.ReactorOptimized' }
+  [pscustomobject]@{ Name='Direct';    Exe="$repo\tests\stress_perf\StressPerf.Direct\bin\ARM64\Release\net10.0-windows10.0.22621.0\StressPerf.Direct.exe";   IsRN=$false; ReportName='StressPerf.Direct' }
+  [pscustomobject]@{ Name='Bound';     Exe="$repo\tests\stress_perf\StressPerf.Bound\bin\ARM64\Release\net10.0-windows10.0.22621.0\StressPerf.Bound.exe";     IsRN=$false; ReportName='StressPerf.Bound' }
+  [pscustomobject]@{ Name='Wpf';       Exe="$repo\tests\stress_perf\StressPerf.Wpf\bin\ARM64\Release\net10.0-windows\StressPerf.Wpf.exe";                     IsRN=$false; ReportName='StressPerf.Wpf' }
+  [pscustomobject]@{ Name='DirectX';   Exe="$repo\tests\stress_perf\StressPerf.DirectX\bin\ARM64\Release\net10.0-windows10.0.22621.0\StressPerf.DirectX.exe"; IsRN=$false; ReportName='StressPerf.DirectX' }
+  [pscustomobject]@{ Name='Reactor';   Exe="$repo\tests\stress_perf\StressPerf.Reactor\bin\ARM64\Release\net10.0-windows10.0.22621.0\StressPerf.Reactor.exe"; IsRN=$false; ReportName='StressPerf.Reactor' }
+  [pscustomobject]@{ Name='ReactorOptimized'; Exe="$repo\tests\stress_perf\StressPerf.ReactorOptimized\bin\ARM64\Release\net10.0-windows10.0.22621.0\StressPerf.ReactorOptimized.exe"; IsRN=$false; ReportName='StressPerf.ReactorOptimized' }
   [pscustomobject]@{ Name='RN-Fabric'; Exe="$repo\tests\stress_perf_rn\StocksGrid\windows\ARM64\Release\StocksGrid.exe";                                     IsRN=$true;  ReportName='StressPerf.RN.StocksGrid' }
 )
-$tracer = "$repo\tests\stress_perf\PresentTracer\bin\ARM64\Release\net9.0\PresentTracer.exe"
+$tracer = "$repo\tests\stress_perf\PresentTracer\bin\ARM64\Release\net10.0\PresentTracer.exe"
 
 foreach ($v in $variants) {
   if (-not (Test-Path $v.Exe))   { throw "Missing exe: $($v.Exe)" }

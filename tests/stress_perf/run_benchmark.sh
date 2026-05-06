@@ -25,8 +25,8 @@ detect_platform() {
 
 # Build configuration
 CONFIG="Release"
-TFM_WINUI="net9.0-windows10.0.22621.0"
-TFM_WPF="net9.0-windows"
+TFM_WINUI="net10.0-windows10.0.22621.0"
+TFM_WPF="net10.0-windows"
 
 STRESS_DIR="$REPO_ROOT/tests/stress_perf"
 

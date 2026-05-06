@@ -209,7 +209,7 @@ public class TestSession
         };
 
         var exe = Path.Combine(dir, "tests", "Reactor.AppTests.Host", "bin", platform,
-            "Debug", "net9.0-windows10.0.22621.0", "Reactor.AppTests.Host.exe");
+            "Debug", "net10.0-windows10.0.22621.0", "Reactor.AppTests.Host.exe");
 
         if (!File.Exists(exe))
             throw new FileNotFoundException($"Build the Host app first. Expected: {exe}");

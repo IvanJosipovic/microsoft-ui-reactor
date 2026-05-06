@@ -9,8 +9,8 @@ DURATION=7
 OUTFILE="$SCRIPT_DIR/benchmark_results_aot_publish.csv"
 
 CONFIG="Release"
-TFM_WINUI="net9.0-windows10.0.22621.0"
-TFM_WPF="net9.0-windows"
+TFM_WINUI="net10.0-windows10.0.22621.0"
+TFM_WPF="net10.0-windows"
 PLATFORM="ARM64"
 RID="win-arm64"
 

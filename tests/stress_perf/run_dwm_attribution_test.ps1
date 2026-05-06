@@ -27,9 +27,9 @@ param(
 $ErrorActionPreference = 'Continue'
 
 $repo    = 'C:\Users\andersonch\Code\reactor3'
-$tracer  = "$repo\tests\stress_perf\PresentTracer\bin\ARM64\Release\net9.0\PresentTracer.exe"
-$wpf     = "$repo\tests\stress_perf\StressPerf.Wpf\bin\ARM64\Release\net9.0-windows\StressPerf.Wpf.exe"
-$dx      = "$repo\tests\stress_perf\StressPerf.DirectX\bin\ARM64\Release\net9.0-windows10.0.22621.0\StressPerf.DirectX.exe"
+$tracer  = "$repo\tests\stress_perf\PresentTracer\bin\ARM64\Release\net10.0\PresentTracer.exe"
+$wpf     = "$repo\tests\stress_perf\StressPerf.Wpf\bin\ARM64\Release\net10.0-windows\StressPerf.Wpf.exe"
+$dx      = "$repo\tests\stress_perf\StressPerf.DirectX\bin\ARM64\Release\net10.0-windows10.0.22621.0\StressPerf.DirectX.exe"
 
 if (-not (Test-Path $tracer)) { throw "Missing tracer: $tracer" }
 if (-not (Test-Path $wpf))    { throw "Missing wpf: $wpf" }

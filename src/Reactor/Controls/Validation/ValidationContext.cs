@@ -265,14 +265,14 @@ public sealed class ValidationContext
             lock (_lock)
             {
                 var fields = new HashSet<string>();
-                foreach (var (field, list) in _messages)
+                foreach (var (fieldName, list) in _messages)
                     foreach (var msg in list)
                         if (msg.Severity == Severity.Error)
-                        { fields.Add(field); break; }
-                foreach (var (field, list) in _externalMessages)
+                        { fields.Add(fieldName); break; }
+                foreach (var (fieldName, list) in _externalMessages)
                     foreach (var msg in list)
                         if (msg.Severity == Severity.Error)
-                        { fields.Add(field); break; }
+                        { fields.Add(fieldName); break; }
                 return fields.ToList();
             }
         }

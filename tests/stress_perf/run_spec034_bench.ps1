@@ -12,7 +12,7 @@ param(
 $ErrorActionPreference = 'Continue'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$tfm = 'net9.0-windows10.0.22621.0'
+$tfm = 'net10.0-windows10.0.22621.0'
 $plat = 'ARM64'
 $cfg = 'Release'
 

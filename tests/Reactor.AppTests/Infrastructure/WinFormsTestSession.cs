@@ -170,7 +170,7 @@ public class WinFormsTestSession
         };
 
         var exe = Path.Combine(dir, "tests", "Reactor.WinFormsTests.Host", "bin", platform,
-            "Debug", "net9.0-windows10.0.22621.0", ProcessName + ".exe");
+            "Debug", "net10.0-windows10.0.22621.0", ProcessName + ".exe");
 
         if (!File.Exists(exe))
             throw new FileNotFoundException($"Build the WinForms host first. Expected: {exe}");

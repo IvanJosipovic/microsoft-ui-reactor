@@ -179,7 +179,7 @@ dotnet build tests/Reactor.AppTests.Host      -c Debug -p:Optimize=false -p:Debu
 # Step 2: Instrument Reactor.dll statically
 #         (dynamic instrumentation skips referenced assemblies)
 dotnet-coverage instrument \
-  "tests/Reactor.AppTests.Host/bin/$(RuntimeIdentifier)/Debug/net9.0-windows10.0.22621.0/Reactor.dll" \
+  "tests/Reactor.AppTests.Host/bin/$(RuntimeIdentifier)/Debug/net10.0-windows10.0.22621.0/Reactor.dll" \
   -s coverage.settings.xml
 
 # Step 3: Collect

@@ -33,9 +33,9 @@ Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes -ErrorAction Stop
 # ── Paths ──────────────────────────────────────────────────────────────────
 $repoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $stressDir  = Join-Path $repoRoot 'tests\stress_perf'
-$tfmWinUI   = 'net9.0-windows10.0.22621.0'
-$tfmWpf     = 'net9.0-windows'
-$tfmTracer  = 'net9.0'
+$tfmWinUI   = 'net10.0-windows10.0.22621.0'
+$tfmWpf     = 'net10.0-windows'
+$tfmTracer  = 'net10.0'
 
 $tracerExe  = Join-Path $stressDir "PresentTracer\bin\$Platform\$Configuration\$tfmTracer\PresentTracer.exe"
 
