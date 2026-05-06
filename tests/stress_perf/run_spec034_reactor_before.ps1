@@ -13,7 +13,7 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
-$tfm = 'net9.0-windows10.0.22621.0'
+$tfm = 'net10.0-windows10.0.22621.0'
 $plat = 'ARM64'
 $cfg = 'Release'
 $exe = Join-Path $PrespecRoot "tests\stress_perf\StressPerf.Reactor\bin\$plat\$cfg\$tfm\StressPerf.Reactor.exe"

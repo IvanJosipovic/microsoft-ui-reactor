@@ -12,8 +12,8 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
-$tracer  = 'C:\Users\andersonch\Code\reactor3\tests\stress_perf\PresentTracer\bin\ARM64\Release\net9.0\PresentTracer.exe'
-$reactor = 'C:\Users\andersonch\Code\reactor3\tests\stress_perf\StressPerf.Reactor\bin\ARM64\Release\net9.0-windows10.0.22621.0\StressPerf.Reactor.exe'
+$tracer  = 'C:\Users\andersonch\Code\reactor3\tests\stress_perf\PresentTracer\bin\ARM64\Release\net10.0\PresentTracer.exe'
+$reactor = 'C:\Users\andersonch\Code\reactor3\tests\stress_perf\StressPerf.Reactor\bin\ARM64\Release\net10.0-windows10.0.22621.0\StressPerf.Reactor.exe'
 $rn      = 'C:\Users\andersonch\Code\reactor3\tests\stress_perf_rn\StocksGrid\windows\ARM64\Release\StocksGrid.exe'
 
 if (-not (Test-Path $tracer))  { throw "PresentTracer.exe not found at $tracer" }

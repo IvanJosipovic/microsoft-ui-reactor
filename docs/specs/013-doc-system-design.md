@@ -521,7 +521,7 @@ goal: |
 ---
 
 <!-- ai:lock -->
-> **Prerequisites:** .NET 9+ and the Windows App SDK. See the [setup guide](setup.md).
+> **Prerequisites:** .NET 10+ and the Windows App SDK. See the [setup guide](setup.md).
 <!-- /ai:lock -->
 ~~~
 
@@ -534,7 +534,7 @@ The AI generates the full document, using available snippets and screenshots:
 ~~~markdown
 # Getting Started with Reactor
 
-> **Prerequisites:** .NET 9+ and the Windows App SDK. See the [setup guide](setup.md).
+> **Prerequisites:** .NET 10+ and the Windows App SDK. See the [setup guide](setup.md).
 
 Reactor is a declarative UI framework for building native Windows apps.
 No XAML, no data binding — you describe your UI in plain C# and Reactor

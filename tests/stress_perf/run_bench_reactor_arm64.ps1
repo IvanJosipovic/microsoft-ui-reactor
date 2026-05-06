@@ -1,6 +1,6 @@
-$exe = Join-Path $PSScriptRoot 'StressPerf.Reactor\bin\arm64\Release\net9.0-windows10.0.22621.0\StressPerf.Reactor.exe'
+$exe = Join-Path $PSScriptRoot 'StressPerf.Reactor\bin\arm64\Release\net10.0-windows10.0.22621.0\StressPerf.Reactor.exe'
 if (-not (Test-Path $exe -PathType Leaf)) {
-    Write-Error "Benchmark executable not found at expected path:`n  $exe`nBuild StressPerf.Reactor for arm64 Release (TFM net9.0-windows10.0.22621.0) first, e.g. `n  dotnet build tests/stress_perf/StressPerf.Reactor/StressPerf.Reactor.csproj -c Release -p:Platform=arm64"
+    Write-Error "Benchmark executable not found at expected path:`n  $exe`nBuild StressPerf.Reactor for arm64 Release (TFM net10.0-windows10.0.22621.0) first, e.g. `n  dotnet build tests/stress_perf/StressPerf.Reactor/StressPerf.Reactor.csproj -c Release -p:Platform=arm64"
     exit 1
 }
 $reportPath = Join-Path (Split-Path $exe) 'StressPerf.Reactor.report.txt'
