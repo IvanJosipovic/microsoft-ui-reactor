@@ -29,6 +29,66 @@ to land under these conventions; subsequent specs follow this shape.
 
 ### Added
 
+- `mur check --trace <path>` — append one JSONL row per parsed diagnostic
+  to `<path>` (in addition to stdout) for offline mining. Schema:
+  `{ts, code, severity, file, line, col, msg, receiver_type?, member?, mode}`.
+  Source code text is never written; absolute paths outside the project
+  root are redacted to `<external>`. (spec 038 §0.3)
+- Tier-2 Roslyn semantic suggester for `mur check`. Covers CS1061, CS0103,
+  CS0117, CS1503, CS7036 against `Microsoft.UI.Reactor.*` symbols; emits
+  `→ try: <text>  // [<evidence>]` on the diagnostic line above the per-code
+  confidence threshold (default 0.75). Tier-1 analyzer-ID hints still win
+  ties. (spec 038 §5, §1.1–§1.6)
+- Per-code emit thresholds for the Tier-2 SymbolSuggester
+  (`src/Reactor.Cli/Check/Suggesters/Thresholds.cs`) calibrated against the
+  spec-037 50-run corpus. CS1061 raised to 0.80 (the structural-rewrite
+  fixes in the corpus would otherwise risk false positives); CS0103 / CS0117
+  / CS1503 / CS7036 held at 0.75 default. Tuning harness lives in
+  `tests/Reactor.Tests/CheckCommandTests/Tuning/`; first run snapshot at
+  `docs/specs/tasks/038-tuning-reports/2026-05-10-50run.md`. (spec 038 §1.8,
+  Data Checkpoint B)
+- EC1 5×N eval (2026-05-10): `reactor-kanban-mur-check` beats baseline on
+  cost mean (−24%), cost median (−33%), and wall-time variance (CV 24% vs
+  81%); paired analysis wins 4 of 5 rounds. `reactor-calc-mur-check`
+  regresses (+21% cost) because the suggester's per-invocation overhead
+  (~5–8s) does not amortize on ~150 LoC projects with no API exploration
+  surface to skip. Finding captured as a new spec 038 §11 risk + §14 open
+  question on a project-size / diagnostic-count gate; merge to `main`
+  pending product decision on path. No code change in this entry — eval
+  result + spec doc updates only.
+- `MUR_TELEMETRY=1` opt-in: appends `(code, suggester, confidence,
+  evidence_short)` per emitted suggestion to
+  `~/.mur/telemetry/<yyyy-mm-dd>.jsonl`. Local-first, scoped to the active
+  project; no source code, file paths, or machine identifiers logged.
+  (spec 038 §10, §1.7)
+- `mur check --suggest-threshold <N>` — gate Tier-2 suggestions by
+  per-invocation unique CS-prefixed diagnostic count. Default 3, set 0 to
+  always emit. Resolution of the EC1 calc-vs-kanban split: small builds
+  (1–2 errors) skip the ~5–8 s Tier-2 setup the agent doesn't need;
+  larger structural failures still get suggestions. Counts the same dedup
+  key `EmitDiagnostics` uses. (spec 038 §11 risk row, §14 #8)
+- Data Checkpoint C (spec 038 / spec 037): 525-pair mining corpus mirrored
+  into `docs/specs/tasks/038-tuning-reports/2026-05-11-525run-source/`
+  (1,027 fixes / 1,233 ranker rows / 104 clusters from `gpt-5.5`). Analysis
+  in `2026-05-11-525run.md`. Cross-agent reproducibility bar still open —
+  a second-agent drop is required before Phase-3 rule PRs. Top Phase-3
+  targets surfaced: CS0117/Theme `*Background → SolidBackground`,
+  CS1061/`*Element` WinUI-name → Reactor-shortcut family, CS1955/GridSize
+  missing-parens-on-factory. Tier-2 per-code thresholds held at current
+  values; gate threshold (3) empirically defensible at 28.7% emit rate.
+  No code change in this entry — calibration + docs only. (spec 038 §1.8,
+  Data Checkpoint C)
+- EC1 re-run with the diagnostic-count gate (2026-05-11): both arms PASS.
+  `reactor-calc-mur-check` cost −4% mean (was +21% in the prior batch);
+  `reactor-kanban-mur-check` cost −33% mean / −39% median (was −24% mean
+  — preserved and grew). First-build OK 5/5 both variant arms. Phase 1
+  acceptance bar met; Phase 1 cleared to merge to `main`. Watch-item
+  carried into Phase 2: kanban CV widened (24% prior → 54%) because one
+  of five runs hit 0 firings and took the long-tail base path — gate
+  behavior is path-dependent on the agent's exploration order. Below
+  the resolution threshold for a Phase-1 blocker; Phase 2 telemetry
+  should track per-run firing counts. (spec 038 §1.8 EC1 acceptance,
+  §11 risk row, §14 #8)
 - `WindowSpec`, `ReactorWindow`, `WindowKey`, `WindowStartPosition`,
   `PresenterKind`, `WindowState`, `WindowIcon`, `WindowDipSizeChangedEventArgs`,
   `WindowClosingEventArgs`, `ReactorAppContext` — first-class Window primitive
