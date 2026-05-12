@@ -122,9 +122,10 @@ public sealed class MinesweeperApp : Component
         ]);
 
         // Natural board size at the configured cell size — used to cap how
-        // big the board can render so the tiles never zoom past 1x.
-        var naturalBoardWidth = cellSize * state.Board.Columns;
-        var naturalBoardHeight = cellSize * state.Board.Rows;
+        // big the board can render so the tiles never zoom past 1x. The
+        // +2 accounts for BoardView's 1-px frame on each side.
+        var naturalBoardWidth = cellSize * state.Board.Columns + 2;
+        var naturalBoardHeight = cellSize * state.Board.Rows + 2;
 
         // Layout: a centered Border bounds the *available* area for the
         // board to its natural size (so a huge window doesn't make the

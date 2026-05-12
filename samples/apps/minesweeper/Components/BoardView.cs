@@ -70,14 +70,13 @@ public sealed class BoardView : Component<BoardViewProps>
 
         var grid = Grid(colTracks, rowTracks, children);
 
-        // Frame the board with a sunken bevel; fixed pixel size keeps the
-        // window crisp regardless of WinUI text-scale settings.
-        var width = p.CellSize * b.Columns;
-        var height = p.CellSize * b.Rows;
-
+        // Frame the board with a sunken bevel. We deliberately don't set
+        // an explicit Width/Height here — the inner Grid has fixed-pixel
+        // row/column tracks, so it computes its own natural size, and the
+        // outer Border's 1-px frame adds *outside* that. Setting Width
+        // explicitly used to clip the rightmost column / bottom row by
+        // 2px because BorderThickness eats into the Width slot in WinUI.
         return Border(grid)
-            .Width(width)
-            .Height(height)
             .Background(Theme.LayerFill)
             .WithBorder(Theme.CardStroke, 1);
     }
