@@ -121,12 +121,21 @@ public sealed class MinesweeperApp : Component
             ),
         ]);
 
-        var board = ScrollView(
+        // Wrap the status row + board in a Viewbox so the whole thing
+        // scales uniformly to fit the window. Replaces the previous
+        // ScrollView, which let huge Expert boards spill off-screen and
+        // didn't help when the user shrank the window. Stretching is
+        // uniform so the cells stay square.
+        var board = Viewbox(
             VStack(12,
                 statusPanel,
                 Component<BoardView, BoardViewProps>(boardProps)
             ).Padding(16).HAlign(HorizontalAlignment.Center)
-        );
+        ).Set(vb =>
+        {
+            vb.Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform;
+            vb.StretchDirection = Microsoft.UI.Xaml.Controls.StretchDirection.Both;
+        });
 
         var titleSubtitle = state.Board.Phase switch
         {
