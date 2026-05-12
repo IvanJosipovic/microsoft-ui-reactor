@@ -15,6 +15,7 @@ namespace Minesweeper.Components;
 public enum CellSkin
 {
     Covered,        // raised bevel, awaiting a click
+    CoveredPressed, // covered cell while the user is left-pressing it (looks indented)
     CoveredPreview, // raised → flat: cell is in a chord preview box
     Revealed,       // sunken bevel, shows count or empty
     ExplodedMine,   // sunken, red background — the mine the player clicked
@@ -56,7 +57,11 @@ public sealed class CellComponent : Component<CellProps>
     public override Element Render()
     {
         var p = Props;
-        var skin = ComputeSkin(p);
+        // Per-cell press state — drives the "indented" look while a covered
+        // cell is being pressed with the left button. Cleared on release,
+        // pointer exit, or capture loss.
+        var (isPressed, setPressed) = UseState(false);
+        var skin = ComputeSkin(p, isPressed);
         var (bg, glyph, glyphColor) = StyleFor(skin, p.Cell, p.IsDarkTheme);
 
         // Glyph: shrink for emoji-heavy skins so the bomb / flag don't get
@@ -89,6 +94,7 @@ public sealed class CellComponent : Component<CellProps>
         // a number — see OnTapped). PointerExited cancels an in-flight
         // preview so dragging off the cell aborts the chord.
         var chordableHere = p.Cell.IsRevealed && p.Cell.AdjacentMines > 0;
+        var coveredHere = !p.Cell.IsRevealed && p.Cell.Mark != CellMark.Flag;
         bevel = bevel
             .OnPointerPressed((sender, e) =>
             {
@@ -101,9 +107,14 @@ public sealed class CellComponent : Component<CellProps>
                     p.OnBeginChordPreview(p.Row, p.Column);
                     e.Handled = true;
                 }
+                else if (pp.Properties.IsLeftButtonPressed && coveredHere)
+                {
+                    setPressed(true);
+                }
             })
             .OnPointerReleased((sender, e) =>
             {
+                if (isPressed) setPressed(false);
                 if (p.IsLost || p.IsWon) return;
                 if (p.IsChordPreview)
                 {
@@ -113,7 +124,16 @@ public sealed class CellComponent : Component<CellProps>
             })
             .OnPointerExited((_, _) =>
             {
+                if (isPressed) setPressed(false);
                 if (p.IsChordPreview) p.OnEndChordPreview(false);
+            })
+            .OnPointerCaptureLost((_, _) =>
+            {
+                if (isPressed) setPressed(false);
+            })
+            .OnPointerCanceled((_, _) =>
+            {
+                if (isPressed) setPressed(false);
             })
             .OnTapped((_, e) =>
             {
@@ -153,21 +173,15 @@ public sealed class CellComponent : Component<CellProps>
             .AutomationName(BuildAutomationName(p));
 
         // Touch / pen ergonomics: long-press also flags, on covered cells only.
-        if (skin == CellSkin.Covered)
+        if (skin == CellSkin.Covered || skin == CellSkin.CoveredPressed)
             bevel = bevel.OnLongPress(_ => p.OnFlag(p.Row, p.Column), enableMouseEmulation: false);
-
-        // Subtle compositor-level press feedback for live cells (no reconcile).
-        if (skin == CellSkin.Covered)
-            bevel = bevel.InteractionStates(s => s
-                .PointerOver(opacity: 0.94f)
-                .Pressed(scale: 0.95f, opacity: 0.85f));
 
         return bevel;
     }
 
     static bool IsEmojiGlyph(string s) => s.Length > 0 && char.IsSurrogate(s, 0);
 
-    static CellSkin ComputeSkin(CellProps p)
+    static CellSkin ComputeSkin(CellProps p, bool isPressed)
     {
         var c = p.Cell;
         if (p.IsLost)
@@ -179,9 +193,11 @@ public sealed class CellComponent : Component<CellProps>
         if (c.IsRevealed) return CellSkin.Revealed;
         // Covered cells inside a chord-preview box flatten so the player can
         // see exactly which neighbors will be revealed if they release the chord.
-        return p.IsChordPreview && c.Mark != CellMark.Flag
-            ? CellSkin.CoveredPreview
-            : CellSkin.Covered;
+        if (p.IsChordPreview && c.Mark != CellMark.Flag) return CellSkin.CoveredPreview;
+        // Live press feedback — covered cells without a flag look "indented"
+        // while the user is left-pressing them.
+        if (isPressed && c.Mark != CellMark.Flag) return CellSkin.CoveredPressed;
+        return CellSkin.Covered;
     }
 
     /// <summary>
@@ -228,6 +244,17 @@ public sealed class CellComponent : Component<CellProps>
                 };
                 var pcol = c.Mark == CellMark.Question ? (object)Theme.AccentText : (object)Theme.PrimaryText;
                 return ((object)Theme.LayerFill, pglyph, pcol);
+            case CellSkin.CoveredPressed:
+                // Pressed = same fill as a revealed cell, so it visually
+                // "sinks". Glyph (flag/question) still shows through.
+                var qglyph = c.Mark switch
+                {
+                    CellMark.Flag => "🚩",
+                    CellMark.Question => "?",
+                    _ => "",
+                };
+                var qcol = c.Mark == CellMark.Question ? (object)Theme.AccentText : (object)Theme.PrimaryText;
+                return ((object)Theme.LayerFill, qglyph, qcol);
             default: // Covered
                 var glyph = c.Mark switch
                 {
@@ -236,40 +263,60 @@ public sealed class CellComponent : Component<CellProps>
                     _ => "",
                 };
                 var col = c.Mark == CellMark.Question ? (object)Theme.AccentText : (object)Theme.PrimaryText;
-                return ((object)Theme.ControlFill, glyph, col);
+                // Use a saturated medium gray (classic Win 3.x #C0C0C0 in light
+                // mode, a darker gray in dark mode) so the white highlight and
+                // dark shadow on the bevel both contrast strongly with the fill.
+                var coveredFill = isDark ? "#3A3A3A" : "#C0C0C0";
+                return (coveredFill, glyph, col);
         }
     }
 
     /// <summary>
-    /// Two-tone bevel: covered cells get a raised look (light top/left + dark
-    /// bottom/right). Revealed and preview cells get a thin neutral stroke.
-    /// Dark mode adjusts highlight/shadow opacity so the bevel still reads.
+    /// Bevel renderer. Three modes:
+    ///   • <see cref="CellSkin.Covered"/> — classic Win 3.x raised button:
+    ///     bright top+left, dark bottom+right, both clearly visible against
+    ///     the fill so all four sides read as "raised".
+    ///   • <see cref="CellSkin.CoveredPressed"/> — indented look:
+    ///     dark top+left, bright bottom+right (inverted bevel), so pressing
+    ///     a covered cell shows a clear "pushed in" effect.
+    ///   • everything else — flat with a thin neutral 1-px stroke.
     /// </summary>
     static Element BuildBevel(CellSkin skin, double size, Element content, object background, bool isDark)
     {
         var inner = WithBackground(Border(content), background);
 
-        if (skin != CellSkin.Covered)
+        if (skin != CellSkin.Covered && skin != CellSkin.CoveredPressed)
             return inner.WithBorder(Theme.CardStroke, 1);
 
-        // Raised bevel — two stacked Borders. The outer paints the highlight on
-        // top/left, the inner paints the shadow on bottom/right (as a 2px
-        // border that also frames the content).
-        var highlightAlpha = isDark ? (byte)180 : (byte)220;
-        var shadowAlpha = isDark ? (byte)160 : (byte)90;
-        var highlight = new SolidColorBrush(ColorHelper.FromArgb(highlightAlpha, 255, 255, 255));
-        var shadow = new SolidColorBrush(ColorHelper.FromArgb(shadowAlpha, 0, 0, 0));
+        // Strong, opaque bevel colors so both edges read well in either theme.
+        // White-on-light-gray is the classic Win 3.x highlight; we match it
+        // by using near-white in light mode and a lighter gray in dark mode
+        // (full white would over-pop on a dark fill).
+        var highlight = isDark
+            ? new SolidColorBrush(ColorHelper.FromArgb(255, 110, 110, 110))   // dark mode: light-gray highlight
+            : new SolidColorBrush(ColorHelper.FromArgb(255, 255, 255, 255));  // light mode: pure white
+        var shadow = isDark
+            ? new SolidColorBrush(ColorHelper.FromArgb(255, 12, 12, 12))      // dark mode: near-black
+            : new SolidColorBrush(ColorHelper.FromArgb(255, 128, 128, 128));  // light mode: classic mid-gray
 
-        var withShadow = inner.Set(b =>
+        // Two stacked Borders — outer paints one pair of edges, inner paints
+        // the other pair. Swap which gets which based on raised vs pressed.
+        // Pressed (indented): dark on top+left, bright on bottom+right.
+        // Raised:             bright on top+left, dark on bottom+right.
+        var (topLeftBrush, bottomRightBrush) = skin == CellSkin.CoveredPressed
+            ? (shadow, highlight)
+            : (highlight, shadow);
+
+        var withBR = inner.Set(b =>
         {
             b.BorderThickness = new Thickness(0, 0, 2, 2);
-            b.BorderBrush = shadow;
+            b.BorderBrush = bottomRightBrush;
         });
 
-        return Border(withShadow).Set(b =>
+        return Border(withBR).Set(b =>
         {
             b.BorderThickness = new Thickness(2, 2, 0, 0);
-            b.BorderBrush = highlight;
+            b.BorderBrush = topLeftBrush;
         });
     }
 
