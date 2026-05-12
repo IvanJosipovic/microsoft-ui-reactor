@@ -183,6 +183,112 @@ namespace Microsoft.UI.Reactor.Core
     }
 
     [Fact]
+    public void Rule_fires_even_when_tier2_is_disabled_by_the_suggest_gate()
+    {
+        // Spec 038 EC2 watch-item: when the suggest-gate closes (fewer than
+        // --suggest-threshold unique CS diagnostics in the build), Tier-2
+        // fuzzy match is suppressed. Tier-3 rules are precision-anchored
+        // (Roslyn ISymbol binding, not text fuzz) and must keep firing
+        // regardless — the gate's calibration is about Tier-2 noise on
+        // small builds, not rule output. Without this carve-out the entire
+        // rule registry silently disables on iteration-mode workflows that
+        // surface 1–2 diagnostics per build.
+        var diag = MakeDiagFor("CS1955", "GridSize", out var c);
+
+        var registry = RuleRegistry.Of(new IRulePattern[] { new CS1955TestRule() });
+        var orch = new SuggesterOrchestrator(rules: registry, tier2Enabled: false);
+        var s = orch.SuggestAgainst(diag, c);
+
+        Assert.NotNull(s);
+        Assert.Equal("CS1955TestRule", s!.SuggesterName);
+    }
+
+    [Fact]
+    public void Tier2_only_code_returns_null_when_tier2_is_disabled_and_no_rule_covers()
+    {
+        // Complement of the rule-fires-when-gated test: a CS1061 (in Tier-2's
+        // SupportedCodes) with no rule covering it must return null when the
+        // gate is closed. Confirms tier2Enabled=false actually gates Tier-2
+        // rather than no-oping.
+        var (c, diag) = MakeCS1061OnButtonLabl();
+
+        // Empty registry — no rules at all, so the only path is Tier-2.
+        var orch = new SuggesterOrchestrator(
+            rules: RuleRegistry.Of(Array.Empty<IRulePattern>()),
+            tier2Enabled: false);
+        var s = orch.SuggestAgainst(diag, c);
+
+        Assert.Null(s);
+    }
+
+    [Fact]
+    public void AnyDiagnosticIsSuggestable_returns_false_for_empty_list()
+    {
+        // Clean build (no diagnostics) — caller should skip the compilation
+        // load entirely. Spec 038 EC3-final review: avoid wall-time
+        // regression on the happy path.
+        var empty = new List<CheckCommand.Diag>();
+        Assert.False(SuggesterOrchestrator.AnyDiagnosticIsSuggestable(empty, tier2Enabled: true, rules: null));
+        Assert.False(SuggesterOrchestrator.AnyDiagnosticIsSuggestable(empty, tier2Enabled: false, rules: null));
+    }
+
+    [Fact]
+    public void AnyDiagnosticIsSuggestable_returns_false_for_unrelated_CS_codes()
+    {
+        // Build emitted CS warnings only (e.g. nullable-reference noise)
+        // — none in Tier-2's SupportedCodes and none covered by any rule.
+        // Loading the compilation for a build like this would be pure
+        // wall-time waste.
+        var diags = new List<CheckCommand.Diag>
+        {
+            new("App.cs", 10, 5, "warning", "CS8602", "possible null reference"),
+            new("App.cs", 12, 8, "warning", "CS8618", "non-nullable field uninitialized"),
+        };
+        var registry = RuleRegistry.Of(new IRulePattern[] { new CS1955TestRule() });
+        Assert.False(SuggesterOrchestrator.AnyDiagnosticIsSuggestable(diags, tier2Enabled: true, rules: registry));
+    }
+
+    [Fact]
+    public void AnyDiagnosticIsSuggestable_true_when_Tier2_applies_and_enabled()
+    {
+        // CS1061 is in SupportedCodes. With tier2Enabled=true and no rules,
+        // the answer is true.
+        var diags = new List<CheckCommand.Diag>
+        {
+            new("App.cs", 5, 3, "error", "CS1061", "'Foo' has no 'Bar'"),
+        };
+        Assert.True(SuggesterOrchestrator.AnyDiagnosticIsSuggestable(diags, tier2Enabled: true, rules: null));
+    }
+
+    [Fact]
+    public void AnyDiagnosticIsSuggestable_false_when_Tier2_applies_but_gated()
+    {
+        // Same CS1061 diag but tier2Enabled=false (gate closed). Without a
+        // rule covering CS1061, the answer flips to false — loading the
+        // compilation gains nothing.
+        var diags = new List<CheckCommand.Diag>
+        {
+            new("App.cs", 5, 3, "error", "CS1061", "'Foo' has no 'Bar'"),
+        };
+        Assert.False(SuggesterOrchestrator.AnyDiagnosticIsSuggestable(diags, tier2Enabled: false, rules: null));
+    }
+
+    [Fact]
+    public void AnyDiagnosticIsSuggestable_true_when_rule_covers_code_even_with_Tier2_gated()
+    {
+        // CS1955 is OUTSIDE Tier-2's SupportedCodes. With a rule covering
+        // it, the answer is true regardless of the Tier-2 gate — Tier-3
+        // rules always run when their code surfaces. This is the
+        // load-bearing case for the gate carve-out from Phase 3.
+        var diags = new List<CheckCommand.Diag>
+        {
+            new("App.cs", 5, 3, "error", "CS1955", "non-invocable member"),
+        };
+        var registry = RuleRegistry.Of(new IRulePattern[] { new CS1955TestRule() });
+        Assert.True(SuggesterOrchestrator.AnyDiagnosticIsSuggestable(diags, tier2Enabled: false, rules: registry));
+    }
+
+    [Fact]
     public void Rule_evidence_carries_provenance_tag()
     {
         var diag = MakeDiagFor("CS1955", "GridSize", out var c);

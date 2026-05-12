@@ -31,24 +31,73 @@ internal sealed class SuggesterOrchestrator
         "CS1061", "CS0103", "CS0117", "CS1503", "CS7036",
     };
 
+    /// <summary>
+    /// Cheap pre-flight check used by <see cref="CheckCommand.Run"/> to
+    /// decide whether building the orchestrator (which triggers a compilation
+    /// load — `.cs` enumeration, file-set hash, reference resolution) is
+    /// worthwhile for this invocation. Returns true iff at least one parsed
+    /// diagnostic could plausibly produce a suggestion under the active gate:
+    /// the diag's code is in <see cref="SupportedCodes"/> AND
+    /// <paramref name="tier2Enabled"/> is true, OR the diag's code is covered
+    /// by some rule in <paramref name="rules"/> (Tier-3 always runs). On
+    /// clean builds (no diagnostics) or non-suggestable builds (only CS codes
+    /// we don't cover), returns false so the caller skips the compilation
+    /// load and the agent doesn't pay the ~50–500 ms load cost for no value.
+    /// </summary>
+    internal static bool AnyDiagnosticIsSuggestable(
+        IReadOnlyList<CheckCommand.Diag> diagnostics,
+        bool tier2Enabled,
+        RuleRegistry? rules)
+    {
+        if (diagnostics.Count == 0) return false;
+        foreach (var diag in diagnostics)
+        {
+            if (tier2Enabled && SupportedCodes.Contains(diag.Code)) return true;
+            if (rules is not null)
+            {
+                foreach (var rule in rules.All)
+                {
+                    // Empty DiagnosticCodes means "applies to every code" —
+                    // unusual but allowed by the IRulePattern contract.
+                    if (rule.DiagnosticCodes.Count == 0) return true;
+                    foreach (var c in rule.DiagnosticCodes)
+                        if (string.Equals(c, diag.Code, StringComparison.Ordinal))
+                            return true;
+                }
+            }
+        }
+        return false;
+    }
+
     readonly CompilationLoader _loader;
     readonly ISuggester[] _suggesters;
     readonly RuleRegistry? _rules;
     readonly ISet<string>? _disabledRules;
     readonly Action<string, string>? _onRuleSelfDisabled;
+    readonly bool _tier2Enabled;
 
     public SuggesterOrchestrator(
         CompilationLoader? loader = null,
         ISuggester[]? suggesters = null,
         RuleRegistry? rules = null,
         ISet<string>? disabledRules = null,
-        Action<string, string>? onRuleSelfDisabled = null)
+        Action<string, string>? onRuleSelfDisabled = null,
+        bool tier2Enabled = true)
     {
         _loader = loader ?? CompilationLoader.Instance;
         _suggesters = suggesters ?? new ISuggester[] { new SymbolSuggester() };
         _rules = rules;
         _disabledRules = disabledRules;
         _onRuleSelfDisabled = onRuleSelfDisabled;
+        // Tier-3 rules always run when they cover a diagnostic code — they
+        // bind via Roslyn symbols, not fuzzy text match, so the suggest-gate
+        // (which guards low-precision Tier-2 fuzzy match on small builds) does
+        // not apply to them. Spec 038 EC2 watch-item: "Phase-3 rules are the
+        // right lever — not Phase-2.x gate tuning." Without this carve-out,
+        // a kanban-shape build with 1–2 CS diagnostics never runs any rule,
+        // which silently nullifies the entire rule registry on iteration-mode
+        // workflows.
+        _tier2Enabled = tier2Enabled;
     }
 
     /// <summary>
@@ -57,7 +106,9 @@ internal sealed class SuggesterOrchestrator
     /// </summary>
     public Suggestion? Suggest(CheckCommand.Diag diag, string projectPath)
     {
-        if (!SupportedCodes.Contains(diag.Code) && !RulesCoverCode(diag.Code)) return null;
+        var tier2Applies = _tier2Enabled && SupportedCodes.Contains(diag.Code);
+        var rulesApply = RulesCoverCode(diag.Code);
+        if (!tier2Applies && !rulesApply) return null;
 
         CSharpCompilation compilation;
         try { compilation = _loader.Load(projectPath); }
@@ -73,7 +124,7 @@ internal sealed class SuggesterOrchestrator
     /// </summary>
     internal Suggestion? SuggestAgainst(CheckCommand.Diag diag, CSharpCompilation compilation)
     {
-        var tier2Applies = SupportedCodes.Contains(diag.Code);
+        var tier2Applies = _tier2Enabled && SupportedCodes.Contains(diag.Code);
         var rulesApply = RulesCoverCode(diag.Code);
         if (!tier2Applies && !rulesApply) return null;
 

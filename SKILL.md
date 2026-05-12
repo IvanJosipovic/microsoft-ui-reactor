@@ -197,6 +197,29 @@ In selfhost the version is `0.0.0-local` (produced by `mur pack-local` —
 see "Which mode are you in?" above). Outside the source clone, replace it
 with whatever Microsoft.UI.Reactor version you depend on.
 
+**After `dotnet new reactorapp -n <Name>`, the workspace contains
+exactly two source files: `App.cs` (entry point + initial component)
+and `<Name>.csproj`.** There is no `Program.cs` and no
+`GlobalUsings.cs` — modify `App.cs` in place. The `.csproj` does
+**not** enable implicit usings; `App.cs` has its own `using`
+directives at the top — the canonical set (System + Reactor +
+Reactor.Core + Reactor.Layout + Xaml + Xaml.Controls + static
+Factories) — which is the only place you add new namespaces (e.g. `using System.Linq;` when
+you reach for `.Select(...)`). Don't probe the `.csproj` after
+scaffolding unless you're adding a `PackageReference` or changing a
+property — `Restore succeeded.` in the scaffold stdout is the only
+confirmation you need.
+
+**Verify your edits with `mur check`** before declaring done. From the
+project directory: `mur check` (no arguments) runs `dotnet build` and
+emits one compressed line per diagnostic with a `→ try:` suggestion
+when the engine recognizes the mistake; `mur check --final` is the
+explicit "I am done iterating" sweep that emits the full diagnostic
+set including suppressed iteration-mode warnings. For anything more
+involved than the build/fix loop — strict-mode failures, custom
+diagnostic gating, MSBuild passthrough flags — load the
+`reactor-build-and-check` skill.
+
 ### nuget.config (selfhost only — sibling of the .csproj)
 
 If your .csproj lives **outside** the Reactor clone, add a `nuget.config`
