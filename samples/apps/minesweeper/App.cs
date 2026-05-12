@@ -121,27 +121,32 @@ public sealed class MinesweeperApp : Component
             ),
         ]);
 
-        // Natural board size at the configured cell size — used to cap the
-        // Viewbox so the tiles can shrink to fit a tiny window but never
-        // zoom up past their normal pixel size.
+        // Natural board size at the configured cell size — used to cap how
+        // big the board can render so the tiles never zoom past 1x.
         var naturalBoardWidth = cellSize * state.Board.Columns;
         var naturalBoardHeight = cellSize * state.Board.Rows;
 
-        // Wrap just the board grid in a Viewbox: scales DOWN to fit small
-        // windows, but never UP — no giant tiles when the window is huge.
-        // The status panel is intentionally outside the Viewbox so the LEDs
-        // and smiley stay at their natural readable size.
-        var boardScaled = Viewbox(
-            Component<BoardView, BoardViewProps>(boardProps)
+        // Layout: a centered Border bounds the *available* area for the
+        // board to its natural size (so a huge window doesn't make the
+        // tiles balloon). Inside it, a Viewbox scales the BoardView
+        // uniformly to fit whatever the Border ended up at — which is
+        // either natural size (big window) or smaller (cramped window).
+        // Setting HAlign/VAlign=Center on the Border prevents it from
+        // claiming the full Star-row area.
+        var boardScaled = Border(
+            Viewbox(
+                Component<BoardView, BoardViewProps>(boardProps)
+            ).Set(vb =>
+            {
+                vb.Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform;
+            })
         )
         .HAlign(HorizontalAlignment.Center)
         .VAlign(VerticalAlignment.Center)
-        .Set(vb =>
+        .Set(b =>
         {
-            vb.Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform;
-            vb.StretchDirection = Microsoft.UI.Xaml.Controls.StretchDirection.DownOnly;
-            vb.MaxWidth = naturalBoardWidth;
-            vb.MaxHeight = naturalBoardHeight;
+            b.MaxWidth = naturalBoardWidth;
+            b.MaxHeight = naturalBoardHeight;
         });
 
         var titleSubtitle = state.Board.Phase switch
