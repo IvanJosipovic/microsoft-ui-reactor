@@ -118,16 +118,19 @@ public sealed class CellComponent : Component<CellProps>
             .OnTapped((_, e) =>
             {
                 if (p.IsLost || p.IsWon) return;
-                // Shift/Ctrl + left-tap on a covered cell behaves like a
-                // right-click (toggles flag → question → clear). Helpful on
-                // trackpads/laptops where right-click is awkward.
+                // Shift/Ctrl + left-tap mirrors right-click semantics:
+                //   • on a covered cell  → cycle flag → question → clear
+                //   • on a revealed number → chord (reveal neighbors, if
+                //     flagged-neighbor count matches the cell's number)
+                // Useful on trackpads / laptops where right-click is awkward.
                 var shift = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
                              & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
                 var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
                             & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
-                if ((shift || ctrl) && !p.Cell.IsRevealed)
+                if (shift || ctrl)
                 {
-                    p.OnFlag(p.Row, p.Column);
+                    if (!p.Cell.IsRevealed) p.OnFlag(p.Row, p.Column);
+                    else if (chordableHere) p.OnChord(p.Row, p.Column);
                     e.Handled = true;
                     return;
                 }
