@@ -114,7 +114,7 @@ public sealed partial class Reconciler
             GridViewElement gv => MountGridView(gv, requestRerender),
             TreeViewElement tv => MountTreeView(tv, requestRerender),
             FlipViewElement fv => MountFlipView(fv, requestRerender),
-            InfoBarElement ib => MountInfoBar(ib),
+            InfoBarElement ib => MountInfoBar(ib, requestRerender),
             InfoBadgeElement badge => MountInfoBadge(badge),
             ContentDialogElement cdEl => MountContentDialog(cdEl, requestRerender),
             FlyoutElement flyEl => MountFlyout(flyEl, requestRerender),
@@ -256,6 +256,10 @@ public sealed partial class Reconciler
         if (text.TextTrimming.HasValue) tb.TextTrimming = text.TextTrimming.Value;
         if (text.IsTextSelectionEnabled.HasValue) tb.IsTextSelectionEnabled = text.IsTextSelectionEnabled.Value;
         if (text.FontFamily is not null) tb.FontFamily = text.FontFamily;
+        if (text.LineHeight.HasValue) tb.LineHeight = text.LineHeight.Value;
+        if (text.MaxLines > 0) tb.MaxLines = text.MaxLines;
+        if (text.CharacterSpacing != 0) tb.CharacterSpacing = text.CharacterSpacing;
+        if (text.TextDecorations != global::Windows.UI.Text.TextDecorations.None) tb.TextDecorations = text.TextDecorations;
         ApplySetters(text.Setters, tb);
         return tb;
     }
@@ -306,6 +310,11 @@ public sealed partial class Reconciler
             rtb.Blocks.Add(paragraph);
         }
         if (richText.FontSize.HasValue) rtb.FontSize = richText.FontSize.Value;
+        if (richText.MaxLines > 0) rtb.MaxLines = richText.MaxLines;
+        if (richText.LineHeight.HasValue) rtb.LineHeight = richText.LineHeight.Value;
+        if (richText.TextAlignment.HasValue) rtb.TextAlignment = richText.TextAlignment.Value;
+        if (richText.TextTrimming.HasValue) rtb.TextTrimming = richText.TextTrimming.Value;
+        if (richText.CharacterSpacing != 0) rtb.CharacterSpacing = richText.CharacterSpacing;
         ApplySetters(richText.Setters, rtb);
         return rtb;
     }
@@ -402,16 +411,27 @@ public sealed partial class Reconciler
 
     private WinPrim.ToggleButton MountToggleButton(ToggleButtonElement togBtn)
     {
-        var tb = new WinPrim.ToggleButton { Content = togBtn.Label, IsChecked = togBtn.IsChecked };
+        var tb = new WinPrim.ToggleButton { Content = togBtn.Label };
+        if (togBtn.IsThreeState)
+        {
+            tb.IsThreeState = true;
+            tb.IsChecked = togBtn.CheckedState;
+        }
+        else
+        {
+            tb.IsChecked = togBtn.IsChecked;
+        }
         SetElementTag(tb, togBtn);
         // Bind to Click — fires only for real user toggles. Checked/Unchecked
         // would also fire when UpdateToggleButton rewrites IsChecked during a
         // state-driven rerender, which would re-enter the callback and loop.
-        if (togBtn.OnIsCheckedChanged is not null)
+        if (togBtn.OnIsCheckedChanged is not null || togBtn.OnCheckedStateChanged is not null)
             tb.Click += (s, _) =>
             {
                 var t = (WinPrim.ToggleButton)s!;
-                (GetElementTag(t) as ToggleButtonElement)?.OnIsCheckedChanged?.Invoke(t.IsChecked ?? false);
+                if (GetElementTag(t) is not ToggleButtonElement live) return;
+                live.OnIsCheckedChanged?.Invoke(t.IsChecked ?? false);
+                live.OnCheckedStateChanged?.Invoke(t.IsChecked);
             };
         ApplySetters(togBtn.Setters, tb);
         return tb;
@@ -480,6 +500,11 @@ public sealed partial class Reconciler
         if (tf.IsReadOnly == true) textBox.IsReadOnly = true;
         if (tf.SelectionStart.HasValue) textBox.SelectionStart = tf.SelectionStart.Value;
         if (tf.SelectionLength.HasValue) textBox.SelectionLength = tf.SelectionLength.Value;
+        if (tf.MaxLength != 0) textBox.MaxLength = tf.MaxLength;
+        if (tf.IsSpellCheckEnabled.HasValue) textBox.IsSpellCheckEnabled = tf.IsSpellCheckEnabled.Value;
+        if (tf.CharacterCasing != CharacterCasing.Normal) textBox.CharacterCasing = tf.CharacterCasing;
+        if (tf.TextAlignment != TextAlignment.Left) textBox.TextAlignment = tf.TextAlignment;
+        if (tf.Description is not null) textBox.Description = tf.Description;
         EnsureTextFieldWiring(textBox, tf, requestRerender);
         ApplySetters(tf.Setters, textBox);
         return textBox;
@@ -520,7 +545,15 @@ public sealed partial class Reconciler
 
     private WinUI.PasswordBox MountPasswordBox(PasswordBoxElement pw)
     {
-        var pb = new WinUI.PasswordBox { Password = pw.Password, PlaceholderText = pw.PlaceholderText ?? "" };
+        var pb = new WinUI.PasswordBox
+        {
+            Password = pw.Password,
+            PlaceholderText = pw.PlaceholderText ?? "",
+            PasswordRevealMode = pw.PasswordRevealMode,
+        };
+        if (pw.Header is not null) pb.Header = pw.Header;
+        if (pw.MaxLength != 0) pb.MaxLength = pw.MaxLength;
+        if (pw.PasswordChar is not null) pb.PasswordChar = pw.PasswordChar;
         SetElementTag(pb, pw);
         if (pw.OnPasswordChanged is not null)
             pb.PasswordChanged += (s, _) =>
@@ -541,7 +574,11 @@ public sealed partial class Reconciler
             SmallChange = nb.SmallChange, LargeChange = nb.LargeChange,
             PlaceholderText = nb.PlaceholderText ?? "",
             SpinButtonPlacementMode = nb.SpinButtonPlacement,
+            AcceptsExpression = nb.AcceptsExpression,
+            ValidationMode = nb.ValidationMode,
         };
+        if (nb.NumberFormatter is not null) numBox.NumberFormatter = nb.NumberFormatter;
+        if (nb.Description is not null) numBox.Description = nb.Description;
         if (nb.Header is not null) numBox.Header = nb.Header;
         SetElementTag(numBox, nb);
         if (nb.OnValueChanged is not null)
@@ -583,6 +620,9 @@ public sealed partial class Reconciler
     {
         var box = new WinUI.AutoSuggestBox { Text = asb.Text, PlaceholderText = asb.PlaceholderText ?? "" };
         if (asb.Suggestions.Length > 0) box.ItemsSource = asb.Suggestions;
+        if (asb.Header is not null) box.Header = asb.Header;
+        if (asb.QueryIcon is not null) box.QueryIcon = ResolveIcon(asb.QueryIcon, null);
+        if (asb.IsSuggestionListOpen) box.IsSuggestionListOpen = true;
         SetElementTag(box, asb);
         if (asb.OnTextChanged is not null)
             box.TextChanged += (s, args) =>
@@ -693,6 +733,8 @@ public sealed partial class Reconciler
             IsEditable = combo.IsEditable,
         };
         if (combo.Header is not null) cb.Header = combo.Header;
+        if (!double.IsNaN(combo.MaxDropDownHeight)) cb.MaxDropDownHeight = combo.MaxDropDownHeight;
+        if (combo.Description is not null) cb.Description = combo.Description;
         if (combo.ItemElements is { } elements)
             foreach (var el in elements) cb.Items.Add(Mount(el, requestRerender));
         else
@@ -705,13 +747,25 @@ public sealed partial class Reconciler
                 if (ChangeEchoSuppressor.ShouldSuppress(c)) return;
                 (GetElementTag(c) as ComboBoxElement)?.OnSelectedIndexChanged?.Invoke(c.SelectedIndex);
             };
+        if (combo.OnDropDownOpened is not null)
+            cb.DropDownOpened += (s, _) => (GetElementTag((UIElement)s!) as ComboBoxElement)?.OnDropDownOpened?.Invoke();
+        if (combo.OnDropDownClosed is not null)
+            cb.DropDownClosed += (s, _) => (GetElementTag((UIElement)s!) as ComboBoxElement)?.OnDropDownClosed?.Invoke();
         ApplySetters(combo.Setters, cb);
         return cb;
     }
 
     private WinUI.Slider MountSlider(SliderElement sl)
     {
-        var slider = new WinUI.Slider { Value = sl.Value, Minimum = sl.Min, Maximum = sl.Max, StepFrequency = sl.StepFrequency };
+        var slider = new WinUI.Slider
+        {
+            Value = sl.Value, Minimum = sl.Min, Maximum = sl.Max, StepFrequency = sl.StepFrequency,
+            Orientation = sl.Orientation,
+            TickFrequency = sl.TickFrequency,
+            TickPlacement = sl.TickPlacement,
+            SnapsTo = sl.SnapsTo,
+            IsThumbToolTipEnabled = sl.IsThumbToolTipEnabled,
+        };
         if (sl.Header is not null) slider.Header = sl.Header;
         SetElementTag(slider, sl);
         if (sl.OnValueChanged is not null)
@@ -763,7 +817,15 @@ public sealed partial class Reconciler
 
     private WinUI.RatingControl MountRatingControl(RatingControlElement rc)
     {
-        var rating = new WinUI.RatingControl { Value = rc.Value, MaxRating = rc.MaxRating, IsReadOnly = rc.IsReadOnly, Caption = rc.Caption ?? "" };
+        var rating = new WinUI.RatingControl
+        {
+            Value = rc.Value,
+            MaxRating = rc.MaxRating,
+            IsReadOnly = rc.IsReadOnly,
+            Caption = rc.Caption ?? "",
+            PlaceholderValue = rc.PlaceholderValue,
+            InitialSetValue = rc.InitialSetValue,
+        };
         SetElementTag(rating, rc);
         if (rc.OnValueChanged is not null)
             rating.ValueChanged += (s, _) =>
@@ -783,6 +845,10 @@ public sealed partial class Reconciler
             Color = cp.Color, IsAlphaEnabled = cp.IsAlphaEnabled, IsMoreButtonVisible = cp.IsMoreButtonVisible,
             IsColorSpectrumVisible = cp.IsColorSpectrumVisible, IsColorSliderVisible = cp.IsColorSliderVisible,
             IsColorChannelTextInputVisible = cp.IsColorChannelTextInputVisible, IsHexInputVisible = cp.IsHexInputVisible,
+            ColorSpectrumShape = cp.ColorSpectrumShape,
+            MinHue = cp.MinHue, MaxHue = cp.MaxHue,
+            MinSaturation = cp.MinSaturation, MaxSaturation = cp.MaxSaturation,
+            MinValue = cp.MinValue, MaxValue = cp.MaxValue,
         };
         SetElementTag(picker, cp);
         if (cp.OnColorChanged is not null)
@@ -802,6 +868,10 @@ public sealed partial class Reconciler
         if (cdp.Header is not null) cal.Header = cdp.Header;
         if (cdp.MinDate.HasValue) cal.MinDate = cdp.MinDate.Value;
         if (cdp.MaxDate.HasValue) cal.MaxDate = cdp.MaxDate.Value;
+        if (cdp.DateFormat is not null) cal.DateFormat = cdp.DateFormat;
+        cal.IsTodayHighlighted = cdp.IsTodayHighlighted;
+        cal.IsGroupLabelVisible = cdp.IsGroupLabelVisible;
+        if (cdp.IsCalendarOpen) cal.IsCalendarOpen = true;
         SetElementTag(cal, cdp);
         if (cdp.OnDateChanged is not null)
             cal.DateChanged += (s, _) =>
@@ -816,10 +886,20 @@ public sealed partial class Reconciler
 
     private WinUI.DatePicker MountDatePicker(DatePickerElement dp)
     {
-        var picker = new WinUI.DatePicker { Date = dp.Date, DayVisible = dp.DayVisible, MonthVisible = dp.MonthVisible, YearVisible = dp.YearVisible };
+        var picker = new WinUI.DatePicker
+        {
+            Date = dp.Date,
+            DayVisible = dp.DayVisible,
+            MonthVisible = dp.MonthVisible,
+            YearVisible = dp.YearVisible,
+            Orientation = dp.Orientation,
+        };
         if (dp.Header is not null) picker.Header = dp.Header;
         if (dp.MinYear.HasValue) picker.MinYear = dp.MinYear.Value;
         if (dp.MaxYear.HasValue) picker.MaxYear = dp.MaxYear.Value;
+        if (dp.DayFormat is not null) picker.DayFormat = dp.DayFormat;
+        if (dp.MonthFormat is not null) picker.MonthFormat = dp.MonthFormat;
+        if (dp.YearFormat is not null) picker.YearFormat = dp.YearFormat;
         SetElementTag(picker, dp);
         if (dp.OnDateChanged is not null)
             picker.DateChanged += (s, args) =>
@@ -876,6 +956,10 @@ public sealed partial class Reconciler
     private WinUI.Image MountImage(ImageElement img)
     {
         var image = _pool.TryRent(typeof(WinUI.Image)) as WinUI.Image ?? new WinUI.Image();
+        // Tag + wire BEFORE assigning Source — small/cached images can fire
+        // ImageOpened/ImageFailed synchronously during Source assignment.
+        SetElementTag(image, img);
+        EnsureImageWiring(image);
         try
         {
             var uri = new Uri(img.Source, UriKind.RelativeOrAbsolute);
@@ -889,8 +973,31 @@ public sealed partial class Reconciler
         }
         if (img.Width.HasValue) image.Width = img.Width.Value;
         if (img.Height.HasValue) image.Height = img.Height.Value;
+        if (img.NineGrid.HasValue) image.NineGrid = img.NineGrid.Value;
         ApplySetters(img.Setters, image);
         return image;
+    }
+
+    /// <summary>
+    /// Wires ImageOpened/ImageFailed trampolines once per pooled Image. The
+    /// handler resolves the live element via GetElementTag so a later
+    /// record-with that attaches a handler picks up without re-subscribing.
+    /// </summary>
+    internal static void EnsureImageWiring(WinUI.Image image)
+    {
+        var flags = GetPoolableWireFlags(image);
+        if (!flags.ImageOpened)
+        {
+            flags.ImageOpened = true;
+            image.ImageOpened += (s, _) =>
+                (GetElementTag((UIElement)s!) as ImageElement)?.OnImageOpened?.Invoke();
+        }
+        if (!flags.ImageFailed)
+        {
+            flags.ImageFailed = true;
+            image.ImageFailed += (s, args) =>
+                (GetElementTag((UIElement)s!) as ImageElement)?.OnImageFailed?.Invoke(args.ErrorMessage);
+        }
     }
 
     private WinUI.PersonPicture MountPersonPicture(PersonPictureElement pp)
@@ -907,23 +1014,58 @@ public sealed partial class Reconciler
     private WinUI.WebView2 MountWebView2(WebView2Element wv)
     {
         var webView = new WinUI.WebView2();
-        if (wv.Source is not null) webView.Source = wv.Source;
+        // Tag + subscribe BEFORE assigning Source — setting Source kicks off
+        // CoreWebView2 initialization and navigation, and a fast init can fire
+        // before subscriptions land otherwise.
         SetElementTag(webView, wv);
+
+        // Subscribe unconditionally; the trampoline reads the live element via
+        // GetElementTag so a later record-with that attaches a handler picks up
+        // without re-wiring. NavigationStarting/Completed retain the existing
+        // null-checked subscribe-only-on-handler pattern for backwards compat.
         if (wv.OnNavigationStarting is not null)
             webView.NavigationStarting += (s, args) =>
                 (GetElementTag((UIElement)s!) as WebView2Element)?.OnNavigationStarting?.Invoke(new Uri(args.Uri));
         if (wv.OnNavigationCompleted is not null)
             webView.NavigationCompleted += (s, _) =>
                 (GetElementTag((UIElement)s!) as WebView2Element)?.OnNavigationCompleted?.Invoke(((WinUI.WebView2)s!).Source);
+
+        webView.WebMessageReceived += (s, args) =>
+        {
+            if (GetElementTag((UIElement)s!) is WebView2Element el && el.OnWebMessageReceived is { } h)
+            {
+                // TryGetWebMessageAsString throws if the underlying message
+                // isn't a string (e.g. structured-clone JSON). Fall back to
+                // WebMessageAsJson so handlers always see a string payload.
+                string payload;
+                try { payload = args.TryGetWebMessageAsString(); }
+                catch { payload = args.WebMessageAsJson; }
+                h(payload);
+            }
+        };
+
+        webView.CoreWebView2Initialized += (s, _) =>
+            (GetElementTag((UIElement)s!) as WebView2Element)?.OnCoreWebView2Initialized?.Invoke();
+
+        if (wv.Source is not null) webView.Source = wv.Source;
+
         ApplySetters(wv.Setters, webView);
         return webView;
     }
 
     private WinUI.RichEditBox MountRichEditBox(RichEditBoxElement reb)
     {
-        var box = new WinUI.RichEditBox { IsReadOnly = reb.IsReadOnly };
+        var box = new WinUI.RichEditBox
+        {
+            IsReadOnly = reb.IsReadOnly,
+            TextWrapping = reb.TextWrapping,
+            AcceptsReturn = reb.AcceptsReturn,
+        };
         if (reb.Header is not null) box.Header = reb.Header;
         if (reb.PlaceholderText is not null) box.PlaceholderText = reb.PlaceholderText;
+        if (reb.IsSpellCheckEnabled.HasValue) box.IsSpellCheckEnabled = reb.IsSpellCheckEnabled.Value;
+        if (reb.MaxLength != 0) box.MaxLength = reb.MaxLength;
+        if (reb.SelectionHighlightColor is not null) box.SelectionHighlightColor = reb.SelectionHighlightColor;
         if (!string.IsNullOrEmpty(reb.Text))
             box.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, reb.Text);
         SetElementTag(box, reb);
@@ -948,7 +1090,14 @@ public sealed partial class Reconciler
         {
             if (child is null or EmptyElement) continue;
             var childControl = Mount(child, requestRerender);
-            if (childControl is not null) grid.Children.Add(childControl);
+            if (childControl is null) continue;
+            var wga = child.GetAttached<WrapGridAttached>();
+            if (wga is not null && childControl is FrameworkElement fe)
+            {
+                if (wga.RowSpan > 1) WinUI.VariableSizedWrapGrid.SetRowSpan(fe, wga.RowSpan);
+                if (wga.ColumnSpan > 1) WinUI.VariableSizedWrapGrid.SetColumnSpan(fe, wga.ColumnSpan);
+            }
+            grid.Children.Add(childControl);
         }
         SetElementTag(grid, wg);
         ApplySetters(wg.Setters, grid);
@@ -1013,8 +1162,24 @@ public sealed partial class Reconciler
         sv.ZoomMode = (WinUI.ZoomMode)scroll.ZoomMode;
         sv.Content = Mount(scroll.Child, requestRerender);
         SetElementTag(sv, scroll);
+        EnsureScrollViewerViewChangedWired(sv);
         ApplySetters(scroll.Setters, sv);
         return sv;
+    }
+
+    private static void EnsureScrollViewerViewChangedWired(WinUI.ScrollViewer sv)
+    {
+        // Pooled control: wire the trampoline exactly once. The handler reads
+        // the live element via GetElementTag so a later record-with that
+        // attaches OnViewChanged picks up without re-subscribing.
+        var flags = GetPoolableWireFlags(sv);
+        if (flags.ScrollViewerViewChanged) return;
+        flags.ScrollViewerViewChanged = true;
+        sv.ViewChanged += (s, e) =>
+        {
+            if (GetElementTag((WinUI.ScrollViewer)s!) is ScrollViewElement el && el.OnViewChanged is { } h)
+                h(e);
+        };
     }
 
     private WinUI.Border MountBorder(BorderElement border, Action requestRerender)
@@ -1037,9 +1202,17 @@ public sealed partial class Reconciler
     {
         var expander = new WinUI.Expander
         {
-            Header = exp.Header, IsExpanded = exp.IsExpanded,
+            IsExpanded = exp.IsExpanded,
             ExpandDirection = exp.ExpandDirection,
         };
+        // Element header wins over the string slot (matches the spec
+        // "HeaderTemplate" slot semantics — strings are still supported as
+        // the default header content).
+        if (exp.HeaderTemplate is not null)
+            expander.Header = Mount(exp.HeaderTemplate, requestRerender);
+        else
+            expander.Header = exp.Header;
+        if (exp.ContentTransitions is not null) expander.ContentTransitions = exp.ContentTransitions;
         expander.Content = Mount(exp.Content, requestRerender);
         SetElementTag(expander, exp);
         if (exp.OnIsExpandedChanged is not null)
@@ -1057,7 +1230,9 @@ public sealed partial class Reconciler
         {
             IsPaneOpen = svEl.IsPaneOpen, OpenPaneLength = svEl.OpenPaneLength,
             CompactPaneLength = svEl.CompactPaneLength, DisplayMode = svEl.DisplayMode,
+            LightDismissOverlayMode = svEl.LightDismissOverlayMode,
         };
+        if (svEl.PaneBackground is not null) splitView.PaneBackground = svEl.PaneBackground;
         if (svEl.Pane is not null) splitView.Pane = Mount(svEl.Pane, requestRerender);
         if (svEl.Content is not null) splitView.Content = Mount(svEl.Content, requestRerender);
         SetElementTag(splitView, svEl);
@@ -1189,6 +1364,13 @@ public sealed partial class Reconciler
         };
         if (nav.PaneTitle is not null) nv.PaneTitle = nav.PaneTitle;
         if (nav.Header is not null) nv.Header = Mount(nav.Header, requestRerender);
+        if (nav.AutoSuggestBox is not null && Mount(nav.AutoSuggestBox, requestRerender) is WinUI.AutoSuggestBox asb)
+            nv.AutoSuggestBox = asb;
+        if (nav.PaneFooter is not null) nv.PaneFooter = Mount(nav.PaneFooter, requestRerender);
+        if (nav.PaneCustomContent is not null) nv.PaneCustomContent = Mount(nav.PaneCustomContent, requestRerender);
+        if (!double.IsNaN(nav.OpenPaneLength)) nv.OpenPaneLength = nav.OpenPaneLength;
+        if (!double.IsNaN(nav.CompactModeThresholdWidth)) nv.CompactModeThresholdWidth = nav.CompactModeThresholdWidth;
+        if (!double.IsNaN(nav.ExpandedModeThresholdWidth)) nv.ExpandedModeThresholdWidth = nav.ExpandedModeThresholdWidth;
         foreach (var item in nav.MenuItems)
         {
             if (item.IsHeader)
@@ -1257,7 +1439,18 @@ public sealed partial class Reconciler
 
     private WinUI.TabView MountTabView(TabViewElement tab, Action requestRerender)
     {
-        var tv = new WinUI.TabView { SelectedIndex = tab.SelectedIndex, IsAddTabButtonVisible = tab.IsAddTabButtonVisible };
+        var tv = new WinUI.TabView
+        {
+            SelectedIndex = tab.SelectedIndex,
+            IsAddTabButtonVisible = tab.IsAddTabButtonVisible,
+            TabWidthMode = tab.TabWidthMode,
+            CloseButtonOverlayMode = tab.CloseButtonOverlayMode,
+            CanDragTabs = tab.CanDragTabs,
+            CanReorderTabs = tab.CanReorderTabs,
+            AllowDropTabs = tab.AllowDropTabs,
+        };
+        if (tab.TabStripHeader is not null) tv.TabStripHeader = Mount(tab.TabStripHeader, requestRerender);
+        if (tab.TabStripFooter is not null) tv.TabStripFooter = Mount(tab.TabStripFooter, requestRerender);
         foreach (var tabItem in tab.Tabs)
         {
             var tvi = new WinUI.TabViewItem
@@ -1329,8 +1522,10 @@ public sealed partial class Reconciler
         {
             SelectionMode = lv.SelectionMode,
             IsItemClickEnabled = lv.OnItemClick is not null,
+            IncrementalLoadingTrigger = lv.IncrementalLoadingTrigger,
         };
         if (lv.Header is not null) listView.Header = lv.Header;
+        if (lv.ItemContainerStyle is not null) listView.ItemContainerStyle = lv.ItemContainerStyle;
 
         SetElementTag(listView, lv);
 
@@ -1360,12 +1555,23 @@ public sealed partial class Reconciler
             }
         };
 
-        if (lv.OnSelectedIndexChanged is not null)
-            listView.SelectionChanged += (s, _) =>
+        // Subscribe unconditionally so OnSelectionChanged (multi-select snapshot)
+        // and OnSelectedIndexChanged (single focused index) both pick up
+        // handlers attached on a later record-with without re-subscribing.
+        listView.SelectionChanged += (s, _) =>
+        {
+            var l = (WinUI.ListView)s!;
+            if (GetElementTag(l) is not ListViewElement el) return;
+            el.OnSelectedIndexChanged?.Invoke(l.SelectedIndex);
+            if (el.OnSelectionChanged is { } h)
             {
-                var l = (WinUI.ListView)s!;
-                (GetElementTag(l) as ListViewElement)?.OnSelectedIndexChanged?.Invoke(l.SelectedIndex);
-            };
+                // SelectedItems is List<object> of int — copy into a typed snapshot.
+                var snapshot = new List<int>(l.SelectedItems.Count);
+                foreach (var item in l.SelectedItems)
+                    if (item is int i) snapshot.Add(i);
+                h(snapshot);
+            }
+        };
         if (lv.OnItemClick is not null)
             listView.ItemClick += (s, args) =>
             {
@@ -1388,8 +1594,10 @@ public sealed partial class Reconciler
         {
             SelectionMode = gv.SelectionMode,
             IsItemClickEnabled = gv.OnItemClick is not null,
+            IncrementalLoadingTrigger = gv.IncrementalLoadingTrigger,
         };
         if (gv.Header is not null) gridView.Header = gv.Header;
+        if (gv.ItemContainerStyle is not null) gridView.ItemContainerStyle = gv.ItemContainerStyle;
 
         SetElementTag(gridView, gv);
 
@@ -1418,12 +1626,19 @@ public sealed partial class Reconciler
             }
         };
 
-        if (gv.OnSelectedIndexChanged is not null)
-            gridView.SelectionChanged += (s, _) =>
+        gridView.SelectionChanged += (s, _) =>
+        {
+            var g = (WinUI.GridView)s!;
+            if (GetElementTag(g) is not GridViewElement el) return;
+            el.OnSelectedIndexChanged?.Invoke(g.SelectedIndex);
+            if (el.OnSelectionChanged is { } h)
             {
-                var g = (WinUI.GridView)s!;
-                (GetElementTag(g) as GridViewElement)?.OnSelectedIndexChanged?.Invoke(g.SelectedIndex);
-            };
+                var snapshot = new List<int>(g.SelectedItems.Count);
+                foreach (var item in g.SelectedItems)
+                    if (item is int i) snapshot.Add(i);
+                h(snapshot);
+            }
+        };
         if (gv.OnItemClick is not null)
             gridView.ItemClick += (s, args) =>
             {
@@ -1617,7 +1832,15 @@ public sealed partial class Reconciler
         listView.SelectionChanged += (s, _) =>
         {
             var l = (WinUI.ListView)s!;
-            (GetElementTag(l) as TemplatedListElementBase)?.InvokeSelectionChanged(l.SelectedIndex);
+            if (GetElementTag(l) is not TemplatedListElementBase tel) return;
+            tel.InvokeSelectionChanged(l.SelectedIndex);
+            if (tel.HasMultiSelectionCallback)
+            {
+                var snapshot = new List<int>(l.SelectedItems.Count);
+                foreach (var item in l.SelectedItems)
+                    if (item is int i) snapshot.Add(i);
+                tel.InvokeMultiSelectionChanged(snapshot);
+            }
         };
         listView.ItemClick += (s, args) =>
         {
@@ -1653,7 +1876,15 @@ public sealed partial class Reconciler
         gridView.SelectionChanged += (s, _) =>
         {
             var g = (WinUI.GridView)s!;
-            (GetElementTag(g) as TemplatedListElementBase)?.InvokeSelectionChanged(g.SelectedIndex);
+            if (GetElementTag(g) is not TemplatedListElementBase tel) return;
+            tel.InvokeSelectionChanged(g.SelectedIndex);
+            if (tel.HasMultiSelectionCallback)
+            {
+                var snapshot = new List<int>(g.SelectedItems.Count);
+                foreach (var item in g.SelectedItems)
+                    if (item is int i) snapshot.Add(i);
+                tel.InvokeMultiSelectionChanged(snapshot);
+            }
         };
         gridView.ItemClick += (s, args) =>
         {
@@ -1697,13 +1928,15 @@ public sealed partial class Reconciler
         return flipView;
     }
 
-    private WinUI.InfoBar MountInfoBar(InfoBarElement ib)
+    private WinUI.InfoBar MountInfoBar(InfoBarElement ib, Action requestRerender)
     {
         var infoBar = new WinUI.InfoBar
         {
             Title = ib.Title ?? "", Message = ib.Message ?? "",
             Severity = ib.Severity, IsOpen = ib.IsOpen, IsClosable = ib.IsClosable,
         };
+        if (ib.IconSource is not null) infoBar.IconSource = ResolveIconSource(ib.IconSource);
+        if (ib.Content is not null) infoBar.Content = Mount(ib.Content, requestRerender);
         // Tag the parent InfoBar first so both the Closed handler (wired on
         // infoBar) and the ActionButton handler (captures infoBar in its
         // closure, reads Tag from there) dispatch through a Tag that the
@@ -1771,11 +2004,14 @@ public sealed partial class Reconciler
         {
             Title = cdEl.Title, PrimaryButtonText = cdEl.PrimaryButtonText,
             DefaultButton = cdEl.DefaultButton,
+            IsPrimaryButtonEnabled = cdEl.IsPrimaryButtonEnabled,
+            IsSecondaryButtonEnabled = cdEl.IsSecondaryButtonEnabled,
         };
         if (cdEl.SecondaryButtonText is not null) dialog.SecondaryButtonText = cdEl.SecondaryButtonText;
         if (cdEl.CloseButtonText is not null) dialog.CloseButtonText = cdEl.CloseButtonText;
         dialog.Content = Mount(cdEl.Content, requestRerender);
         if (xamlRoot is not null) dialog.XamlRoot = xamlRoot;
+        if (cdEl.OnOpened is not null) dialog.Opened += (_, _) => cdEl.OnOpened?.Invoke();
         // ApplySetters last so caller .Set(...) wins (including overriding XamlRoot).
         ApplySetters(cdEl.Setters, dialog);
         try
@@ -1796,7 +2032,16 @@ public sealed partial class Reconciler
         if (target is FrameworkElement targetFe)
         {
             var flyoutContent = Mount(flyEl.FlyoutContent, requestRerender);
-            var flyout = new WinUI.Flyout { Content = flyoutContent, Placement = flyEl.Placement };
+            var flyout = new WinUI.Flyout
+            {
+                Content = flyoutContent,
+                Placement = flyEl.Placement,
+                ShowMode = flyEl.ShowMode,
+                AreOpenCloseAnimationsEnabled = flyEl.AreOpenCloseAnimationsEnabled,
+            };
+            if (flyEl.OverlayInputPassThroughElement is not null
+                && Mount(flyEl.OverlayInputPassThroughElement, requestRerender) is DependencyObject pt)
+                flyout.OverlayInputPassThroughElement = pt;
             SetElementTag(targetFe, flyEl);
             // Route handlers through the target's Tag so Update() refreshing the tag to the
             // new FlyoutElement causes subsequent Opened/Closed to fire the current delegates —
@@ -1817,10 +2062,19 @@ public sealed partial class Reconciler
 
     private WinUI.TeachingTip MountTeachingTip(TeachingTipElement ttEl, Action requestRerender)
     {
-        var tip = new WinUI.TeachingTip { Title = ttEl.Title, Subtitle = ttEl.Subtitle ?? "", IsOpen = ttEl.IsOpen };
+        var tip = new WinUI.TeachingTip
+        {
+            Title = ttEl.Title,
+            Subtitle = ttEl.Subtitle ?? "",
+            IsOpen = ttEl.IsOpen,
+            PlacementMargin = ttEl.PlacementMargin,
+            PreferredPlacement = ttEl.PreferredPlacement,
+        };
         if (ttEl.Content is not null) tip.Content = Mount(ttEl.Content, requestRerender);
         if (ttEl.ActionButtonContent is not null) tip.ActionButtonContent = ttEl.ActionButtonContent;
         if (ttEl.CloseButtonContent is not null) tip.CloseButtonContent = ttEl.CloseButtonContent;
+        if (ttEl.IconSource is not null) tip.IconSource = ResolveIconSource(ttEl.IconSource);
+        if (ttEl.HeroContent is not null) tip.HeroContent = Mount(ttEl.HeroContent, requestRerender);
         // Tag BEFORE wires so trampolines see the current element from the first tick.
         SetElementTag(tip, ttEl);
         // Route through the Tag trampoline (not a captured local) so skip-path
@@ -2691,6 +2945,17 @@ public sealed partial class Reconciler
         if (pa.StrokeThickness > 0) p.StrokeThickness = pa.StrokeThickness;
         if (pa.StrokeDashArray is not null) p.StrokeDashArray = pa.StrokeDashArray;
         if (pa.RenderTransform is not null) p.RenderTransform = pa.RenderTransform;
+        if (pa.StrokeStartLineCap != Microsoft.UI.Xaml.Media.PenLineCap.Flat) p.StrokeStartLineCap = pa.StrokeStartLineCap;
+        if (pa.StrokeEndLineCap != Microsoft.UI.Xaml.Media.PenLineCap.Flat) p.StrokeEndLineCap = pa.StrokeEndLineCap;
+        if (pa.StrokeLineJoin != Microsoft.UI.Xaml.Media.PenLineJoin.Miter) p.StrokeLineJoin = pa.StrokeLineJoin;
+        if (pa.StrokeMiterLimit != 10) p.StrokeMiterLimit = pa.StrokeMiterLimit;
+        if (pa.StrokeDashCap != Microsoft.UI.Xaml.Media.PenLineCap.Flat) p.StrokeDashCap = pa.StrokeDashCap;
+        if (pa.StrokeDashOffset != 0) p.StrokeDashOffset = pa.StrokeDashOffset;
+        // WinUI's Shapes.Path doesn't expose FillRule directly — it lives on
+        // the PathGeometry. Cast and set when we own a writable PathGeometry.
+        if (pa.FillRule != Microsoft.UI.Xaml.Media.FillRule.EvenOdd
+            && p.Data is Microsoft.UI.Xaml.Media.PathGeometry pg)
+            pg.FillRule = pa.FillRule;
         ApplySetters(pa.Setters, p);
         return p;
     }
@@ -2763,11 +3028,43 @@ public sealed partial class Reconciler
             AreTransportControlsEnabled = mpe.AreTransportControlsEnabled,
             AutoPlay = mpe.AutoPlay,
         };
+        // Tag + subscribe BEFORE assigning Source — setting Source starts the
+        // pipeline immediately; a cached / fast-failing URI can raise
+        // MediaOpened / MediaFailed before subscriptions would otherwise land.
+        // MediaPlayer events fire on the player's worker thread; marshal back
+        // to the element's dispatcher so handlers can mutate component state
+        // safely. May fire after unmount — GetElementTag returns null then so
+        // the handler invocation is a no-op.
+        SetElementTag(player, mpe);
+
+        var mp = player.MediaPlayer;
+        if (mp is not null)
+        {
+            mp.MediaOpened += (s, _) => DispatchToElement<MediaPlayerElementElement>(player, el => el.OnMediaOpened?.Invoke());
+            mp.MediaEnded += (s, _) => DispatchToElement<MediaPlayerElementElement>(player, el => el.OnMediaEnded?.Invoke());
+            mp.MediaFailed += (s, args) =>
+            {
+                var msg = args.ErrorMessage ?? args.Error.ToString();
+                DispatchToElement<MediaPlayerElementElement>(player, el => el.OnMediaFailed?.Invoke(msg));
+            };
+        }
+
         if (mpe.Source is not null)
             player.Source = global::Windows.Media.Core.MediaSource.CreateFromUri(new Uri(mpe.Source, UriKind.RelativeOrAbsolute));
-        SetElementTag(player, mpe);
+
         ApplySetters(mpe.Setters, player);
         return player;
+    }
+
+    private static void DispatchToElement<TElement>(FrameworkElement fe, Action<TElement> body)
+        where TElement : Element
+    {
+        var dispatcher = fe.DispatcherQueue;
+        if (dispatcher is null) return;
+        dispatcher.TryEnqueue(() =>
+        {
+            if (GetElementTag(fe) is TElement el) body(el);
+        });
     }
 
     // ── AnimatedVisualPlayer ────────────────────────────────────────────
@@ -2801,12 +3098,24 @@ public sealed partial class Reconciler
         var listBox = new WinUI.ListBox { SelectedIndex = lb.SelectedIndex };
         foreach (var item in lb.Items) listBox.Items.Add(item);
         SetElementTag(listBox, lb);
-        if (lb.OnSelectedIndexChanged is not null)
-            listBox.SelectionChanged += (s, _) =>
+        // Subscribe unconditionally so handlers attached on a later record-with
+        // are picked up via GetElementTag — see MountListView for the rationale.
+        listBox.SelectionChanged += (s, _) =>
+        {
+            var l = (WinUI.ListBox)s!;
+            if (GetElementTag(l) is not ListBoxElement el) return;
+            el.OnSelectedIndexChanged?.Invoke(l.SelectedIndex);
+            if (el.OnSelectionChanged is { } h)
             {
-                var l = (WinUI.ListBox)s!;
-                (GetElementTag(l) as ListBoxElement)?.OnSelectedIndexChanged?.Invoke(l.SelectedIndex);
-            };
+                var snapshot = new List<int>(l.SelectedItems.Count);
+                for (int i = 0; i < l.SelectedItems.Count; i++)
+                {
+                    var idx = l.Items.IndexOf(l.SelectedItems[i]);
+                    if (idx >= 0) snapshot.Add(idx);
+                }
+                h(snapshot);
+            }
+        };
         ApplySetters(lb.Setters, listBox);
         return listBox;
     }
@@ -2844,6 +3153,10 @@ public sealed partial class Reconciler
         {
             NumberOfPages = pp.NumberOfPages,
             SelectedPageIndex = pp.SelectedPageIndex,
+            WrapMode = pp.WrapMode,
+            MaxVisiblePips = pp.MaxVisiblePips,
+            PreviousButtonVisibility = pp.PreviousButtonVisibility,
+            NextButtonVisibility = pp.NextButtonVisibility,
         };
         SetElementTag(pager, pp);
         if (pp.OnSelectedPageIndexChanged is not null)
@@ -2881,6 +3194,7 @@ public sealed partial class Reconciler
         var child = Mount(popup.Child, requestRerender);
         p.Child = child as UIElement;
         SetElementTag(wrapper, popup);
+        p.Opened += (s, _) => (GetElementTag(wrapper) as PopupElement)?.OnOpened?.Invoke();
         p.Closed += (s, _) => (GetElementTag(wrapper) as PopupElement)?.OnClosed?.Invoke();
         ApplySetters(popup.Setters, p);
         wrapper.Children.Add(p);
@@ -2891,7 +3205,10 @@ public sealed partial class Reconciler
 
     private WinUI.RefreshContainer MountRefreshContainer(RefreshContainerElement rc, Action requestRerender)
     {
-        var container = new WinUI.RefreshContainer();
+        var container = new WinUI.RefreshContainer
+        {
+            PullDirection = rc.PullDirection,
+        };
         container.Content = Mount(rc.Content, requestRerender);
         SetElementTag(container, rc);
         container.RefreshRequested += (s, _) =>
@@ -2928,10 +3245,35 @@ public sealed partial class Reconciler
             SelectionMode = cv.SelectionMode,
             IsGroupLabelVisible = cv.IsGroupLabelVisible,
             IsOutOfScopeEnabled = cv.IsOutOfScopeEnabled,
+            NumberOfWeeksInView = cv.NumberOfWeeksInView,
+            DisplayMode = cv.DisplayMode,
         };
         if (cv.CalendarIdentifier is not null) calendarView.CalendarIdentifier = cv.CalendarIdentifier;
         if (cv.Language is not null && global::Windows.Globalization.Language.IsWellFormed(cv.Language))
             calendarView.Language = cv.Language;
+        if (cv.MinDate.HasValue) calendarView.MinDate = cv.MinDate.Value;
+        if (cv.MaxDate.HasValue) calendarView.MaxDate = cv.MaxDate.Value;
+        if (cv.FirstDayOfWeek.HasValue) calendarView.FirstDayOfWeek = cv.FirstDayOfWeek.Value;
+
+        SetElementTag(calendarView, cv);
+
+        // Initial selection set BEFORE subscribing so the declarative state
+        // doesn't echo back into OnSelectedDatesChanged.
+        if (cv.SelectedDates is { Count: > 0 })
+        {
+            foreach (var d in cv.SelectedDates) calendarView.SelectedDates.Add(d);
+        }
+
+        // Subscribe unconditionally so the handler picks up a later-attached
+        // OnSelectedDatesChanged via GetElementTag without re-wiring.
+        calendarView.SelectedDatesChanged += (s, _) =>
+        {
+            var c = (WinUI.CalendarView)s!;
+            if (ChangeEchoSuppressor.ShouldSuppress(c)) return;
+            if (GetElementTag(c) is CalendarViewElement el && el.OnSelectedDatesChanged is { } h)
+                h(c.SelectedDates.ToArray());
+        };
+
         ApplySetters(cv.Setters, calendarView);
         return calendarView;
     }
@@ -2996,7 +3338,10 @@ public sealed partial class Reconciler
         {
             VerticalShift = pv.VerticalShift,
             HorizontalShift = pv.HorizontalShift,
+            VerticalSourceStartOffset = pv.VerticalSourceStartOffset,
+            VerticalSourceEndOffset = pv.VerticalSourceEndOffset,
         };
+        if (pv.Source is not null) parallax.Source = pv.Source;
         parallax.Child = Mount(pv.Child, requestRerender) as UIElement;
         ApplySetters(pv.Setters, parallax);
         return parallax;
@@ -3020,6 +3365,27 @@ public sealed partial class Reconciler
     private WinUI.Frame MountFrame(FrameElement frame)
     {
         var f = new WinUI.Frame();
+        SetElementTag(f, frame);
+
+        // Subscribe unconditionally — the trampoline reads the latest element
+        // via GetElementTag so a later record-with that attaches a handler
+        // picks up without re-wiring.
+        f.Navigated += (s, e) =>
+        {
+            if (GetElementTag((WinUI.Frame)s!) is FrameElement el && el.OnNavigated is { } h)
+                h(e.SourcePageType);
+        };
+        f.Navigating += (s, e) =>
+        {
+            if (GetElementTag((WinUI.Frame)s!) is FrameElement el && el.OnNavigating is { } h)
+                h(e.SourcePageType);
+        };
+        f.NavigationFailed += (s, e) =>
+        {
+            if (GetElementTag((WinUI.Frame)s!) is FrameElement el && el.OnNavigationFailed is { } h)
+                h(e.SourcePageType, e.Exception);
+        };
+
         if (frame.SourcePageType is not null)
             f.Navigate(frame.SourcePageType, frame.NavigationParameter);
         ApplySetters(frame.Setters, f);

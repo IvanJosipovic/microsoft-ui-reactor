@@ -27,6 +27,42 @@ to land under these conventions; subsequent specs follow this shape.
 
 ## [Unreleased]
 
+### Added
+
+- **Spec 039 — Property & event API scrub.**
+  - **New fluent extensions.** Every callback property in the inventory has a
+    matching fluent on its element record — ~60 callbacks across §1–§9 of the
+    spec. Fluents drop the leading `On` (so `OnClick` → `.Click(handler)`)
+    because C# binds delegate-property invocation in preference to extension
+    methods. Property names are unchanged; existing
+    `new ButtonElement(…) { OnClick = … }` syntax still compiles. Passing
+    `null` clears any previously-set handler. (spec 039 §0.1, §14 #1)
+  - **Named-style helpers.** `.AccentButton()`, `.SubtleButton()`,
+    `.TextLink()` (overloaded across `ButtonElement`, `DropDownButtonElement`,
+    `SplitButtonElement`, `ToggleSplitButtonElement`, and
+    `HyperlinkButtonElement` where applicable); InfoBar severity helpers
+    `.Informational()` / `.Success()` / `.Warning()` / `.Error()`;
+    `Card(child)` factory with theme-aware background and stroke; type-ramp
+    factories `Title` / `Subtitle` / `Body` / `BodyStrong` / `BodyLarge`
+    mapping to the WinUI 3 `*TextBlockStyle` resources. (spec 039 §2, §17)
+  - **New events exposed.** `CalendarView.OnSelectedDatesChanged`;
+    `Frame.OnNavigated` / `OnNavigating` / `OnNavigationFailed`;
+    `ScrollView.OnViewChanged`; `Popup.OnOpened`;
+    `WebView2.OnWebMessageReceived` / `OnCoreWebView2Initialized`;
+    `MediaPlayerElement.OnMediaOpened` / `OnMediaEnded` / `OnMediaFailed`;
+    `ContentDialog.OnOpened`; `Image.OnImageOpened` / `OnImageFailed`;
+    `ComboBox.OnDropDownOpened` / `OnDropDownClosed`;
+    `DataGrid.OnSelectionChanged`; universal multi-select
+    `OnSelectionChanged` on `ListView` / `GridView` / `ListBox` (with
+    `IReadOnlyList<int>` snapshot) and the typed peers `ItemsView<T>` /
+    `TemplatedListView<T>` / `TemplatedGridView<T>` (with `IReadOnlyList<T>`
+    snapshot). TreeView multi-select is intentionally deferred. (spec 039 §3,
+    §5.8, §14 #3)
+  - **New init properties.** Common-property gaps closed across the text,
+    input, date/time, progress/layout/navigation, collection/dialog, and
+    media/shape families (Phase 4 / Phase 5 of the implementation task list).
+    See spec 039 §14 #4 for the inventory.
+
 ### Changed (breaking)
 
 - **`.Margin(double, double)` and `.Padding(double, double)` parameter order
@@ -581,6 +617,32 @@ to land under these conventions; subsequent specs follow this shape.
   marked `[Obsolete]`. Replace with `Memo(ctx => …)` (render once + state
   changes) or `RenderEachTime(ctx => …)` (always re-render). Slated for
   removal in the next minor release. (spec 033 §4)
+
+### Breaking changes (deferred)
+
+Naming-alignment renames that introduce an `[Obsolete]` forwarding alias today
+and remove the old name in the next minor release.
+
+- `Microsoft.UI.Reactor.Factories.RichText(string)` and
+  `RichText(RichTextParagraph[])` renamed to `RichTextBlock(...)` for parity
+  with WinUI's `Microsoft.UI.Xaml.Controls.RichTextBlock` (record was already
+  `RichTextBlockElement`). The old `RichText` factory is preserved as a
+  thin `[Obsolete]` forwarding alias for one release; slated for removal in
+  the next minor release. (spec 039 §1.3 / §14 #8)
+- No `Microsoft.UI.Reactor.Factories.ScrollViewer` alias. (Originally
+  considered as a discoverability hint for callers reaching for the
+  WPF/WinUI-legacy name, but the alias would shadow
+  `Microsoft.UI.Xaml.Controls.ScrollViewer`'s attached-property type for
+  callers using `using static Microsoft.UI.Reactor.Factories;` alongside
+  `using Microsoft.UI.Xaml.Controls;` — forcing them to fully-qualify
+  `ScrollViewer.SetVerticalScrollMode(...)` etc. Discoverability win
+  didn't justify the imposed disambiguation cost on existing consumers.
+  Use `ScrollView` directly.) (spec 039 §6 / §16)
+- `Microsoft.UI.Reactor.Factories.ProgressBar(double)` and `ProgressBar()`
+  added as `[Obsolete]` aliases for the existing `Progress(double)` /
+  `ProgressIndeterminate()` factories. Reactor's `Progress` reconciles to
+  WinUI's `ProgressBar`; the alias lets agents reaching for the WinUI name
+  discover it. (spec 039 §5 / §16)
 
 ### Removed
 

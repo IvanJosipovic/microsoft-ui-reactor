@@ -406,6 +406,9 @@ public sealed partial class Reconciler : IDisposable
         public bool ButtonClick;
         public bool TextBoxTextChanged;
         public bool TextBoxSelectionChanged;
+        public bool ScrollViewerViewChanged;
+        public bool ImageOpened;
+        public bool ImageFailed;
     }
 
     private static readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<FrameworkElement, PoolableWireFlags> _poolableWireFlags = new();

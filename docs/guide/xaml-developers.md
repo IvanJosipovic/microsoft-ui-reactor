@@ -176,6 +176,50 @@ If you want richer busy/error behavior, Reactor also has a dedicated
 [Commanding](commanding.md) API. But the default is deliberately small: use a
 method or lambda first, then add command abstractions when they actually help.
 
+## Events: XAML Attributes Become Fluents
+
+Every WinUI event attribute has a matching Reactor fluent. For most events
+the rule is straightforward — drop the leading `On` from the Reactor
+property name. A handful of Reactor fluents normalize across WinUI's
+slightly different event shapes (e.g. `CheckBox` exposes three separate
+`Checked` / `Unchecked` / `Indeterminate` events in XAML; Reactor surfaces
+a single `IsCheckedChanged` callback):
+
+| WinUI XAML event | Reactor fluent |
+|------------------|----------------|
+| `<Button Click="OnClick"/>` | `Button("…").Click(handler)` |
+| `<TextBox TextChanged="OnTextChanged"/>` | `TextField(text, setText).Changed(handler)` |
+| `<ListView SelectionChanged="OnSelectionChanged"/>` | `ListView<T>(...).SelectionChanged(handler)` |
+| `<ComboBox SelectionChanged="OnSelectionChanged"/>` | `ComboBox(...).SelectedIndexChanged(handler)` — Reactor reports the selected index, not the args |
+| `<CheckBox Checked="…" Unchecked="…"/>` | `CheckBox(value, setValue).IsCheckedChanged(handler)` — Reactor collapses the three XAML events into a single bool callback |
+
+The underlying init property keeps the `On` prefix, so existing
+property-init code continues to compile:
+
+```csharp
+class EventsFluentExample : Component
+{
+    public override Element Render()
+    {
+        Action handler = () => { /* clicked */ };
+
+        return VStack(8,
+            // Property-init still works:
+            new ButtonElement("Save") { OnClick = handler },
+            // Preferred fluent:
+            Button("Save").Click(handler)
+        );
+    }
+}
+```
+
+The fluent drops the `On` because C# binds `el.OnClick(arg)` to
+delegate-as-property invocation (`Action?.Invoke(arg)`) and never falls back
+to extension methods — see
+[spec 039](../specs/039-property-and-event-scrub.md) §0.1 for the discovery
+and the naming decision. Passing `null` to any of these fluents clears a
+previously-set handler.
+
 ## Navigation Without `Frame`
 
 Reactor navigation is still WinUI navigation in spirit, but it is declared in the

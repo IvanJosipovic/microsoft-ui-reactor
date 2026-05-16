@@ -1499,6 +1499,12 @@ public record GridDefinition(string[] Columns, string[] Rows)
 /// <summary>Attached property data for Grid children. Set via .Grid(row:, column:) extension.</summary>
 public record GridAttached(int Row = 0, int Column = 0, int RowSpan = 1, int ColumnSpan = 1);
 
+/// <summary>
+/// Attached property data for VariableSizedWrapGrid children. Set via
+/// <c>.WrapGridColumnSpan(int)</c> / <c>.WrapGridRowSpan(int)</c> extensions.
+/// </summary>
+public record WrapGridAttached(int RowSpan = 1, int ColumnSpan = 1);
+
 /// <summary>Attached property data for Canvas children. Set via .Canvas(left:, top:) extension.</summary>
 /// <remarks>
 /// <see cref="AnchorX"/> / <see cref="AnchorY"/> are 0..1 fractions of the element's
@@ -1651,6 +1657,14 @@ public record TextBlockElement(string Content) : Element
     public TextTrimming? TextTrimming { get; init; }
     public bool? IsTextSelectionEnabled { get; init; }
     public Microsoft.UI.Xaml.Media.FontFamily? FontFamily { get; init; }
+    /// <summary>Line height in pixels. <c>null</c> uses the WinUI default (proportional to FontSize).</summary>
+    public double? LineHeight { get; init; }
+    /// <summary>Maximum number of lines to render before truncating per <see cref="TextTrimming"/>. <c>0</c> (default) = no limit.</summary>
+    public int MaxLines { get; init; }
+    /// <summary>Extra spacing between characters, in units of 1/1000em. Defaults to <c>0</c> (no extra spacing).</summary>
+    public int CharacterSpacing { get; init; }
+    /// <summary>Bitmask of underline / strikethrough decorations. Default <c>None</c>.</summary>
+    public global::Windows.UI.Text.TextDecorations TextDecorations { get; init; } = global::Windows.UI.Text.TextDecorations.None;
     internal Action<WinUI.TextBlock>[] Setters { get; init; } = [];
 
     /// <summary>
@@ -1670,6 +1684,10 @@ public record TextBlockElement(string Content) : Element
         if (old.TextTrimming != cur.TextTrimming) diff |= TextPropChanged.TextTrimming;
         if (old.IsTextSelectionEnabled != cur.IsTextSelectionEnabled) diff |= TextPropChanged.IsTextSelectionEnabled;
         if (old.FontFamily != cur.FontFamily) diff |= TextPropChanged.FontFamily;
+        if (old.LineHeight != cur.LineHeight) diff |= TextPropChanged.LineHeight;
+        if (old.MaxLines != cur.MaxLines) diff |= TextPropChanged.MaxLines;
+        if (old.CharacterSpacing != cur.CharacterSpacing) diff |= TextPropChanged.CharacterSpacing;
+        if (old.TextDecorations != cur.TextDecorations) diff |= TextPropChanged.TextDecorations;
         if (old.Setters.Length != cur.Setters.Length) diff |= TextPropChanged.Setters;
         else if (cur.Setters.Length > 0) diff |= TextPropChanged.Setters; // can't compare delegates
         return diff;
@@ -1691,6 +1709,10 @@ internal enum TextPropChanged : ushort
     IsTextSelectionEnabled = 1 << 8,
     FontFamily          = 1 << 9,
     Setters             = 1 << 10,
+    LineHeight          = 1 << 11,
+    MaxLines            = 1 << 12,
+    CharacterSpacing    = 1 << 13,
+    TextDecorations     = 1 << 14,
 }
 
 public record RichTextBlockElement(string Text) : Element
@@ -1699,6 +1721,16 @@ public record RichTextBlockElement(string Text) : Element
     public RichTextParagraph[]? Paragraphs { get; init; }
     public bool IsTextSelectionEnabled { get; init; }
     public TextWrapping? TextWrapping { get; init; }
+    /// <summary>Maximum number of lines before trimming per <see cref="TextTrimming"/>. <c>0</c> (default) = no limit.</summary>
+    public int MaxLines { get; init; }
+    /// <summary>Line height in pixels. <c>null</c> uses the WinUI default (proportional to FontSize).</summary>
+    public double? LineHeight { get; init; }
+    /// <summary>Horizontal alignment of text within the block. <c>null</c> uses the WinUI default (Left).</summary>
+    public TextAlignment? TextAlignment { get; init; }
+    /// <summary>How overflowing text is truncated. <c>null</c> uses the WinUI default (None).</summary>
+    public TextTrimming? TextTrimming { get; init; }
+    /// <summary>Extra spacing between characters, in units of 1/1000em. Defaults to <c>0</c>.</summary>
+    public int CharacterSpacing { get; init; }
     internal Action<WinUI.RichTextBlock>[] Setters { get; init; } = [];
 }
 
@@ -1761,8 +1793,19 @@ public record RepeatButtonElement(string Label, Action? OnClick = null) : Elemen
 
 public record ToggleButtonElement(string Label, bool IsChecked = false, Action<bool>? OnIsCheckedChanged = null) : Element
 {
+    /// <summary>
+    /// Enable the three-state cycle (true → false → null → true). Pair with
+    /// <see cref="CheckedState"/> and <see cref="OnCheckedStateChanged"/>; the
+    /// non-nullable <see cref="IsChecked"/> primary is ignored in this mode.
+    /// Mirrors the established <c>CheckBoxElement</c> precedent.
+    /// </summary>
+    public bool IsThreeState { get; init; }
+    /// <summary>Three-state value (<c>null</c> = indeterminate). Active only when <see cref="IsThreeState"/> is true.</summary>
+    public bool? CheckedState { get; init; }
+    /// <summary>Three-state change handler. Receives <c>null</c> for indeterminate.</summary>
+    public Action<bool?>? OnCheckedStateChanged { get; init; }
     internal Action<WinPrim.ToggleButton>[] Setters { get; init; } = [];
-    internal override bool HasCallbacks => OnIsCheckedChanged is not null;
+    internal override bool HasCallbacks => OnIsCheckedChanged is not null || OnCheckedStateChanged is not null;
 }
 
 public record DropDownButtonElement(string Label, Element? Flyout = null) : Element
@@ -1802,6 +1845,16 @@ public record TextFieldElement(
     public int? SelectionStart { get; init; }
     /// <summary>Selection length. Set alongside SelectionStart to control the selection range.</summary>
     public int? SelectionLength { get; init; }
+    /// <summary>Maximum number of characters allowed. <c>0</c> (default) means no limit.</summary>
+    public int MaxLength { get; init; }
+    /// <summary>Whether built-in spell-check is enabled. Defaults to the WinUI default (true).</summary>
+    public bool? IsSpellCheckEnabled { get; init; }
+    /// <summary>Forces input to upper/lower-case as the user types. Defaults to <c>Normal</c> (no transform).</summary>
+    public CharacterCasing CharacterCasing { get; init; } = CharacterCasing.Normal;
+    /// <summary>Horizontal text alignment within the box. Defaults to <c>Left</c>.</summary>
+    public TextAlignment TextAlignment { get; init; } = TextAlignment.Left;
+    /// <summary>Help text rendered below the box. WinUI 3 1.2+ feature.</summary>
+    public string? Description { get; init; }
     internal Action<WinUI.TextBox>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnChanged is not null || OnSelectionChanged is not null;
 }
@@ -1812,6 +1865,14 @@ public record PasswordBoxElement(
     string? PlaceholderText = null
 ) : Element
 {
+    /// <summary>Maximum number of characters allowed. <c>0</c> (default) = no limit.</summary>
+    public int MaxLength { get; init; }
+    /// <summary>Optional label rendered above the box.</summary>
+    public string? Header { get; init; }
+    /// <summary>How the reveal button behaves. Defaults to <c>Peek</c> (matches WinUI).</summary>
+    public PasswordRevealMode PasswordRevealMode { get; init; } = PasswordRevealMode.Peek;
+    /// <summary>Character displayed in place of the entered password (default '●' bullet).</summary>
+    public string? PasswordChar { get; init; }
     internal Action<WinUI.PasswordBox>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnPasswordChanged is not null;
 }
@@ -1828,6 +1889,14 @@ public record NumberBoxElement(
     public NumberBoxSpinButtonPlacementMode SpinButtonPlacement { get; init; } = NumberBoxSpinButtonPlacementMode.Hidden;
     public double SmallChange { get; init; } = 1;
     public double LargeChange { get; init; } = 10;
+    /// <summary>Custom number formatter (e.g. currency, percent). Null uses WinUI's default DecimalFormatter.</summary>
+    public global::Windows.Globalization.NumberFormatting.INumberFormatter2? NumberFormatter { get; init; }
+    /// <summary>Whether the user can type arithmetic expressions (e.g. <c>2*3+1</c>) that resolve on commit.</summary>
+    public bool AcceptsExpression { get; init; }
+    /// <summary>How invalid input is treated. Defaults to <c>InvalidInputOverwritten</c> (matches WinUI default).</summary>
+    public NumberBoxValidationMode ValidationMode { get; init; } = NumberBoxValidationMode.InvalidInputOverwritten;
+    /// <summary>Help text rendered below the box. WinUI 3 1.2+ feature.</summary>
+    public string? Description { get; init; }
     internal Action<WinUI.NumberBox>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnValueChanged is not null;
 }
@@ -1841,6 +1910,12 @@ public record AutoSuggestBoxElement(
 {
     public string[] Suggestions { get; init; } = [];
     public string? PlaceholderText { get; init; }
+    /// <summary>Optional label rendered above the box.</summary>
+    public string? Header { get; init; }
+    /// <summary>Icon rendered in the trailing query slot (e.g. a Search symbol).</summary>
+    public IconData? QueryIcon { get; init; }
+    /// <summary>Programmatically open or close the suggestion list. Defaults to <c>false</c>.</summary>
+    public bool IsSuggestionListOpen { get; init; }
     internal Action<WinUI.AutoSuggestBox>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnTextChanged is not null || OnQuerySubmitted is not null || OnSuggestionChosen is not null;
 }
@@ -1890,8 +1965,19 @@ public record ComboBoxElement(
     public string? Header { get; init; }
     public bool IsEditable { get; init; }
     public Element[]? ItemElements { get; init; }
+    /// <summary>Maximum pixel height of the open drop-down. <c>NaN</c> (default) uses the WinUI default.</summary>
+    public double MaxDropDownHeight { get; init; } = double.NaN;
+    /// <summary>Help text rendered below the box. WinUI 3 1.2+ feature.</summary>
+    public string? Description { get; init; }
+    /// <summary>Raised when the user opens the drop-down list.</summary>
+    public Action? OnDropDownOpened { get; init; }
+    /// <summary>Raised when the drop-down list closes (either by selection or dismissal).</summary>
+    public Action? OnDropDownClosed { get; init; }
     internal Action<WinUI.ComboBox>[] Setters { get; init; } = [];
-    internal override bool HasCallbacks => OnSelectedIndexChanged is not null;
+    internal override bool HasCallbacks =>
+        OnSelectedIndexChanged is not null
+        || OnDropDownOpened is not null
+        || OnDropDownClosed is not null;
 }
 
 public record SliderElement(
@@ -1903,6 +1989,16 @@ public record SliderElement(
 {
     public double StepFrequency { get; init; } = 1;
     public string? Header { get; init; }
+    /// <summary>Slider orientation. Defaults to <c>Orientation.Horizontal</c>.</summary>
+    public Orientation Orientation { get; init; } = Orientation.Horizontal;
+    /// <summary>Interval between tick marks on the slider's track. Defaults to <c>0</c> (no ticks).</summary>
+    public double TickFrequency { get; init; }
+    /// <summary>Where tick marks render relative to the track. Defaults to <c>TickPlacement.Inline</c>.</summary>
+    public TickPlacement TickPlacement { get; init; } = TickPlacement.Inline;
+    /// <summary>Whether the thumb snaps to ticks or step values during drag.</summary>
+    public SliderSnapsTo SnapsTo { get; init; } = SliderSnapsTo.StepValues;
+    /// <summary>Whether the floating value tooltip appears while dragging the thumb. Defaults to <c>true</c>.</summary>
+    public bool IsThumbToolTipEnabled { get; init; } = true;
     internal Action<WinUI.Slider>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnValueChanged is not null;
 }
@@ -1927,6 +2023,10 @@ public record RatingControlElement(
     public int MaxRating { get; init; } = 5;
     public bool IsReadOnly { get; init; }
     public string? Caption { get; init; }
+    /// <summary>Star value shown when the rating is unset. Defaults to -1 (no placeholder).</summary>
+    public double PlaceholderValue { get; init; } = -1;
+    /// <summary>Integer rating to assume when the user first interacts. Defaults to 1. (WinUI's <c>InitialSetValue</c> is int.)</summary>
+    public int InitialSetValue { get; init; } = 1;
     internal Action<WinUI.RatingControl>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnValueChanged is not null;
 }
@@ -1942,6 +2042,20 @@ public record ColorPickerElement(
     public bool IsColorSliderVisible { get; init; } = true;
     public bool IsColorChannelTextInputVisible { get; init; } = true;
     public bool IsHexInputVisible { get; init; } = true;
+    /// <summary>Shape of the 2D color spectrum (Box or Ring). Defaults to <c>Box</c>.</summary>
+    public ColorSpectrumShape ColorSpectrumShape { get; init; } = ColorSpectrumShape.Box;
+    /// <summary>Minimum hue (0–359). Defaults to 0.</summary>
+    public int MinHue { get; init; }
+    /// <summary>Maximum hue (0–359). Defaults to 359.</summary>
+    public int MaxHue { get; init; } = 359;
+    /// <summary>Minimum saturation (0–100). Defaults to 0.</summary>
+    public int MinSaturation { get; init; }
+    /// <summary>Maximum saturation (0–100). Defaults to 100.</summary>
+    public int MaxSaturation { get; init; } = 100;
+    /// <summary>Minimum value/brightness (0–100). Defaults to 0.</summary>
+    public int MinValue { get; init; }
+    /// <summary>Maximum value/brightness (0–100). Defaults to 100.</summary>
+    public int MaxValue { get; init; } = 100;
     internal Action<WinUI.ColorPicker>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnColorChanged is not null;
 }
@@ -1959,6 +2073,14 @@ public record CalendarDatePickerElement(
     public string? Header { get; init; }
     public DateTimeOffset? MinDate { get; init; }
     public DateTimeOffset? MaxDate { get; init; }
+    /// <summary>Display format string for the picker's text (see WinUI <c>DateFormat</c> reference).</summary>
+    public string? DateFormat { get; init; }
+    /// <summary>Highlight today's date in the popup. Defaults to <c>true</c> (matches WinUI).</summary>
+    public bool IsTodayHighlighted { get; init; } = true;
+    /// <summary>Programmatically open or close the calendar popup.</summary>
+    public bool IsCalendarOpen { get; init; }
+    /// <summary>Show month/year group label headers in the popup. Defaults to <c>true</c>.</summary>
+    public bool IsGroupLabelVisible { get; init; } = true;
     internal Action<WinUI.CalendarDatePicker>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnDateChanged is not null;
 }
@@ -1974,6 +2096,14 @@ public record DatePickerElement(
     public bool DayVisible { get; init; } = true;
     public bool MonthVisible { get; init; } = true;
     public bool YearVisible { get; init; } = true;
+    /// <summary>Display format string for the day column. <c>null</c> uses the WinUI default.</summary>
+    public string? DayFormat { get; init; }
+    /// <summary>Display format string for the month column. <c>null</c> uses the WinUI default.</summary>
+    public string? MonthFormat { get; init; }
+    /// <summary>Display format string for the year column. <c>null</c> uses the WinUI default.</summary>
+    public string? YearFormat { get; init; }
+    /// <summary>Layout direction of the picker. Defaults to <c>Horizontal</c>.</summary>
+    public Orientation Orientation { get; init; } = Orientation.Horizontal;
     internal Action<WinUI.DatePicker>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnDateChanged is not null;
 }
@@ -2022,7 +2152,14 @@ public record ImageElement(string Source) : Element
     public double? Width { get; init; }
     public double? Height { get; init; }
     public string? Stretch { get; init; }
+    /// <summary>Raised after the image source loads successfully (marshalled to UI thread).</summary>
+    public Action? OnImageOpened { get; init; }
+    /// <summary>Raised when the image fails to load. Receives the failure message.</summary>
+    public Action<string>? OnImageFailed { get; init; }
+    /// <summary>Nine-grid (slice) values for resolution-independent corner stretching.</summary>
+    public Thickness? NineGrid { get; init; }
     internal Action<WinUI.Image>[] Setters { get; init; } = [];
+    internal override bool HasCallbacks => OnImageOpened is not null || OnImageFailed is not null;
 }
 
 public record PersonPictureElement() : Element
@@ -2039,8 +2176,31 @@ public record WebView2Element(Uri? Source = null) : Element
 {
     public Action<Uri>? OnNavigationStarting { get; init; }
     public Action<Uri>? OnNavigationCompleted { get; init; }
+
+    /// <summary>
+    /// Raised when the hosted page posts a message via
+    /// <c>window.chrome.webview.postMessage(...)</c>. The callback receives the
+    /// JSON payload as a string.
+    ///
+    /// Threading: messages dispatch on the UI thread (the WinUI WebView2 raises
+    /// <c>WebMessageReceived</c> via the control's dispatcher), so the handler
+    /// is safe to mutate component state from directly.
+    /// </summary>
+    public Action<string>? OnWebMessageReceived { get; init; }
+
+    /// <summary>
+    /// Raised once <c>CoreWebView2</c> initialization completes — the earliest
+    /// point at which features like <c>AddScriptToExecuteOnDocumentCreatedAsync</c>
+    /// or <c>AddHostObjectToScript</c> become available. Fires on the UI thread.
+    /// </summary>
+    public Action? OnCoreWebView2Initialized { get; init; }
+
     internal Action<WinUI.WebView2>[] Setters { get; init; } = [];
-    internal override bool HasCallbacks => OnNavigationStarting is not null || OnNavigationCompleted is not null;
+    internal override bool HasCallbacks =>
+        OnNavigationStarting is not null
+        || OnNavigationCompleted is not null
+        || OnWebMessageReceived is not null
+        || OnCoreWebView2Initialized is not null;
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -2055,6 +2215,16 @@ public record RichEditBoxElement(
     public string? Header { get; init; }
     public string? PlaceholderText { get; init; }
     public Action<string>? OnTextChanged { get; init; }
+    /// <summary>Whether built-in spell-check is enabled. Defaults to the WinUI default (true).</summary>
+    public bool? IsSpellCheckEnabled { get; init; }
+    /// <summary>Maximum number of characters allowed. <c>0</c> (default) = no limit.</summary>
+    public int MaxLength { get; init; }
+    /// <summary>How text wraps within the box. Defaults to <c>Wrap</c>.</summary>
+    public TextWrapping TextWrapping { get; init; } = TextWrapping.Wrap;
+    /// <summary>Whether Enter inserts a newline (vs committing). Defaults to <c>true</c>.</summary>
+    public bool AcceptsReturn { get; init; } = true;
+    /// <summary>Brush used to render the selection highlight. <c>null</c> = WinUI default (accent).</summary>
+    public Microsoft.UI.Xaml.Media.SolidColorBrush? SelectionHighlightColor { get; init; }
     internal Action<WinUI.RichEditBox>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnTextChanged is not null;
 }
@@ -2079,6 +2249,17 @@ public record StackElement(
     Element[] Children
 ) : Element
 {
+    /// <summary>
+    /// Spacing between children, in DIPs.
+    /// </summary>
+    /// <remarks>
+    /// Reactor default is <c>8</c> — a deliberate deviation from WinUI's
+    /// <c>StackPanel.Spacing</c> default of <c>0</c>. Reactor's call shape
+    /// (<c>VStack(a, b, c)</c>) almost always wants whitespace between siblings;
+    /// the 8 DIP default produces visually correct output for the
+    /// zero-argument call. Set to <c>0</c> explicitly for legacy WinUI
+    /// behavior. (spec 039 §0.4 / §16)
+    /// </remarks>
     public double Spacing { get; init; } = 8;
     public HorizontalAlignment? HorizontalAlignment { get; init; }
     public VerticalAlignment? VerticalAlignment { get; init; }
@@ -2116,6 +2297,14 @@ public record ScrollViewElement(Element Child) : Element
     public WinUI.ScrollMode HorizontalScrollMode { get; init; } = WinUI.ScrollMode.Auto;
     public WinUI.ScrollMode VerticalScrollMode { get; init; } = WinUI.ScrollMode.Auto;
     public WinUI.ZoomMode ZoomMode { get; init; } = WinUI.ZoomMode.Disabled;
+
+    /// <summary>
+    /// Raised when the scroll view's offset or zoom factor changes. The args
+    /// expose <c>IsIntermediate</c> for callers who want to debounce until the
+    /// scroll settles.
+    /// </summary>
+    public Action<WinUI.ScrollViewerViewChangedEventArgs>? OnViewChanged { get; init; }
+
     internal Action<WinUI.ScrollViewer>[] Setters { get; init; } = [];
 }
 
@@ -2137,6 +2326,10 @@ public record ExpanderElement(
 ) : Element
 {
     public ExpandDirection ExpandDirection { get; init; } = ExpandDirection.Down;
+    /// <summary>Custom Element header (overrides the string <see cref="Header"/>).</summary>
+    public Element? HeaderTemplate { get; init; }
+    /// <summary>Custom <c>TransitionCollection</c> applied to the expanding content area.</summary>
+    public Microsoft.UI.Xaml.Media.Animation.TransitionCollection? ContentTransitions { get; init; }
     internal Action<WinUI.Expander>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnIsExpandedChanged is not null;
 }
@@ -2151,6 +2344,10 @@ public record SplitViewElement(
     public double CompactPaneLength { get; init; } = 48;
     public SplitViewDisplayMode DisplayMode { get; init; } = SplitViewDisplayMode.Overlay;
     public Action<bool>? OnPaneOpenChanged { get; init; }
+    /// <summary>Brush behind the pane. Pair with the <c>.PaneBackground(ThemeRef)</c> overload for theme-aware backgrounds.</summary>
+    public Brush? PaneBackground { get; init; }
+    /// <summary>How the light-dismiss overlay reacts to taps in Overlay mode. Defaults to <c>Auto</c>.</summary>
+    public LightDismissOverlayMode LightDismissOverlayMode { get; init; } = LightDismissOverlayMode.Auto;
     internal Action<WinUI.SplitView>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnPaneOpenChanged is not null;
 }
@@ -2244,6 +2441,18 @@ public record NavigationViewElement(
     public Element? Header { get; init; }
     public bool IsSettingsVisible { get; init; } = true;
     public string? PaneTitle { get; init; }
+    /// <summary>AutoSuggestBox rendered at the top of the pane. Mirrors <c>NavigationView.AutoSuggestBox</c>.</summary>
+    public AutoSuggestBoxElement? AutoSuggestBox { get; init; }
+    /// <summary>Element rendered at the bottom of the pane, below all menu items.</summary>
+    public Element? PaneFooter { get; init; }
+    /// <summary>Custom element rendered between the AutoSuggestBox and the menu items.</summary>
+    public Element? PaneCustomContent { get; init; }
+    /// <summary>Width of the pane when expanded. <c>NaN</c> uses the WinUI default (320).</summary>
+    public double OpenPaneLength { get; init; } = double.NaN;
+    /// <summary>Window width below which the pane collapses to compact mode. <c>NaN</c> uses the WinUI default (640).</summary>
+    public double CompactModeThresholdWidth { get; init; } = double.NaN;
+    /// <summary>Window width at which the pane auto-expands. <c>NaN</c> uses the WinUI default (1008).</summary>
+    public double ExpandedModeThresholdWidth { get; init; } = double.NaN;
     internal Action<WinUI.NavigationView>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnSelectedTagChanged is not null || OnBackRequested is not null;
 }
@@ -2282,6 +2491,20 @@ public record TabViewElement(
     public Action<int>? OnTabCloseRequested { get; init; }
     public Action? OnAddTabButtonClick { get; init; }
     public bool IsAddTabButtonVisible { get; init; }
+    /// <summary>How tab widths are sized. Defaults to <c>Equal</c> (matches WinUI default).</summary>
+    public TabViewWidthMode TabWidthMode { get; init; } = TabViewWidthMode.Equal;
+    /// <summary>Controls when the per-tab close button is visible. Defaults to <c>Auto</c>.</summary>
+    public TabViewCloseButtonOverlayMode CloseButtonOverlayMode { get; init; } = TabViewCloseButtonOverlayMode.Auto;
+    /// <summary>Whether tabs can be dragged out (to a window).</summary>
+    public bool CanDragTabs { get; init; }
+    /// <summary>Whether tabs can be reordered within the strip.</summary>
+    public bool CanReorderTabs { get; init; }
+    /// <summary>Whether tabs from another TabView can be dropped onto this one.</summary>
+    public bool AllowDropTabs { get; init; }
+    /// <summary>Element rendered at the leading edge of the tab strip.</summary>
+    public Element? TabStripHeader { get; init; }
+    /// <summary>Element rendered at the trailing edge of the tab strip.</summary>
+    public Element? TabStripFooter { get; init; }
     internal Action<WinUI.TabView>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnSelectedIndexChanged is not null || OnTabCloseRequested is not null || OnAddTabButtonClick is not null;
 }
@@ -2319,8 +2542,22 @@ public record ListViewElement(
     public Action<int>? OnItemClick { get; init; }
     public ListViewSelectionMode SelectionMode { get; init; } = ListViewSelectionMode.Single;
     public string? Header { get; init; }
+    /// <summary>Style applied to each generated <c>ListViewItem</c> container (e.g. for padding, hover background).</summary>
+    public Style? ItemContainerStyle { get; init; }
+    /// <summary>Controls when incremental data sources fetch the next page. Defaults to <c>Edge</c>.</summary>
+    public IncrementalLoadingTrigger IncrementalLoadingTrigger { get; init; } = IncrementalLoadingTrigger.Edge;
+    /// <summary>
+    /// Multi-select snapshot callback. Receives the FULL list of currently
+    /// selected indices (snapshot semantics, matching <see cref="CalendarViewElement.OnSelectedDatesChanged"/>).
+    /// Use this in Multiple / Extended selection modes — <see cref="OnSelectedIndexChanged"/>
+    /// only carries the focused single index. Not raised on initial mount.
+    /// </summary>
+    public Action<IReadOnlyList<int>>? OnSelectionChanged { get; init; }
     internal Action<WinUI.ListView>[] Setters { get; init; } = [];
-    internal override bool HasCallbacks => OnSelectedIndexChanged is not null || OnItemClick is not null;
+    internal override bool HasCallbacks =>
+        OnSelectedIndexChanged is not null
+        || OnItemClick is not null
+        || OnSelectionChanged is not null;
 }
 
 public record GridViewElement(
@@ -2332,8 +2569,19 @@ public record GridViewElement(
     public Action<int>? OnItemClick { get; init; }
     public ListViewSelectionMode SelectionMode { get; init; } = ListViewSelectionMode.Single;
     public string? Header { get; init; }
+    /// <summary>Style applied to each generated <c>GridViewItem</c> container.</summary>
+    public Style? ItemContainerStyle { get; init; }
+    /// <summary>Controls when incremental data sources fetch the next page. Defaults to <c>Edge</c>.</summary>
+    public IncrementalLoadingTrigger IncrementalLoadingTrigger { get; init; } = IncrementalLoadingTrigger.Edge;
+    /// <summary>
+    /// Multi-select snapshot callback. See <see cref="ListViewElement.OnSelectionChanged"/>.
+    /// </summary>
+    public Action<IReadOnlyList<int>>? OnSelectionChanged { get; init; }
     internal Action<WinUI.GridView>[] Setters { get; init; } = [];
-    internal override bool HasCallbacks => OnSelectedIndexChanged is not null || OnItemClick is not null;
+    internal override bool HasCallbacks =>
+        OnSelectedIndexChanged is not null
+        || OnItemClick is not null
+        || OnSelectionChanged is not null;
 }
 
 public record TreeViewElement(
@@ -2379,8 +2627,15 @@ public record ContentDialogElement(
     public string? CloseButtonText { get; init; }
     public ContentDialogButton DefaultButton { get; init; } = ContentDialogButton.Primary;
     public Action<ContentDialogResult>? OnClosed { get; init; }
+    /// <summary>Enables/disables the primary button while the dialog is open. Defaults to <c>true</c>.</summary>
+    public bool IsPrimaryButtonEnabled { get; init; } = true;
+    /// <summary>Enables/disables the secondary button while the dialog is open. Defaults to <c>true</c>.</summary>
+    public bool IsSecondaryButtonEnabled { get; init; } = true;
+    /// <summary>Raised after the dialog finishes opening.</summary>
+    public Action? OnOpened { get; init; }
     internal Action<WinUI.ContentDialog>[] Setters { get; init; } = [];
-    internal override bool HasCallbacks => OnClosed is not null;
+    internal override bool HasCallbacks =>
+        OnClosed is not null || OnOpened is not null;
 }
 
 /// <summary>
@@ -2395,6 +2650,12 @@ public record FlyoutElement(
     public FlyoutPlacementMode Placement { get; init; } = FlyoutPlacementMode.Auto;
     public Action? OnOpened { get; init; }
     public Action? OnClosed { get; init; }
+    /// <summary>How the flyout reacts to clicks outside its bounds (Auto / Standard / Transient / TransientWithDismissOnPointerMoveAway).</summary>
+    public FlyoutShowMode ShowMode { get; init; } = FlyoutShowMode.Auto;
+    /// <summary>Whether the flyout animates on open/close. Defaults to <c>true</c>.</summary>
+    public bool AreOpenCloseAnimationsEnabled { get; init; } = true;
+    /// <summary>Element whose input is passed through the light-dismiss overlay (lets the user interact with one element behind the flyout).</summary>
+    public Element? OverlayInputPassThroughElement { get; init; }
     internal Action<WinUI.Flyout>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnOpened is not null || OnClosed is not null;
 }
@@ -2428,6 +2689,14 @@ public record TeachingTipElement(
     public Action? OnActionButtonClick { get; init; }
     public string? CloseButtonContent { get; init; }
     public Action? OnClosed { get; init; }
+    /// <summary>Custom icon source rendered in the tip's leading slot.</summary>
+    public IconData? IconSource { get; init; }
+    /// <summary>Optional "hero" Element (image / banner) rendered above the title.</summary>
+    public Element? HeroContent { get; init; }
+    /// <summary>Extra margin around the tip when placed relative to its target.</summary>
+    public Thickness PlacementMargin { get; init; }
+    /// <summary>Preferred placement edge. Defaults to <c>Auto</c>.</summary>
+    public TeachingTipPlacementMode PreferredPlacement { get; init; } = TeachingTipPlacementMode.Auto;
     internal Action<WinUI.TeachingTip>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnActionButtonClick is not null || OnClosed is not null;
 }
@@ -2447,6 +2716,10 @@ public record InfoBarElement(
     public string? ActionButtonContent { get; init; }
     public Action? OnActionButtonClick { get; init; }
     public Action? OnClosed { get; init; }
+    /// <summary>Custom icon source. When set, overrides the severity-based icon.</summary>
+    public IconData? IconSource { get; init; }
+    /// <summary>Custom rich content rendered below the message (e.g. links, buttons, an embedded form).</summary>
+    public Element? Content { get; init; }
     internal override bool HasCallbacks => OnActionButtonClick is not null || OnClosed is not null;
     internal Action<WinUI.InfoBar>[] Setters { get; init; } = [];
 }
@@ -2521,6 +2794,16 @@ public abstract record TemplatedListElementBase : Element
     /// expose Setters need to override.
     /// </summary>
     internal virtual bool HasSetters => false;
+
+    /// <summary>
+    /// Snapshot-style multi-select callback. Default no-op; typed peers
+    /// (TemplatedListView/TemplatedGridView) override to materialize and
+    /// invoke <c>OnSelectionChanged</c> with the typed items.
+    /// </summary>
+    internal virtual void InvokeMultiSelectionChanged(IReadOnlyList<int> indices) { }
+
+    /// <summary>True when the derived peer has wired a typed multi-select callback.</summary>
+    internal virtual bool HasMultiSelectionCallback => false;
 }
 
 public record TemplatedListViewElement<T>(
@@ -2534,6 +2817,12 @@ public record TemplatedListViewElement<T>(
     public Action<T>? OnItemClick { get; init; }
     public ListViewSelectionMode SelectionMode { get; init; } = ListViewSelectionMode.Single;
     public string? Header { get; init; }
+    /// <summary>
+    /// Multi-select snapshot callback for the typed peer. Receives the full list
+    /// of currently selected items (not just indices). Snapshot semantics — not
+    /// raised on initial mount.
+    /// </summary>
+    public Action<IReadOnlyList<T>>? OnSelectionChanged { get; init; }
     internal Action<WinUI.ListView>[] Setters { get; init; } = [];
 
     public override TemplatedControlKind ControlKind => TemplatedControlKind.ListView;
@@ -2548,7 +2837,18 @@ public record TemplatedListViewElement<T>(
         OnItemClick?.Invoke(index >= 0 && index < Items.Count ? Items[index] : default!);
     public override void ApplyControlSetters(object control) =>
         Reconciler.ApplySetters(Setters, (WinUI.ListView)control);
-    internal override bool HasCallbacks => OnSelectedIndexChanged is not null || OnItemClick is not null;
+    /// <summary>Snapshot-style multi-select callback. Materializes the typed items from the given indices.</summary>
+    internal override void InvokeMultiSelectionChanged(IReadOnlyList<int> indices)
+    {
+        if (OnSelectionChanged is null) return;
+        var selected = new List<T>(indices.Count);
+        foreach (var i in indices)
+            if (i >= 0 && i < Items.Count) selected.Add(Items[i]);
+        OnSelectionChanged(selected);
+    }
+    internal override bool HasMultiSelectionCallback => OnSelectionChanged is not null;
+    internal override bool HasCallbacks =>
+        OnSelectedIndexChanged is not null || OnItemClick is not null || OnSelectionChanged is not null;
     internal override bool HasSetters => Setters.Length > 0;
 }
 
@@ -2563,6 +2863,11 @@ public record TemplatedGridViewElement<T>(
     public Action<T>? OnItemClick { get; init; }
     public ListViewSelectionMode SelectionMode { get; init; } = ListViewSelectionMode.Single;
     public string? Header { get; init; }
+    /// <summary>
+    /// Multi-select snapshot callback for the typed peer (see
+    /// <see cref="TemplatedListViewElement{T}.OnSelectionChanged"/>).
+    /// </summary>
+    public Action<IReadOnlyList<T>>? OnSelectionChanged { get; init; }
     internal Action<WinUI.GridView>[] Setters { get; init; } = [];
 
     public override TemplatedControlKind ControlKind => TemplatedControlKind.GridView;
@@ -2577,7 +2882,18 @@ public record TemplatedGridViewElement<T>(
         OnItemClick?.Invoke(index >= 0 && index < Items.Count ? Items[index] : default!);
     public override void ApplyControlSetters(object control) =>
         Reconciler.ApplySetters(Setters, (WinUI.GridView)control);
-    internal override bool HasCallbacks => OnSelectedIndexChanged is not null || OnItemClick is not null;
+    /// <summary>Snapshot-style multi-select callback. Materializes the typed items from the given indices.</summary>
+    internal override void InvokeMultiSelectionChanged(IReadOnlyList<int> indices)
+    {
+        if (OnSelectionChanged is null) return;
+        var selected = new List<T>(indices.Count);
+        foreach (var i in indices)
+            if (i >= 0 && i < Items.Count) selected.Add(Items[i]);
+        OnSelectionChanged(selected);
+    }
+    internal override bool HasMultiSelectionCallback => OnSelectionChanged is not null;
+    internal override bool HasCallbacks =>
+        OnSelectedIndexChanged is not null || OnItemClick is not null || OnSelectionChanged is not null;
     internal override bool HasSetters => Setters.Length > 0;
 }
 
@@ -2742,6 +3058,20 @@ public record PathElement() : Element
     public double StrokeThickness { get; init; } = 1;
     public Microsoft.UI.Xaml.Media.DoubleCollection? StrokeDashArray { get; init; }
     public Transform? RenderTransform { get; init; }
+    /// <summary>Cap rendered at the start of an open stroke. Defaults to <c>Flat</c>.</summary>
+    public PenLineCap StrokeStartLineCap { get; init; } = PenLineCap.Flat;
+    /// <summary>Cap rendered at the end of an open stroke. Defaults to <c>Flat</c>.</summary>
+    public PenLineCap StrokeEndLineCap { get; init; } = PenLineCap.Flat;
+    /// <summary>Join style between two connected stroke segments. Defaults to <c>Miter</c>.</summary>
+    public PenLineJoin StrokeLineJoin { get; init; } = PenLineJoin.Miter;
+    /// <summary>Maximum extent of a miter join relative to half the stroke thickness. Defaults to 10.</summary>
+    public double StrokeMiterLimit { get; init; } = 10;
+    /// <summary>Cap rendered on dashes when <see cref="StrokeDashArray"/> is set. Defaults to <c>Flat</c>.</summary>
+    public PenLineCap StrokeDashCap { get; init; } = PenLineCap.Flat;
+    /// <summary>Distance into the dash pattern at which to begin drawing. Defaults to 0.</summary>
+    public double StrokeDashOffset { get; init; }
+    /// <summary>How interior regions are determined for fills. Defaults to <c>EvenOdd</c>.</summary>
+    public FillRule FillRule { get; init; } = FillRule.EvenOdd;
     internal Action<WinShapes.Path>[] Setters { get; init; } = [];
 }
 
@@ -2762,6 +3092,27 @@ public record MediaPlayerElementElement(string? Source = null) : Element
 {
     public bool AreTransportControlsEnabled { get; init; } = true;
     public bool AutoPlay { get; init; }
+
+    /// <summary>
+    /// Raised when the underlying <c>MediaPlayer</c> finishes opening the
+    /// source. Marshalled to the element's UI thread; may fire after the
+    /// element has unmounted (the handler is safe to ignore in that case).
+    /// </summary>
+    public Action? OnMediaOpened { get; init; }
+
+    /// <summary>
+    /// Raised when playback reaches the end of the source. Marshalled to the
+    /// UI thread.
+    /// </summary>
+    public Action? OnMediaEnded { get; init; }
+
+    /// <summary>
+    /// Raised when the underlying <c>MediaPlayer</c> fails to open or play.
+    /// Receives the failure error message as a string. Marshalled to the UI
+    /// thread.
+    /// </summary>
+    public Action<string>? OnMediaFailed { get; init; }
+
     internal Action<WinUI.MediaPlayerElement>[] Setters { get; init; } = [];
 }
 
@@ -2784,8 +3135,13 @@ public record ListBoxElement(string[] Items) : Element
 {
     public int SelectedIndex { get; init; } = -1;
     public Action<int>? OnSelectedIndexChanged { get; init; }
+    /// <summary>
+    /// Multi-select snapshot callback. Receives the FULL list of currently
+    /// selected indices. Use this in multi-select selection modes.
+    /// </summary>
+    public Action<IReadOnlyList<int>>? OnSelectionChanged { get; init; }
     internal Action<WinUI.ListBox>[] Setters { get; init; } = [];
-    internal override bool HasCallbacks => OnSelectedIndexChanged is not null;
+    internal override bool HasCallbacks => OnSelectedIndexChanged is not null || OnSelectionChanged is not null;
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -2806,6 +3162,14 @@ public record PipsPagerElement(int NumberOfPages) : Element
 {
     public int SelectedPageIndex { get; init; }
     public Action<int>? OnSelectedPageIndexChanged { get; init; }
+    /// <summary>Whether the selected index wraps around the ends. Defaults to <c>None</c>.</summary>
+    public PipsPagerWrapMode WrapMode { get; init; } = PipsPagerWrapMode.None;
+    /// <summary>Maximum number of visible pips. Defaults to 5 (matches WinUI).</summary>
+    public int MaxVisiblePips { get; init; } = 5;
+    /// <summary>When the previous button shows. Defaults to <c>Collapsed</c>.</summary>
+    public PipsPagerButtonVisibility PreviousButtonVisibility { get; init; } = PipsPagerButtonVisibility.Collapsed;
+    /// <summary>When the next button shows. Defaults to <c>Collapsed</c>.</summary>
+    public PipsPagerButtonVisibility NextButtonVisibility { get; init; } = PipsPagerButtonVisibility.Collapsed;
     internal Action<WinUI.PipsPager>[] Setters { get; init; } = [];
     internal override bool HasCallbacks => OnSelectedPageIndexChanged is not null;
 }
@@ -2825,6 +3189,7 @@ public record PopupElement(Element Child) : Element
     public bool IsLightDismissEnabled { get; init; } = true;
     public double HorizontalOffset { get; init; }
     public double VerticalOffset { get; init; }
+    public Action? OnOpened { get; init; }
     public Action? OnClosed { get; init; }
     internal Action<WinPrim.Popup>[] Setters { get; init; } = [];
 }
@@ -2832,7 +3197,10 @@ public record PopupElement(Element Child) : Element
 public record RefreshContainerElement(Element Content) : Element
 {
     public Action? OnRefreshRequested { get; init; }
+    /// <summary>Direction the user pulls to trigger refresh. Defaults to <c>TopToBottom</c>.</summary>
+    public RefreshPullDirection PullDirection { get; init; } = RefreshPullDirection.TopToBottom;
     internal Action<WinUI.RefreshContainer>[] Setters { get; init; } = [];
+    internal override bool HasCallbacks => OnRefreshRequested is not null;
 }
 
 public record CommandBarFlyoutElement(
@@ -2856,6 +3224,33 @@ public record CalendarViewElement() : Element
     public bool IsOutOfScopeEnabled { get; init; } = true;
     public string? CalendarIdentifier { get; init; }
     public string? Language { get; init; }
+    /// <summary>Earliest selectable date. <c>null</c> = WinUI default (~100 years back).</summary>
+    public DateTimeOffset? MinDate { get; init; }
+    /// <summary>Latest selectable date. <c>null</c> = WinUI default (~100 years ahead).</summary>
+    public DateTimeOffset? MaxDate { get; init; }
+    /// <summary>Day of the week that starts each row. <c>null</c> = locale default.</summary>
+    public global::Windows.Globalization.DayOfWeek? FirstDayOfWeek { get; init; }
+    /// <summary>How many week rows to display in month mode (2–8). Defaults to 6.</summary>
+    public int NumberOfWeeksInView { get; init; } = 6;
+    /// <summary>Initial display mode (Month / Year / Decade). Defaults to <c>Month</c>.</summary>
+    public CalendarViewDisplayMode DisplayMode { get; init; } = CalendarViewDisplayMode.Month;
+
+    /// <summary>
+    /// Initial selection. Bind for declarative selection on mount; subsequent
+    /// programmatic updates re-apply only when the list reference differs.
+    /// Combine with <see cref="OnSelectedDatesChanged"/> for two-way binding
+    /// in multi-select mode.
+    /// </summary>
+    public IReadOnlyList<DateTimeOffset>? SelectedDates { get; init; }
+
+    /// <summary>
+    /// Raised when the user changes the selection. Receives a snapshot of the
+    /// full selection (not just added/removed dates) — easier to bind into
+    /// component state without diffing. Not raised on the initial declarative
+    /// selection applied at mount.
+    /// </summary>
+    public Action<IReadOnlyList<DateTimeOffset>>? OnSelectedDatesChanged { get; init; }
+
     internal Action<WinUI.CalendarView>[] Setters { get; init; } = [];
 }
 
@@ -2899,6 +3294,12 @@ public record ParallaxViewElement(Element Child) : Element
 {
     public double VerticalShift { get; init; }
     public double HorizontalShift { get; init; }
+    /// <summary>Source UIElement that drives the parallax (typically a ScrollViewer / ListView). <c>null</c> uses the nearest scroller.</summary>
+    public UIElement? Source { get; init; }
+    /// <summary>Vertical-axis source offset (in pixels) at which parallax begins. Defaults to 0.</summary>
+    public double VerticalSourceStartOffset { get; init; }
+    /// <summary>Vertical-axis source offset (in pixels) at which parallax ends. Defaults to 0 (auto).</summary>
+    public double VerticalSourceEndOffset { get; init; }
     internal Action<WinUI.ParallaxView>[] Setters { get; init; } = [];
 }
 
@@ -2921,6 +3322,16 @@ public record FrameElement() : Element
 {
     public Type? SourcePageType { get; init; }
     public object? NavigationParameter { get; init; }
+
+    /// <summary>Raised after a successful navigation. Receives the new <c>SourcePageType</c>.</summary>
+    public Action<Type>? OnNavigated { get; init; }
+
+    /// <summary>Raised before navigation begins. Receives the target <c>SourcePageType</c>. Cancellation is not supported via this fluent — use <c>.Set(...)</c> to wire the raw <c>Navigating</c> event for that.</summary>
+    public Action<Type>? OnNavigating { get; init; }
+
+    /// <summary>Raised when a navigation fails. Receives the target <c>SourcePageType</c> and the failure exception.</summary>
+    public Action<Type, Exception>? OnNavigationFailed { get; init; }
+
     internal Action<WinUI.Frame>[] Setters { get; init; } = [];
 }
 
@@ -2945,5 +3356,13 @@ public record ItemsViewElement<T>(
     public ItemsViewSelectionMode SelectionMode { get; init; } = ItemsViewSelectionMode.Single;
     public bool IsItemInvokedEnabled { get; init; }
     public Action<T>? OnItemInvoked { get; init; }
+    /// <summary>
+    /// Multi-select snapshot callback. Receives the full list of currently
+    /// selected items. Use this when <see cref="SelectionMode"/> is Multiple
+    /// or Extended.
+    /// </summary>
+    public Action<IReadOnlyList<T>>? OnSelectionChanged { get; init; }
     internal Action<WinUI.ItemsView>[] Setters { get; init; } = [];
+    internal override bool HasCallbacks =>
+        OnItemInvoked is not null || OnSelectionChanged is not null;
 }
