@@ -89,6 +89,13 @@ public sealed partial class ReactorHostControl : ContentControl, IDisposable
     private readonly Stopwatch _reportClock = Stopwatch.StartNew();
     private long _totalRenderCount;
 
+    // Last render's total duration (tree + reconcile + effects), in ms.
+    // Read by RequestRender to demote the next enqueue to Low priority when a
+    // slow render is starving the dispatcher of input/layout/paint slots.
+    // Published via Interlocked.Exchange / read via Volatile.Read — see the
+    // matching note in ReactorHost.
+    private double _lastRenderMs;
+
     // Public perf snapshot — updated every ~1 second, readable from components
     private RenderStats _stats;
 
@@ -299,7 +306,13 @@ public sealed partial class ReactorHostControl : ContentControl, IDisposable
         // Between renders: CAS 0→1 gates a single TryEnqueue.
         if (Interlocked.CompareExchange(ref _renderPending, 1, 0) != 0) return;
 
-        _dispatcherQueue.TryEnqueue(RenderLoop);
+        // Demote to Low priority after a slow render so input/layout/paint
+        // catch up. See RenderPriorityPolicy and the matching code in
+        // ReactorHost.RequestRender. Volatile.Read pairs with the
+        // Interlocked.Exchange in Render().
+        _dispatcherQueue.TryEnqueue(
+            RenderPriorityPolicy.PickPriority(Volatile.Read(ref _lastRenderMs)),
+            RenderLoop);
     }
 
     private void RenderLoop()
@@ -508,6 +521,10 @@ public sealed partial class ReactorHostControl : ContentControl, IDisposable
                 _funcContext.FlushEffects();
 
             double effectsMs = _phaseSw.Elapsed.TotalMilliseconds;
+
+            // Feed RenderPriorityPolicy. Interlocked publishes to off-UI-thread
+            // RequestRender callers. See matching note in ReactorHost.Render.
+            Interlocked.Exchange(ref _lastRenderMs, treeBuildMs + reconcileMs + effectsMs);
 
             OnRenderComplete?.Invoke(treeBuildMs, reconcileMs, effectsMs);
 
