@@ -32,7 +32,8 @@ public static partial class Factories
 {
     // ── Localization ──────────────────────────────────────────────────
 
-    public static Element LocaleProvider(string locale, Element child,
+    public static ComponentElement<Localization.LocaleProviderElement> LocaleProvider(
+        string locale, Element child,
         Localization.IStringResourceProvider? resourceProvider = null,
         string defaultLocale = "en-US",
         bool pseudoLocalize = false) =>
@@ -744,9 +745,12 @@ public static partial class Factories
 
     /// <summary>
     /// Embed a Component class with typed props as a child element.
+    /// Returns <see cref="ComponentElement{TProps}"/> so callers can use a
+    /// record <c>with</c>-expression to produce a modified copy with updated
+    /// typed props (records are immutable — <c>with</c> clones, it does not mutate).
     /// Usage: Component&lt;MyWidget, string&gt;("param")
     /// </summary>
-    public static ComponentElement Component<T, TProps>(TProps props)
+    public static ComponentElement<TProps> Component<T, TProps>(TProps props)
         where T : Component<TProps>, new() =>
         new(typeof(T), props) { _factory = () => new T() };
 

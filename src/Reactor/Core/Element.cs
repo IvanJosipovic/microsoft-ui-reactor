@@ -909,6 +909,34 @@ public record ComponentElement(
 }
 
 /// <summary>
+/// Strongly-typed <see cref="ComponentElement"/> that exposes <see cref="Props"/>
+/// as <typeparamref name="TProps"/> instead of <c>object?</c>, so callers can use
+/// a record <c>with</c>-expression to produce a modified copy of the element
+/// with updated props:
+/// <code>
+/// var grid = DataGrid&lt;Foo&gt;(source, columns);
+/// var taller = grid with { Props = grid.Props with { RowHeight = 60 } };
+/// </code>
+/// The typed <see cref="Props"/> is a thin view over the base
+/// <see cref="ComponentElement.Props"/> slot — there is no second storage field,
+/// so the reconciler (which reads <c>base.Props</c>) always sees the same value
+/// as the typed accessor on the cloned record.
+/// </summary>
+public record ComponentElement<TProps> : ComponentElement
+{
+    public ComponentElement(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+        Type ComponentType,
+        TProps Props) : base(ComponentType, Props) { }
+
+    public new TProps Props
+    {
+        get => (TProps)base.Props!;
+        init => base.Props = value;
+    }
+}
+
+/// <summary>
 /// A component defined inline via a render function (like a React function component).
 /// </summary>
 public record FuncElement(Func<RenderContext, Element> RenderFunc) : Element;
