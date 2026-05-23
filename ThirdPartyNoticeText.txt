@@ -73,6 +73,12 @@ THIS SOFTWARE.
 
 
 ------------------- WinUI.Dock ----------------------
+The Reactor docking subsystem (Microsoft.UI.Reactor.Docking, spec 045)
+was developed using WinUI.Dock as the architectural reference and
+Phase-1 implementation basis. The vendored copy was removed at Phase-2
+exit once the native rewrite replaced it; this attribution remains in
+recognition of the upstream project that informed the design.
+
 MIT License
 
 Copyright (c) 2025 qian-o
@@ -97,3 +103,4 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ------------------------------------------------------
+

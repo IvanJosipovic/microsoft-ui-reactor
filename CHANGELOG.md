@@ -27,8 +27,573 @@ to land under these conventions; subsequent specs follow this shape.
 
 ## [Unreleased]
 
+### Changed
+
+- **Spec 045 Phase 2 — §2.29 ready for human review gate.**
+  Every Phase-2 implementation item in
+  `docs/specs/tasks/045-docking-windows-implementation.md` is now
+  `[x]` complete or `[~]` partial with an enumerated upstream-spec
+  blocker (spec 027 / 031 / 036 / docking analyzer pack). The
+  ten human-review items (§2.29 items 9–18) are gated on the
+  visual sit-down review itself. Showcase + TestApp both build
+  clean; 324 docking unit tests pass + 409 devtools tests pass.
+- **Spec 045 Phase 2 — §2.22 high-contrast chrome brushes.**
+  `DockSplitterControl` and `DockDropTargetOverlayControl` swap
+  their hard-coded ARGB literals for `ThemedBrush(key, fallback)`
+  lookups against `Application.Current.Resources`. HC themes now
+  retheme the docking chrome via the same dictionary path WinUI
+  defaults rely on. ARGB fallbacks remain for the headless-harness
+  no-Application case. System brushes: splitter handle →
+  `SystemControlForegroundBaseMediumLowBrush`; splitter hover +
+  drop-target Stroke + preview Border + indicator fill →
+  `SystemControlHighlightAccentBrush`; drop-target outer Fill →
+  `SystemControlBackgroundChromeMediumLowBrush`; preview body +
+  Center fill → `SystemControlBackgroundAccentBrush` (the preview
+  Border carries an explicit `Opacity=0.30` for the transparent
+  overlay).
+- **Spec 045 Phase 2 — §2.19 XAML wrapper unhooked from the
+  solution.** The Phase-1 `Reactor.Docking.Xaml` wrapper assembly
+  was removed from `Reactor.slnx` ahead of the §2.29 human-review
+  gate: ProjectReferences dropped from `DockShowcase.csproj`,
+  `Reactor.AppTests.Host.csproj`, `Reactor.Tests.csproj`;
+  `InternalsVisibleTo("Microsoft.UI.Reactor.Docking.Xaml")` dropped
+  from `Reactor.csproj`; showcase entry point dropped the
+  `REACTOR_DOCK_XAML=1` A/B flip — the native renderer (§5.1) is
+  the only path. Phase-1-specific `DockingSmokeFixtures` +
+  `BehaviorBridgeMappingTests` retire alongside;
+  `NativeDockingSmokeFixtures` cover the same surface. Source
+  under `src/Reactor.Docking.Xaml/` stays on disk per the §5.6
+  reference contract; a follow-up commit removes the directory.
+- **Spec 045 Phase 2 — §2.30 shape-only `layoutOverride`.** The
+  docking host's internal `layoutOverride` previously stored the
+  full user-mutated `DockNode` tree (with each leaf's `Content` /
+  `Title` / `CanClose` snapshotted at drag-end). That broke the
+  controlled-input contract: app re-renders couldn't push fresh
+  pane bodies because the override always won. Apps had to walk
+  the override and refresh leaf bodies manually. Now the host
+  stores SHAPE-only (leaf records stripped to just `Key`) and
+  resolves pane content per render via
+  `DockLayoutMutator.ResolveContents(shape, manager.Layout)`,
+  matching shape leaves to the app's full records by Key. Apps
+  declare the full tree idiomatically in `Render()`; state flows
+  naturally even after a user drag. New helpers
+  `DockLayoutMutator.StripContent` + `ResolveContents`. 6 new
+  unit tests. M19/M20 drag matrix selftests still pass.
+  `samples/Reactor.TestApp/Demos/DockingDemo.cs` drops its
+  `RefreshContents` walker / `OnLiveLayoutChanged` plumbing — the
+  demo is now plain Reactor.
+
 ### Added
 
+- **Spec 045 Phase 2 — §2.26 `docking.list` / `docking.snapshot` /
+  `docking.dock` MCP tools.** New
+  `DevtoolsDockingTools.Register(server)` wires three tools onto
+  the live `DevtoolsMcpServer`. `docking.list` enumerates hosts
+  via `DockHostRegistry.Snapshot()` (pane count + active key +
+  side counts per host). `docking.snapshot` returns the
+  `DockSnapshot` for a single host through the existing
+  `DockSnapshotBuilder.FromRecord` path. `docking.dock` accepts
+  `{ hostId, paneKey, action, target?, side? }` and routes through
+  `DockHostModelBridge.Get(manager)` to call the matching
+  `DockHostModel` mutator (dock / float / hide / show / close /
+  activate / pinToSide). All tools execute on the UI dispatcher
+  via `server.OnDispatcher<T>(...)`. Wired into
+  `ReactorApp.cs:1012` next to the existing devtools tools.
+  11 new unit tests in `DevtoolsDockingToolsTests`.
+- **Spec 045 Phase 2 — §2.24 / §2.9 per-pane WindowPersistedScope.**
+  New `DockHooks.UseDockPanePersisted<T>(string key, T initial)`
+  extension on `RenderContext`. Auto-prefixes the supplied key with
+  `pane:<paneKey>:` and forwards to
+  `RenderContext.UsePersisted<T>(key, initial, PersistedScope.Window)`
+  so two panes sharing the same unprefixed key get independent
+  WindowPersistedScope slots. Throws when called outside any
+  pane subtree (same contract as `UsePane`). XML docstring carries
+  the cross-user-secret caveat (apps must clear sensitive per-pane
+  data on logout / scope change). 3 new `DockHooksTests` cases.
+- **Spec 045 Phase 2 — §2.2 per-tab pin button on ToolWindow tabs.**
+  `TabViewItemData` gains optional `IsPinnable` / `IsPinned` /
+  `PinAutomationName` / `PinAutomationId` / `OnPinRequested` fields.
+  The `TabViewElement` reconciler builds the tab Header as a
+  StackPanel (title TextBlock + Segoe Fluent Icons pin Button)
+  when `IsPinnable=true`; otherwise the cheap string-header path
+  is preserved verbatim. `DockTabGroupRenderer.Render` accepts a
+  new `onPinRequested: Action<ToolWindow>?` callback and
+  auto-enables the affordance on ToolWindow tabs whose
+  `CanAutoHide=true`. `DockHostNativeComponent.PinToSideViaTabButton`
+  routes clicks through `DockHostModel.PinToSide(tw, DockSide.Left)`
+  so the §2.16 drain + live-region announcement contract fires
+  identically to a programmatic pin. AT name + tooltip use the
+  localized `Docking.Menu.PinToSide` string; AutomationId is
+  `pin:<paneKey>`. 3 new `DockTabGroupRendererTests` cases.
+- **Spec 045 Phase 2 — §2.26 `docking.snapshot` building blocks.**
+  New `DockHostRegistry` (process-wide `WeakReference<DockManager>`
+  registry with stable `dh:{n}` ids) wired through
+  `DockingNativeInterop`'s mount/update/unmount handlers alongside
+  the existing bridges. `DockSnapshot` shape + `DockSnapshotBuilder`
+  pure transform surface a content-ref-free layout tree
+  (`DockSnapshotSplit` / `DockSnapshotTabGroup` / `DockSnapshotLeaf`
+  + `DockSnapshotPane` for identity + role + permissions). 13 new
+  unit tests in `DockSnapshotBuilderTests`. The JSON-RPC tool
+  registration on the internal `DevtoolsMcpServer` rides on the
+  shape being stable.
+- **Spec 045 Phase 2 — §2.10 Alt+F7 hidden-pane picker.** Re-uses
+  the `DockNavigatorPopup` primitive to pick a side-stripped tool
+  window for re-show. Enumerates `effLeftSide` / `effTopSide` /
+  `effRightSide` / `effBottomSide` (where hidden ToolWindows end
+  up after `Hide` / `CanHide=true` close via the §2.16 drain).
+  Commit calls `model.Show(pane)` which routes through
+  `DockLayoutMutator.ShowFromHistory` (§2.15) — and now consults
+  `IDockLayoutStrategy.BeforeInsertToolWindow` first so apps can
+  override the remembered-container route. No-ops on an empty
+  side-strip set.
+- **Spec 045 Phase 2 — §2.23 RTL selftest fixture.**
+  `NativeDocking_Rtl_FlowDirectionAndSplitterSign` mounts a
+  two-pane docking host, applies `FlowDirection.RightToLeft` on
+  the realized host Border, and asserts every realized
+  `DockSplitterControl` + `TabView` inherits RTL + the pointer-
+  drag remains RTL-correct (WinUI coord-space transform).
+  Validates the "WinUI FlowDirection inheritance handles it"
+  claim across §2.23's sidebar / tab-order / splitter / glyph
+  bullets.
+- **Spec 045 Phase 2 — §2.27 composition fixtures.** Three new
+  host-mounted selftests:
+  `Composition_ContentMutationFlowsToActivePane` (in-pane state
+  flows into pane body), `Composition_SiblingMutation_PreservesActivePaneIdentity`
+  (sibling state change preserves pane wrapper Border identity),
+  and `Composition_Rehydration_ContentMatchesByKey` (save / load
+  round-trip + app-supplied content lands in restored slots by
+  Key, AutomationId survives).
+- **Spec 045 Phase 2 — §2.22 keyboard-only docking cycle fixture.**
+  `NativeDocking_A11y_KeyboardCycle_NavigatorCommitsActive` drives
+  the navigator commit + cancel paths via test hooks and asserts
+  the host-side wiring contract (chord → popup → active pane →
+  `OnActiveContentChanged`) end to end.
+- **Spec 045 Phase 2 — §2.10 Ctrl+Tab pane navigator overlay.**
+  VS-style navigator: Ctrl+Tab opens a Popup over the host Border
+  listing all open panes (depth-first leaf enumeration via the new
+  `DockHostKeyboard.EnumerateLeaves`); subsequent Ctrl+Tab /
+  Ctrl+Shift+Tab presses cycle the selection ±1; Ctrl release
+  commits and switches `activePaneKey` + fires
+  `OnActiveContentChanged`; Esc cancels. The new
+  `DockNavigatorPopup` primitive lives outside the Reactor
+  reconciler (per-host `Popup` instance keyed via a
+  `ConditionalWeakTable<FrameworkElement, DockNavigatorPopup>`) so
+  opening it doesn't perturb the render tree (M19 / M20 control-
+  identity assertions stay green). The chord bridge gains an
+  optional `OpenNavigator(int delta)` slot; `DockingNativeInterop`
+  attaches the two new accelerators alongside the existing chord
+  set. Unit coverage in `DockNavigatorTests` (9 cases).
+- **Spec 045 Phase 2 — §2.10 UIA live-region announcements.** Layout-
+  state transitions (close, tear-out / float, dock-confirm, pin-to-
+  side, hide, show) now raise polite UIA notifications against the
+  dock-host element via WinUI's `RaiseNotificationEvent` API. The
+  new `DockHostLiveAnnouncer` is a `ConditionalWeakTable<DockManager,
+  FrameworkElement>` bridge paralleling `DockChordBridge` /
+  `DockHostModelBridge`; `DockingNativeInterop` registers the host
+  Border at mount and clears it on unmount. Announcement templates
+  live under `Docking.LiveRegion.*` (`LiveDocked`, `LiveFloated`,
+  `LivePinned`, `LiveClosed`, `LiveHidden`, `LiveShown`),
+  parameterized by `{paneTitle}` via `DockingStrings.LiveAnnouncement`.
+  Notification API is used in place of a visible
+  `TextBlock`+`LiveSetting=Polite` region so the visual tree is
+  unchanged (M19 / M20 control-identity assertions stay green).
+- **Spec 045 Phase 2 — §2.22 splitter keyboard resizable + RTL.**
+  `DockSplitterControl` is now tab-focusable (`IsTabStop=true`,
+  `UseSystemFocusVisuals=true`) with arrow-key resize through the
+  same direct-mutation path the pointer drag uses; default
+  `KeyboardStep` = 16 DIP. Under `FlowDirection.RightToLeft` the
+  Columns-direction Left/Right mapping inverts so a Right press
+  grows the visually-right pane.
+- **Spec 045 Phase 2 — §2.23 RTL drop-target glyph mirror.**
+  `DockDropTargetOverlayControl` now emits a directional side-
+  stripe overlay on each Split / Dock target (filled rectangle
+  pinned to the matching edge via
+  `HorizontalAlignment`/`VerticalAlignment`). FlowDirection
+  inheritance auto-mirrors the Left-anchored indicators to the
+  right edge under RTL, so DockLeft / SplitLeft glyphs visually
+  flip to match the also-mirrored button positions.
+- **Spec 045 Phase 2 — §2.22 focus invariants on close.**
+  `DockHostLiveAnnouncer.FocusHostFallback(manager)` programmatically
+  hands focus to the host element when a close removes the last
+  pane (no group with documents remains). Sibling-pane focus carry
+  on partial close is inherited from TabView's selection-change
+  focus shift on the next render. Tear-out path keeps WinUI's
+  default focus shift to the new floating window. Selftest
+  `NativeDocking_A11y_FocusFallback_OnLastPaneClose` drives a
+  model-mutator close through the §2.16 drain, verifies the bridge
+  registration survives the re-render cycle, and gates the
+  `FocusHostFallback` call site against the no-group-left layout
+  state.
+- **Spec 045 Phase 2 — §2.6 floating-window lifecycle events.**
+  `DockFloatingWindow.Open` now fires
+  `DockManager.OnFloatingWindowCreated` immediately after window
+  registration (carrying the dragged source pane) and
+  `OnFloatingWindowClosed` from the underlying `ReactorWindow.Closed`
+  event (carrying the best-effort pane reference; may be stale
+  after a cross-window dock-back already migrated it). Subscriber
+  exceptions are swallowed so a buggy observer cannot break
+  tear-out or cleanup paths.
+- **Spec 045 Phase 2 — §2.20 perf budget tests.** Three new
+  unit tests in `DockPerfBudgetTests` enforce the §2.20 spec
+  budgets: layout JSON load (200 panes, median < 200ms CI ceiling
+  / 50ms spec budget), drop-target hit-test hot path (no
+  measurable allocation across 100k `ComputePreviewBounds`
+  iterations — 1B/iter cap), and 50-pane mutator shape change
+  (RemovePane + InsertPaneAtTarget, median ≤ 25ms CI ceiling /
+  1ms spec budget). Pattern follows spec 034 (allocation counter)
+  + spec 031 (median-of-N sampling). Remaining §2.20 items
+  (frame-aligned hover, tear-out frame budget, cold-start, DPI
+  re-layout) ride on the spec 031 frame-aligned sampler harness.
+- **Spec 045 Phase 2 — §2.22 accessibility baseline.** Every docked
+  pane's wrapper Border now carries a stable
+  `AutomationProperties.AutomationId = "pane:<key>"` derived from
+  `DockableContent.Key`, plus `AutomationProperties.Name` from the
+  pane's app-owned Title — so screen readers and selftests address
+  panes deterministically across re-renders. The DockHost root
+  Border exposes `AutomationLandmarkType.Custom` + a
+  `LocalizedLandmarkType` + `Name` sourced from `DockingStrings`
+  (key `Docking.DockHost.Landmark`; default "Docking area"). New
+  unit suite `DockA11yTests` (5 cases) + selftest fixture
+  `NativeDocking_A11y_HostLandmarkAndPaneAutomationIds` walking
+  the realized control tree.
+- **Spec 045 Phase 2 — §2.21 localization routing.** Every
+  docking user-facing string now flows through a static
+  `DockingStrings.Get(key)` router with an optional
+  `Func<string, string?>? Resolver` apps wire at startup to
+  forward keys to their `IntlAccessor`. The drop-target overlay
+  (`DockDropTargetOverlayControl.GetLocalizedName` + landmark
+  `AutomationProperties.Name`), the side-pin tooltip
+  (`DockSideStripRenderer`), and the floating-window default
+  title (`DockFloatingWindow.Open`) now consult the router. Keys
+  are constants on `DockingStringKeys`, mirrored 1:1 against
+  `src/Reactor.Docking.Xaml/Resources/Reactor.Docking.resw` —
+  drop-target tooltips, navigator headings, per-pane context-menu
+  items (Close/Hide/Float/PinToSide/AutoHide/MoveToNextGroup),
+  side-pin tooltip prefix, floating-window default title,
+  layout-restore error, host landmark. `DockingStrings.SidePinTooltip(title)`
+  performs the placeholder substitution after lookup so
+  translators can rearrange the surrounding text. Unit coverage
+  in `DockingStringsTests` (9 scenarios).
+- **Spec 045 Phase 2 — §2.25 reliability close-out.** Three new
+  host-mounted fixtures under `NativeDockingReliabilityFixture`:
+  `CrashMidDrag_LeavesPersistedLayoutClean` (mid-drag layout save
+  contains no drag-session state — drag state is in-memory only and
+  doesn't leak into persisted JSON; restart drops the in-flight drag,
+  reloaded layout is shape-identical to the pre-drag tree),
+  `FloatingWindowClosesOnHostUnmount` (floating windows opened from
+  a `DockManager` are tracked per-host; the host's
+  `DockingNativeInterop` unmount handler closes them so they don't
+  outlive the host), and `EventSubscriptionLeakBaseline` (100-pane
+  open/close cycle stays within a 32 MB allocation delta — smoke
+  test against catastrophic retention; precise budget tracked via
+  §2.20 perf benchmarks). New `DockFloatingClamp` + `DockDisplay` +
+  `DockFloatingBounds` types (in `src/Reactor/Docking/Native/`)
+  implement the §2.6 / §2.25 multi-display restore clamp: saved
+  floating bounds with < 200 × 100 DIP overlap against any display
+  recenter on the primary; sizes clamp to the primary work area
+  minus a 32 DIP margin. Pure math covered by 9 new unit tests in
+  `DockFloatingClampTests`. `DockFloatingWindow.Open` takes optional
+  `savedBounds` + `displays` + `manager` parameters; tear-out and
+  Float-mutation call sites pass the live manager so the per-host
+  tracker (ConditionalWeakTable-backed) sees each open.
+- **Spec 045 Phase 2 — Reliability + security selftests (§2.24,
+  §2.25).** Four new host-mounted fixtures under
+  `NativeDockingReliabilityFixture`:
+  `CorruptLayoutFallback_HostMounted` (corrupt JSON → fallback +
+  event), `OffThreadMutation_ThrowsAndDoesNotQueue` (off-dispatcher
+  mutators throw and don't dirty the queue),
+  `UseEffectCleanup_RunsOnPaneClose` (programmatic close drains
+  through the §2.16 mutator queue and the body unmounts from the
+  visual tree), and `DragSessionPayload_ObjectRefsOnly`
+  (`DockDragSession` holds object refs, refuses a second concurrent
+  drag, clears on End). Cross-ref §2.24 / §2.25 close-out items.
+  The cleanup test surfaced a Reactor-side gap where
+  `ComponentElement` instances embedded inside
+  `DockableContent.Content` don't run their `UseEffect` cleanups
+  when the leaf disappears — tracked as a known limitation in the
+  fixture's docstring.
+- **Spec 045 Phase 2 — Closed-to-empty layout fix.** A subtle bug
+  in the drag/close/drain paths caused `setLayoutOverride(null)`
+  to revert to the controlled-input prop, resurrecting a closed
+  pane. The internal state is now a `LayoutOverride(DockNode?)`
+  wrapper so the renderer can distinguish "no override" from
+  "override is intentionally empty". All five
+  `setLayoutOverride` call sites (drain, tear-out, tab close,
+  drag confirm, chord close) updated. Caught by the
+  `Reliability_Effect_BodyGoneFromTree` assertion in the new
+  reliability fixture.
+- **Spec 045 Phase 2 — Corrupt-JSON ETW emission (§2.7).**
+  `DockLayoutSerializer.Load` now classifies every fallback path into a
+  PII-safe category (`empty` / `oversize` / `json-parse` /
+  `unsupported-schema` / `null-document` / `schema-missing` /
+  `validation`) and emits the new
+  `ReactorEventSource.DockingLayoutLoadFallback` event (id 16, Warning,
+  `Errors` keyword) carrying only the category string — the full
+  `DockLayoutLoadResult.FailureReason` continues to surface to
+  in-process callers under app ACL. Closes the last open checklist
+  item on §2.7. (spec 045 §2.7, spec 044)
+- **Spec 045 Phase 2 — Model-mutation drain (§2.16).**
+  `DockHostNativeComponent.Render` now drains `DockHostModel.Pending`
+  on each render pass: every queued `Dock` / `Float` / `Hide` / `Show`
+  / `Close` / `Activate` / `PinToSide` op translates to a layout
+  override (or side-strip override for the side-affecting ops) and
+  fires the matching lifecycle event (`OnContentDocked`,
+  `OnDocumentClosing`+`Closed`, `OnToolWindowHiding`+`Hidden`,
+  `OnContentFloating`+`Floated`, `OnActiveContentChanged`). The model
+  exposes a new internal `OnMutationQueued` callback that the host
+  wires to `bumpTick` so any mutator wakes the reconciler into a
+  re-render even when called from outside an event handler. A new
+  `DockHostModelBridge` (mirrors `DockChordBridge`) lets tests and
+  devtools grab the live model instance from a `DockManager`
+  reference. Lights up `IDockLayoutStrategy.AfterInsert*` adjustments
+  actually landing on the rendered tree (§2.13), `DockHostModel.Show`
+  using the §2.15 PreviousContainer history, and programmatic
+  Dock/Float/Hide/PinToSide mutations affecting the live layout.
+  Verified by new selftest
+  `NativeDocking_ModelDrain_DockCloseActivatePinAffectsLiveTree` (9
+  assertions) and unit tests for the queue-wake contract. (spec 045
+  §2.16)
+- **Spec 045 Phase 2 — Composition-driven docs selftest (§2.18).** New
+  `NativeDocking_CompositionDrivenDocumentsRespectKeyedReconciliation`
+  fixture mounts a layout where the documents list is held in app
+  state, then runs add / remove cycles to verify the
+  `documents.Select(d => new DockableContent(Key: d.Id, ...))`
+  pattern. Keyed reconciliation preserves the TabView control
+  instance across the structural changes — the fixture asserts
+  `ReferenceEquals` on the TabView between initial mount and the
+  post-add render. Codifies the spec §5.3.7 contract that Reactor's
+  functional composition replaces `DocumentsSource` /
+  `LayoutItemTemplate` / `ContentResolver`. (spec 045 §2.18)
+- **Spec 045 Phase 2 — IDockBehavior obsolete forwarder (§2.12).**
+  `IDockBehavior` (the P1 interface) and `DockManager.Behavior` (the
+  property that consumes it) are now marked `[Obsolete]` with
+  migration pointers to the per-event Action props that landed in
+  Phase 2 (`OnContentDocked` / `OnContentFloating` /
+  `OnContentFloated`). Slated for removal one release after Phase
+  2 ships. The P1 wrapper assemblies (`Reactor.Docking.Xaml`)
+  suppress the obsolete warning at file scope while they continue
+  to bridge the interface for source compat. (spec 045 §2.12)
+- **Spec 045 Phase 2 — PreviousContainer routing (§2.15).** The close /
+  tear-out paths in `DockHostNativeComponent` (tab close button,
+  `Ctrl+F4` / `Ctrl+W` chord, drag-out tear-out) now record the
+  pane's immediate `DockTabGroup` container into
+  `PreviousContainerTracker` via the new
+  `DockLayoutMutator.FindContainer` walk before removing the pane.
+  A new `DockLayoutMutator.ShowFromHistory(root, pane, fallback)`
+  pure-function helper folds a remembered pane back into its
+  original `DockTabGroup` when that group still lives in the
+  tree (matching VS's "show panel where you left it"); falls back
+  to `InsertPaneAtTarget(root, pane, fallback)` when the
+  remembered group has been torn down. Caller-side wiring
+  (`DockManager.Show` programmatic API, drag-back snap hint)
+  attaches when the §2.16 model-mutation drain materializes the
+  `ShowOp` path. 7 new unit tests cover the `FindContainer` /
+  `ShowFromHistory` matrix. (spec 045 §2.15)
+- **Spec 045 Phase 2 — Document/ToolWindow default tab styling (§2.8).**
+  `DockTabGroupRenderer.Render` now auto-resolves tab styling based on
+  the group's content type: a group whose documents are all
+  `ToolWindow` (and where the user hasn't customized
+  `TabPosition` / `CompactTabs` beyond the record's defaults) flips
+  to bottom-position + compact tabs (matches Office / VS tool-pane
+  convention). All-`Document` and mixed groups stay at the top
+  position + full-width default — a tool window dragged into an
+  editor strip doesn't collapse the whole strip to compact. The
+  `TabPosition.Bottom` visual still renders as top-strip per the
+  §2.2 limitation (no WinUI TabView bottom mode), but the resolved
+  value flows through so future bottom-strip support picks it up.
+  5 new unit tests lock down the resolution matrix
+  (all-tool / all-doc / mixed / explicit-defaults-on-tool /
+  explicit-compact-on-tool). (spec 045 §2.8)
+- **Spec 045 Phase 2 — Docking permission gating (§2.14).** The native
+  drag pipeline now honors `DockableContent.CanMove` / `CanFloat` /
+  `CanClose`: `HandleTabDragStarting` refuses to begin a session for
+  a pinned pane (logs a `Note` op); `HandleTabDragCompleted` refuses
+  tear-out when `CanFloat=false` (session ends, layout untouched);
+  the drop-target `OnConfirm` re-checks `CanMove` on the source pane
+  so the keyboard-driven `Ctrl+Shift+M` flow can't drop a pinned
+  pane that turned read-only between mode-enter and confirm;
+  `EnterKeyboardDropMode` skips opening the overlay entirely for a
+  pinned active pane. Tab close button now routes through
+  `CloseTabViaButton` which re-checks `CanClose` and goes through
+  the cancellable `OnDocumentClosing` → `OnDocumentClosed` →
+  `OnLiveLayoutChanged` event chain (matching the `Ctrl+F4` chord
+  path from §2.10). UI cues for disabled permissions (cursor /
+  disabled-tab style) ride on the §2.8 tab styling pass.
+  (spec 045 §2.14)
+- **Spec 045 Phase 2 — Layout strategy dispatch (§2.13).** The
+  manager-side dispatch into `IDockLayoutStrategy` is now wired in
+  `DockHostModel.Dock`: when the host component mirrors
+  `DockManager.LayoutStrategy` onto the model each render,
+  programmatic `Dock(content, target)` calls `BeforeInsertDocument`
+  or `BeforeInsertToolWindow` (subtype-routed) first; a `true`
+  return short-circuits the default insertion (strategy claims
+  placement via the model surface); a `false` return queues the
+  default `PendingMutation.DockOp` and then fires the matching
+  `AfterInsert*` hook so apps can layer dimensions / pinning /
+  activation on top. Bare `DockableContent` (P1 source-compat
+  shape) bypasses the typed hooks since the strategy contract is
+  defined against the §2.8 `Document` / `ToolWindow` subclasses.
+  Six new unit tests under `LayoutStrategyTests` lock down the
+  no-strategy passthrough, document/tool-window short-circuit,
+  pass-through-then-`AfterInsert`, subtype routing, and
+  bare-pane bypass. (spec 045 §2.13)
+- **Spec 045 Phase 2 — Docking keyboard chords (§2.10, initial set).**
+  Three chord families land on the Reactor-native dock host:
+  `Ctrl+PageUp` / `Ctrl+PageDown` cycle the active tab group with
+  wrap (VS parity); `Ctrl+F4` / `Ctrl+W` close the active document
+  via the cancellable `OnDocumentClosing` → `OnDocumentClosed` path;
+  `Ctrl+Shift+M` flips the §2.3 drop-target overlay into a
+  keyboard-initiated drag mode (arrow keys + Enter to confirm,
+  Esc / repeat-chord to dismiss) with the active pane as the
+  implicit source. Wiring goes through a new `DockChordBridge`
+  (ConditionalWeakTable keyed by `DockManager` instance) so the
+  mount-time `KeyboardAccelerator` set on the dock host `Border`
+  picks up live chord delegates from the component each render —
+  no extra layout layer (a `CommandHost` Grid wrapper perturbed
+  M19's outer-FlexPanel ActualWidth and was abandoned). Selected-
+  index per `DockTabGroup` is now host-tracked via a path-keyed
+  `selectedIndexStore` (mirrors the §2.1 ratio store) so chord
+  cycling sticks across re-renders without breaking the
+  controlled-input shape — apps that pin `ActiveDocument` still
+  win for `UseIsActivePane` / context propagation. Deferred to a
+  follow-up pass: `Ctrl+Tab` pane navigator overlay, `Alt+F7`
+  hidden-pane picker, UIA `LiveSetting=Polite` announcements, and
+  spec-027-driven configurable binding. 16 new unit tests cover
+  the pure helpers (`DockHostKeyboard.{FindGroupContainingKey,
+  FindFirstGroup, CycleIndex, BuildChords}`) plus the
+  `DockChordBridge` round-trip. (spec 045 §2.10)
+- **Spec 045 Phase 2 — Docking drag pipeline (§2.4).** Tab tear-out
+  + drop-target dock now works end-to-end on the Reactor-native
+  renderer. `DockDragSession` is the object-ref payload (replaces
+  upstream WinUI.Dock's static GUID→object dict that spec §8.9
+  flagged as a security/reliability anti-pattern). Tab drag wires
+  through new `TabViewElement.OnTabDragStarting` /
+  `OnTabDragCompleted` events: dragstart begins a session + flips
+  the §2.3 overlay; confirm rebuilds the layout via
+  `DockLayoutMutator` and fires `OnContentDocked`; drop-outside
+  opens a floating window (`OnContentFloated`); Esc cancels via
+  `OverlayDismissed`. The host component shadows `Manager.Layout`
+  with a `layoutOverride` state so drag results stick until the
+  app explicitly syncs through `OnContentDocked`. 23 new unit
+  tests (6 for `DockDragSession`, 17 for `DockLayoutMutator`) plus
+  `NativeDocking_DragSessionConfirmMutatesLayout` smoke fixture
+  cover the state machine + layout-mutation algebra. Keyboard-
+  initiated move (`Ctrl+Shift+M`) and the standalone `.OnPan`
+  recognizer remain on the §2.10 / follow-up list. (spec 045 §2.4)
+- **Spec 045 Phase 2 — Docking drop-target overlay (§2.3).**
+  `DockDropTargetOverlayControl` lands as the Reactor-native replacement
+  for WinUI.Dock's `DockTargetButton` + `Preview.xaml.cs`. Renders 9
+  drop targets (5 split + 4 edge per `DockTarget`) at minimum 44×44 DIP
+  (WCAG 2.5.5 / spec §8.7), with a hover preview rectangle keyed off
+  `ComputePreviewBounds(target, hostW, hostH)`. Targets are focusable
+  and arrow-key navigable through `NextFocus` (cluster cross + edge
+  ring); `Enter` confirms, `Esc` dismisses. The overlay reads
+  `UISettings.AnimationsEnabled` at construction for reduced-motion
+  gating. Mounting is gated by the new `DockManager.ShowDropTargets`
+  prop with `OnDropTargetHovered` / `OnDropTargetConfirmed` /
+  `OnDropTargetsDismissed` callbacks — the §2.4 drag pipeline flips
+  the flag mid-gesture; apps can also drive it directly for keyboard-
+  initiated move (§2.10 `Ctrl+Shift+M`) or testing. AT names are
+  inline English pending the §2.21 `Docking.*` resource pass.
+  20 unit tests cover preview bounds, focus graph, and AT names;
+  the `NativeDocking_DropTargetOverlayShowsAndDismisses` smoke fixture
+  exercises the full mount → confirm → unmount cycle. (spec 045 §2.3,
+  §8.7)
+- **Spec 045 Phase 2 — Docking (foundation).** Foundation layer of the
+  Reactor-native rewrite. The Phase-1 public API moves from
+  `src/Reactor.Docking.Xaml/` into `src/Reactor/Docking/` (same
+  `Microsoft.UI.Reactor.Docking` namespace, so app source references
+  are unchanged); Phase-2 additive surface extensions land on top:
+  - `Document` and `ToolWindow` sealed records (Phase-2 §5.3.1) with
+    distinct default permissions (`Document.CanClose=true`,
+    `ToolWindow.CanClose=false` because X-button hides per AvalonDock
+    semantic; `ToolWindow.CanPin=true`, `CanAutoHide=true`,
+    `CanDockAsDocument=true`).
+  - `Document<TState>` generic record carrying typed per-pane state;
+    `TState` versioning is the app's responsibility (§5.3.2 / §8.11).
+  - `CanFloat` (default true) and `CanMove` (default true) added to
+    the `DockableContent` base (§5.3.8).
+  - `IDockLayoutStrategy` insertion-policy hook with default-method
+    bodies — apps short-circuit insertion via `BeforeInsertDocument` /
+    `BeforeInsertToolWindow`, or post-process via `AfterInsert*`
+    (§5.3.6).
+  - 15 cancellable lifecycle event-arg classes
+    (`DockLayoutChanging`/`Changed`, `DockDocumentClosing`/`Closed`,
+    `DockToolWindowHiding`/`Hidden`/`Closing`/`Closed`,
+    `DockContentFloating`/`Floated`/`Docking`/`Docked`,
+    `DockActiveContentChanged`,
+    `DockFloatingWindowCreated`/`Closed`); every `*ing` carries
+    `Cancel`. `DockManager` now exposes 15 `Action<TArgs>?` props for
+    each (§5.3.5).
+  - `IDockLayoutMigration` interface + `DockLayoutMigrationRegistry`
+    ladder with built-in v1→v2 step (synthesizes keys from titles per
+    §5.4.4). Forward-tolerant for schemas newer than the loader target.
+  - `DockHostModel` internal source-of-truth class with mutation queue
+    (`Dock`/`Float`/`Hide`/`Show`/`Close`/`Activate`/`PinToSide`).
+    Mutations are UI-dispatcher-affined; off-thread access throws
+    `InvalidOperationException` per spec §8.10. Enumerations
+    `AllContent()` / `Descendants()` over the dock tree.
+  - `DockContexts` slots + `DockHooks` extension methods on
+    `RenderContext` for property hooks: `UseDockHost`,
+    `UseActivePaneKey`, `UseIsActivePane`, `UsePane`, `UseDockState`,
+    `UseDockLayout`. Each slot is a separate `Context<T>` so consumers
+    only re-render on their specific slice change (selector-style scope
+    per spec §5.3.11).
+  - `DockPaneInfo` readonly struct + `DockPaneState` enum
+    (Docked/Floating/AutoHidden/AutoHiddenExpanded/Hidden).
+  - `DockSide` enum, `FloatingDockWindow` record, `DockLayoutSnapshot`
+    record for the wide-net `UseDockLayout` hook.
+  - `PreviousContainerTracker` — `ConditionalWeakTable`-backed
+    bookkeeping for the "show panel where you left it" mechanic
+    (§5.3.9). Bookkeeping decays with the pane reference.
+- **Spec 045 Phase 2 — Layout JSON v2 persistence.**
+  `DockLayoutSerializer.Save`/`Load` round-trips Reactor-native v2 JSON
+  via a source-generated `JsonSerializerContext` (AOT-clean: no
+  reflection paths from JSON; no external schema URLs; no type-name
+  instantiation). Security limits per §8.9: 1 MB max input size, depth
+  32; corruption / oversize / unknown-node-kind / missing-`$schema`
+  inputs return a `DockLayoutLoadResult.Fallback` (never throw on the
+  load path per §8.10). Invariant culture for numerics — verified by
+  a save-`de-DE` / load-`en-US` selftest (§8.8). Role-default-aware
+  permission emission keeps the file small. 200-pane load latency
+  regression guard wired in xUnit; the §8.1 50ms perf budget is
+  enforced by the perf bench harness. (spec 045 §5.4, §8.9–8.11)
+- **Spec 045 Phase 1 — Docking (vendor + wrap).** First-class docking
+  surface arrives in Reactor via the new `Microsoft.UI.Reactor.Docking`
+  namespace, shipped from a separate `Microsoft.UI.Reactor.Docking.Xaml`
+  NuGet package so apps that don't need docking don't pay for the
+  vendored XAML dependency. Public API committed at P1 exit:
+  `DockManager : Element`, the `DockNode` algebra (`DockSplit`,
+  `DockTabGroup`, `DockableContent`), `TabPosition` /
+  `DockTarget` enums, and the `IDockAdapter` / `IDockBehavior`
+  observation hooks (spec 045 §4.3). Apps register the element type
+  with the reconciler at host construction via
+  `DockingXamlInterop.Register(host.Reconciler)` (same pattern as
+  `XamlInterop.Register`); thereafter, any `DockManager` element in the
+  Reactor tree reconciles to a vendored WinUI.Dock control. Pane
+  identity is via `DockableContent.Key` (spec 042 keyed reconciliation
+  — explicit, no Title-as-key fallback). Showcase sample lands at
+  `samples/apps/dock-showcase/` with six scenes mirroring the §4.7
+  review script. Smoke fixture
+  `Docking_TwoPaneMountUpdateUnmount` exercises mount → update →
+  unmount in the AppTests harness; 27 unit tests cover the public API
+  + upstream enum mapping. Phase 2 swaps the vendored implementation
+  for a Reactor-native renderer with the same public surface. (spec 045
+  §4)
+- **WinUI.Dock vendored under `third_party/WinUI.Dock/`.** Snapshot of
+  `qian-o/WinUI.Dock` @ `2f5247f1` (MIT) with four light edits
+  documented in `VENDORED.md`: Uno code paths stripped, formatting
+  normalized, `[InternalsVisibleTo]` added for the wrapper + tests, and
+  the cross-window DnD bug sidestepped by restricting drag-out to a
+  single manager in Phase 1 per spec §4.6. The runtime reference is
+  removed at Phase 2 exit (§5.6); the source stays in the tree for
+  license compliance and A/B regression checks against the native
+  rewrite. (spec 045 §4.1, §4.2)
+- **`Microsoft.UI.Reactor.Docking.Xaml` is granted internal access to
+  `Reactor.dll`.** The wrapper is a first-party Microsoft assembly that
+  ships alongside the framework and calls `Reconciler.SetElementTag` /
+  `DetachReactorState` — same level of trust as the in-assembly
+  `Microsoft.UI.Reactor.Hosting.XamlInterop`. (spec 045 §4.4)
 - **Spec 042 Phase 1 — keyed-list reconciliation & ListView animation
   groundwork.** New internal `Microsoft.UI.Reactor.Core.Internal.ReactorRow`
   /  `ReactorListState` carry reference-typed identity rows inside an

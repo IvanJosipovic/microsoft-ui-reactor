@@ -710,6 +710,23 @@ public abstract record Element
                 && ReferenceEquals(la.ScrollViewerSetters, lb.ScrollViewerSetters)
                 && ReferenceEquals(la.RepeaterSetters, lb.RepeaterSetters),
 
+            // Spec 045 §2.1 / §2.3 — docking elements use closures for
+            // their callbacks (OnDelta, OnHover, etc.) that are freshly
+            // captured on every parent render. The closures don't touch
+            // the realized WinUI control's visible properties — only
+            // structural fields (Direction, Mode) do — so for the
+            // highlight overlay's purposes these are "equal" when the
+            // structural fields match. Without these arms, every parent
+            // re-render flashes the splitter handles + drop overlay
+            // yellow even though nothing visible changed.
+            (Microsoft.UI.Reactor.Docking.Native.DockSplitterElement da,
+             Microsoft.UI.Reactor.Docking.Native.DockSplitterElement db) =>
+                da.Direction == db.Direction,
+
+            (Microsoft.UI.Reactor.Docking.Native.DockDropTargetOverlayElement oa,
+             Microsoft.UI.Reactor.Docking.Native.DockDropTargetOverlayElement ob) =>
+                oa.Mode == ob.Mode,
+
             // Non-container / leaf types: return false → always captured
             _ => false,
         };
@@ -1672,6 +1689,39 @@ public record TabViewItemData(string Header, Element Content)
 {
     public string? Icon { get; init; }
     public bool IsClosable { get; init; } = true;
+
+    /// <summary>
+    /// Spec 045 §2.2 — when true, the reconciler renders a small "pin"
+    /// affordance in the tab header chrome alongside the close X. Used
+    /// by the docking pipeline for ToolWindow tabs whose CanAutoHide=true.
+    /// </summary>
+    public bool IsPinnable { get; init; }
+
+    /// <summary>
+    /// Indicates whether the pin button should render as already-pinned
+    /// (glyph &#xE840;) or unpinned (&#xE842;). Only consulted when
+    /// IsPinnable is true.
+    /// </summary>
+    public bool IsPinned { get; init; }
+
+    /// <summary>
+    /// Tooltip + AT name applied to the pin button when IsPinnable is
+    /// true. Caller supplies the localized string.
+    /// </summary>
+    public string? PinAutomationName { get; init; }
+
+    /// <summary>
+    /// Stable AutomationId for the pin button. Selftests address the
+    /// per-tab pin via this id.
+    /// </summary>
+    public string? PinAutomationId { get; init; }
+
+    /// <summary>
+    /// Invoked when the user clicks the pin button. Caller is
+    /// responsible for routing through the docking model
+    /// (DockHostModel.PinToSide / Hide).
+    /// </summary>
+    public Action? OnPinRequested { get; init; }
 }
 
 public record PivotItemData(string Header, Element Content);
@@ -2655,8 +2705,24 @@ public record TabViewElement(
     public Element? TabStripHeader { get; init; }
     /// <summary>Element rendered at the trailing edge of the tab strip.</summary>
     public Element? TabStripFooter { get; init; }
+    /// <summary>
+    /// Fires when the user starts dragging a tab. <c>tabIndex</c> is the index
+    /// of the dragged tab in <see cref="Tabs"/>. Used by spec 045 §2.4 docking
+    /// drag pipeline to start a <c>DockDragSession</c>.
+    /// </summary>
+    public Action<int>? OnTabDragStarting { get; init; }
+    /// <summary>
+    /// Fires when a tab drag finishes — either landed on another TabView
+    /// (<c>wasOutside == false</c>) or was dropped outside any TabView
+    /// (<c>wasOutside == true</c>, used by §2.4 to trigger tear-out).
+    /// </summary>
+    public Action<int, bool>? OnTabDragCompleted { get; init; }
     internal Action<WinUI.TabView>[] Setters { get; init; } = [];
-    internal override bool HasCallbacks => OnSelectedIndexChanged is not null || OnTabCloseRequested is not null || OnAddTabButtonClick is not null;
+    internal override bool HasCallbacks => OnSelectedIndexChanged is not null
+        || OnTabCloseRequested is not null
+        || OnAddTabButtonClick is not null
+        || OnTabDragStarting is not null
+        || OnTabDragCompleted is not null;
 }
 
 public record BreadcrumbBarElement(

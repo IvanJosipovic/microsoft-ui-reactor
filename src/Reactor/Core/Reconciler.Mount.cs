@@ -1541,7 +1541,8 @@ public sealed partial class Reconciler
         {
             var tvi = new WinUI.TabViewItem
             {
-                Header = tabItem.Header, IsClosable = tabItem.IsClosable,
+                Header = BuildTabHeader(tabItem),
+                IsClosable = tabItem.IsClosable,
                 Content = Mount(tabItem.Content, requestRerender),
             };
             if (tabItem.Icon is not null) tvi.IconSource = ResolveIconSource(tabItem.Icon);
@@ -1563,8 +1564,148 @@ public sealed partial class Reconciler
             };
         if (tab.OnAddTabButtonClick is not null)
             tv.AddTabButtonClick += (s, _) => (GetElementTag((UIElement)s!) as TabViewElement)?.OnAddTabButtonClick?.Invoke();
+        // Spec 045 §2.4 docking drag pipeline hooks. Always wire — element-tag
+        // closures resolve to the current TabViewElement at fire time, so
+        // updates that add/remove the handler don't need a reattach.
+        tv.TabDragStarting += (s, args) =>
+        {
+            var t = (WinUI.TabView)s!;
+            if (GetElementTag(t) is not TabViewElement el || el.OnTabDragStarting is null) return;
+            var idx = t.TabItems.IndexOf(args.Tab);
+            if (idx < 0) return;
+            // WinUI requires a non-empty DataPackage for external
+            // AllowDrop=true targets (e.g. the docking drop-target overlay)
+            // to accept a drop. Without this, Drop simply never fires and
+            // the drag is silently rejected. The actual payload identity
+            // lives in object-ref state (DockDragSession per spec §8.9);
+            // the sentinel text only unblocks WinUI's drop acceptance.
+            args.Data.RequestedOperation = global::Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+            args.Data.SetText("reactor-tabview-tab");
+            el.OnTabDragStarting(idx);
+        };
+        tv.TabDragCompleted += (s, args) =>
+        {
+            var t = (WinUI.TabView)s!;
+            if (GetElementTag(t) is not TabViewElement el || el.OnTabDragCompleted is null) return;
+            // Tab may have been removed from TabItems by WinUI during the
+            // drag (tear-out path) — IndexOf returns -1 there. Fire the
+            // callback with idx=-1 anyway so the consumer can clean up
+            // drag state (otherwise the overlay stays "locked on").
+            var idx = t.TabItems.IndexOf(args.Tab);
+            var wasOutside = args.DropResult == global::Windows.ApplicationModel.DataTransfer.DataPackageOperation.None;
+            el.OnTabDragCompleted(idx, wasOutside);
+        };
         ApplySetters(tab.Setters, tv);
         return tv;
+    }
+
+    // Spec 045 §2.2 — pin button for ToolWindow tabs. When IsPinnable is
+    // true the header becomes a StackPanel { TextBlock(title) , pin Button };
+    // otherwise the existing string header path is preserved verbatim so
+    // tabs without pin affordance are visually identical to baseline.
+    private static object BuildTabHeader(TabViewItemData tabItem)
+    {
+        if (!tabItem.IsPinnable) return tabItem.Header;
+        var sp = new WinUI.StackPanel
+        {
+            Orientation = WinUI.Orientation.Horizontal,
+            VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Center,
+        };
+        var text = new WinUI.TextBlock
+        {
+            Text = tabItem.Header,
+            VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Center,
+        };
+        sp.Children.Add(text);
+        sp.Children.Add(BuildPinButton(tabItem));
+        return sp;
+    }
+
+    /// <summary>
+    /// In-place refresh of a pinnable tab header built by
+    /// <see cref="BuildTabHeader"/>. Updates the embedded TextBlock + pin
+    /// Button's Tag (so the captured Click handler resolves to the new
+    /// OnPinRequested closure) + the FontIcon glyph for IsPinned state.
+    /// Returns <c>false</c> when the existing StackPanel doesn't match
+    /// the expected shape — the caller should fall back to a full
+    /// rebuild. Spec 045 §2.2; called by <c>UpdateTabView</c>.
+    /// </summary>
+    private static bool TryUpdatePinHeaderInPlace(
+        WinUI.StackPanel existing,
+        TabViewItemData oldTab,
+        TabViewItemData newTab)
+    {
+        if (existing.Children.Count != 2) return false;
+        if (existing.Children[0] is not WinUI.TextBlock label) return false;
+        if (existing.Children[1] is not WinUI.Button pinBtn) return false;
+        if (pinBtn.Content is not WinUI.FontIcon icon) return false;
+
+        if (label.Text != newTab.Header) label.Text = newTab.Header;
+
+        // Tag carries the live TabViewItemData; the Click handler reads
+        // .OnPinRequested off the Tag. Swapping the Tag swaps the
+        // closure without touching the visual tree.
+        pinBtn.Tag = newTab;
+
+        var newGlyph = newTab.IsPinned ? "" : "";
+        if (icon.Glyph != newGlyph) icon.Glyph = newGlyph;
+
+        if (oldTab.PinAutomationName != newTab.PinAutomationName)
+        {
+            if (!string.IsNullOrEmpty(newTab.PinAutomationName))
+            {
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(pinBtn, newTab.PinAutomationName);
+                Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(pinBtn, newTab.PinAutomationName);
+            }
+            else
+            {
+                pinBtn.ClearValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty);
+                Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(pinBtn, null);
+            }
+        }
+        if (oldTab.PinAutomationId != newTab.PinAutomationId
+            && !string.IsNullOrEmpty(newTab.PinAutomationId))
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(pinBtn, newTab.PinAutomationId);
+        }
+        return true;
+    }
+
+    private static WinUI.Button BuildPinButton(TabViewItemData tabItem)
+    {
+        var btn = new WinUI.Button
+        {
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(global::Windows.UI.Color.FromArgb(0, 0, 0, 0)),
+            BorderThickness = new Microsoft.UI.Xaml.Thickness(0),
+            Padding = new Microsoft.UI.Xaml.Thickness(4, 0, 4, 0),
+            Margin = new Microsoft.UI.Xaml.Thickness(6, 0, 0, 0),
+            MinWidth = 0,
+            MinHeight = 0,
+            Content = new WinUI.FontIcon
+            {
+                FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                Glyph = tabItem.IsPinned ? "" : "",
+                FontSize = 12,
+            },
+        };
+        if (!string.IsNullOrEmpty(tabItem.PinAutomationName))
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btn, tabItem.PinAutomationName);
+            Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(btn, tabItem.PinAutomationName);
+        }
+        if (!string.IsNullOrEmpty(tabItem.PinAutomationId))
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(btn, tabItem.PinAutomationId);
+        // Tag with the TabViewItemData so updates can re-resolve the live
+        // OnPinRequested closure (handler is captured at mount; if the
+        // closure changes between renders the tag-based lookup picks up
+        // the new one via the Header rebuild path).
+        btn.Tag = tabItem;
+        btn.Click += (s, _) =>
+        {
+            if (s is WinUI.Button b && b.Tag is TabViewItemData td)
+                td.OnPinRequested?.Invoke();
+        };
+        return btn;
     }
 
     private WinUI.BreadcrumbBar MountBreadcrumbBar(BreadcrumbBarElement bcb)
