@@ -879,16 +879,16 @@ public sealed partial class Reconciler
         }
         if (nb.Value != n.Value)
         {
-            // Immediate mode: if the user's current text already represents
-            // n.Value, leave the text alone — writing Value mid-edit would
-            // reformat the text and clobber the caret / trailing zeros /
-            // partial decimals while the user is still typing.
+            // Immediate mode: preserve non-canonical in-progress text such as
+            // "1." or "2.0", but keep WinUI's Value in sync for canonical text
+            // so subsequent real keystrokes keep flowing through NumberBox.
             var skipValueWrite = n.GetAttached<Microsoft.UI.Reactor.Controls.Validation.ImmediateValueAttached>() is not null
                 && double.TryParse(nb.Text,
                     global::System.Globalization.NumberStyles.Float,
                     global::System.Globalization.CultureInfo.CurrentCulture, out var typed)
                 && double.IsFinite(typed)   // NaN/Infinity must never defeat the skip and slip through
-                && typed == n.Value;
+                && AreNumberBoxValuesEquivalent(typed, n.Value)
+                && !CanSynchronizeNumberBoxImmediateValueWithoutReformat(n, nb.Text, typed);
             if (!skipValueWrite)
             {
                 ChangeEchoSuppressor.BeginSuppress(nb);
@@ -908,6 +908,21 @@ public sealed partial class Reconciler
         if (n.Header is not null) nb.Header = n.Header;
         ApplySetters(n.Setters, nb);
         return null;
+    }
+
+    private static bool CanSynchronizeNumberBoxImmediateValueWithoutReformat(NumberBoxElement el, string text, double value)
+    {
+        if (el.NumberFormatter is not null) return false;
+        var canonical = value.ToString("G", global::System.Globalization.CultureInfo.CurrentCulture);
+        return string.Equals(text, canonical, StringComparison.Ordinal);
+    }
+
+    private static bool AreNumberBoxValuesEquivalent(double left, double right)
+    {
+        var tolerance = 1e-12 * global::System.Math.Max(
+            1.0,
+            global::System.Math.Max(global::System.Math.Abs(left), global::System.Math.Abs(right)));
+        return global::System.Math.Abs(left - right) <= tolerance;
     }
 
     private UIElement? UpdateAutoSuggestBox(AutoSuggestBoxElement o, AutoSuggestBoxElement n, WinUI.AutoSuggestBox asb)
