@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Reactor.Hosting;
 using Microsoft.UI.Xaml;
@@ -542,9 +543,29 @@ internal sealed class DockFloatingWindowComponent : Component<DockFloatingWindow
             // Capture the source XamlRoot BEFORE RemoveLocal might close
             // ownWindow (single-tab case → its only pane is the one we're
             // tearing off, panes goes to empty, ownWindow.Close()).
-            // Accessing it through a closed window's NativeWindow would NRE.
+            //
+            // Cross-render teardown race exercised by selftest T14
+            // (stuck-state recovery: defensive ForceCancel + retry on a
+            // TabView whose host Window was closed by the prior tear-off).
+            // `holder[0]` survives across renders, so the second
+            // BeginFloatingTearOff invocation reads `ownWindow` as a
+            // disposed `ReactorWindow`. `NativeWindow` is a raw field
+            // accessor (no `_disposed` guard) → `.Content` is a WinRT
+            // projection call into the disconnected COM proxy → throws
+            // COMException with HResult 0x800710DD
+            // (HRESULT_FROM_WIN32(ERROR_INVALID_OPERATION_ID), surface
+            // text "The operation identifier is not valid.").
+            //
+            // Narrow to exactly that HResult. Any other COM failure here
+            // is a real bug we want to surface. The `xr ??= ...` fallback
+            // below picks up the freshly-opened dragged preview's
+            // XamlRoot when sourceXamlRoot stays null.
             XamlRoot? sourceXamlRoot = null;
-            try { sourceXamlRoot = ownWindow.NativeWindow?.Content?.XamlRoot; } catch { }
+            try { sourceXamlRoot = ownWindow.NativeWindow?.Content?.XamlRoot; }
+            catch (COMException ex) when (ex.HResult == Core.Diagnostics.HResults.ERROR_INVALID_OPERATION_ID)
+            {
+                // Source window closed by prior tear-off — fall through to fallback.
+            }
 
             // Whether this tear-off will leave ownWindow with no remaining
             // panes (→ RemoveLocal closes it). Drives the Z-order strategy
@@ -564,18 +585,19 @@ internal sealed class DockFloatingWindowComponent : Component<DockFloatingWindow
             var initialTopLeft = (
                 (double)(req.CursorScreenPhys.X - req.PressOffsetPhys.X) / req.SourceScale,
                 (double)(req.CursorScreenPhys.Y - req.PressOffsetPhys.Y) / req.SourceScale);
-            ReactorWindow draggedWindow;
-            try
-            {
-                draggedWindow = DockFloatingWindow.Open(
-                    pane,
-                    manager: manager,
-                    opacity: 0.5,
-                    noActivate: true,
-                    ignorePointerInput: true,
-                    initialPosition: initialTopLeft);
-            }
-            catch { return null; }
+            // DockFloatingWindow.Open is a normal-code-flow call: its
+            // failure modes (WinUI window-creation refusal, pre-condition
+            // violations) are bugs we want to surface, not swallow. The
+            // layout mutation (RemoveLocal) and session.Begin happen
+            // AFTER Open returns, so a throw here leaves source state
+            // intact.
+            var draggedWindow = DockFloatingWindow.Open(
+                pane,
+                manager: manager,
+                opacity: 0.5,
+                noActivate: true,
+                ignorePointerInput: true,
+                initialPosition: initialTopLeft);
             // CRITICAL: stop ownWindow from intercepting pointer events
             // before the preview opens. ownWindow has foreground focus
             // (user just clicked a tab) and sits at the top of Z-order;
@@ -594,13 +616,39 @@ internal sealed class DockFloatingWindowComponent : Component<DockFloatingWindow
             //     drag events; restored in confirm/cancel below.
             if (willClose)
             {
-                try { ownWindow.AppWindow.Hide(); }
-                catch { /* window may already be tearing down */ }
+                // ReactorWindow.Hide() wraps _appWindow.Hide() with the
+                // _disposed guard + teardown-reentry COMException catch
+                // (the bare ownWindow.AppWindow.Hide() bypass below
+                // didn't have either). The previous outer catch was
+                // hiding any throw path; using the wrapper makes the
+                // behavior explicit and the catch redundant.
+                ownWindow.Hide();
             }
             else
             {
-                try { ownWindow.SetIgnorePointerInput(true); }
-                catch { /* window may already be tearing down */ }
+                // Multi-tab path: source window stays visible with its
+                // remaining tabs. We mark it click-through so the host
+                // overlays see the drag's pointer events.
+                //
+                // SetIgnorePointerInput requires WS_EX_LAYERED on the
+                // underlying HWND (OS only honors transparent on layered
+                // windows). A regular floating window opens with full
+                // opacity → not layered → SetIgnorePointerInput(true)
+                // would throw InvalidOperationException. Nudge opacity
+                // to 0.9999 first to install WS_EX_LAYERED — the alpha
+                // byte rounds to 255 so the user sees no visual change.
+                // RestoreSourcePointerInput (below) reverses both.
+                //
+                // The previous code wrapped this whole block in a bare
+                // catch and so the SetIgnorePointerInput call was being
+                // silently swallowed by the InvalidOperationException
+                // every multi-tab tear-off — the source window was NEVER
+                // actually marked click-through. Pointer-pass-through
+                // here is required behavior per §2.6, so the fix is to
+                // make the call succeed, not to keep swallowing it.
+                if (ownWindow.Spec.Opacity >= 1.0)
+                    ownWindow.SetOpacity(0.9999);
+                ownWindow.SetIgnorePointerInput(true);
             }
             RemoveLocal(pane);
 
@@ -617,11 +665,15 @@ internal sealed class DockFloatingWindowComponent : Component<DockFloatingWindow
             {
                 // Multi-tab case only — undo the SetIgnorePointerInput
                 // toggle so the user can interact with the source window's
-                // remaining tabs after the drag ends. No-op when the
-                // source closed.
+                // remaining tabs after the drag ends, and restore full
+                // opacity (paired with the 0.9999 nudge above that
+                // installed WS_EX_LAYERED). Both calls are no-op on a
+                // disposed window, so the genuine external race (user
+                // closed the source window mid-drag) is safe — no catch
+                // needed.
                 if (capturedSource is null) return;
-                try { capturedSource.SetIgnorePointerInput(false); }
-                catch { /* window may have been closed already */ }
+                capturedSource.SetIgnorePointerInput(false);
+                capturedSource.SetOpacity(1.0);
             }
             Action confirm = () =>
             {
@@ -629,12 +681,14 @@ internal sealed class DockFloatingWindowComponent : Component<DockFloatingWindow
                 if (target is not null)
                 {
                     RestoreSourcePointerInput();
+                    // ReactorWindow.Close is idempotent (no-op after
+                    // _disposed) and internally narrows the teardown
+                    // COMException set, so calling it once per branch —
+                    // enqueued OR sync fallback, never both — is safe
+                    // without an outer catch.
                     var dq = global::Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-                    bool ok = dq is not null && dq.TryEnqueue(() =>
-                    {
-                        try { capturedDragged.Close(); } catch { }
-                    });
-                    if (!ok) { try { capturedDragged.Close(); } catch { } }
+                    bool ok = dq is not null && dq.TryEnqueue(capturedDragged.Close);
+                    if (!ok) capturedDragged.Close();
                     return;
                 }
                 // No target hit — drop-outside semantics: strip drag styles,
@@ -652,9 +706,10 @@ internal sealed class DockFloatingWindowComponent : Component<DockFloatingWindow
 
             // If we couldn't capture the source XamlRoot (rare race), fall
             // back to the dragged window's once it's mounted. Worst case
-            // RasterizationScale is 1.0 default.
-            var xr = sourceXamlRoot;
-            try { xr ??= capturedDragged.NativeWindow?.Content?.XamlRoot; } catch { }
+            // RasterizationScale is 1.0 default. capturedDragged was
+            // opened synchronously above, so its NativeWindow chain is
+            // live; the `?.` chain handles the not-yet-mounted Content.
+            var xr = sourceXamlRoot ?? capturedDragged.NativeWindow?.Content?.XamlRoot;
 
             return new DockTabTearOff.TearOffActive
             {
@@ -669,14 +724,19 @@ internal sealed class DockFloatingWindowComponent : Component<DockFloatingWindow
 
         static void RestoreWindowFromDrag(ReactorWindow w)
         {
-            try
-            {
-                w.SetIgnorePointerInput(false);
-                w.SetOpacity(1.0);
-                w.SetNoActivate(false);
-                w.Activate();
-            }
-            catch { /* window may have been closed already */ }
+            // All four ReactorWindow mutators are no-op on _disposed and
+            // internally narrow the teardown COMException set, so a
+            // genuine external close mid-drag (e.g. user closed the
+            // dragged preview through some other path) is safe without
+            // an outer catch. The drop-outside contract says this window
+            // stays open at the cursor's release position; if it's
+            // actually closed by the time we get here, that's a bug we
+            // want to surface rather than silently strip styles on a
+            // dead handle.
+            w.SetIgnorePointerInput(false);
+            w.SetOpacity(1.0);
+            w.SetNoActivate(false);
+            w.Activate();
         }
 
         var chrome = DockFloatingWindow.BuildChrome(
