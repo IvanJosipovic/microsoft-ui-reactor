@@ -881,27 +881,53 @@ public sealed class ReactorHost : IDisposable
     /// RenderLoop callbacks and Low-priority re-renders all complete before returning.
     /// Used by test harnesses to replace blind Task.Delay waits.
     /// </summary>
-    public Task WaitForIdleAsync(int maxYields = 10)
+    public Task WaitForIdleAsync(int maxYields = 50)
     {
         if (_disposed) return Task.CompletedTask;
         if (_renderPending == 0 && !_isRendering && !_needsRerender)
             return Task.CompletedTask;
 
-        var tcs = new TaskCompletionSource();
+        // RunContinuationsAsynchronously: TrySetResult is called from a
+        // dispatcher callback, and without this flag any await continuation
+        // would run inline on the dispatcher at Low priority — re-entering
+        // UI logic inside the yield loop and partially defeating its purpose.
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         int yields = 0;
         void CheckIdle()
         {
-            if (_disposed || ++yields > maxYields ||
-                (_renderPending == 0 && !_isRendering && !_needsRerender))
+            if (_disposed)
             {
                 tcs.TrySetResult();
+                return;
             }
-            else
+            if (_renderPending == 0 && !_isRendering && !_needsRerender)
             {
-                _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, CheckIdle);
+                tcs.TrySetResult();
+                return;
+            }
+            if (++yields > maxYields)
+            {
+                // Returning early here is the classic flake source: callers
+                // (e.g. selftest Harness.Render) move on against a half-settled
+                // tree. Log so the next flake is greppable instead of silent.
+                Debug.WriteLine(
+                    $"[Reactor.WaitForIdle] yield cap hit ({maxYields}); " +
+                    $"renderPending={_renderPending} isRendering={_isRendering} needsRerender={_needsRerender}");
+                tcs.TrySetResult();
+                return;
+            }
+            if (!_dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, CheckIdle))
+            {
+                // Queue refused enqueue (shutdown). Complete rather than
+                // hang the caller forever.
+                tcs.TrySetResult();
             }
         }
-        _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, CheckIdle);
+        if (!_dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, CheckIdle))
+        {
+            // Same fallback for the initial enqueue.
+            tcs.TrySetResult();
+        }
         return tcs.Task;
     }
 

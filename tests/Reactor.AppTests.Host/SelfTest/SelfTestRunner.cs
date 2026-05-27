@@ -52,9 +52,17 @@ internal static class SelfTestRunner
 
     // Single immutable progress record — published atomically via
     // Volatile.Read/Write so the watchdog can never read a mixed
-    // (new-name, old-timestamp) state.
-    private sealed record FixtureProgress(string Name, long StartTimestamp);
+    // (new-name, old-timestamp) state. HangThreshold is per-fixture so
+    // long-budget fixtures (e.g. EventSubscriptionLeakBaseline at 120 s)
+    // don't trip a global 60 s ceiling.
+    private sealed record FixtureProgress(string Name, long StartTimestamp, TimeSpan HangThreshold);
     private static FixtureProgress? _currentFixture;
+
+    // Minimum slack between a fixture's own timeout and the watchdog.
+    // The watchdog's job is to FailFast (dumpable) when the fixture's own
+    // timeout couldn't fire because the dispatcher itself is stuck —
+    // i.e. only after the graceful timeout had its chance.
+    private static readonly TimeSpan HangSlack = TimeSpan.FromSeconds(30);
 
     // Fixtures known to assert-fail under NativeAOT, captured by running
     // tests/Reactor.AppTests.Host/probe-aot-skips.ps1 against the AOT-published
@@ -234,11 +242,13 @@ internal static class SelfTestRunner
                             continue;
                         }
 
-                        // Publish progress to the off-dispatcher watchdog so
-                        // it can identify the in-flight fixture if the
-                        // dispatcher gets blocked.
+                        // Publish a baseline progress record *before* calling
+                        // Create() so the watchdog can attribute a hang even
+                        // if construction itself blocks. We'll upgrade the
+                        // threshold once we know the fixture's own timeout.
+                        var fixtureStart = Stopwatch.GetTimestamp();
                         Volatile.Write(ref _currentFixture,
-                            new FixtureProgress(fixtureName, Stopwatch.GetTimestamp()));
+                            new FixtureProgress(fixtureName, fixtureStart, HangTimeout));
 
                         int failuresBefore = harness.Failures;
                         bool crashed = false;
@@ -253,12 +263,22 @@ internal static class SelfTestRunner
                             }
                             else
                             {
+                                var timeout = fixture.FixtureTimeout;
+                                // Per-fixture hang threshold: at least the
+                                // global floor, and always strictly past the
+                                // fixture's own graceful timeout so the
+                                // watchdog only fires when that timeout
+                                // couldn't (i.e. dispatcher truly stuck).
+                                var perFixtureHang = timeout + HangSlack;
+                                if (perFixtureHang < HangTimeout) perFixtureHang = HangTimeout;
+                                Volatile.Write(ref _currentFixture,
+                                    new FixtureProgress(fixtureName, fixtureStart, perFixtureHang));
+
                                 Console.WriteLine($"# Running: {fixtureName}");
                                 // Flush so the parent harness can attribute a
                                 // hang to this fixture by name even if the
                                 // child terminates abruptly afterward.
                                 Console.Out.Flush();
-                                var timeout = fixture.FixtureTimeout;
                                 var runTask = fixture.RunAsync();
                                 var timeoutTask = Task.Delay(timeout);
                                 var completed = await Task.WhenAny(runTask, timeoutTask);
@@ -343,11 +363,11 @@ internal static class SelfTestRunner
             if (progress is null) continue;
 
             var elapsed = Stopwatch.GetElapsedTime(progress.StartTimestamp);
-            if (elapsed < HangTimeout) continue;
+            if (elapsed < progress.HangThreshold) continue;
 
-            // We are >= HangTimeout into a fixture and the dispatcher hasn't
-            // moved on. Emit a structured signal, flush, and FailFast so a
-            // Watson/.NET minidump is produced (when DOTNET_DbgEnableMiniDump=1).
+            // We are past the per-fixture hang threshold and the dispatcher
+            // hasn't moved on. Emit a structured signal, flush, and FailFast
+            // so a Watson/.NET minidump is produced (when DOTNET_DbgEnableMiniDump=1).
             var elapsedSec = (int)elapsed.TotalSeconds;
             var message =
                 $"Bail out! HANG_DETECTED: {progress.Name} ran {elapsedSec}s " +

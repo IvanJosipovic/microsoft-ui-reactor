@@ -525,10 +525,12 @@ internal static class NativeDockingReliabilityFixtures
     {
         // 100 mount/unmount cycles × 2 Harness.Render() each = 200 renders + 200
         // reconcile passes. Locally this runs ~15s; CI VMs under contention have
-        // been measured at 2-4× slower per INVESTIGATION.md Cluster T, easily
-        // overshooting the prior 30s budget on a heavy iteration. The cap exists
-        // to catch a hung fixture, not to set a perf target.
-        public override TimeSpan FixtureTimeout => TimeSpan.FromSeconds(60);
+        // been measured at 2-4× slower per INVESTIGATION.md Cluster T (i.e. up to
+        // ~60s on a heavy iteration). Prior 60s budget tripped the host-level
+        // HangWatchdogLoop once in 500 stress iterations; 120s gives margin and,
+        // under the new per-fixture watchdog rule (SelfTestRunner.HangSlack),
+        // automatically lifts that watchdog threshold to 150s.
+        public override TimeSpan FixtureTimeout => TimeSpan.FromSeconds(120);
 
         public override async Task RunAsync()
         {
@@ -547,6 +549,7 @@ internal static class NativeDockingReliabilityFixtures
             // Drain to an empty host.
             host.Mount(_ => TextBlock("warmup-done"));
             await Harness.Render();
+            H.Check("Reliability_LeakBaseline_WarmupComplete", true);
 
             // Force GC so the baseline reflects steady state. Marshal off
             // the UI dispatcher to avoid a finalizer-deadlock on UI-thread-
@@ -576,6 +579,13 @@ internal static class NativeDockingReliabilityFixtures
                 await Harness.Render();
                 host.Mount(_ => TextBlock($"between-{i}"));
                 await Harness.Render();
+                // Heartbeat every 25 cycles. NOTE: this does NOT reset the
+                // host-level HangWatchdogLoop — that uses elapsed-since-fixture-
+                // start, not TAP output. These are log breadcrumbs only, so a
+                // future hang reveals which 25-cycle window it lived in
+                // (e.g. "Cycle25Progress: ok" printed but Cycle50 did not).
+                if ((i + 1) % 25 == 0)
+                    H.Check($"Reliability_LeakBaseline_Cycle{i + 1}Progress", true);
             }
 
             await Task.Run(() =>
