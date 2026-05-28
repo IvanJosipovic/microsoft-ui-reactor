@@ -190,6 +190,12 @@ internal static class DescriptorVariantFactory
             new DescriptorHandler<RelativePanelElement, WinUI.RelativePanel>(
                 RelativePanelDescriptor.Descriptor));
 
+        // Spec 047 §14 Phase 3-final Batch E — WrapGrid (escape-hatch
+        // closed by Panel<>.PerChildAttached).
+        rec.RegisterHandler<WrapGridElement, WinUI.VariableSizedWrapGrid>(
+            new DescriptorHandler<WrapGridElement, WinUI.VariableSizedWrapGrid>(
+                WrapGridDescriptor.Descriptor));
+
         // Spec 047 §14 Phase 3 (batch 9) — Named-slot container ports.
         rec.RegisterHandler<SplitViewElement, WinUI.SplitView>(
             new DescriptorHandler<SplitViewElement, WinUI.SplitView>(
@@ -240,6 +246,26 @@ internal static class DescriptorVariantFactory
         rec.RegisterHandler<BreadcrumbBarElement, WinUI.BreadcrumbBar>(
             new DescriptorHandler<BreadcrumbBarElement, WinUI.BreadcrumbBar>(
                 BreadcrumbBarDescriptor.Descriptor));
+
+        // Spec 047 §14 Phase 3-final Batch B — Frame + RichTextBlock + NumberBox.
+        rec.RegisterHandler<FrameElement, WinUI.Frame>(
+            new DescriptorHandler<FrameElement, WinUI.Frame>(
+                FrameDescriptor.Descriptor));
+
+        rec.RegisterHandler<RichTextBlockElement, WinUI.RichTextBlock>(
+            new DescriptorHandler<RichTextBlockElement, WinUI.RichTextBlock>(
+                RichTextBlockDescriptor.Descriptor));
+
+        rec.RegisterHandler<NumberBoxElement, WinUI.NumberBox>(
+            new DescriptorHandler<NumberBoxElement, WinUI.NumberBox>(
+                NumberBoxDescriptor.Descriptor));
+
+        // Spec 047 §14 Phase 3-final Batch C — CalendarView via
+        // .CollectionDiffControlled (proof point for Batch A's new
+        // IObservableVector two-way entry shape).
+        rec.RegisterHandler<CalendarViewElement, WinUI.CalendarView>(
+            new DescriptorHandler<CalendarViewElement, WinUI.CalendarView>(
+                CalendarViewDescriptor.Descriptor));
 
         rec.RegisterHandler<ListViewElement, WinUI.ListView>(new ListViewHandler());
 

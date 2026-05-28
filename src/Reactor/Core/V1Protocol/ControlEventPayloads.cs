@@ -67,6 +67,23 @@ internal sealed class NumberBoxEventPayload
 {
     public global::Windows.Foundation.TypedEventHandler<Microsoft.UI.Xaml.Controls.NumberBox, Microsoft.UI.Xaml.Controls.NumberBoxValueChangedEventArgs>? ValueChangedTrampoline;
     public Action<Element, Microsoft.UI.Xaml.Controls.NumberBoxValueChangedEventArgs>? CurrentValueChanged;
+
+    /// <summary>Spec 047 §14 Phase 3-final — <c>.Immediate</c> entry's
+    /// per-keystroke trampoline against the NumberBox's <c>TextProperty</c>
+    /// change callback. Lives once per control lifetime alongside the
+    /// commit-mode <see cref="ValueChangedTrampoline"/>.</summary>
+    public Microsoft.UI.Xaml.DependencyPropertyChangedCallback? ImmediateTextChangedCallback;
+
+    /// <summary>Spec 047 §14 Phase 3-final — inner <c>TextBox</c> template-part
+    /// trampoline for per-keystroke observation BEFORE NumberBox's
+    /// <c>TextProperty</c> sync (matches the legacy
+    /// <c>EnsureNumberBoxImmediateTextBoxWiring</c> flow).</summary>
+    public Microsoft.UI.Xaml.Controls.TextChangedEventHandler? ImmediateInnerTextChangedTrampoline;
+
+    /// <summary>Idempotency flag — once the inner template-part has been
+    /// found and wired this flips to <c>true</c> so the <c>Loaded</c> hook
+    /// stops re-walking the visual tree on subsequent renders.</summary>
+    public bool ImmediateInnerWired;
 }
 
 /// <summary>Spec 047 §9.2 typed payload — Slider was missed in the original
@@ -258,6 +275,28 @@ internal sealed class SelectorBarEventPayload
     public global::Windows.Foundation.TypedEventHandler<
         Microsoft.UI.Xaml.Controls.SelectorBar,
         Microsoft.UI.Xaml.Controls.SelectorBarSelectionChangedEventArgs>? SelectionChangedTrampoline;
+}
+
+/// <summary>Spec 047 §14 Phase 3-final Batch B — Frame multi-event payload.
+/// Three fire-only slots for Navigated / Navigating / NavigationFailed.
+/// Frame has NO controlled-prop round-trip (SourcePageType is .Initial /
+/// Navigate-on-mount only — see <c>FrameDescriptor</c>).</summary>
+internal sealed class FrameEventPayload
+{
+    public Microsoft.UI.Xaml.Navigation.NavigatedEventHandler? NavigatedTrampoline;
+    public Microsoft.UI.Xaml.Navigation.NavigatingCancelEventHandler? NavigatingTrampoline;
+    public Microsoft.UI.Xaml.Navigation.NavigationFailedEventHandler? NavigationFailedTrampoline;
+}
+
+/// <summary>Spec 047 §14 Phase 3-final Batch C — CalendarView SelectedDates
+/// two-way payload. Single slot for the <c>SelectedDatesChanged</c>
+/// trampoline wired by the <c>.CollectionDiffControlled</c> entry on the
+/// element's <c>SelectedDates</c> <c>IObservableVector&lt;DateTimeOffset&gt;</c>.</summary>
+internal sealed class CalendarViewEventPayload
+{
+    public global::Windows.Foundation.TypedEventHandler<
+        Microsoft.UI.Xaml.Controls.CalendarView,
+        Microsoft.UI.Xaml.Controls.CalendarViewSelectedDatesChangedEventArgs>? SelectedDatesChangedTrampoline;
 }
 
 /// <summary>Spec 047 §14 Phase 3 batch 11 — BreadcrumbBar ItemClicked

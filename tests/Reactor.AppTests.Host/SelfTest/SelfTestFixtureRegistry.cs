@@ -1149,7 +1149,10 @@ internal static class SelfTestFixtureRegistry
         "Desc_RepeatButton_MountUpdate",
         "Desc_ToggleButton_MountUpdate",
         "Desc_DropDownButton_MountUpdate",
+        "Desc_DropDownButton_Flyout",
         "Desc_SplitButton_MountUpdate",
+        "Desc_SplitButton_Flyout",
+        "Desc_ToggleSplitButton_Flyout",
         // Spec 047 §14 Phase 3 (batch 5) — Value-bearing input ports.
         "Desc_RichEditBox_MountUpdate",
         "Desc_PasswordBox_MountUpdate",
@@ -1168,6 +1171,11 @@ internal static class SelfTestFixtureRegistry
         "Desc_Canvas_MountUpdate",
         "Desc_FlexPanel_MountUpdate",
         "Desc_RelativePanel_MountUpdate",
+        // Spec 047 §14 Phase 3-final Batch E — per-child attached props + WrapGrid.
+        "Desc_Grid_AttachedRowColumn",
+        "Desc_Canvas_AttachedLeftTop",
+        "Desc_FlexPanel_AttachedFlexProps",
+        "Desc_WrapGrid_MountUpdate",
         // Spec 047 §14 Phase 3 (batch 9) — Named-slot container ports.
         "Desc_SplitView_MountUpdate",
         "Desc_InfoBar_MountUpdate",
@@ -1183,6 +1191,20 @@ internal static class SelfTestFixtureRegistry
         "Desc_ListBox_MountUpdate",
         "Desc_SelectorBar_MountUpdate",
         "Desc_BreadcrumbBar_MountUpdate",
+        // Spec 047 §14 Phase 3-final Batch B — Frame + RichTextBlock + NumberBox.
+        "Desc_Frame_MountUpdate",
+        "Desc_RichTextBlock_MountUpdate",
+        "Desc_NumberBox_MountUpdate",
+        // Spec 047 §14 Phase 3-final Batch C — CalendarView.
+        "Desc_CalendarView_MountUpdate",
+        // Spec 047 §14 Phase 3-final Batch F — Image events, Path Data, InfoBar ActionButton.
+        "Desc_Image_Events",
+        "Desc_Path_Data",
+        "Desc_InfoBar_ActionButton",
+        // Spec 047 §14 Phase 3-final Batch G1 — flat ItemsHost ports.
+        "Desc_ListBox_Items",
+        "Desc_ComboBox_Items",
+        "Desc_RadioButtons_Items",
 
         // Spec 047 §14 Phase 1 (1.16) — external-assembly proof fixtures.
         // The MarqueeHandler is authored in tests/external_proof/
@@ -2323,7 +2345,10 @@ internal static class SelfTestFixtureRegistry
         "Desc_RepeatButton_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescRepeatButtonMountUpdate(harness),
         "Desc_ToggleButton_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescToggleButtonMountUpdate(harness),
         "Desc_DropDownButton_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescDropDownButtonMountUpdate(harness),
+        "Desc_DropDownButton_Flyout" => new Spec047V1ProtocolDescriptorFixtures.DescDropDownButtonFlyout(harness),
         "Desc_SplitButton_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescSplitButtonMountUpdate(harness),
+        "Desc_SplitButton_Flyout" => new Spec047V1ProtocolDescriptorFixtures.DescSplitButtonFlyout(harness),
+        "Desc_ToggleSplitButton_Flyout" => new Spec047V1ProtocolDescriptorFixtures.DescToggleSplitButtonFlyout(harness),
         "Desc_RichEditBox_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescRichEditBoxMountUpdate(harness),
         "Desc_PasswordBox_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescPasswordBoxMountUpdate(harness),
         "Desc_RadioButtons_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescRadioButtonsMountUpdate(harness),
@@ -2340,6 +2365,11 @@ internal static class SelfTestFixtureRegistry
         "Desc_Canvas_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescCanvasMountUpdate(harness),
         "Desc_FlexPanel_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescFlexPanelMountUpdate(harness),
         "Desc_RelativePanel_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescRelativePanelMountUpdate(harness),
+        // Spec 047 §14 Phase 3-final Batch E — per-child attached props + WrapGrid.
+        "Desc_Grid_AttachedRowColumn" => new Spec047V1ProtocolDescriptorFixtures.DescGridAttachedRowColumn(harness),
+        "Desc_Canvas_AttachedLeftTop" => new Spec047V1ProtocolDescriptorFixtures.DescCanvasAttachedLeftTop(harness),
+        "Desc_FlexPanel_AttachedFlexProps" => new Spec047V1ProtocolDescriptorFixtures.DescFlexPanelAttachedFlexProps(harness),
+        "Desc_WrapGrid_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescWrapGridMountUpdate(harness),
         // Spec 047 §14 Phase 3 (batch 9) — Named-slot container ports.
         "Desc_SplitView_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescSplitViewMountUpdate(harness),
         "Desc_InfoBar_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescInfoBarMountUpdate(harness),
@@ -2355,6 +2385,20 @@ internal static class SelfTestFixtureRegistry
         "Desc_ListBox_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescListBoxMountUpdate(harness),
         "Desc_SelectorBar_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescSelectorBarMountUpdate(harness),
         "Desc_BreadcrumbBar_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescBreadcrumbBarMountUpdate(harness),
+        // Spec 047 §14 Phase 3-final Batch B — Frame + RichTextBlock + NumberBox.
+        "Desc_Frame_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescFrameMountUpdate(harness),
+        "Desc_RichTextBlock_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescRichTextBlockMountUpdate(harness),
+        "Desc_NumberBox_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescNumberBoxMountUpdate(harness),
+        // Spec 047 §14 Phase 3-final Batch C — CalendarView.
+        "Desc_CalendarView_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescCalendarViewMountUpdate(harness),
+        // Spec 047 §14 Phase 3-final Batch F — Image events, Path Data, InfoBar ActionButton.
+        "Desc_Image_Events" => new Spec047V1ProtocolDescriptorFixtures.DescImageEvents(harness),
+        "Desc_Path_Data" => new Spec047V1ProtocolDescriptorFixtures.DescPathData(harness),
+        "Desc_InfoBar_ActionButton" => new Spec047V1ProtocolDescriptorFixtures.DescInfoBarActionButton(harness),
+        // Spec 047 §14 Phase 3-final Batch G1 — flat ItemsHost ports.
+        "Desc_ListBox_Items" => new Spec047V1ProtocolDescriptorFixtures.DescListBoxItemsHost(harness),
+        "Desc_ComboBox_Items" => new Spec047V1ProtocolDescriptorFixtures.DescComboBoxItemsHost(harness),
+        "Desc_RadioButtons_Items" => new Spec047V1ProtocolDescriptorFixtures.DescRadioButtonsItemsHost(harness),
 
         // Spec 047 §14 Phase 1 (1.16) — external-assembly proof fixtures.
         "Spec047ExternalProof_Marquee_MountUpdate" => new Spec047ExternalProofFixtures.MarqueeMountUpdate(harness),
