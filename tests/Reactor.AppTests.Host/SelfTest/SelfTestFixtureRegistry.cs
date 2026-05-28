@@ -1205,6 +1205,17 @@ internal static class SelfTestFixtureRegistry
         "Desc_ListBox_Items",
         "Desc_ComboBox_Items",
         "Desc_RadioButtons_Items",
+        // Spec 047 §14 Phase 3 close-out — typed templated lists G2.
+        "Desc_TemplatedListView_MountUpdate",
+        "Desc_TemplatedGridView_MountUpdate",
+        // Spec 047 §14 Phase 3 finish — Port (6) Lazy*Stack G2.
+        "Desc_LazyVStack_MountUpdate",
+        "Desc_LazyHStack_MountUpdate",
+        "Desc_ItemsRepeater_MountUpdate",
+        "Desc_TreeView_MountUpdate",
+        "Desc_FlipView_MountUpdate",
+        "Desc_TabView_MountUpdate",
+        "Desc_Pivot_MountUpdate",
 
         // Spec 047 §14 Phase 1 (1.16) — external-assembly proof fixtures.
         // The MarqueeHandler is authored in tests/external_proof/
@@ -2399,6 +2410,23 @@ internal static class SelfTestFixtureRegistry
         "Desc_ListBox_Items" => new Spec047V1ProtocolDescriptorFixtures.DescListBoxItemsHost(harness),
         "Desc_ComboBox_Items" => new Spec047V1ProtocolDescriptorFixtures.DescComboBoxItemsHost(harness),
         "Desc_RadioButtons_Items" => new Spec047V1ProtocolDescriptorFixtures.DescRadioButtonsItemsHost(harness),
+
+        // Spec 047 §14 Phase 3 close-out — typed templated lists G2.
+        "Desc_TemplatedListView_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescTemplatedListViewMountUpdate(harness),
+        "Desc_TemplatedGridView_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescTemplatedGridViewMountUpdate(harness),
+
+        // Spec 047 §14 Phase 3 finish — Port (6) Lazy*Stack G2.
+        "Desc_LazyVStack_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescLazyVStackMountUpdate(harness),
+        "Desc_LazyHStack_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescLazyHStackMountUpdate(harness),
+
+        // Spec 047 §14 Phase 3 finish — Port (7) ItemsRepeater<T>.
+        "Desc_ItemsRepeater_MountUpdate" => new Spec047V1ProtocolDescriptorFixtures.DescItemsRepeaterMountUpdate(harness),
+
+        // Spec 047 §14 Phase 3 finish — Ports (8)+(9)+(10)+(11) G3 controls.
+        "Desc_TreeView_MountUpdate"  => new Spec047V1ProtocolDescriptorFixtures.DescTreeViewMountUpdate(harness),
+        "Desc_FlipView_MountUpdate"  => new Spec047V1ProtocolDescriptorFixtures.DescFlipViewMountUpdate(harness),
+        "Desc_TabView_MountUpdate"   => new Spec047V1ProtocolDescriptorFixtures.DescTabViewMountUpdate(harness),
+        "Desc_Pivot_MountUpdate"     => new Spec047V1ProtocolDescriptorFixtures.DescPivotMountUpdate(harness),
 
         // Spec 047 §14 Phase 1 (1.16) — external-assembly proof fixtures.
         "Spec047ExternalProof_Marquee_MountUpdate" => new Spec047ExternalProofFixtures.MarqueeMountUpdate(harness),

@@ -344,6 +344,20 @@ public sealed partial class Reconciler : IDisposable
             "<ContentControl HorizontalContentAlignment='Stretch' VerticalContentAlignment='Stretch'/>" +
             "</DataTemplate>"));
 
+    /// <summary>
+    /// Spec 047 §14 Phase 3 finish — text-bound TreeView item template
+    /// shared between the legacy <c>MountTreeView</c> arm and the
+    /// <see cref="V1Protocol.TreeChildren{TElement,TControl}"/> strategy.
+    /// In node mode the template's DataContext is <c>TreeViewNode</c>, so
+    /// <c>{Binding Content.Content}</c> resolves <c>TreeViewNode.Content</c>
+    /// (a <c>TreeViewNodeData</c>) → its <c>Content</c> (the display string).
+    /// </summary>
+    internal static readonly Lazy<DataTemplate> TreeViewTextItemTemplate = new(() =>
+        (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+            "<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'>" +
+            "<TextBlock Text='{Binding Content.Content}'/>" +
+            "</DataTemplate>"));
+
     // ════════════════════════════════════════════════════════════════════
     //  ReactorAttached.StateProperty  (ReactorState)
     // ════════════════════════════════════════════════════════════════════
@@ -389,6 +403,15 @@ public sealed partial class Reconciler : IDisposable
         // ops translate into container-level animations rather than full
         // re-realization.
         public Internal.ReactorListState? ListState;
+
+        // Spec 047 §14 Phase 3 close-out — descriptor-side per-index view
+        // source. Populated by Reconciler.BindKeyedItemsSource when a
+        // TemplatedItems<TItem,TElement,TControl> strategy is in effect.
+        // HandleTemplatedContainerContentChanging and RefreshRealizedContainers
+        // prefer this over the legacy TemplatedListElementBase fallback so
+        // descriptor-driven controls never need to inherit from the legacy
+        // abstract base.
+        public Internal.IItemViewSource? ItemViewSource;
 
         // Spec 047 §9.2 / §14 Phase 1 (1.7) — per-control event payload box.
         // Holds a strongly-typed payload struct (e.g. ToggleSwitchEventPayload)
@@ -481,6 +504,27 @@ public sealed partial class Reconciler : IDisposable
             return;
         }
         state = new ReactorState { ListState = listState };
+        control.SetValue(ReactorAttached.StateProperty, state);
+    }
+
+    // ── §14 Phase 3 close-out: per-control descriptor view source ──────
+
+    internal static Internal.IItemViewSource? GetItemViewSource(DependencyObject control)
+    {
+        if (control is FrameworkElement fe
+            && fe.GetValue(ReactorAttached.StateProperty) is ReactorState state)
+            return state.ItemViewSource;
+        return null;
+    }
+
+    internal static void SetItemViewSource(FrameworkElement control, Internal.IItemViewSource viewSource)
+    {
+        if (control.GetValue(ReactorAttached.StateProperty) is ReactorState state)
+        {
+            state.ItemViewSource = viewSource;
+            return;
+        }
+        state = new ReactorState { ItemViewSource = viewSource };
         control.SetValue(ReactorAttached.StateProperty, state);
     }
 
@@ -707,6 +751,33 @@ public sealed partial class Reconciler : IDisposable
         ArgumentNullException.ThrowIfNull(handler);
         EnsureRegistrableElementType(typeof(TElement), typeof(TControl), "RegisterHandler");
         _v1Handlers.Add(typeof(TElement), new V1Protocol.V1HandlerAdapter<TElement, TControl>(handler));
+    }
+
+    /// <summary>
+    /// §14 Phase 3 close-out — register a v1 handler that catches every
+    /// closed runtime type whose chain reaches <typeparamref name="TBase"/>.
+    /// Used by the typed templated-list descriptor ports
+    /// (<c>TemplatedListViewElement&lt;T&gt;</c> family) so a single
+    /// registration on a non-generic intermediate base routes every closed-T
+    /// variant — same T-erasure pattern the legacy
+    /// <see cref="Reconciler.Mount"/> switch uses.
+    ///
+    /// <para>Exact-type registrations via
+    /// <see cref="RegisterHandler{TElement,TControl}"/> always win over a
+    /// derived-type registration. Throws on duplicate base-type
+    /// registration.</para>
+    /// </summary>
+    [Experimental("REACTOR_V1_PREVIEW")]
+    public void RegisterHandlerForDerivedTypes<TBase, TControl>(V1Protocol.IElementHandler<TBase, TControl> handler)
+        where TBase : Element
+        where TControl : UIElement
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        // Open-generic base types (e.g. typeof(Foo<>)) and the legacy
+        // duplicate-registration policy are both validated in
+        // EnsureRegistrableElementType — reuse it.
+        EnsureRegistrableElementType(typeof(TBase), typeof(TControl), "RegisterHandlerForDerivedTypes");
+        _v1Handlers.AddForDerivedTypes(typeof(TBase), new V1Protocol.V1HandlerAdapter<TBase, TControl>(handler));
     }
 
     // ════════════════════════════════════════════════════════════════════

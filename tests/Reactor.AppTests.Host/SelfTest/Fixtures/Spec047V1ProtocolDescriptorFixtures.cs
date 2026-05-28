@@ -2934,6 +2934,57 @@ internal static class Spec047V1ProtocolDescriptorFixtures
             {
                 H.Check("Desc_RelativePanel_Mounted", false);
             }
+
+            // §14 Phase 3 close-out: PerChildAttachedAfterAll exercise.
+            // Two named children where B.RightOf = "A". After mount the
+            // descriptor's two-pass callback must have populated WinUI's
+            // RelativePanel.RightOf attached DP on uiB pointing at uiA.
+            var childA = TextBlock("RP_A") with
+            {
+                Attached = new global::System.Collections.Generic.Dictionary<global::System.Type, object>
+                {
+                    [typeof(RelativePanelAttached)] = new RelativePanelAttached("ItemA")
+                    {
+                        AlignLeftWithPanel = true,
+                        AlignTopWithPanel = true,
+                    },
+                },
+            };
+            var childB = TextBlock("RP_B") with
+            {
+                Attached = new global::System.Collections.Generic.Dictionary<global::System.Type, object>
+                {
+                    [typeof(RelativePanelAttached)] = new RelativePanelAttached("ItemB")
+                    {
+                        RightOf = "ItemA",
+                    },
+                },
+            };
+            var elTwoPass = new RelativePanelElement(Children: new Element[] { childA, childB });
+            var uiTwoPass = rec.Mount(elTwoPass, _noOp);
+            if (uiTwoPass is WinUI.RelativePanel rp2)
+            {
+                parent.Children.Add(rp2);
+                await Harness.Render();
+
+                var uiA = rp2.Children.Count > 0 ? rp2.Children[0] as FrameworkElement : null;
+                var uiB = rp2.Children.Count > 1 ? rp2.Children[1] as FrameworkElement : null;
+                H.Check("Desc_RelativePanel_TwoPass_BothMounted", uiA is not null && uiB is not null);
+                H.Check("Desc_RelativePanel_TwoPass_NameA", uiA?.Name == "ItemA");
+                H.Check("Desc_RelativePanel_TwoPass_NameB", uiB?.Name == "ItemB");
+                var resolvedRightOf = uiB is null ? null : WinUI.RelativePanel.GetRightOf(uiB) as UIElement;
+                H.Check("Desc_RelativePanel_TwoPass_RightOfResolved",
+                    resolvedRightOf is not null && ReferenceEquals(resolvedRightOf, uiA));
+                H.Check("Desc_RelativePanel_TwoPass_AlignLeftWithPanel",
+                    uiA is not null && WinUI.RelativePanel.GetAlignLeftWithPanel(uiA));
+
+                rec.UnmountChild(rp2);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_RelativePanel_TwoPass_BothMounted", false);
+            }
         }
     }
 
@@ -4226,20 +4277,21 @@ internal static class Spec047V1ProtocolDescriptorFixtures
                 H.Check("Desc_Path_Data_OtherPropsStillUpdate",
                     Math.Abs(p.StrokeThickness - 3) < 1e-9);
 
-                // PathDataString gate — when PathDataString is non-null the
-                // descriptor must NOT write Data (legacy XamlReader /
-                // parser path owns it). We can't easily verify the negative
-                // here without the legacy arm, but we can assert the gate
-                // by setting a fresh element with PathDataString and a
-                // non-null Data — Data write should be skipped, leaving
-                // the prior p.Data untouched.
+                // PathDataString surface — §14 Phase 3 finish Carve (14)
+                // ports PathDataString into the descriptor via the Engine (4)
+                // `.Imperative` entry. When PathDataString is non-null the
+                // descriptor MUST drive Data from the string (XamlReader
+                // strategy preferred, then PathDataParser fallback). Verify
+                // the prior p.Data reference was replaced and the new Data
+                // is a Geometry (XamlReader produces a PathGeometry for the
+                // simple "M0,0 L1,1" input).
                 var geometry3 = new Microsoft.UI.Xaml.Media.PathGeometry();
                 var el4 = el3 with { Data = geometry3, PathDataString = "M0,0 L1,1" };
                 rec.UpdateChild(el3, el4, p, _noOp);
                 await Harness.Render();
 
-                H.Check("Desc_Path_Data_PathDataStringGate",
-                    ReferenceEquals(p.Data, geometry2));
+                H.Check("Desc_Path_Data_PathDataStringPorted",
+                    p.Data is not null && !ReferenceEquals(p.Data, geometry2));
 
                 rec.UnmountChild(p);
                 parent.Children.Clear();
@@ -4559,6 +4611,633 @@ internal static class Spec047V1ProtocolDescriptorFixtures
             else
             {
                 H.Check("Desc_RadioButtons_Items_Mounted", false);
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Spec 047 §14 Phase 3 close-out — typed templated lists G2.
+    //  TemplatedListView<T> / TemplatedGridView<T> via base-derived
+    //  registration + TemplatedItemsErased<> strategy. The base
+    //  registration catches every closed-T variant; items + keys flow
+    //  through the element's IKeyedItemSource implementation.
+    // ════════════════════════════════════════════════════════════════════
+
+    internal class DescTemplatedListViewMountUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var rec = NewDescriptorReconciler();
+            // Single base-derived registration catches TemplatedListViewElement<int>,
+            // TemplatedListViewElement<string>, etc. — no per-T registration.
+            rec.RegisterHandlerForDerivedTypes<TemplatedListViewElementBase, WinUI.ListView>(
+                new DescriptorHandler<TemplatedListViewElementBase, WinUI.ListView>(
+                    TemplatedListViewDescriptor.Descriptor));
+
+            var parent = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            H.SetContent(parent);
+
+            var el1 = new TemplatedListViewElement<string>(
+                Items: new[] { "a", "b", "c" },
+                KeySelector: static s => s,
+                ViewBuilder: static (s, _) => new TextBlockElement(s))
+            {
+                SelectedIndex = 1,
+                Header = "TheHeader",
+                SelectionMode = ListViewSelectionMode.Single,
+            };
+            var ui = rec.Mount(el1, _noOp);
+            if (ui is WinUI.ListView lv)
+            {
+                parent.Children.Add(lv);
+                await Harness.Render();
+
+                H.Check("Desc_TemplatedListView_Mounted", true);
+                H.Check("Desc_TemplatedListView_HeaderApplied", (lv.Header as string) == "TheHeader");
+                H.Check("Desc_TemplatedListView_SelectionMode",
+                    lv.SelectionMode == ListViewSelectionMode.Single);
+                // ItemsSource is the OC<ReactorRow> via the binder + spec-042 state.
+                var listState = Reconciler.GetListState(lv);
+                H.Check("Desc_TemplatedListView_ListStateAttached", listState is not null);
+                H.Check("Desc_TemplatedListView_ItemsSourceBound",
+                    listState is not null && ReferenceEquals(lv.ItemsSource, listState.Source));
+                H.Check("Desc_TemplatedListView_ItemCount3", listState is not null && listState.Source.Count == 3);
+                H.Check("Desc_TemplatedListView_KeysOk",
+                    listState is not null
+                        && listState.Source[0].Key == "a"
+                        && listState.Source[1].Key == "b"
+                        && listState.Source[2].Key == "c");
+                H.Check("Desc_TemplatedListView_InitialSelectedIndexApplied", lv.SelectedIndex == 1);
+
+                // Keyed diff — insert one in the middle, remove one from end.
+                var el2 = el1 with
+                {
+                    Items = new[] { "a", "z", "b" },
+                };
+                rec.UpdateChild(el1, el2, lv, _noOp);
+                await Harness.Render();
+
+                listState = Reconciler.GetListState(lv);
+                H.Check("Desc_TemplatedListView_DiffApplied_Count3",
+                    listState is not null && listState.Source.Count == 3);
+                H.Check("Desc_TemplatedListView_DiffApplied_KeysOk",
+                    listState is not null
+                        && listState.Source[0].Key == "a"
+                        && listState.Source[1].Key == "z"
+                        && listState.Source[2].Key == "b");
+
+                // Same-ref idempotent.
+                rec.UpdateChild(el2, el2, lv, _noOp);
+                await Harness.Render();
+                listState = Reconciler.GetListState(lv);
+                H.Check("Desc_TemplatedListView_SameRefIdempotent",
+                    listState is not null && listState.Source.Count == 3);
+
+                rec.UnmountChild(lv);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_TemplatedListView_Mounted", false);
+            }
+        }
+    }
+
+    internal class DescTemplatedGridViewMountUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var rec = NewDescriptorReconciler();
+            rec.RegisterHandlerForDerivedTypes<TemplatedGridViewElementBase, WinUI.GridView>(
+                new DescriptorHandler<TemplatedGridViewElementBase, WinUI.GridView>(
+                    TemplatedGridViewDescriptor.Descriptor));
+
+            var parent = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            H.SetContent(parent);
+
+            var el1 = new TemplatedGridViewElement<int>(
+                Items: new[] { 10, 20, 30 },
+                KeySelector: static i => i.ToString(),
+                ViewBuilder: static (i, _) => new TextBlockElement(i.ToString()))
+            {
+                SelectionMode = ListViewSelectionMode.Multiple,
+            };
+            var ui = rec.Mount(el1, _noOp);
+            if (ui is WinUI.GridView gv)
+            {
+                parent.Children.Add(gv);
+                await Harness.Render();
+
+                H.Check("Desc_TemplatedGridView_Mounted", true);
+                H.Check("Desc_TemplatedGridView_SelectionMode",
+                    gv.SelectionMode == ListViewSelectionMode.Multiple);
+                var state = Reconciler.GetListState(gv);
+                H.Check("Desc_TemplatedGridView_ListStateAttached", state is not null);
+                H.Check("Desc_TemplatedGridView_Keys",
+                    state is not null
+                        && state.Source[0].Key == "10"
+                        && state.Source[1].Key == "20"
+                        && state.Source[2].Key == "30");
+
+                var el2 = el1 with
+                {
+                    Items = new[] { 10, 30 }, // remove middle
+                };
+                rec.UpdateChild(el1, el2, gv, _noOp);
+                await Harness.Render();
+
+                state = Reconciler.GetListState(gv);
+                H.Check("Desc_TemplatedGridView_DiffApplied_Count2",
+                    state is not null && state.Source.Count == 2);
+                H.Check("Desc_TemplatedGridView_DiffApplied_KeysOk",
+                    state is not null
+                        && state.Source[0].Key == "10"
+                        && state.Source[1].Key == "30");
+
+                rec.UnmountChild(gv);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_TemplatedGridView_Mounted", false);
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Spec 047 §14 Phase 3 finish — Port (6) Lazy*Stack G2.
+    //  LazyVStack<T> / LazyHStack<T> via base-derived registration +
+    //  TemplatedItemsErased<> strategy. One descriptor on
+    //  LazyStackElementBase catches both orientations; items + keys flow
+    //  through the element's IKeyedItemSource implementation, factory +
+    //  layout knobs through its IItemsRepeaterFactorySource.
+    // ════════════════════════════════════════════════════════════════════
+
+    internal class DescLazyVStackMountUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var rec = NewDescriptorReconciler();
+            rec.RegisterHandlerForDerivedTypes<LazyStackElementBase, WinUI.ItemsRepeater>(
+                new DescriptorHandler<LazyStackElementBase, WinUI.ItemsRepeater>(
+                    LazyStackDescriptor.Descriptor));
+
+            var parent = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            H.SetContent(parent);
+
+            var el1 = new LazyVStackElement<string>(
+                Items: new[] { "a", "b", "c" },
+                KeySelector: static s => s,
+                ViewBuilder: static (s, _) => new TextBlockElement(s))
+            {
+                Spacing = 12,
+            };
+            var ui = rec.Mount(el1, _noOp);
+            if (ui is WinUI.ItemsRepeater ir)
+            {
+                parent.Children.Add(ir);
+                await Harness.Render();
+
+                H.Check("Desc_LazyVStack_Mounted", true);
+                H.Check("Desc_LazyVStack_LayoutIsStack", ir.Layout is WinUI.StackLayout);
+                H.Check("Desc_LazyVStack_OrientationVertical",
+                    ir.Layout is WinUI.StackLayout l1 && l1.Orientation == Orientation.Vertical);
+                H.Check("Desc_LazyVStack_SpacingApplied",
+                    ir.Layout is WinUI.StackLayout l2 && Math.Abs(l2.Spacing - 12d) < 1e-9);
+
+                var listState = Reconciler.GetListState(ir);
+                H.Check("Desc_LazyVStack_ListStateAttached", listState is not null);
+                H.Check("Desc_LazyVStack_ItemsSourceBound",
+                    listState is not null && ReferenceEquals(ir.ItemsSource, listState.Source));
+                H.Check("Desc_LazyVStack_ItemCount3", listState is not null && listState.Source.Count == 3);
+                H.Check("Desc_LazyVStack_KeysOk",
+                    listState is not null
+                        && listState.Source[0].Key == "a"
+                        && listState.Source[1].Key == "b"
+                        && listState.Source[2].Key == "c");
+                H.Check("Desc_LazyVStack_FactoryAttached", ir.ItemTemplate is not null);
+
+                // Keyed diff — insert in middle.
+                var el2 = el1 with
+                {
+                    Items = new[] { "a", "z", "b", "c" },
+                    Spacing = 16, // change spacing too — in-place layout update path
+                };
+                rec.UpdateChild(el1, el2, ir, _noOp);
+                await Harness.Render();
+
+                listState = Reconciler.GetListState(ir);
+                H.Check("Desc_LazyVStack_DiffApplied_Count4",
+                    listState is not null && listState.Source.Count == 4);
+                H.Check("Desc_LazyVStack_DiffApplied_KeysOk",
+                    listState is not null
+                        && listState.Source[0].Key == "a"
+                        && listState.Source[1].Key == "z"
+                        && listState.Source[2].Key == "b"
+                        && listState.Source[3].Key == "c");
+                H.Check("Desc_LazyVStack_LayoutReusedOnUpdate",
+                    ir.Layout is WinUI.StackLayout l3 && Math.Abs(l3.Spacing - 16d) < 1e-9 && l3.Orientation == Orientation.Vertical);
+
+                // Same-ref idempotent.
+                rec.UpdateChild(el2, el2, ir, _noOp);
+                await Harness.Render();
+                listState = Reconciler.GetListState(ir);
+                H.Check("Desc_LazyVStack_SameRefIdempotent",
+                    listState is not null && listState.Source.Count == 4);
+
+                rec.UnmountChild(ir);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_LazyVStack_Mounted", false);
+            }
+        }
+    }
+
+    internal class DescLazyHStackMountUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var rec = NewDescriptorReconciler();
+            rec.RegisterHandlerForDerivedTypes<LazyStackElementBase, WinUI.ItemsRepeater>(
+                new DescriptorHandler<LazyStackElementBase, WinUI.ItemsRepeater>(
+                    LazyStackDescriptor.Descriptor));
+
+            var parent = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            H.SetContent(parent);
+
+            var el1 = new LazyHStackElement<int>(
+                Items: new[] { 1, 2, 3 },
+                KeySelector: static i => i.ToString(),
+                ViewBuilder: static (i, _) => new TextBlockElement(i.ToString()));
+            var ui = rec.Mount(el1, _noOp);
+            if (ui is WinUI.ItemsRepeater ir)
+            {
+                parent.Children.Add(ir);
+                await Harness.Render();
+
+                H.Check("Desc_LazyHStack_Mounted", true);
+                H.Check("Desc_LazyHStack_OrientationHorizontal",
+                    ir.Layout is WinUI.StackLayout l && l.Orientation == Orientation.Horizontal);
+
+                var listState = Reconciler.GetListState(ir);
+                H.Check("Desc_LazyHStack_KeysOk",
+                    listState is not null
+                        && listState.Source[0].Key == "1"
+                        && listState.Source[1].Key == "2"
+                        && listState.Source[2].Key == "3");
+
+                // Remove last.
+                var el2 = el1 with { Items = new[] { 1, 2 } };
+                rec.UpdateChild(el1, el2, ir, _noOp);
+                await Harness.Render();
+                listState = Reconciler.GetListState(ir);
+                H.Check("Desc_LazyHStack_DiffApplied_Count2",
+                    listState is not null && listState.Source.Count == 2);
+
+                rec.UnmountChild(ir);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_LazyHStack_Mounted", false);
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    //  §14 Phase 3 finish — Port (7) ItemsRepeater<T> via Engine (1).
+    // ────────────────────────────────────────────────────────────────────
+
+    internal class DescItemsRepeaterMountUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var rec = NewDescriptorReconciler();
+            rec.RegisterHandlerForDerivedTypes<ItemsRepeaterElementBase, WinUI.ItemsRepeater>(
+                new DescriptorHandler<ItemsRepeaterElementBase, WinUI.ItemsRepeater>(
+                    ItemsRepeaterDescriptor.Descriptor));
+
+            var parent = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            H.SetContent(parent);
+
+            var customLayout = new WinUI.UniformGridLayout
+            {
+                MinRowSpacing = 4,
+                MinColumnSpacing = 4,
+            };
+            var el1 = new ItemsRepeaterElement<string>(
+                Items: new[] { "alpha", "beta", "gamma" },
+                KeySelector: static s => s,
+                ViewBuilder: static (s, _) => new TextBlockElement(s))
+            {
+                Layout = customLayout,
+            };
+            var ui = rec.Mount(el1, _noOp);
+            if (ui is WinUI.ItemsRepeater ir)
+            {
+                parent.Children.Add(ir);
+                await Harness.Render();
+                H.Check("Desc_ItemsRepeater_Mounted", true);
+                // Verify by layout shape rather than reference identity —
+                // WinRT projection can rewrap Layout across the ABI.
+                H.Check("Desc_ItemsRepeater_LayoutIsUniformGrid",
+                    ir.Layout is WinUI.UniformGridLayout ug && Math.Abs(ug.MinRowSpacing - 4d) < 1e-9);
+
+                var listState = Reconciler.GetListState(ir);
+                H.Check("Desc_ItemsRepeater_ListStateAttached", listState is not null);
+                H.Check("Desc_ItemsRepeater_ItemsSourceBound",
+                    listState is not null && ReferenceEquals(ir.ItemsSource, listState.Source));
+                H.Check("Desc_ItemsRepeater_ItemCount3",
+                    listState is not null && listState.Source.Count == 3);
+                H.Check("Desc_ItemsRepeater_KeysOk",
+                    listState is not null
+                        && listState.Source[0].Key == "alpha"
+                        && listState.Source[1].Key == "beta"
+                        && listState.Source[2].Key == "gamma");
+                H.Check("Desc_ItemsRepeater_FactoryAttached", ir.ItemTemplate is not null);
+
+                // Keyed insert in middle, plus a new Layout instance to
+                // verify the engine swaps Layout by reference identity.
+                var newLayout = new WinUI.StackLayout { Spacing = 4 };
+                var el2 = el1 with
+                {
+                    Items = new[] { "alpha", "delta", "beta", "gamma" },
+                    Layout = newLayout,
+                };
+                rec.UpdateChild(el1, el2, ir, _noOp);
+                await Harness.Render();
+
+                H.Check("Desc_ItemsRepeater_LayoutSwapped",
+                    ir.Layout is WinUI.StackLayout sl && Math.Abs(sl.Spacing - 4d) < 1e-9);
+                listState = Reconciler.GetListState(ir);
+                H.Check("Desc_ItemsRepeater_DiffApplied_Count4",
+                    listState is not null && listState.Source.Count == 4);
+                H.Check("Desc_ItemsRepeater_DiffApplied_KeysOk",
+                    listState is not null
+                        && listState.Source[0].Key == "alpha"
+                        && listState.Source[1].Key == "delta"
+                        && listState.Source[2].Key == "beta"
+                        && listState.Source[3].Key == "gamma");
+
+                // Same-ref idempotent update.
+                rec.UpdateChild(el2, el2, ir, _noOp);
+                await Harness.Render();
+                listState = Reconciler.GetListState(ir);
+                H.Check("Desc_ItemsRepeater_SameRefIdempotent",
+                    listState is not null && listState.Source.Count == 4);
+
+                rec.UnmountChild(ir);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_ItemsRepeater_Mounted", false);
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    //  §14 Phase 3 finish — Port (8) TreeView via TreeChildren strategy.
+    // ────────────────────────────────────────────────────────────────────
+
+    internal class DescTreeViewMountUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var rec = NewDescriptorReconciler();
+            rec.RegisterHandler<TreeViewElement, WinUI.TreeView>(
+                new DescriptorHandler<TreeViewElement, WinUI.TreeView>(TreeViewDescriptor.Descriptor));
+
+            var parent = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            H.SetContent(parent);
+
+            var el1 = new TreeViewElement(new[]
+            {
+                new TreeViewNodeData("root1", Children: new[]
+                {
+                    new TreeViewNodeData("child1a"),
+                    new TreeViewNodeData("child1b"),
+                }),
+                new TreeViewNodeData("root2"),
+            });
+            var ui = rec.Mount(el1, _noOp);
+            if (ui is WinUI.TreeView tv)
+            {
+                parent.Children.Add(tv);
+                await Harness.Render();
+                H.Check("Desc_TreeView_Mounted", true);
+                H.Check("Desc_TreeView_RootCount2", tv.RootNodes.Count == 2);
+                H.Check("Desc_TreeView_FirstNodeContent",
+                    tv.RootNodes[0].Content is TreeViewNodeData d1 && d1.Content == "root1");
+                H.Check("Desc_TreeView_FirstNodeChildCount2", tv.RootNodes[0].Children.Count == 2);
+                H.Check("Desc_TreeView_NestedChildContent",
+                    tv.RootNodes[0].Children[0].Content is TreeViewNodeData d2 && d2.Content == "child1a");
+
+                // Update — different tree shape (positional rebuild).
+                var el2 = el1 with
+                {
+                    Nodes = new[]
+                    {
+                        new TreeViewNodeData("rootA"),
+                        new TreeViewNodeData("rootB"),
+                        new TreeViewNodeData("rootC"),
+                    }
+                };
+                rec.UpdateChild(el1, el2, tv, _noOp);
+                await Harness.Render();
+                H.Check("Desc_TreeView_AfterUpdate_Count3", tv.RootNodes.Count == 3);
+                H.Check("Desc_TreeView_AfterUpdate_FirstContent",
+                    tv.RootNodes[0].Content is TreeViewNodeData d3 && d3.Content == "rootA");
+
+                rec.UnmountChild(tv);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_TreeView_Mounted", false);
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    //  §14 Phase 3 finish — Port (9) FlipView via ItemsHost reuse.
+    // ────────────────────────────────────────────────────────────────────
+
+    internal class DescFlipViewMountUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var rec = NewDescriptorReconciler();
+            rec.RegisterHandler<FlipViewElement, WinUI.FlipView>(
+                new DescriptorHandler<FlipViewElement, WinUI.FlipView>(FlipViewDescriptor.Descriptor));
+
+            var parent = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            H.SetContent(parent);
+
+            int selectedFires = 0;
+            int lastSelected = -1;
+            var el1 = new FlipViewElement(new Element[]
+            {
+                new TextBlockElement("page-a"),
+                new TextBlockElement("page-b"),
+                new TextBlockElement("page-c"),
+            })
+            {
+                SelectedIndex = 1,
+                OnSelectedIndexChanged = i => { selectedFires++; lastSelected = i; },
+            };
+            var ui = rec.Mount(el1, _noOp);
+            if (ui is WinUI.FlipView fv)
+            {
+                parent.Children.Add(fv);
+                await Harness.Render();
+                H.Check("Desc_FlipView_Mounted", true);
+                H.Check("Desc_FlipView_ItemsCount3", fv.Items.Count == 3);
+                H.Check("Desc_FlipView_SelectedIndex1", fv.SelectedIndex == 1);
+                H.Check("Desc_FlipView_MountDidNotFire", selectedFires == 0);
+
+                // Update SelectedIndex; descriptor uses .HandCodedControlled
+                // so the programmatic write is suppressed against echo.
+                var el2 = el1 with { SelectedIndex = 2 };
+                rec.UpdateChild(el1, el2, fv, _noOp);
+                await Harness.Render();
+                H.Check("Desc_FlipView_SelectedIndexUpdated", fv.SelectedIndex == 2);
+                H.Check("Desc_FlipView_NoEchoOnProgrammaticWrite", selectedFires == 0);
+
+                rec.UnmountChild(fv);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_FlipView_Mounted", false);
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    //  §14 Phase 3 finish — Port (10) TabView via TabItemsHost.
+    // ────────────────────────────────────────────────────────────────────
+
+    internal class DescTabViewMountUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var rec = NewDescriptorReconciler();
+            rec.RegisterHandler<TabViewElement, WinUI.TabView>(
+                new DescriptorHandler<TabViewElement, WinUI.TabView>(TabViewDescriptor.Descriptor));
+
+            var parent = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            H.SetContent(parent);
+
+            var el1 = new TabViewElement(new[]
+            {
+                new TabViewItemData("tab-a", new TextBlockElement("content-a")),
+                new TabViewItemData("tab-b", new TextBlockElement("content-b")) { IsClosable = false },
+            })
+            {
+                SelectedIndex = 0,
+                IsAddTabButtonVisible = true,
+            };
+            var ui = rec.Mount(el1, _noOp);
+            if (ui is WinUI.TabView tv)
+            {
+                parent.Children.Add(tv);
+                await Harness.Render();
+                H.Check("Desc_TabView_Mounted", true);
+                H.Check("Desc_TabView_TabCount2", tv.TabItems.Count == 2);
+                H.Check("Desc_TabView_FirstTabHeader",
+                    tv.TabItems[0] is WinUI.TabViewItem tvi0 && (tvi0.Header as string) == "tab-a");
+                H.Check("Desc_TabView_SecondTabClosable",
+                    tv.TabItems[1] is WinUI.TabViewItem tvi1 && tvi1.IsClosable == false);
+                H.Check("Desc_TabView_AddButtonVisible", tv.IsAddTabButtonVisible == true);
+                H.Check("Desc_TabView_SelectedIndex0", tv.SelectedIndex == 0);
+
+                // Update — rebuild with different tab set.
+                var el2 = el1 with
+                {
+                    Tabs = new[]
+                    {
+                        new TabViewItemData("tab-x", new TextBlockElement("content-x")),
+                    },
+                    IsAddTabButtonVisible = false,
+                };
+                rec.UpdateChild(el1, el2, tv, _noOp);
+                await Harness.Render();
+                H.Check("Desc_TabView_AfterUpdate_Count1", tv.TabItems.Count == 1);
+                H.Check("Desc_TabView_AfterUpdate_HeaderX",
+                    tv.TabItems[0] is WinUI.TabViewItem tvi2 && (tvi2.Header as string) == "tab-x");
+                H.Check("Desc_TabView_AfterUpdate_AddButtonHidden", tv.IsAddTabButtonVisible == false);
+
+                rec.UnmountChild(tv);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_TabView_Mounted", false);
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    //  §14 Phase 3 finish — Port (11) Pivot via TabItemsHost (PivotItem container).
+    // ────────────────────────────────────────────────────────────────────
+
+    internal class DescPivotMountUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var rec = NewDescriptorReconciler();
+            rec.RegisterHandler<PivotElement, WinUI.Pivot>(
+                new DescriptorHandler<PivotElement, WinUI.Pivot>(PivotDescriptor.Descriptor));
+
+            var parent = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            H.SetContent(parent);
+
+            var el1 = new PivotElement(new[]
+            {
+                new PivotItemData("pivot-a", new TextBlockElement("body-a")),
+                new PivotItemData("pivot-b", new TextBlockElement("body-b")),
+            })
+            {
+                SelectedIndex = 0,
+                Title = "My Pivot",
+            };
+            var ui = rec.Mount(el1, _noOp);
+            if (ui is WinUI.Pivot pv)
+            {
+                parent.Children.Add(pv);
+                await Harness.Render();
+                H.Check("Desc_Pivot_Mounted", true);
+                H.Check("Desc_Pivot_ItemsCount2", pv.Items.Count == 2);
+                H.Check("Desc_Pivot_FirstItemHeader",
+                    pv.Items[0] is WinUI.PivotItem pi0 && (pi0.Header as string) == "pivot-a");
+                H.Check("Desc_Pivot_TitleSet", (pv.Title as string) == "My Pivot");
+                H.Check("Desc_Pivot_SelectedIndex0", pv.SelectedIndex == 0);
+
+                // Update — different items.
+                var el2 = el1 with
+                {
+                    Items = new[]
+                    {
+                        new PivotItemData("pivot-x", new TextBlockElement("body-x")),
+                        new PivotItemData("pivot-y", new TextBlockElement("body-y")),
+                        new PivotItemData("pivot-z", new TextBlockElement("body-z")),
+                    },
+                };
+                rec.UpdateChild(el1, el2, pv, _noOp);
+                await Harness.Render();
+                H.Check("Desc_Pivot_AfterUpdate_Count3", pv.Items.Count == 3);
+                H.Check("Desc_Pivot_AfterUpdate_FirstHeader",
+                    pv.Items[0] is WinUI.PivotItem pi2 && (pi2.Header as string) == "pivot-x");
+
+                rec.UnmountChild(pv);
+                parent.Children.Clear();
+            }
+            else
+            {
+                H.Check("Desc_Pivot_Mounted", false);
             }
         }
     }

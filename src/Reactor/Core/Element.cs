@@ -2988,7 +2988,7 @@ public enum TemplatedControlKind { ListView, GridView, FlipView }
 /// Abstract base for data-driven items controls. Non-generic so the reconciler
 /// can match on a single type in its switch expression (same pattern as LazyStackElementBase).
 /// </summary>
-public abstract record TemplatedListElementBase : Element
+public abstract record TemplatedListElementBase : Element, global::Microsoft.UI.Reactor.Core.Internal.IItemViewSource, global::Microsoft.UI.Reactor.Core.Internal.IKeyedItemSource
 {
     public abstract TemplatedControlKind ControlKind { get; }
     public abstract int ItemCount { get; }
@@ -3005,6 +3005,11 @@ public abstract record TemplatedListElementBase : Element
     /// pre-mounts so it does not participate.
     /// </summary>
     internal abstract string GetKeyAt(int index);
+    // §14 Phase 3 close-out — bridge the internal abstract to the public
+    // IKeyedItemSource contract via explicit interface implementation so
+    // the abstract stays internal (spec 042 decision) while descriptor
+    // ports can still read keys through the IKeyedItemSource handle.
+    string global::Microsoft.UI.Reactor.Core.Internal.IKeyedItemSource.GetKeyAt(int index) => GetKeyAt(index);
     public abstract void InvokeSelectionChanged(int index);
     public abstract void InvokeItemClick(int index);
     public abstract void ApplyControlSetters(object control);
@@ -3030,11 +3035,46 @@ public abstract record TemplatedListElementBase : Element
     internal virtual bool HasMultiSelectionCallback => false;
 }
 
+/// <summary>
+/// Spec 047 §14 Phase 3 close-out — empty marker intermediate that lets
+/// the v1 handler registry route every closed
+/// <c>TemplatedListViewElement&lt;T&gt;</c> through a single base-derived
+/// descriptor registration without an open-generic resolver. Adds no
+/// fields and no overrides, so record equality on the leaf type
+/// <c>TemplatedListViewElement&lt;T&gt;</c> is unchanged.
+/// </summary>
+public abstract record TemplatedListViewElementBase : TemplatedListElementBase
+{
+    public sealed override TemplatedControlKind ControlKind => TemplatedControlKind.ListView;
+}
+
+/// <summary>
+/// Spec 047 §14 Phase 3 close-out — see
+/// <see cref="TemplatedListViewElementBase"/>.
+/// </summary>
+public abstract record TemplatedGridViewElementBase : TemplatedListElementBase
+{
+    public sealed override TemplatedControlKind ControlKind => TemplatedControlKind.GridView;
+}
+
+/// <summary>
+/// Spec 047 §14 Phase 3 close-out — see
+/// <see cref="TemplatedListViewElementBase"/>. FlipView descriptor port
+/// is carved to Phase 4 because FlipView does not support
+/// <c>ContainerContentChanging</c> (pre-mounts items via a different
+/// shape); the marker is reserved so the symmetry is visible in the
+/// element hierarchy.
+/// </summary>
+public abstract record TemplatedFlipViewElementBase : TemplatedListElementBase
+{
+    public sealed override TemplatedControlKind ControlKind => TemplatedControlKind.FlipView;
+}
+
 public record TemplatedListViewElement<T>(
     IReadOnlyList<T> Items,
     Func<T, string> KeySelector,
     Func<T, int, Element> ViewBuilder
-) : TemplatedListElementBase
+) : TemplatedListViewElementBase
 {
     public int SelectedIndex { get; init; } = -1;
     public Action<int>? OnSelectedIndexChanged { get; init; }
@@ -3049,7 +3089,6 @@ public record TemplatedListViewElement<T>(
     public Action<IReadOnlyList<T>>? OnSelectionChanged { get; init; }
     internal Action<WinUI.ListView>[] Setters { get; init; } = [];
 
-    public override TemplatedControlKind ControlKind => TemplatedControlKind.ListView;
     public override int ItemCount => Items.Count;
     public override int GetSelectedIndex() => SelectedIndex;
     public override ListViewSelectionMode GetSelectionMode() => SelectionMode;
@@ -3081,7 +3120,7 @@ public record TemplatedGridViewElement<T>(
     IReadOnlyList<T> Items,
     Func<T, string> KeySelector,
     Func<T, int, Element> ViewBuilder
-) : TemplatedListElementBase
+) : TemplatedGridViewElementBase
 {
     public int SelectedIndex { get; init; } = -1;
     public Action<int>? OnSelectedIndexChanged { get; init; }
@@ -3095,7 +3134,6 @@ public record TemplatedGridViewElement<T>(
     public Action<IReadOnlyList<T>>? OnSelectionChanged { get; init; }
     internal Action<WinUI.GridView>[] Setters { get; init; } = [];
 
-    public override TemplatedControlKind ControlKind => TemplatedControlKind.GridView;
     public override int ItemCount => Items.Count;
     public override int GetSelectedIndex() => SelectedIndex;
     public override ListViewSelectionMode GetSelectionMode() => SelectionMode;
@@ -3127,13 +3165,12 @@ public record TemplatedFlipViewElement<T>(
     IReadOnlyList<T> Items,
     Func<T, string> KeySelector,
     Func<T, int, Element> ViewBuilder
-) : TemplatedListElementBase
+) : TemplatedFlipViewElementBase
 {
     public int SelectedIndex { get; init; } = 0;
     public Action<int>? OnSelectedIndexChanged { get; init; }
     internal Action<WinUI.FlipView>[] Setters { get; init; } = [];
 
-    public override TemplatedControlKind ControlKind => TemplatedControlKind.FlipView;
     public override int ItemCount => Items.Count;
     public override int GetSelectedIndex() => SelectedIndex;
     public override ListViewSelectionMode GetSelectionMode() => ListViewSelectionMode.Single;
@@ -3162,8 +3199,16 @@ public record TemplatedFlipViewElement<T>(
 /// <summary>
 /// Abstract base for virtualized lazy stacks. Non-generic so the reconciler
 /// can match on a single type in its switch expression.
+///
+/// <para>Spec 047 §14 Phase 3 finish — Port (6): also implements
+/// <see cref="Internal.IKeyedItemSource"/> and
+/// <see cref="IItemsRepeaterFactorySource"/> so the descriptor-driven
+/// G2 port (<c>LazyStackDescriptor</c>) can flow Lazy*Stack through
+/// <see cref="Reconciler.BindErasedKeyedItemsSource"/>'s ItemsRepeater
+/// arm — same realization plumbing as the hand-coded
+/// <c>MountLazyStack</c> / <c>UpdateLazyStack</c> bodies.</para>
 /// </summary>
-public abstract record LazyStackElementBase : Element
+public abstract record LazyStackElementBase : Element, Internal.IKeyedItemSource, IItemsRepeaterFactorySource
 {
     public abstract Orientation Orientation { get; }
     public abstract double Spacing { get; init; }
@@ -3177,6 +3222,18 @@ public abstract record LazyStackElementBase : Element
     /// string consumed by spec 042's keyed-list reconciliation pipeline.
     /// </summary>
     internal abstract string GetKeyAt(int index);
+    /// <summary>
+    /// §14 Phase 3 finish — Port (6): build the per-item Element subtree
+    /// for index N. Same shape as <c>TemplatedListElementBase.BuildItemView</c>;
+    /// the descriptor binder reads this through the
+    /// <see cref="Internal.IItemViewSource"/> contract (bridged via
+    /// <see cref="Internal.IKeyedItemSource"/>) when the factory realizes
+    /// a container.
+    /// </summary>
+    public abstract Element BuildItemView(int index);
+    // IKeyedItemSource explicit bridge — forward to the existing internal
+    // GetKeyAt without exposing it publicly.
+    string Internal.IKeyedItemSource.GetKeyAt(int index) => GetKeyAt(index);
     public abstract IElementFactory CreateFactory(Reconciler reconciler, Action requestRerender, ElementPool? pool);
     /// <summary>
     /// Update an existing factory's items and viewBuilder in place, avoiding
@@ -3191,11 +3248,42 @@ public abstract record LazyStackElementBase : Element
     /// index — keying by string makes the mapping reorder-stable.
     /// </summary>
     internal abstract void AttachListStateToFactory(IElementFactory factory, Internal.ReactorListState listState);
+    // IItemsRepeaterFactorySource bridge — same internal abstract surface
+    // is exposed under the interface contract so the descriptor binder
+    // (which only knows about the interface) can call it.
+    void IItemsRepeaterFactorySource.AttachListStateToFactory(IElementFactory factory, Internal.ReactorListState listState)
+        => AttachListStateToFactory(factory, listState);
     /// <summary>
     /// After updating the factory in place, reconcile all realized items
     /// with the new viewBuilder output (property diffs only, no collection changes).
     /// </summary>
     public abstract void RefreshRealizedItems(IElementFactory factory, WinUI.ItemsRepeater repeater);
+    /// <summary>
+    /// §14 Phase 3 finish — Port (6): set <see cref="WinUI.ItemsRepeater.Layout"/>
+    /// to a <see cref="WinUI.StackLayout"/> with this element's
+    /// <see cref="Orientation"/> + <see cref="Spacing"/>. Mirrors the
+    /// inline assignment in legacy <c>MountLazyStack</c>
+    /// (Reconciler.Mount.cs ~:3148) plus the in-place Spacing update from
+    /// <c>UpdateLazyStack</c> (Reconciler.Update.cs ~:3109). Reuses the
+    /// existing <c>StackLayout</c> when both orientation and spacing match
+    /// — avoids re-allocating a Layout on every Update.
+    /// </summary>
+    void IItemsRepeaterFactorySource.ConfigureLayout(WinUI.ItemsRepeater repeater)
+    {
+        if (repeater.Layout is WinUI.StackLayout existing && existing.Orientation == Orientation)
+        {
+            // Epsilon compare per the spec-047 Phase 3-final fixture
+            // convention (b0910016) — CodeQL flags `!=` on double, and the
+            // engine never needs to react to sub-nanometer Spacing changes.
+            if (Math.Abs(existing.Spacing - Spacing) > 1e-9) existing.Spacing = Spacing;
+            return;
+        }
+        repeater.Layout = new WinUI.StackLayout
+        {
+            Orientation = Orientation,
+            Spacing = Spacing,
+        };
+    }
     internal Action<WinUI.ScrollViewer>[] ScrollViewerSetters { get; init; } = [];
     internal Action<WinUI.ItemsRepeater>[] RepeaterSetters { get; init; } = [];
 }
@@ -3211,6 +3299,7 @@ public record LazyVStackElement<T>(
     public override double EstimatedItemSize { get; init; } = 40;
     public override int ItemCount => Items.Count;
     internal override string GetKeyAt(int index) => KeySelector(Items[index]);
+    public override Element BuildItemView(int index) => ViewBuilder(Items[index], index);
 
     public override object GetItemsSource() =>
         Enumerable.Range(0, Items.Count).ToList();
@@ -3246,9 +3335,116 @@ public record LazyHStackElement<T>(
     public override double EstimatedItemSize { get; init; } = 100;
     public override int ItemCount => Items.Count;
     internal override string GetKeyAt(int index) => KeySelector(Items[index]);
+    public override Element BuildItemView(int index) => ViewBuilder(Items[index], index);
 
     public override object GetItemsSource() =>
         Enumerable.Range(0, Items.Count).ToList();
+
+    public override IElementFactory CreateFactory(Reconciler reconciler, Action requestRerender, ElementPool? pool) =>
+        new ElementFactory<T>(Items, ViewBuilder, reconciler, requestRerender, pool);
+
+    public override bool TryUpdateFactory(IElementFactory existingFactory)
+    {
+        if (existingFactory is ElementFactory<T> f) { f.UpdateInPlace(Items, ViewBuilder); return true; }
+        return false;
+    }
+
+    public override void RefreshRealizedItems(IElementFactory factory, WinUI.ItemsRepeater repeater)
+    {
+        if (factory is ElementFactory<T> f) f.RefreshRealizedItems(repeater);
+    }
+
+    internal override void AttachListStateToFactory(IElementFactory factory, Internal.ReactorListState listState)
+    {
+        if (factory is ElementFactory<T> f) f.AttachListState(listState);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  ItemsRepeater<T>  (spec 047 §14 Phase 3 finish — Port (7))
+// ════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// Spec 047 §14 Phase 3 finish — Port (7). Non-generic intermediate base
+/// for <see cref="ItemsRepeaterElement{T}"/>. Same role as
+/// <see cref="LazyStackElementBase"/>: lets the reconciler match on a
+/// single type AND lets the descriptor's
+/// <see cref="Reconciler.RegisterHandlerForDerivedTypes"/> registration
+/// catch every closed-T variant. Implements
+/// <see cref="Internal.IKeyedItemSource"/> +
+/// <see cref="IItemsRepeaterFactorySource"/> for the Engine (1)
+/// ItemsRepeater arm in <see cref="Reconciler.BindErasedKeyedItemsSource"/>.
+///
+/// <para><b>Distinct from <see cref="LazyStackElementBase"/>:</b> no
+/// hard-coded <see cref="WinUI.StackLayout"/>. The element exposes a
+/// nullable <see cref="Layout"/> property — the descriptor / legacy mount
+/// arm assigns it directly when non-null, otherwise leaves the
+/// ItemsRepeater on its default (Stack vertical). No
+/// <see cref="WinUI.ScrollViewer"/> wrapping either — the rendered
+/// <see cref="UIElement"/> is the bare <see cref="WinUI.ItemsRepeater"/>.
+/// Authors who need scrolling host the element inside their own
+/// <c>ScrollViewer</c> / <c>ScrollView</c> / <c>RefreshContainer</c>.</para>
+/// </summary>
+public abstract record ItemsRepeaterElementBase : Element, Internal.IKeyedItemSource, IItemsRepeaterFactorySource
+{
+    /// <summary>Total number of items in the source list.</summary>
+    public abstract int ItemCount { get; }
+    /// <summary>Per-index Element factory — same shape as
+    /// <see cref="LazyStackElementBase.BuildItemView"/>.</summary>
+    public abstract Element BuildItemView(int index);
+    /// <summary>Stable identity projection for spec 042's keyed-list diff.</summary>
+    internal abstract string GetKeyAt(int index);
+
+    string Internal.IKeyedItemSource.GetKeyAt(int index) => GetKeyAt(index);
+
+    /// <summary>Optional WinUI <see cref="WinUI.Layout"/>. Null = leave
+    /// the ItemsRepeater on its default layout (which itself defaults to
+    /// vertical <see cref="WinUI.StackLayout"/>). Authors typically pass
+    /// a <c>UniformGridLayout</c> or <c>LinedFlowLayout</c> instance
+    /// configured up-front; the engine reuses it across renders by
+    /// reference identity (no per-update Layout allocation).</summary>
+    public WinUI.Layout? Layout { get; init; }
+
+    internal Action<WinUI.ItemsRepeater>[] RepeaterSetters { get; init; } = [];
+
+    public abstract IElementFactory CreateFactory(Reconciler reconciler, Action requestRerender, ElementPool? pool);
+    public abstract bool TryUpdateFactory(IElementFactory existingFactory);
+    internal abstract void AttachListStateToFactory(IElementFactory factory, Internal.ReactorListState listState);
+    public abstract void RefreshRealizedItems(IElementFactory factory, WinUI.ItemsRepeater repeater);
+
+    void IItemsRepeaterFactorySource.AttachListStateToFactory(IElementFactory factory, Internal.ReactorListState listState)
+        => AttachListStateToFactory(factory, listState);
+
+    /// <summary>Assign the author-supplied <see cref="Layout"/> when
+    /// non-null and not already in place; otherwise leave the
+    /// ItemsRepeater on whatever default layout it constructed
+    /// itself with (vertical StackLayout). Reference-equality reuse —
+    /// passing the same Layout instance every render is a no-op.</summary>
+    void IItemsRepeaterFactorySource.ConfigureLayout(WinUI.ItemsRepeater repeater)
+    {
+        if (Layout is null) return;
+        if (!ReferenceEquals(repeater.Layout, Layout))
+            repeater.Layout = Layout;
+    }
+}
+
+/// <summary>
+/// Spec 047 §14 Phase 3 finish — Port (7). Typed peer of
+/// <see cref="ItemsRepeaterElementBase"/>. The lambdas mirror the
+/// <see cref="LazyVStackElement{T}"/> / <see cref="LazyHStackElement{T}"/>
+/// shape (Items + KeySelector + ViewBuilder) so authors moving from
+/// Lazy*Stack to a custom-layout ItemsRepeater find the surface
+/// identical.
+/// </summary>
+public record ItemsRepeaterElement<T>(
+    IReadOnlyList<T> Items,
+    Func<T, string> KeySelector,
+    Func<T, int, Element> ViewBuilder
+) : ItemsRepeaterElementBase
+{
+    public override int ItemCount => Items.Count;
+    public override Element BuildItemView(int index) => ViewBuilder(Items[index], index);
+    internal override string GetKeyAt(int index) => KeySelector(Items[index]);
 
     public override IElementFactory CreateFactory(Reconciler reconciler, Action requestRerender, ElementPool? pool) =>
         new ElementFactory<T>(Items, ViewBuilder, reconciler, requestRerender, pool);

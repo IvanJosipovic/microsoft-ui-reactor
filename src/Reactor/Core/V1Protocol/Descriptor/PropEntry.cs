@@ -501,6 +501,83 @@ internal sealed class CoercingOneWayPropEntry<TElement, TControl, TValue> : Prop
     }
 }
 
+/// <summary>Spec 047 §14 Phase 3 finish — Engine (4). Property-level
+/// escape hatch — the entry's Mount/Update lambdas receive the control
+/// and TElement directly (Update receives BOTH old and new), letting the
+/// descriptor express diffs the per-value get/set shapes can't.
+///
+/// <para>The classic motivating case is <c>Path.PathDataString</c>: the
+/// legacy <c>UpdatePath</c> gates the <c>Data</c> write on a
+/// string-vs-string compare of <c>o.PathDataString</c> vs
+/// <c>n.PathDataString</c> — the comparer in
+/// <see cref="OneWayConditionalPropEntry{TElement,TControl,TValue}"/>
+/// only sees two values from the same get lambda, so it can't combine
+/// the string compare with the Geometry write.</para>
+///
+/// <para>No fast-path; the entry's Update lambda runs on every render. If
+/// the diff is expressible through the standard entry shapes, prefer
+/// those.</para></summary>
+internal sealed class ImperativePropEntry<TElement, TControl> : PropEntry<TElement, TControl>
+    where TElement : Element
+    where TControl : UIElement
+{
+    private readonly Action<TControl, TElement> _mount;
+    private readonly Action<TControl, TElement, TElement> _update;
+
+    public ImperativePropEntry(
+        Action<TControl, TElement> mount,
+        Action<TControl, TElement, TElement> update)
+    {
+        _mount = mount;
+        _update = update;
+    }
+
+    public override void Mount(TControl ctrl, TElement el) => _mount(ctrl, el);
+    public override void Update(TControl ctrl, TElement oldEl, TElement newEl) => _update(ctrl, oldEl, newEl);
+}
+
+/// <summary>Spec 047 §14 Phase 3 finish — Engine (2). Bridged variant
+/// of <see cref="ImperativePropEntry{TElement,TControl}"/> — Mount /
+/// Update lambdas receive the <see cref="MountContext"/> /
+/// <see cref="UpdateContext"/> so they can call engine-internal helpers
+/// (<c>Reconciler.ReconcileV1Child</c>, the rerender pump, etc.).
+///
+/// <para>Canonical use is a secondary Element slot whose write target
+/// overlaps with a sibling property — e.g.
+/// <c>Expander.HeaderTemplate</c> reconciles into the same
+/// <c>Header</c> property the string <c>Header</c> writes to. See
+/// <see cref="ControlDescriptor{TElement,TControl}.ImperativeBridged"/>
+/// for the composition recipe.</para></summary>
+internal sealed class ImperativeBridgedPropEntry<TElement, TControl> : PropEntry<TElement, TControl>
+    where TElement : Element
+    where TControl : UIElement
+{
+    private readonly Action<MountContext, TControl, TElement> _mount;
+    private readonly Action<UpdateContext, TControl, TElement, TElement> _update;
+
+    public ImperativeBridgedPropEntry(
+        Action<MountContext, TControl, TElement> mount,
+        Action<UpdateContext, TControl, TElement, TElement> update)
+    {
+        _mount = mount;
+        _update = update;
+    }
+
+    // Parameterless overloads — unreachable; the bridged entry only goes
+    // through the context-carrying overloads. Throw on misuse so a missed
+    // dispatch path surfaces immediately (mirrors OneWayBridgedPropEntry).
+    public override void Mount(TControl ctrl, TElement el)
+        => throw new InvalidOperationException(
+            "ImperativeBridged entry requires MountContext — descriptor dispatch must use the context-carrying overload.");
+    public override void Update(TControl ctrl, TElement oldEl, TElement newEl)
+        => throw new InvalidOperationException(
+            "ImperativeBridged entry requires UpdateContext — descriptor dispatch must use the context-carrying overload.");
+
+    public override void Mount(in MountContext ctx, TControl ctrl, TElement el) => _mount(ctx, ctrl, el);
+    public override void Update(in UpdateContext ctx, TControl ctrl, TElement oldEl, TElement newEl)
+        => _update(ctx, ctrl, oldEl, newEl);
+}
+
 /// <summary>Spec 047 §14 Phase 3-final — <c>.OneWayBridged</c> entry. Same
 /// diff-and-write contract as
 /// <see cref="OneWayConditionalPropEntry{TElement,TControl,TValue}"/>, but

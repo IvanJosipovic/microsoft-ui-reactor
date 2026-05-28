@@ -223,6 +223,62 @@ public sealed class ControlDescriptor<TElement, TControl>
         return this;
     }
 
+    /// <summary>§14 Phase 3 finish — Engine (4). Escape hatch entry that
+    /// receives <paramref name="mount"/>+(<paramref name="update"/> with
+    /// BOTH old and new TElement, so the entry can express a diff the
+    /// per-value get/set lambdas of <see cref="OneWayConditional{TValue}"/>
+    /// can't: comparing one element field while writing a derived value
+    /// elsewhere, or multi-source error context like
+    /// <c>Path.PathDataString</c>'s XamlReader/PathDataParser branches.
+    ///
+    /// <para><b>When to reach for it:</b> only when the standard entries
+    /// can't express the diff or the write. Imperative entries skip the
+    /// engine's value-comparer fast-path, so a misused Imperative entry
+    /// re-runs on every render. The other entry shapes
+    /// (<see cref="OneWay{TValue}"/>, <see cref="OneWayConditional{TValue}"/>,
+    /// <see cref="CoercingOneWay{TValue}"/>, <see cref="HandCodedControlled"/>)
+    /// still cover the 95% case.</para>
+    ///
+    /// <para><b>Distinct from</b>
+    /// <see cref="Imperative{TElement,TControl}"/> (a
+    /// <see cref="ChildrenStrategy{TElement,TControl}"/> that drives the
+    /// whole CHILD subtree imperatively) — this is a property-level escape
+    /// hatch that participates in the normal prop loop.</para></summary>
+    public ControlDescriptor<TElement, TControl> Imperative(
+        Action<TControl, TElement> mount,
+        Action<TControl, TElement, TElement> update)
+    {
+        _properties.Add(new ImperativePropEntry<TElement, TControl>(mount, update));
+        return this;
+    }
+
+    /// <summary>§14 Phase 3 finish — Engine (2). Bridged variant of
+    /// <see cref="Imperative"/> — the lambdas receive the
+    /// <see cref="MountContext"/> / <see cref="UpdateContext"/> so they can
+    /// call engine-internal helpers, primarily
+    /// <c>ctx.Reconciler.ReconcileV1Child</c> for an Element slot that
+    /// must preserve descendant component state across re-renders.
+    ///
+    /// <para><b>Canonical use:</b> a secondary Element slot on a control
+    /// whose primary <see cref="ChildrenStrategy{TElement,TControl}"/> is
+    /// taken by something else — e.g. <c>Expander.HeaderTemplate</c>
+    /// where the primary <c>Children</c> is the <c>Content</c> slot and
+    /// HeaderTemplate needs structural reconcile but lives on the
+    /// <c>Header</c> property (sometimes a string, sometimes a UIElement).
+    /// Pair with a sibling <see cref="OneWayConditional{TValue}"/> entry
+    /// for the string fallback, gated on the Element slot being null.</para>
+    ///
+    /// <para>Same no-fast-path warning as <see cref="Imperative"/> — the
+    /// Update lambda runs on every render. Reach for the standard
+    /// shapes when they fit.</para></summary>
+    public ControlDescriptor<TElement, TControl> ImperativeBridged(
+        Action<MountContext, TControl, TElement> mount,
+        Action<UpdateContext, TControl, TElement, TElement> update)
+    {
+        _properties.Add(new ImperativeBridgedPropEntry<TElement, TControl>(mount, update));
+        return this;
+    }
+
     /// <summary>§14 Phase 3-final — engine-bridged one-way property. Same
     /// diff-and-write contract as <see cref="OneWayConditional{TValue}"/>,
     /// but the set lambda receives the <see cref="Reconciler"/> and the
