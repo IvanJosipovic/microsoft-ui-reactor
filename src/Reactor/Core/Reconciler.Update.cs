@@ -683,7 +683,7 @@ public sealed partial class Reconciler
         }
     }
 
-    private UIElement? UpdateButton(ButtonElement o, ButtonElement n, WinUI.Button b, Action requestRerender)
+    internal UIElement? UpdateButton(ButtonElement o, ButtonElement n, WinUI.Button b, Action requestRerender)
     {
         ApplyButtonEnabledState(b, n);
         if (n.ContentElement is not null && o.ContentElement is not null && b.Content is UIElement existingContent)
@@ -979,7 +979,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateCheckBox(CheckBoxElement o, CheckBoxElement n, WinUI.CheckBox cb)
+    internal UIElement? UpdateCheckBox(CheckBoxElement o, CheckBoxElement n, WinUI.CheckBox cb)
     {
         SetElementTag(cb, n);
         bool oldWired = o.OnIsCheckedChanged is not null || o.OnCheckedStateChanged is not null;
@@ -1316,7 +1316,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateWrapGrid(WrapGridElement o, WrapGridElement n, WinUI.VariableSizedWrapGrid wg, Action requestRerender)
+    internal UIElement? UpdateWrapGrid(WrapGridElement o, WrapGridElement n, WinUI.VariableSizedWrapGrid wg, Action requestRerender)
     {
         wg.Orientation = n.Orientation;
         if (n.MaximumRowsOrColumns >= 0) wg.MaximumRowsOrColumns = n.MaximumRowsOrColumns;
@@ -1346,7 +1346,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateCanvas(CanvasElement o, CanvasElement n, WinUI.Canvas canvas, Action requestRerender)
+    internal UIElement? UpdateCanvas(CanvasElement o, CanvasElement n, WinUI.Canvas canvas, Action requestRerender)
     {
         if (n.Width.HasValue && n.Width != o.Width) canvas.Width = n.Width.Value;
         if (n.Height.HasValue && n.Height != o.Height) canvas.Height = n.Height.Value;
@@ -1370,7 +1370,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateStack(StackElement o, StackElement n, WinUI.StackPanel sp, Action requestRerender)
+    internal UIElement? UpdateStack(StackElement o, StackElement n, WinUI.StackPanel sp, Action requestRerender)
     {
         if (o.Orientation != n.Orientation) sp.Orientation = n.Orientation;
         if (o.Spacing != n.Spacing) sp.Spacing = n.Spacing;
@@ -1459,7 +1459,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateExpander(ExpanderElement o, ExpanderElement n, WinUI.Expander exp, Action requestRerender)
+    internal UIElement? UpdateExpander(ExpanderElement o, ExpanderElement n, WinUI.Expander exp, Action requestRerender)
     {
         exp.IsExpanded = n.IsExpanded;
         exp.ExpandDirection = n.ExpandDirection;
@@ -1507,7 +1507,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateNavigationHost(
+    internal UIElement? UpdateNavigationHost(
         NavigationHostElement oldEl, NavigationHostElement newEl,
         WinUI.Grid grid, Action requestRerender)
     {
@@ -1894,7 +1894,7 @@ public sealed partial class Reconciler
         }
     }
 
-    private UIElement? UpdateTabView(TabViewElement o, TabViewElement n, WinUI.TabView tabView, Action requestRerender)
+    internal UIElement? UpdateTabView(TabViewElement o, TabViewElement n, WinUI.TabView tabView, Action requestRerender)
     {
         // In-place reconcile so that state changes on descendants don't tear the
         // TabView down (which would re-animate the tab bar in and steal focus
@@ -2325,7 +2325,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateRelativePanel(RelativePanelElement o, RelativePanelElement n, WinUI.RelativePanel rp, Action requestRerender)
+    internal UIElement? UpdateRelativePanel(RelativePanelElement o, RelativePanelElement n, WinUI.RelativePanel rp, Action requestRerender)
     {
         // RelativePanel's children reference each other by name for layout.
         // Reconcile in place when the children line up positionally; if the
@@ -2410,7 +2410,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdatePopup(PopupElement o, PopupElement n, WinUI.StackPanel wrapper, Action requestRerender)
+    internal UIElement? UpdatePopup(PopupElement o, PopupElement n, WinUI.StackPanel wrapper, Action requestRerender)
     {
         // The popup itself is the wrapper's first child. Update its scalar
         // props and reconcile the hosted Child in place so transient popup
@@ -2462,7 +2462,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateCommandBarFlyout(CommandBarFlyoutElement o, CommandBarFlyoutElement n, UIElement targetControl, Action requestRerender)
+    internal UIElement? UpdateCommandBarFlyout(CommandBarFlyoutElement o, CommandBarFlyoutElement n, UIElement targetControl, Action requestRerender)
     {
         // Reconcile the target in place and reuse the attached flyout when
         // possible — re-attaching a brand-new flyout on every update would
@@ -2515,7 +2515,7 @@ public sealed partial class Reconciler
         return updated == targetControl ? null : updated;
     }
 
-    private UIElement? UpdateMenuFlyout(MenuFlyoutElement o, MenuFlyoutElement n, UIElement targetControl, Action requestRerender)
+    internal UIElement? UpdateMenuFlyout(MenuFlyoutElement o, MenuFlyoutElement n, UIElement targetControl, Action requestRerender)
     {
         UIElement? updated = targetControl;
         if (CanUpdate(o.Target, n.Target))
@@ -2556,7 +2556,7 @@ public sealed partial class Reconciler
         return updated == targetControl ? null : updated;
     }
 
-    private UIElement? UpdateFlyoutElement(FlyoutElement o, FlyoutElement n, UIElement targetControl, Action requestRerender)
+    internal UIElement? UpdateFlyoutElement(FlyoutElement o, FlyoutElement n, UIElement targetControl, Action requestRerender)
     {
         UIElement? updated = targetControl;
         if (CanUpdate(o.Target, n.Target))
@@ -2778,7 +2778,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateContentDialog(ContentDialogElement o, ContentDialogElement n, FrameworkElement fe, Action requestRerender)
+    internal UIElement? UpdateContentDialog(ContentDialogElement o, ContentDialogElement n, FrameworkElement fe, Action requestRerender)
     {
         if (n.IsOpen && !o.IsOpen) ShowContentDialog(n, fe, requestRerender);
         SetElementTag(fe, n);
@@ -2853,7 +2853,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateGridView(GridViewElement o, GridViewElement n, WinUI.GridView gv, Action requestRerender)
+    internal UIElement? UpdateGridView(GridViewElement o, GridViewElement n, WinUI.GridView gv, Action requestRerender)
     {
         gv.SelectionMode = n.SelectionMode;
         gv.IsItemClickEnabled = n.OnItemClick is not null;
@@ -2950,7 +2950,7 @@ public sealed partial class Reconciler
         }
     }
 
-    private UIElement? UpdateTemplatedListView(TemplatedListElementBase o, TemplatedListElementBase n, WinUI.ListView lv, Action requestRerender)
+    internal UIElement? UpdateTemplatedListView(TemplatedListElementBase o, TemplatedListElementBase n, WinUI.ListView lv, Action requestRerender)
     {
         lv.SelectionMode = n.GetSelectionMode();
         lv.IsItemClickEnabled = n.GetIsItemClickEnabled();
@@ -2976,7 +2976,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateTemplatedGridView(TemplatedListElementBase o, TemplatedListElementBase n, WinUI.GridView gv, Action requestRerender)
+    internal UIElement? UpdateTemplatedGridView(TemplatedListElementBase o, TemplatedListElementBase n, WinUI.GridView gv, Action requestRerender)
     {
         gv.SelectionMode = n.GetSelectionMode();
         gv.IsItemClickEnabled = n.GetIsItemClickEnabled();
@@ -3075,7 +3075,7 @@ public sealed partial class Reconciler
         return state;
     }
 
-    private UIElement? UpdateTemplatedFlipView(TemplatedListElementBase o, TemplatedListElementBase n, WinUI.FlipView fv, Action requestRerender)
+    internal UIElement? UpdateTemplatedFlipView(TemplatedListElementBase o, TemplatedListElementBase n, WinUI.FlipView fv, Action requestRerender)
     {
         // FlipView items are pre-mounted directly (no ContainerContentChanging).
         // Build old element array from o, then reconcile like regular items.
@@ -3203,7 +3203,7 @@ public sealed partial class Reconciler
         return state;
     }
 
-    private UIElement? UpdateLazyStack(LazyStackElementBase n, WinUI.ScrollViewer sv, Action requestRerender)
+    internal UIElement? UpdateLazyStack(LazyStackElementBase n, WinUI.ScrollViewer sv, Action requestRerender)
     {
         if (sv.Content is WinUI.ItemsRepeater repeater)
         {
@@ -3563,7 +3563,7 @@ public sealed partial class Reconciler
         visual.ImplicitAnimations = coll;
     }
 
-    private UIElement? UpdateMenuBar(MenuBarElement o, MenuBarElement n, WinUI.MenuBar mb)
+    internal UIElement? UpdateMenuBar(MenuBarElement o, MenuBarElement n, WinUI.MenuBar mb)
     {
         int oldCount = o.Items.Length;
         int newCount = n.Items.Length;
@@ -3687,7 +3687,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateCommandBar(CommandBarElement o, CommandBarElement n, WinUI.CommandBar cb, Action requestRerender)
+    internal UIElement? UpdateCommandBar(CommandBarElement o, CommandBarElement n, WinUI.CommandBar cb, Action requestRerender)
     {
         cb.DefaultLabelPosition = n.DefaultLabelPosition;
         cb.IsOpen = n.IsOpen;
@@ -3758,7 +3758,7 @@ public sealed partial class Reconciler
                 target.Add(CreateAppBarItem(source[i]));
     }
 
-    private UIElement? UpdateGrid(Core.GridElement o, Core.GridElement n, WinUI.Grid g, Action requestRerender)
+    internal UIElement? UpdateGrid(Core.GridElement o, Core.GridElement n, WinUI.Grid g, Action requestRerender)
     {
         if (o.RowSpacing != n.RowSpacing) g.RowSpacing = n.RowSpacing;
         if (o.ColumnSpacing != n.ColumnSpacing) g.ColumnSpacing = n.ColumnSpacing;
@@ -3877,7 +3877,7 @@ public sealed partial class Reconciler
         return null;
     }
 
-    private UIElement? UpdateFlex(FlexElement o, FlexElement n, Layout.FlexPanel panel, Action requestRerender)
+    internal UIElement? UpdateFlex(FlexElement o, FlexElement n, Layout.FlexPanel panel, Action requestRerender)
     {
         panel.Direction = n.Direction;
         panel.JustifyContent = n.JustifyContent;

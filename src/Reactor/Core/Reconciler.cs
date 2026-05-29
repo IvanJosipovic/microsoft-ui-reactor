@@ -322,39 +322,50 @@ public sealed partial class Reconciler : IDisposable
     ///   auto-registering V1 would clash via
     ///   <see cref="EnsureRegistrableElementType"/>. Unification is Phase 4
     ///   follow-up.</item>
-    ///   <item><b>Deferred overlays</b> (follow-up PR) — <c>ContentDialogElement</c>,
-    ///   <c>FlyoutElement</c>, <c>MenuBarElement</c>, <c>CommandBarElement</c>,
+    ///   <item><b>Overlays — PORTED (§14 Phase 3 prelude)</b> —
+    ///   <c>ContentDialogElement</c>, <c>FlyoutElement</c>,
+    ///   <c>MenuBarElement</c>, <c>CommandBarElement</c>,
     ///   <c>MenuFlyoutElement</c>, <c>PopupElement</c>,
-    ///   <c>CommandBarFlyoutElement</c>. Require decorator-style ports
-    ///   (lifecycle, side-mount).</item>
-    ///   <item><b>Deferred stateful host</b> (follow-up PR) — <c>NavigationHostElement</c>.
-    ///   Per-instance route/cache/transition state is intercepted in
-    ///   <see cref="UnmountRecursive"/> before the V1 dispatch arm; needs a
-    ///   small refactor before it can route through V1.</item>
-    ///   <item><b>Deferred — descriptor with known docking gaps</b> (follow-up
-    ///   PR) — <c>TabViewDescriptor</c>. Bisect of full V1 ON flakes (1–4
-    ///   non-deterministic docking-text-find failures per run across
-    ///   DockHooks / PixDoc / RoleAware / Composition / FloatRoot fixtures,
-    ///   versus a clean V1 OFF baseline) ratifies the descriptor's documented
-    ///   gaps — missing spec 045 §2.4 drag pipeline trampolines, §2.2 pinnable
-    ///   tab headers (BuildTabHeader / BuildPinButton / in-place
-    ///   TryUpdatePinHeaderInPlace), in-place CanUpdate for tab content
-    ///   (preserves focus/state on re-renders), conditional SelectedIndex
-    ///   write, and TabStripHeader / TabStripFooter Element slots — are hot
-    ///   in the docking suite. Closing them requires engine work
-    ///   (post-children mount-hook so SelectionChanged subscribes after
-    ///   children-add, ImperativeBridged for the named tab strip slots)
-    ///   tracked alongside the overlays + NavigationHost in the follow-up.</item>
-    ///   <item><b>Deferred — descriptor with lifecycle divergence from
-    ///   legacy</b> (follow-up PR) — <c>GridViewDescriptor</c>. The descriptor's
-    ///   <c>ItemsHost&lt;&gt;</c> strategy pre-mounts every item into
-    ///   <c>GridView.Items</c> (one container per item, no virtualization).
-    ///   The legacy <c>MountGridView</c> arm uses
-    ///   <c>ItemsSource = Range(0..N) + ItemTemplate + ContainerContentChanging</c>
-    ///   to realize containers lazily, matching the Phase 1
-    ///   <see cref="V1Protocol.Handlers.ListViewHandler"/> pattern. Closing
-    ///   this needs either a Phase 1 hand-coded <c>GridViewHandler</c> or a
-    ///   new ChildrenStrategy that wraps the CCC virtualization contract.</item>
+    ///   <c>CommandBarFlyoutElement</c> now route through V1 via
+    ///   decorator-style handlers in <c>V1Protocol.Handlers</c> that delegate
+    ///   to the legacy <c>MountXxx</c>/<c>UpdateXxx</c> bodies and return
+    ///   <see cref="V1Protocol.V1UnmountDisposition.ContinueDefaultTraversal"/>
+    ///   on unmount — so the engine falls through to the same
+    ///   <see cref="UnmountRecursive"/> type-based recursion that runs when
+    ///   the flag is OFF, making mount/update/unmount byte-identical
+    ///   V1 ON ≡ V1 OFF.</item>
+    ///   <item><b>Stateful host — PORTED (§14 Phase 3 prelude)</b> —
+    ///   <c>NavigationHostElement</c> now routes through V1 via
+    ///   <see cref="V1Protocol.Handlers.NavigationHostHandler"/> (Path B
+    ///   delegate). Per-instance route/cache/transition state is still torn
+    ///   down by the flag-independent intercept in
+    ///   <see cref="UnmountRecursive"/> (fires before the V1 unmount arm), so
+    ///   unmount is byte-identical V1 ON ≡ V1 OFF.</item>
+    ///
+    ///   <item><b>TabView — PORTED (§14 Phase 3 prelude)</b> —
+    ///   <c>TabViewElement</c> now routes through V1 via the Path B delegate
+    ///   <see cref="V1Protocol.Handlers.TabViewHandler"/>, which calls the
+    ///   COMPLETE legacy <c>MountTabView</c>/<c>UpdateTabView</c> bodies (spec
+    ///   045 §2.4 drag pipeline, §2.2 pinnable headers via BuildTabHeader /
+    ///   BuildPinButton / in-place TryUpdatePinHeaderInPlace, in-place tab
+    ///   content reconcile, conditional SelectedIndex, TabStripHeader /
+    ///   TabStripFooter slots). Distinct from the still-unregistered
+    ///   <c>TabViewDescriptor</c> + <c>TabItemsHost</c> port, which
+    ///   intentionally leaves those features on the legacy arm — the delegate
+    ///   runs the full feature set because it IS the legacy code. Mount/update
+    ///   are unchanged from the previously-carved V1-ON path (which already
+    ///   ran these bodies via the legacy switch); registering the handler only
+    ///   makes the unmount arm fire, which is byte-identical V1 ON ≡ V1 OFF
+    ///   (a <c>WinUI.TabView</c> is an <c>ItemsControl</c> that pools without
+    ///   child recursion in both paths).</item>
+    ///   <item><b>Items host — PORTED (§14 Phase 3 prelude)</b> —
+    ///   <c>GridViewElement</c> now routes through V1 via the hand-coded
+    ///   <see cref="V1Protocol.Handlers.GridViewHandler"/> (Path B delegate),
+    ///   which mirrors <see cref="V1Protocol.Handlers.ListViewHandler"/>'s
+    ///   lazy <c>ItemsSource + ContainerContentChanging</c> realization. The
+    ///   <c>GridViewDescriptor</c>'s <c>ItemsHost&lt;&gt;</c> strategy stays
+    ///   unregistered — it pre-mounts every item with no virtualization,
+    ///   which would regress the recycle contract.</item>
     /// </list>
     /// </summary>
     private void RegisterV1BuiltInHandlers()
@@ -366,6 +377,39 @@ public sealed partial class Reconciler : IDisposable
         RegisterHandler<BorderElement, WinUI.Border>(new V1Protocol.Handlers.BorderHandler());
         RegisterHandler<ListViewElement, WinUI.ListView>(new V1Protocol.Handlers.ListViewHandler());
 
+        // ── §14 Phase 3 prelude carve-closures (delegate to engine bodies) ──
+        RegisterHandler<NavigationHostElement, WinUI.Grid>(new V1Protocol.Handlers.NavigationHostHandler());
+        RegisterHandler<GridViewElement, WinUI.GridView>(new V1Protocol.Handlers.GridViewHandler());
+
+        // Overlays — decorator-style ports. Each delegates to the legacy
+        // MountXxx/UpdateXxx body and returns ContinueDefaultTraversal on
+        // unmount, so the V1 ON path is byte-identical to V1 OFF (which skips
+        // the V1 arm and runs the same UnmountRecursive type-based recursion).
+        RegisterDecoratorHandler<ContentDialogElement>(new V1Protocol.Handlers.ContentDialogHandler());
+        RegisterDecoratorHandler<FlyoutElement>(new V1Protocol.Handlers.FlyoutHandler());
+        RegisterDecoratorHandler<MenuBarElement>(new V1Protocol.Handlers.MenuBarHandler());
+        RegisterDecoratorHandler<CommandBarElement>(new V1Protocol.Handlers.CommandBarHandler());
+        RegisterDecoratorHandler<MenuFlyoutElement>(new V1Protocol.Handlers.MenuFlyoutHandler());
+        RegisterDecoratorHandler<PopupElement>(new V1Protocol.Handlers.PopupHandler());
+        RegisterDecoratorHandler<CommandBarFlyoutElement>(new V1Protocol.Handlers.CommandBarFlyoutHandler());
+
+        // Button — delegate to the COMPLETE legacy MountButton/UpdateButton
+        // bodies (the ButtonDescriptor only handles the string-Label fast path
+        // and drops ContentElement; the delegate runs the full legacy impl so
+        // element content round-trips). Decorator shape so unmount falls
+        // through to ContentControl recursion (cleanup parity for an element
+        // child) — see ButtonHandler. Supersedes the registered descriptor.
+        RegisterDecoratorHandler<ButtonElement>(new V1Protocol.Handlers.ButtonHandler());
+
+        // TabView — delegate to the COMPLETE legacy MountTabView/UpdateTabView
+        // bodies (drag pipeline, pinnable headers, strip header/footer, in-place
+        // content reconcile). Distinct from the unregistered TabViewDescriptor,
+        // which leaves those features on the legacy arm. UpdateTabView returns
+        // null (in-place only), so the void-Update IElementHandler shape fits;
+        // unmount is byte-identical V1 ON ≡ V1 OFF (ItemsControl pools without
+        // child recursion in both paths).
+        RegisterHandler<TabViewElement, WinUI.TabView>(new V1Protocol.Handlers.TabViewHandler());
+
         // ── §14 Phase 3 base-derived (templated/lazy/items hosts) ────────
         // Each closed-T leaf routes through the same descriptor via the
         // base-derived fallback walk (matches the legacy switch's erasure
@@ -373,10 +417,10 @@ public sealed partial class Reconciler : IDisposable
         // overlap with the Phase 1 ListViewHandler — exact-type wins, so
         // ListView itself uses ListViewHandler; only typed templated
         // variants route through these base-derived registrations.
-        RegisterDescriptorForDerivedTypes(V1Protocol.Descriptor.Descriptors.TemplatedListViewDescriptor.Descriptor);
-        RegisterDescriptorForDerivedTypes(V1Protocol.Descriptor.Descriptors.TemplatedGridViewDescriptor.Descriptor);
-        RegisterDescriptorForDerivedTypes(V1Protocol.Descriptor.Descriptors.TemplatedFlipViewDescriptor.Descriptor);
-        RegisterDescriptorForDerivedTypes(V1Protocol.Descriptor.Descriptors.LazyStackDescriptor.Descriptor);
+        // §14: typed templated lists route through one Path B delegate on the
+        // common base (legacy move/reorder animations) — see TemplatedListHandler.
+        RegisterDecoratorHandlerForDerivedTypes<TemplatedListElementBase>(new V1Protocol.Handlers.TemplatedListHandler());
+        RegisterDecoratorHandlerForDerivedTypes<LazyStackElementBase>(new V1Protocol.Handlers.LazyStackHandler()); // §14: ScrollViewer-wrapped — see LazyStackHandler
         RegisterDescriptorForDerivedTypes(V1Protocol.Descriptor.Descriptors.ItemsRepeaterDescriptor.Descriptor);
         RegisterDescriptorForDerivedTypes(V1Protocol.Descriptor.Descriptors.ItemsViewDescriptor.Descriptor);
 
@@ -387,37 +431,33 @@ public sealed partial class Reconciler : IDisposable
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.AnnounceRegionDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.AutoSuggestBoxDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.BreadcrumbBarDescriptor.Descriptor);
-        RegisterDescriptor(V1Protocol.Descriptor.Descriptors.ButtonDescriptor.Descriptor);
+        // ButtonDescriptor is intentionally NOT registered — superseded by the
+        // delegate ButtonHandler above (ContentElement coverage + unmount
+        // parity). The descriptor type is retained for its isolated selftests
+        // and the perf-bench descriptor variant.
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.CalendarDatePickerDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.CalendarViewDescriptor.Descriptor);
-        RegisterDescriptor(V1Protocol.Descriptor.Descriptors.CanvasDescriptor.Descriptor);
-        RegisterDescriptor(V1Protocol.Descriptor.Descriptors.CheckBoxDescriptor.Descriptor);
+        RegisterDecoratorHandler<CanvasElement>(new V1Protocol.Handlers.CanvasPanelHandler()); // §14: keyed reconcile — see PanelDelegateHandlers
+        RegisterDecoratorHandler<CheckBoxElement>(new V1Protocol.Handlers.CheckBoxHandler()); // §14: value-control echo-suppression — see CheckBoxHandler
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.ColorPickerDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.ComboBoxDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.DatePickerDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.DropDownButtonDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.EllipseDescriptor.Descriptor);
-        RegisterDescriptor(V1Protocol.Descriptor.Descriptors.ExpanderDescriptor.Descriptor);
-        RegisterDescriptor(V1Protocol.Descriptor.Descriptors.FlexPanelDescriptor.Descriptor);
+        RegisterDecoratorHandler<ExpanderElement>(new V1Protocol.Handlers.ExpanderHandler()); // §14: callback/template wiring — see ExpanderHandler
+        RegisterDecoratorHandler<FlexElement>(new V1Protocol.Handlers.FlexPanelHandler()); // §14: keyed reconcile — see PanelDelegateHandlers
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.FlipViewDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.FrameDescriptor.Descriptor);
-        RegisterDescriptor(V1Protocol.Descriptor.Descriptors.GridDescriptor.Descriptor);
-        // Spec 047 §14 Phase 3 completion CR (Copilot review on PR #440) —
-        // GridViewDescriptor stays carved. The descriptor's ItemsHost<>
-        // strategy pre-mounts every item into GridView.Items (one container
-        // per item, no virtualization, no recycle). The legacy MountGridView
-        // path uses ItemsSource = Range(0..N) + ItemTemplate +
-        // ContainerContentChanging to realize containers lazily (one per
-        // visible viewport item) and unmount on RecycleQueue entry — same
-        // pattern as the Phase 1 hand-coded ListViewHandler. Registering
-        // GridViewDescriptor would not break A|B tests (no fixture stresses
-        // GridView scale), but it would silently regress production memory
-        // and lifecycle (item Mount/Unmount fires for every item up-front
-        // instead of per-viewport, breaking the recycle contract). Closing
-        // this needs either a Phase 1 hand-coded GridViewHandler mirroring
-        // ListViewHandler, or a new ChildrenStrategy variant that wraps
-        // ItemsSource + CCC. Tracked alongside the TabView/overlay/NavigationHost
-        // gap-closure follow-up.
+        RegisterDecoratorHandler<GridElement>(new V1Protocol.Handlers.GridPanelHandler()); // §14: keyed reconcile — see PanelDelegateHandlers
+        // Spec 047 §14 Phase 3 prelude — GridViewElement now routes through V1
+        // via the hand-coded V1Protocol.Handlers.GridViewHandler (registered
+        // above with the Phase 1 handlers), which preserves the legacy
+        // ItemsSource + ContainerContentChanging lazy realization. The
+        // GridViewDescriptor stays carved: its ItemsHost<> strategy pre-mounts
+        // every item into GridView.Items (one container per item, no
+        // virtualization, no recycle), which would silently regress production
+        // memory and lifecycle (item Mount/Unmount fires for every item
+        // up-front instead of per-viewport, breaking the recycle contract).
         // RegisterDescriptor(V1Protocol.Descriptor.Descriptors.GridViewDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.HyperlinkButtonDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.ImageDescriptor.Descriptor);
@@ -443,7 +483,7 @@ public sealed partial class Reconciler : IDisposable
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.RatingControlDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.RectangleDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.RefreshContainerDescriptor.Descriptor);
-        RegisterDescriptor(V1Protocol.Descriptor.Descriptors.RelativePanelDescriptor.Descriptor);
+        RegisterDecoratorHandler<RelativePanelElement>(new V1Protocol.Handlers.RelativePanelHandler()); // §14: keyed reconcile — see PanelDelegateHandlers
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.RepeatButtonDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.RichEditBoxDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.RichTextBlockDescriptor.Descriptor);
@@ -454,25 +494,24 @@ public sealed partial class Reconciler : IDisposable
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.SemanticZoomDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.SplitButtonDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.SplitViewDescriptor.Descriptor);
-        RegisterDescriptor(V1Protocol.Descriptor.Descriptors.StackPanelDescriptor.Descriptor);
+        RegisterDecoratorHandler<StackElement>(new V1Protocol.Handlers.StackPanelHandler()); // §14: keyed reconcile — see PanelDelegateHandlers
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.SwipeControlDescriptor.Descriptor);
-        // Spec 047 §14 Phase 3 completion — TabViewDescriptor stays carved.
-        // Bisect (3× clean V1 ON full selftest with this single line removed,
-        // matching V1 OFF's 4410-ok baseline; with it registered, 1–4 random
-        // docking-text-find checks fail per run across DockHooks / PixDoc /
-        // RoleAware / Composition / FloatRoot fixtures) proves the gap
-        // documented on TabViewDescriptor — missing spec 045 §2.4 drag
-        // pipeline (OnTabDragStarting / OnTabDragCompleted), §2.2 IsPinnable
-        // header rendering (BuildTabHeader + BuildPinButton + in-place
-        // TryUpdatePinHeaderInPlace on update), in-place CanUpdate for tab
+        // Spec 047 §14 — TabViewElement is ported via the Path B delegate
+        // TabViewHandler (registered above with the other prelude carve
+        // closures), NOT via TabViewDescriptor. The descriptor + TabItemsHost
+        // strategy stays unregistered: it intentionally leaves the spec 045
+        // §2.4 drag pipeline (OnTabDragStarting / OnTabDragCompleted), §2.2
+        // IsPinnable header rendering (BuildTabHeader + BuildPinButton +
+        // in-place TryUpdatePinHeaderInPlace), in-place CanUpdate for tab
         // content (preserves focus/state across re-renders), conditional
         // SelectedIndex write, and TabStripHeader / TabStripFooter Element
-        // slots — is hot in the docking suite. Closing those gaps requires
-        // engine work (post-children mount-hook so SelectionChanged subscribes
-        // after children-add, ImperativeBridged for the tab strip named
-        // slots) tracked as the follow-up that takes Phase 3 the rest of
-        // the way to "every element routes through V1." This PR registers
-        // every other Phase 3 descriptor safely.
+        // slots on the legacy arm — exactly the features that are hot in the
+        // docking suite. The delegate handler runs the COMPLETE legacy
+        // MountTabView/UpdateTabView bodies, so it has none of those gaps and
+        // is byte-identical V1 ON ≡ V1 OFF. Finishing the descriptor port
+        // (post-children mount-hook + ImperativeBridged tab strip slots) is a
+        // separable Phase 4 purity follow-up; it is NOT required for the flag
+        // flip because the delegate already routes TabView through V1.
         // RegisterDescriptor(V1Protocol.Descriptor.Descriptors.TabViewDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.TeachingTipDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.TextBlockDescriptor.Descriptor);
@@ -483,7 +522,7 @@ public sealed partial class Reconciler : IDisposable
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.TreeViewDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.ViewboxDescriptor.Descriptor);
         RegisterDescriptor(V1Protocol.Descriptor.Descriptors.WebView2Descriptor.Descriptor);
-        RegisterDescriptor(V1Protocol.Descriptor.Descriptors.WrapGridDescriptor.Descriptor);
+        RegisterDecoratorHandler<WrapGridElement>(new V1Protocol.Handlers.WrapGridHandler()); // §14: keyed reconcile — see PanelDelegateHandlers
 
         // ── §14 Phase 3 completion decorator-style handlers ──────────────
         RegisterDecoratorHandler<IconElement>(V1Protocol.Descriptor.Descriptors.IconDescriptor.Handler);
@@ -1008,6 +1047,28 @@ public sealed partial class Reconciler : IDisposable
         ArgumentNullException.ThrowIfNull(handler);
         EnsureRegistrableElementType(typeof(TElement), typeof(UIElement), "RegisterDecoratorHandler");
         _v1Handlers.Add(typeof(TElement), new V1Protocol.V1DecoratorHandlerAdapter<TElement>(handler));
+    }
+
+    /// <summary>
+    /// Spec 047 §14 Phase 3 prelude — register a decorator-style V1 handler
+    /// that catches every closed runtime type whose chain reaches
+    /// <typeparamref name="TBase"/> (the derived-type analogue of
+    /// <see cref="RegisterDecoratorHandler{TElement}"/>). Used by the
+    /// Lazy*Stack family, whose closed-T variants all derive from the
+    /// non-generic <c>LazyStackElementBase</c> and need the decorator
+    /// shape (control identity differs from the descriptor port — the
+    /// legacy mount wraps the ItemsRepeater in a ScrollViewer — and
+    /// <see cref="V1UnmountDisposition.ContinueDefaultTraversal"/> so the
+    /// engine recurses ScrollViewer → ItemsRepeater → realized rows on
+    /// unmount).
+    /// </summary>
+    [Experimental("REACTOR_V1_PREVIEW")]
+    internal void RegisterDecoratorHandlerForDerivedTypes<TBase>(V1Protocol.IDecoratorElementHandler<TBase> handler)
+        where TBase : Element
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        EnsureRegistrableElementType(typeof(TBase), typeof(UIElement), "RegisterDecoratorHandlerForDerivedTypes");
+        _v1Handlers.AddForDerivedTypes(typeof(TBase), new V1Protocol.V1DecoratorHandlerAdapter<TBase>(handler));
     }
 
     // ════════════════════════════════════════════════════════════════════

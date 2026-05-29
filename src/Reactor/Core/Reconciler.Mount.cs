@@ -301,7 +301,7 @@ public sealed partial class Reconciler
         return rtb;
     }
 
-    private WinUI.Button MountButton(ButtonElement btn, Action requestRerender)
+    internal WinUI.Button MountButton(ButtonElement btn, Action requestRerender)
     {
         var rented = _pool.TryRent(typeof(WinUI.Button));
         var button = rented as WinUI.Button ?? new WinUI.Button();
@@ -675,7 +675,7 @@ public sealed partial class Reconciler
         return box;
     }
 
-    private WinUI.CheckBox MountCheckBox(CheckBoxElement cb)
+    internal WinUI.CheckBox MountCheckBox(CheckBoxElement cb)
     {
         var checkBox = new WinUI.CheckBox { Content = cb.Label };
         if (cb.IsThreeState)
@@ -1116,7 +1116,7 @@ public sealed partial class Reconciler
         return box;
     }
 
-    private WinUI.VariableSizedWrapGrid MountWrapGrid(WrapGridElement wg, Action requestRerender)
+    internal WinUI.VariableSizedWrapGrid MountWrapGrid(WrapGridElement wg, Action requestRerender)
     {
         var grid = new WinUI.VariableSizedWrapGrid { Orientation = wg.Orientation };
         if (wg.MaximumRowsOrColumns >= 0) grid.MaximumRowsOrColumns = wg.MaximumRowsOrColumns;
@@ -1140,7 +1140,7 @@ public sealed partial class Reconciler
         return grid;
     }
 
-    private WinUI.StackPanel MountStack(StackElement stack, Action requestRerender)
+    internal WinUI.StackPanel MountStack(StackElement stack, Action requestRerender)
     {
         var panel = _pool.TryRent(typeof(WinUI.StackPanel)) as WinUI.StackPanel ?? new WinUI.StackPanel();
         panel.Orientation = stack.Orientation;
@@ -1160,7 +1160,7 @@ public sealed partial class Reconciler
         return panel;
     }
 
-    private WinUI.Grid MountGrid(GridElement grid, Action requestRerender)
+    internal WinUI.Grid MountGrid(GridElement grid, Action requestRerender)
     {
         var g = _pool.TryRent(typeof(WinUI.Grid)) as WinUI.Grid ?? new WinUI.Grid();
         g.RowSpacing = grid.RowSpacing;
@@ -1268,7 +1268,7 @@ public sealed partial class Reconciler
         return bdr;
     }
 
-    private WinUI.Expander MountExpander(ExpanderElement exp, Action requestRerender)
+    internal WinUI.Expander MountExpander(ExpanderElement exp, Action requestRerender)
     {
         var expander = new WinUI.Expander
         {
@@ -1325,7 +1325,7 @@ public sealed partial class Reconciler
         return viewbox;
     }
 
-    private WinUI.Canvas MountCanvas(CanvasElement cvs, Action requestRerender)
+    internal WinUI.Canvas MountCanvas(CanvasElement cvs, Action requestRerender)
     {
         var canvas = _pool.TryRent(typeof(WinUI.Canvas)) as WinUI.Canvas ?? new WinUI.Canvas();
         if (cvs.Width.HasValue) canvas.Width = cvs.Width.Value;
@@ -1345,7 +1345,7 @@ public sealed partial class Reconciler
         return canvas;
     }
 
-    private Layout.FlexPanel MountFlex(FlexElement flex, Action requestRerender)
+    internal Layout.FlexPanel MountFlex(FlexElement flex, Action requestRerender)
     {
         var panel = _pool.TryRent(typeof(Layout.FlexPanel)) as Layout.FlexPanel ?? new Layout.FlexPanel();
         panel.Direction = flex.Direction;
@@ -1369,7 +1369,7 @@ public sealed partial class Reconciler
         return panel;
     }
 
-    private WinUI.Grid MountNavigationHost(NavigationHostElement element, Action requestRerender)
+    internal WinUI.Grid MountNavigationHost(NavigationHostElement element, Action requestRerender)
     {
         var grid = new WinUI.Grid();
         var handle = (Navigation.INavigationHandle)element.NavigationHandle;
@@ -1507,7 +1507,7 @@ public sealed partial class Reconciler
         return titleBar;
     }
 
-    private WinUI.TabView MountTabView(TabViewElement tab, Action requestRerender)
+    internal WinUI.TabView MountTabView(TabViewElement tab, Action requestRerender)
     {
         var tv = new WinUI.TabView
         {
@@ -1803,7 +1803,7 @@ public sealed partial class Reconciler
         return listView;
     }
 
-    private WinUI.GridView MountGridView(GridViewElement gv, Action requestRerender)
+    internal WinUI.GridView MountGridView(GridViewElement gv, Action requestRerender)
     {
         var gridView = new WinUI.GridView
         {
@@ -1986,7 +1986,7 @@ public sealed partial class Reconciler
         return flipView;
     }
 
-    private UIElement MountTemplatedList(TemplatedListElementBase el, Action requestRerender)
+    internal UIElement MountTemplatedList(TemplatedListElementBase el, Action requestRerender)
     {
         return el.ControlKind switch
         {
@@ -2295,7 +2295,7 @@ public sealed partial class Reconciler
         return ib;
     }
 
-    private UIElement MountContentDialog(ContentDialogElement cdEl, Action requestRerender)
+    internal UIElement MountContentDialog(ContentDialogElement cdEl, Action requestRerender)
     {
         var placeholder = new WinUI.StackPanel { Visibility = Visibility.Collapsed };
         SetElementTag(placeholder, cdEl);
@@ -2350,7 +2350,7 @@ public sealed partial class Reconciler
         cdEl.OnClosed?.Invoke(winUiResult);
     }
 
-    private UIElement? MountFlyout(FlyoutElement flyEl, Action requestRerender)
+    internal UIElement? MountFlyout(FlyoutElement flyEl, Action requestRerender)
     {
         var target = Mount(flyEl.Target, requestRerender);
         if (target is FrameworkElement targetFe)
@@ -2411,7 +2411,7 @@ public sealed partial class Reconciler
         return tip;
     }
 
-    private WinUI.MenuBar MountMenuBar(MenuBarElement mbEl)
+    internal WinUI.MenuBar MountMenuBar(MenuBarElement mbEl)
     {
         var menuBar = new WinUI.MenuBar();
         foreach (var menuItem in mbEl.Items)
@@ -2488,7 +2488,7 @@ public sealed partial class Reconciler
         return false;
     }
 
-    private WinUI.CommandBar MountCommandBar(CommandBarElement cmdEl, Action requestRerender)
+    internal WinUI.CommandBar MountCommandBar(CommandBarElement cmdEl, Action requestRerender)
     {
         var commandBar = new WinUI.CommandBar
         {
@@ -2543,7 +2543,7 @@ public sealed partial class Reconciler
         }
     }
 
-    private UIElement? MountMenuFlyout(MenuFlyoutElement mfEl, Action requestRerender)
+    internal UIElement? MountMenuFlyout(MenuFlyoutElement mfEl, Action requestRerender)
     {
         var target = Mount(mfEl.Target, requestRerender);
         if (target is FrameworkElement targetFe)
@@ -3177,7 +3177,7 @@ public sealed partial class Reconciler
         return state;
     }
 
-    private UIElement MountLazyStack(LazyStackElementBase lazy, Action requestRerender)
+    internal UIElement MountLazyStack(LazyStackElementBase lazy, Action requestRerender)
     {
         var repeater = new WinUI.ItemsRepeater();
 
@@ -3462,7 +3462,7 @@ public sealed partial class Reconciler
 
     // ── RelativePanel ───────────────────────────────────────────────────
 
-    private WinUI.RelativePanel MountRelativePanel(RelativePanelElement rp, Action requestRerender)
+    internal WinUI.RelativePanel MountRelativePanel(RelativePanelElement rp, Action requestRerender)
     {
         var panel = new WinUI.RelativePanel();
         var nameMap = new Dictionary<string, UIElement>();
@@ -3680,7 +3680,7 @@ public sealed partial class Reconciler
 
     // ── Popup ───────────────────────────────────────────────────────────
 
-    private UIElement MountPopup(PopupElement popup, Action requestRerender)
+    internal UIElement MountPopup(PopupElement popup, Action requestRerender)
     {
         // Popup is not a UIElement child, so we wrap it in a StackPanel
         var wrapper = new WinUI.StackPanel();
@@ -3719,7 +3719,7 @@ public sealed partial class Reconciler
 
     // ── CommandBarFlyout ────────────────────────────────────────────────
 
-    private UIElement? MountCommandBarFlyout(CommandBarFlyoutElement cbf, Action requestRerender)
+    internal UIElement? MountCommandBarFlyout(CommandBarFlyoutElement cbf, Action requestRerender)
     {
         var target = Mount(cbf.Target, requestRerender);
         if (target is FrameworkElement targetFe)
