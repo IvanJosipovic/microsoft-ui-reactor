@@ -1196,6 +1196,29 @@ internal static class SelfTestFixtureRegistry
         "EventStateSplit_DualReturnIdempotent",
         "EventStateSplit_ModifierStateLazyForIntrinsicOnly",
         "EventStateSplit_AddRawRoutedHandler_HandledEventsToo",
+
+        // Spec 048 §8 — global ControlRegistry dispatch precedence fixtures.
+        // Validate that handlers registered via ControlRegistry.Register
+        // resolve via the new arm-3 fallback in Reconciler.Mount/Update,
+        // and that per-host caching / shadow precedence work end-to-end
+        // against a live WinUI control.
+        "Spec048_GlobalRegistry_Mount_DispatchesThroughArm3",
+        "Spec048_GlobalRegistry_FactoryCachedAfterFirstHit",
+        "Spec048_PerHost_RegisterHandler_ShadowsGlobal",
+        // Spec 048 §3.3 — Text-group factory `Reg<>.Done` registration touch.
+        "Spec048_TextGroupFactoriesRegisterHandlers",
+        // Spec 048 §3.3 — Input-group factory `Reg<>.Done` registration touch.
+        "Spec048_InputGroupFactoriesRegisterHandlers",
+        // Spec 048 §3.3 — Container/layout-group factory `Reg<>.Done` registration touch.
+        "Spec048_ContainerGroupFactoriesRegisterHandlers",
+        "Spec048_CollectionsGroupFactoriesRegisterHandlers",
+        "Spec048_DateTimeGroupFactoriesRegisterHandlers",
+        "Spec048_StatusInfoGroupFactoriesRegisterHandlers",
+        "Spec048_MediaIconsGroupFactoriesRegisterHandlers",
+        "Spec048_ShapesGroupFactoriesRegisterHandlers",
+        "Spec048_NavigationChromeGroupFactoriesRegisterHandlers",
+        "Spec048_OverlaysGroupFactoriesRegisterHandlers",
+        "Spec048_IconAndInteropGroupFactoriesRegisterHandlers",
     ];
 
     public static SelfTestFixtureBase? Create(string name, Harness harness) => name switch
@@ -2361,6 +2384,22 @@ internal static class SelfTestFixtureRegistry
         "EventStateSplit_DualReturnIdempotent" => new Spec047EventStateSplitFixtures.DualReturnIdempotent(harness),
         "EventStateSplit_ModifierStateLazyForIntrinsicOnly" => new Spec047EventStateSplitFixtures.ModifierStateLazyForIntrinsicOnly(harness),
         "EventStateSplit_AddRawRoutedHandler_HandledEventsToo" => new Spec047EventStateSplitFixtures.AddRawRoutedHandler_HandledEventsToo(harness),
+
+        // Spec 048 §8 — global ControlRegistry dispatch precedence fixtures.
+        "Spec048_GlobalRegistry_Mount_DispatchesThroughArm3" => new Spec048ControlRegistryFixtures.GlobalRegistry_Mount_DispatchesThroughArm3(harness),
+        "Spec048_GlobalRegistry_FactoryCachedAfterFirstHit" => new Spec048ControlRegistryFixtures.GlobalRegistry_FactoryCachedAfterFirstHit(harness),
+        "Spec048_PerHost_RegisterHandler_ShadowsGlobal" => new Spec048ControlRegistryFixtures.PerHost_RegisterHandler_ShadowsGlobal(harness),
+        "Spec048_TextGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.TextGroupFactoriesRegisterHandlers(harness),
+        "Spec048_InputGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.InputGroupFactoriesRegisterHandlers(harness),
+        "Spec048_ContainerGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.ContainerGroupFactoriesRegisterHandlers(harness),
+        "Spec048_CollectionsGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.CollectionsGroupFactoriesRegisterHandlers(harness),
+        "Spec048_DateTimeGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.DateTimeGroupFactoriesRegisterHandlers(harness),
+        "Spec048_StatusInfoGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.StatusInfoGroupFactoriesRegisterHandlers(harness),
+        "Spec048_MediaIconsGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.MediaIconsGroupFactoriesRegisterHandlers(harness),
+        "Spec048_ShapesGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.ShapesGroupFactoriesRegisterHandlers(harness),
+        "Spec048_NavigationChromeGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.NavigationChromeGroupFactoriesRegisterHandlers(harness),
+        "Spec048_OverlaysGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.OverlaysGroupFactoriesRegisterHandlers(harness),
+        "Spec048_IconAndInteropGroupFactoriesRegisterHandlers" => new Spec048RegistrationFixtures.IconAndInteropGroupFactoriesRegisterHandlers(harness),
 
         _ => null,
     };
