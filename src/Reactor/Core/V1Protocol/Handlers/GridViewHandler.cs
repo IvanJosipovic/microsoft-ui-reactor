@@ -113,8 +113,26 @@ internal sealed class GridViewHandler : IElementHandler<GridViewElement, WinUI.G
         if (!ReferenceEquals(o.ItemContainerStyle, n.ItemContainerStyle) && n.ItemContainerStyle is not null)
             gv.ItemContainerStyle = n.ItemContainerStyle;
 
+        // Issue #495 / #464 — rebuild ItemsSource on Items-array change so
+        // WinUI recycles + re-realizes containers (CCC re-fires
+        // reconciler.Mount with the new per-item element). The handler has
+        // `Children = null` and never reconciles realized child controls
+        // itself, so skipping the rebuild would silently freeze visible items
+        // when only their content changes
+        // (see Issue495_GridView_SameLengthContentChange_RefreshesContainers).
+        //
+        // WinUI drops SelectedIndex to -1 on ItemsSource reassignment when
+        // there's an active selection, firing SelectionChanged(-1). Arm
+        // BeginSuppress immediately before the swap so the trampoline's
+        // ShouldSuppress gate consumes that transient event. Only arm when
+        // there's a selection to clear — else the token strands and
+        // swallows the next real user input. Matches the ListView fix.
         if (!ReferenceEquals(o.Items, n.Items))
+        {
+            if (gv.SelectedIndex >= 0)
+                ChangeEchoSuppressor.BeginSuppress(gv);
             gv.ItemsSource = Enumerable.Range(0, n.Items.Length).ToList();
+        }
 
         Reconciler.SetElementTag(gv, n);
 
