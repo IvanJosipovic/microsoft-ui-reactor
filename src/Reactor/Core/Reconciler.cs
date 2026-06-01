@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Microsoft.UI.Reactor.Animation;
 using Microsoft.UI.Reactor.Core.Diagnostics;
+using Microsoft.UI.Reactor.Core.V1Protocol;
 using Microsoft.UI.Reactor.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -437,7 +438,7 @@ public sealed partial class Reconciler : IDisposable
     // ListView subclass) per TreeView so Update can reconcile realized
     // containers, and so the ContainerContentChanging subscription is attached
     // exactly once.
-    private readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<WinUI.TreeView, WinUI.ListView> _typedTreeListControls = new();
+    internal readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<WinUI.TreeView, WinUI.ListView> _typedTreeListControls = new();
 
     /// <summary>
     /// Spec 047 §14 Phase 1 (1.3) — promoted from internal. Associates a
@@ -675,77 +676,6 @@ public sealed partial class Reconciler : IDisposable
     // unsafe managed-FE-keyed CWT (Button, TextBox, Image, ScrollViewer) and
     // ModifierEventHandlerState (ToggleSwitch); issue #114 unified everything onto
     // ModifierEventHandlerState.
-
-    // ════════════════════════════════════════════════════════════════════
-    //  Canvas anchor positioning
-    // ════════════════════════════════════════════════════════════════════
-    //  CanvasAttached.AnchorX/AnchorY express positioning as a fraction of
-    //  the element's rendered size (0,0 = top-left, 0.5,0.5 = centered).
-    //  Final position depends on ActualWidth/ActualHeight, which is unknown
-    //  at mount time, so we recompute on Loaded + SizeChanged. The current
-    //  CanvasAttached is held in per-FE state so updates can swap anchor
-    //  values without re-subscribing.
-
-    private sealed class CanvasAnchorState
-    {
-        public CanvasAttached Current = new();
-        public bool Subscribed;
-    }
-
-    private static readonly global::System.Runtime.CompilerServices.ConditionalWeakTable<FrameworkElement, CanvasAnchorState> _canvasAnchorStates = new();
-
-    internal static void ApplyCanvasPosition(FrameworkElement fe, CanvasAttached ca)
-    {
-        if (ca.AnchorX == 0 && ca.AnchorY == 0)
-        {
-            WinUI.Canvas.SetLeft(fe, ca.Left);
-            WinUI.Canvas.SetTop(fe, ca.Top);
-            // If anchor handlers were previously installed (e.g. element re-used after
-            // a different anchor), keep them but update Current so they become a no-op.
-            if (_canvasAnchorStates.TryGetValue(fe, out var existing))
-                existing.Current = ca;
-            return;
-        }
-
-        var state = _canvasAnchorStates.GetValue(fe, static _ => new CanvasAnchorState());
-        state.Current = ca;
-        RecomputeCanvasAnchor(fe, state.Current);
-
-        if (state.Subscribed) return;
-        state.Subscribed = true;
-
-        fe.SizeChanged += (_, _) =>
-        {
-            if (_canvasAnchorStates.TryGetValue(fe, out var s))
-                RecomputeCanvasAnchor(fe, s.Current);
-        };
-        fe.Loaded += (_, _) =>
-        {
-            if (_canvasAnchorStates.TryGetValue(fe, out var s))
-                RecomputeCanvasAnchor(fe, s.Current);
-        };
-    }
-
-    private static void RecomputeCanvasAnchor(FrameworkElement fe, CanvasAttached ca)
-    {
-        WinUI.Canvas.SetLeft(fe, ca.Left - ca.AnchorX * fe.ActualWidth);
-        WinUI.Canvas.SetTop(fe, ca.Top - ca.AnchorY * fe.ActualHeight);
-    }
-
-    // Spec 047 §14 — clears Canvas positioning for a child that no longer
-    // carries CanvasAttached. With keyed reconcile a control can be reused
-    // across renders, so we must also reset any retained anchor state: a
-    // previously-installed SizeChanged/Loaded handler reads
-    // CanvasAnchorState.Current, and without this the stale anchored position
-    // would be re-applied on the next layout pass. Resetting Current to a
-    // default (non-anchored, 0,0) makes those retained handlers a no-op.
-    internal static void ClearCanvasPosition(FrameworkElement fe)
-    {
-        fe.ClearValue(WinUI.Canvas.LeftProperty);
-        fe.ClearValue(WinUI.Canvas.TopProperty);
-        if (_canvasAnchorStates.TryGetValue(fe, out var existing))
-            existing.Current = new CanvasAttached();
-    }
 
     // ════════════════════════════════════════════════════════════════════
     //  Extensible type registry (Feature 1: RegisterType API)
@@ -1115,6 +1045,10 @@ public sealed partial class Reconciler : IDisposable
         _contextScope.Push(dict);
         return new PopOnDispose(_contextScope, 1);
     }
+
+    // Internal so V1-owned lifecycle classes can read ambient Context<T> values
+    // without exposing the traversal stack itself.
+    internal T ReadContext<T>(Context<T> context) => _contextScope.Read(context);
 
     /// <summary>
     /// Spec 047 §14 Phase 1 (1.6) — push a stagger scope for child enter
@@ -1804,84 +1738,55 @@ public sealed partial class Reconciler : IDisposable
             return;
         }
 
-        // XamlHostElement children were created outside Reactor's tree —
-        // do NOT recurse into them (they may have stale parent references
-        // or be types Reactor doesn't know how to clean). Fully detach
-        // reactor state so retained-by-app references can't fire stale
-        // callbacks through orphaned trampolines.
-        if (control is FrameworkElement hostFe && GetElementTag(hostFe) is XamlHostElement)
+        if (control is WinUI.RichTextBlock rtb)
         {
-            DetachReactorState(hostFe);
-            return;
+            // Issue #480 — RichTextBlock is neither a Panel nor a ContentControl,
+            // so ForEachReactorChildControl doesn't recurse into its flow
+            // document. Route A (Reactor element) inline UI children must be torn
+            // down here or their hook cleanups + pooled descendants leak when the
+            // block goes away.
+            UnmountInlineUIChildren(rtb);
         }
 
-        // XamlPageElement — clear content to trigger Page.OnNavigatedFrom cleanup
-        if (control is WinUI.Frame pageFrame && GetElementTag(pageFrame) is XamlPageElement)
-        {
-            pageFrame.Content = null;
-            DetachReactorState(pageFrame);
-            return;
-        }
+        ForEachReactorChildControl(control, UnmountRecursive);
+    }
 
+    private static void ForEachReactorChildControl(UIElement control, Action<UIElement> visit)
+        => ForEachReactorChildControl(control, child => { visit(child); return true; });
+
+    private static void ForEachReactorChildControl(UIElement control, Func<UIElement, bool> visit)
+    {
         if (control is WinUI.Panel panel)
         {
             foreach (var child in panel.Children)
-                UnmountRecursive(child);
+                if (!visit(child)) return;
         }
         else if (control is WinUI.ItemsRepeater repeater)
         {
-            // ItemsRepeater projects to C# as a FrameworkElement (not a
-            // Panel — see microsoft-ui-xaml-lift/.../ItemsRepeater.idl), so
-            // the Panel branch above doesn't catch it even though the
-            // framework keeps both realized and recycled containers in
-            // its visual subtree. Without this branch, row Components'
-            // UseEffect cleanups would never run when the LazyStack is
-            // unmounted (e.g., on navigation), leaking any in-flight
-            // timers / subscriptions / async loops. We walk via
-            // VisualTreeHelper because the public ItemsRepeater surface
-            // doesn't expose a Children collection. (PR #324 review)
+            // ItemsRepeater does not expose a Children collection; realized and
+            // recycled row hosts live in its visual subtree.
             int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(repeater);
             for (int i = 0; i < count; i++)
             {
-                if (Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(repeater, i) is UIElement child)
-                    UnmountRecursive(child);
+                if (Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(repeater, i) is UIElement child && !visit(child))
+                    return;
             }
         }
         else if (control is WinUI.Border border && border.Child is not null)
         {
-            UnmountRecursive(border.Child);
+            visit(border.Child);
         }
         else if (control is WinUI.ScrollViewer sv && sv.Content is UIElement svChild)
         {
-            UnmountRecursive(svChild);
+            visit(svChild);
         }
         else if (control is WinUI.UserControl uc && uc.Content is UIElement ucChild)
         {
-            UnmountRecursive(ucChild);
+            visit(ucChild);
         }
         else if (control is WinUI.ContentControl cc && cc.Content is UIElement ccChild)
         {
-            UnmountRecursive(ccChild);
-        }
-        else if (control is WinUI.TreeView typedTree && GetElementTag(typedTree) is TemplatedTreeViewElementBase)
-        {
-            // Typed TreeView<T> hosts each node's view in a per-container
-            // ContentControl (populated on realization — see _typedTreeListControls).
-            // WinUI.TreeView is a Control (not a Panel / ContentControl), so the
-            // branches above don't recurse into it; walk its realized containers
-            // and tear down the mounted views, or their Components' cleanups
-            // (UseEffect, timers, subscriptions) would leak on unmount.
-            UnmountTypedTreeViewContainers(typedTree);
-            _typedTreeListControls.Remove(typedTree);
-        }
-        else if (control is WinUI.RichTextBlock rtb)
-        {
-            // Issue #480 — RichTextBlock is neither a Panel nor a
-            // ContentControl, so the branches above don't recurse into its
-            // flow document. Any Route A (Reactor element) inline UI
-            // children must be torn down here or their hook cleanups +
-            // pooled descendants leak when the block goes away.
-            UnmountInlineUIChildren(rtb);
+            visit(ccChild);
         }
     }
 
@@ -1891,14 +1796,14 @@ public sealed partial class Reconciler : IDisposable
     /// (recycle of individual containers is handled by the
     /// ContainerContentChanging recycle path).
     /// </summary>
-    private void UnmountTypedTreeViewContainers(WinUI.TreeView treeView)
+    internal void UnmountTypedTreeViewContainers(WinUI.TreeView treeView)
     {
         int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(treeView);
         for (int i = 0; i < count; i++)
             UnmountTypedTreeViewContainersRecursive(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(treeView, i));
     }
 
-    private void UnmountTypedTreeViewContainersRecursive(DependencyObject node)
+    internal void UnmountTypedTreeViewContainersRecursive(DependencyObject node)
     {
         // Our node-view hosts are ContentControls tagged with the view Element.
         if (node is WinUI.ContentControl cc && cc.Content is UIElement view && GetElementTag(cc) is not null)
@@ -2160,27 +2065,11 @@ public sealed partial class Reconciler : IDisposable
             return;
         }
 
-        // Recurse into children.
-        if (control is WinUI.Panel panel)
+        // Recurse into children. The shared child walk includes ItemsRepeater,
+        // so pooled removals now tear down realized LazyStack rows too.
+        ForEachReactorChildControl(control, child => UnmountAndCollect(child, toPool));
+        if (control is WinUI.ContentControl cc && cc.Content is UIElement)
         {
-            foreach (var child in panel.Children)
-                UnmountAndCollect(child, toPool);
-        }
-        else if (control is WinUI.Border border && border.Child is not null)
-        {
-            UnmountAndCollect(border.Child, toPool);
-        }
-        else if (control is WinUI.ScrollViewer sv && sv.Content is UIElement svChild)
-        {
-            UnmountAndCollect(svChild, toPool);
-        }
-        else if (control is WinUI.UserControl uc && uc.Content is UIElement ucChild)
-        {
-            UnmountAndCollect(ucChild, toPool);
-        }
-        else if (control is WinUI.ContentControl cc && cc.Content is UIElement ccChild)
-        {
-            UnmountAndCollect(ccChild, toPool);
             cc.Content = null; // Detach so pooled child has no parent
         }
         else if (control is WinUI.RichTextBlock rtb)
@@ -4486,7 +4375,7 @@ public sealed partial class Reconciler : IDisposable
         if (newEl is MenuFlyoutContentElement newMf && existingFlyout is WinUI.MenuFlyout menuFlyout)
         {
             menuFlyout.Items.Clear();
-            foreach (var item in newMf.Items) menuFlyout.Items.Add(CreateMenuFlyoutItem(item));
+            foreach (var item in newMf.Items) menuFlyout.Items.Add(MenuCommandFactory.CreateMenuFlyoutItem(item));
             if (newMf.Placement != WinPrim.FlyoutPlacementMode.Auto)
                 menuFlyout.Placement = newMf.Placement;
             return;
@@ -4542,7 +4431,7 @@ public sealed partial class Reconciler : IDisposable
                 // Only set Placement if explicitly specified (Auto can cause assertions on MenuFlyout)
                 if (mf.Placement != WinPrim.FlyoutPlacementMode.Auto)
                     menuFlyout.Placement = mf.Placement;
-                foreach (var item in mf.Items) menuFlyout.Items.Add(CreateMenuFlyoutItem(item));
+                foreach (var item in mf.Items) menuFlyout.Items.Add(MenuCommandFactory.CreateMenuFlyoutItem(item));
                 return menuFlyout;
             }
             default:
@@ -4556,7 +4445,7 @@ public sealed partial class Reconciler : IDisposable
     /// <summary>
     /// Spec 047 §14 Phase 3-final — descriptor-facing sibling of
     /// <see cref="CreateFlyoutFromElement"/>. Same shape as
-    /// <see cref="ResolveIconForDescriptor"/>: a thin forwarder that tolerates
+    /// <see cref="IconResolver.ResolveIconForDescriptor"/>: a thin forwarder that tolerates
     /// <see langword="null"/> input so a <c>.OneWayBridged</c> entry on a
     /// button-family descriptor can wire
     /// <c>(c, v, rec, rr) =&gt; c.Flyout = rec.CreateFlyoutForDescriptor(v, rr)</c>
@@ -4566,34 +4455,6 @@ public sealed partial class Reconciler : IDisposable
         => flyoutEl is null ? null : CreateFlyoutFromElement(flyoutEl, requestRerender);
 
     // ── Enum conversions removed — Reactor now uses WinUI types directly ──
-
-    internal static Symbol ParseSymbol(string name)
-    {
-        if (Enum.TryParse<Symbol>(name, ignoreCase: true, out var symbol)) return symbol;
-        return Symbol.Placeholder;
-    }
-
-    // ── Grid definition parsing ─────────────────────────────────────
-
-    internal static ColumnDefinition ParseColumnDef(string def) => def switch
-    {
-        "*" => new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
-        "Auto" or "auto" => new ColumnDefinition { Width = GridLength.Auto },
-        _ when double.TryParse(def, global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var px) => new ColumnDefinition { Width = new GridLength(px) },
-        _ when def.EndsWith('*') && double.TryParse(def[..^1], global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var stars) =>
-            new ColumnDefinition { Width = new GridLength(stars, GridUnitType.Star) },
-        _ => new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
-    };
-
-    internal static RowDefinition ParseRowDef(string def) => def switch
-    {
-        "*" => new RowDefinition { Height = new GridLength(1, GridUnitType.Star) },
-        "Auto" or "auto" => new RowDefinition { Height = GridLength.Auto },
-        _ when double.TryParse(def, global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var px) => new RowDefinition { Height = new GridLength(px) },
-        _ when def.EndsWith('*') && double.TryParse(def[..^1], global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var stars) =>
-            new RowDefinition { Height = new GridLength(stars, GridUnitType.Star) },
-        _ => new RowDefinition { Height = new GridLength(1, GridUnitType.Star) },
-    };
 
     /// <summary>
     /// Tracks the state of a mounted component in the tree.
@@ -4691,20 +4552,7 @@ public sealed partial class Reconciler : IDisposable
                 hooks.Add(hook);
         }
 
-        // Recurse into children (Border wraps components, Panel/Grid wraps layouts)
-        if (control is WinUI.Panel panel)
-        {
-            foreach (UIElement child in panel.Children)
-                CollectLifecycleHooksRecursive(child, hooks);
-        }
-        else if (control is WinUI.Border border && border.Child is not null)
-        {
-            CollectLifecycleHooksRecursive(border.Child, hooks);
-        }
-        else if (control is WinUI.ContentControl cc && cc.Content is UIElement content)
-        {
-            CollectLifecycleHooksRecursive(content, hooks);
-        }
+        ForEachReactorChildControl(control, child => CollectLifecycleHooksRecursive(child, hooks));
     }
 
     /// <summary>
@@ -4775,22 +4623,11 @@ public sealed partial class Reconciler : IDisposable
             if (ctx.IsCancelled) return;
         }
 
-        if (root is WinUI.Panel panel)
+        ForEachReactorChildControl(root, child =>
         {
-            foreach (UIElement child in panel.Children)
-            {
-                InvokeNavigatingFrom(child, ctx);
-                if (ctx.IsCancelled) return;
-            }
-        }
-        else if (root is WinUI.Border border && border.Child is not null)
-        {
-            InvokeNavigatingFrom(border.Child, ctx);
-        }
-        else if (root is WinUI.ContentControl cc && cc.Content is UIElement content)
-        {
-            InvokeNavigatingFrom(content, ctx);
-        }
+            InvokeNavigatingFrom(child, ctx);
+            return !ctx.IsCancelled;
+        });
     }
 
     /// <summary>

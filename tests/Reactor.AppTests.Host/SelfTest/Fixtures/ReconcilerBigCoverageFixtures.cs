@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.UI.Reactor;
 using Microsoft.UI.Reactor.Core;
+using Microsoft.UI.Reactor.Core.V1Protocol;
 using Microsoft.UI.Reactor.Core.Internal;
 using Microsoft.UI.Reactor.Hooks;
 using Microsoft.UI.Reactor.Controls.Validation;
@@ -543,6 +544,55 @@ internal static class ReconcilerBigCoverageFixtures
             H.ClickButton("CmdBarPhase");
             await Harness.Render();
             H.Check("CmdBar_Updated", H.FindControl<Microsoft.UI.Xaml.Controls.CommandBar>(_ => true) is not null);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  11b. CommandBar AppBarToggleButton icon update — regression.
+    //     The toggle update path must route through IconResolver (so it honors
+    //     IconElement + glyph fallback and clears a stale icon when the new data
+    //     drops it), mirroring the mount path and the AppBarButton update arm.
+    //     Previously it only did `if (Icon is not null) SymbolIcon(ParseSymbol)`,
+    //     which ignored IconElement and stranded a stale SymbolIcon.
+    // ════════════════════════════════════════════════════════════════════
+    internal class CmdBarToggleIconUpdate(Harness h) : SelfTestFixtureBase(h)
+    {
+        public override async Task RunAsync()
+        {
+            var host = H.CreateHost();
+            host.Mount(ctx =>
+            {
+                var (phase, set) = ctx.UseState(0);
+                AppBarItemBase[] primary = phase == 0
+                    ? [new AppBarToggleButtonData("Tgl", Icon: "Pin")]
+                    : [new AppBarToggleButtonData("Tgl") { IconElement = new FontIconData("\uE734") }];
+                return VStack(
+                    Button("TglIconPhase", () => set(1)),
+                    CommandBar(primary)
+                );
+            });
+
+            await Harness.Render();
+            H.Check("TglIcon_InitialSymbol",
+                FindFirstToggle()?.Icon is Microsoft.UI.Xaml.Controls.SymbolIcon);
+
+            H.ClickButton("TglIconPhase");
+            await Harness.Render();
+
+            // Under the old narrow `if (Icon is not null)` write the toggle would
+            // retain its stale SymbolIcon; IconResolver honors IconElement instead.
+            H.Check("TglIcon_UpdatedToFontIcon",
+                FindFirstToggle()?.Icon is Microsoft.UI.Xaml.Controls.FontIcon);
+        }
+
+        private Microsoft.UI.Xaml.Controls.AppBarToggleButton? FindFirstToggle()
+        {
+            var cb = H.FindControl<Microsoft.UI.Xaml.Controls.CommandBar>(_ => true);
+            if (cb is null) return null;
+            foreach (var c in cb.PrimaryCommands)
+                if (c is Microsoft.UI.Xaml.Controls.AppBarToggleButton atb)
+                    return atb;
+            return null;
         }
     }
 
@@ -1681,13 +1731,13 @@ internal static class ReconcilerBigCoverageFixtures
 
             var iconSources = new WinXC.IconSource?[]
             {
-                Reconciler.ResolveIconSource(new SymbolIconData("Edit")),
-                Reconciler.ResolveIconSource(new SymbolIconData("DefinitelyNotASymbol")),
-                Reconciler.ResolveIconSource(new FontIconData("\uE700", "Segoe Fluent Icons", 18)),
-                Reconciler.ResolveIconSource(new BitmapIconData(new Uri("ms-appx:///Assets/StoreLogo.png"), false)),
-                Reconciler.ResolveIconSource(new PathIconData("M0,0 L8,8")),
-                Reconciler.ResolveIconSource(new ImageIconData(new Uri("ms-appx:///Assets/StoreLogo.png"))),
-                Reconciler.ResolveIconSource("DefinitelyNotASymbol"),
+                IconResolver.ResolveIconSource(new SymbolIconData("Edit")),
+                IconResolver.ResolveIconSource(new SymbolIconData("DefinitelyNotASymbol")),
+                IconResolver.ResolveIconSource(new FontIconData("\uE700", "Segoe Fluent Icons", 18)),
+                IconResolver.ResolveIconSource(new BitmapIconData(new Uri("ms-appx:///Assets/StoreLogo.png"), false)),
+                IconResolver.ResolveIconSource(new PathIconData("M0,0 L8,8")),
+                IconResolver.ResolveIconSource(new ImageIconData(new Uri("ms-appx:///Assets/StoreLogo.png"))),
+                IconResolver.ResolveIconSource("DefinitelyNotASymbol"),
             };
             H.Check("PrivMount_IconSources", iconSources.Take(6).All(i => i is not null));
 
