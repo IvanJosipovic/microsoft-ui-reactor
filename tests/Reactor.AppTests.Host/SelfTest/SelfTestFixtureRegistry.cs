@@ -216,6 +216,12 @@ internal static class SelfTestFixtureRegistry
         "EFR_Factory_BoundedDistinctControls_AcrossManyRealizeCycles",
         "EFR_Factory_RecycledControlIsReusedOnNextRealize",
         "EFR_Factory_BookkeepingBoundedAcrossCycles",
+        // Spec 053 Phase 3 — Reactor.Advanced Win2D live-control smoke coverage.
+        "Win2D_Canvas_Mount",
+        "Win2D_AnimatedCanvas_Mount",
+        "Win2D_VirtualCanvas_Mount",
+        "Win2D_AnimatedCanvas_InitialPausedResumes",
+        "Win2D_Canvas_SameRedrawKeyNoExtraDraws",
         // PR #324 review fixes — heterogeneous rows, RefreshRealizedItems
         // sync, and ItemsRepeater unmount cleanup.
         "EFR_Factory_ReplacementOnRootTypeChange_DropsOldControlTracking",
@@ -1361,6 +1367,12 @@ internal static class SelfTestFixtureRegistry
         "ChartA11y_OnDemandAnnounce" => new ChartAccessibilityFixtures.OnDemandAnnounce(harness),
         "ChartA11y_FullIntegration" => new ChartAccessibilityFixtures.FullIntegration(harness),
         "ChartA11y_AutomationPeerProviderExercise" => new ChartAccessibilityFixtures.AutomationPeerProviderExercise(harness),
+
+        "Win2D_Canvas_Mount" => new Win2DCanvasFixtures.CanvasMount(harness),
+        "Win2D_AnimatedCanvas_Mount" => new Win2DCanvasFixtures.AnimatedCanvasMount(harness),
+        "Win2D_VirtualCanvas_Mount" => new Win2DCanvasFixtures.VirtualCanvasMount(harness),
+        "Win2D_AnimatedCanvas_InitialPausedResumes" => new Win2DCanvasFixtures.AnimatedCanvasInitialPausedResumes(harness),
+        "Win2D_Canvas_SameRedrawKeyNoExtraDraws" => new Win2DCanvasFixtures.CanvasSameRedrawKeyNoExtraDraws(harness),
 
         "MdHtml_HtmlGeneration" => new MarkdownHtmlFixtures.HtmlGeneration(harness),
         "MdHtml_HtmlInWebView2" => new MarkdownHtmlFixtures.HtmlInWebView2(harness),
