@@ -239,6 +239,18 @@
       <Platform Solution="*|x64" Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/samples/apps/hello-world-aot/">
+    <Project Path="samples/apps/hello-world-aot/HelloWorldAot.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/samples/apps/hello-world-aot-devtools-on/">
+    <Project Path="samples/apps/hello-world-aot-devtools-on/HelloWorldAotDevtoolsOn.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/samples/apps/monaco-editor/">
     <Project Path="samples/apps/monaco-editor/MonacoEditorApp.csproj">
       <Platform Solution="*|ARM64" Project="ARM64" />
@@ -361,6 +373,9 @@
   <Folder Name="/tools/Reactor.MurCheckGuardrail/">
     <Project Path="tools/Reactor.MurCheckGuardrail/Reactor.MurCheckGuardrail.csproj" />
   </Folder>
+  <Folder Name="/tools/Reactor.MstatVerifier/">
+    <Project Path="tools/Reactor.MstatVerifier/Reactor.MstatVerifier.csproj" />
+  </Folder>
   <Folder Name="/tools/Reactor.SignaturesGen/">
     <Project Path="tools/Reactor.SignaturesGen/Reactor.SignaturesGen.csproj">
       <Platform Solution="*|ARM64" Project="ARM64" />
@@ -378,5 +393,6 @@
     <Platform Solution="*|x64" Project="x64" />
   </Project>
   <Project Path="src/Reactor.Localization.Generator/Reactor.Localization.Generator.csproj" />
+  <Project Path="src/Reactor.Devtools/Reactor.Devtools.csproj" />
   <Project Path="src/Reactor/Reactor.csproj" />
 </Solution>
