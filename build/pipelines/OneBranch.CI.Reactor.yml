@@ -1,0 +1,147 @@
+#################################################################################
+#                               OneBranch Pipelines                             #
+# NonOfficial CI pipeline for Microsoft.UI.Reactor (CrossPlat, docked).          #
+# Builds the .slnx solution and runs headless unit tests (tests/Reactor.Tests)   #
+# on PRs. Shares build logic with the Official pipeline via                      #
+# build/pipelines/templates/reactor-build-steps.yml.                             #
+# Documentation:  https://aka.ms/obpipelines                                    #
+# Yaml Schema:    https://aka.ms/obpipelines/yaml/schema                        #
+# Retail Tasks:   https://aka.ms/obpipelines/tasks                              #
+# Support:        https://aka.ms/onebranchsup                                   #
+#################################################################################
+
+trigger: none # https://aka.ms/obpipelines/triggers
+pr: # validate pull requests
+  branches:
+    include:
+      - '*'
+  paths:
+    exclude:
+      - docs/guide/**
+
+parameters: # parameters are shown up in ADO UI in a build queue time
+- name: 'debug'
+  displayName: 'Enable debug output'
+  type: boolean
+  default: false
+
+variables:
+  CDP_DEFINITION_BUILD_COUNT: $[counter('', 0)] # needed for onebranch.pipeline.version task https://aka.ms/obpipelines/versioning
+  system.debug: ${{ parameters.debug }}
+
+  # Mirror GitHub Actions' CI flag so dev-only nested builds stay off in CI.
+  # Reactor.Cli's RunSignaturesGen target is gated on '$(CI)' != 'true' and otherwise
+  # runs a nested `dotnet build` that does its OWN restore, which fails in a restricted
+  # CI environment. The committed skills/reactor.api.txt is what pack consumes, so
+  # skipping regen in CI is correct.
+  CI: true
+
+  # Skip the GitHub.Copilot.SDK native CLI download in CI.
+  # The SDK's GitHub.Copilot.SDK.targets downloads copilot-<rid>.tgz via an MSBuild
+  # DownloadFile task hardcoded to registry.npmjs.org, which can fail in a restricted
+  # CI environment and cannot use an authenticated package feed. The native copilot.exe
+  # is only a RUNTIME artifact for the demo-script-tool sample; it is not needed to
+  # compile the framework, pack the NuGets, or run unit tests. MSBuild surfaces this env
+  # var as the property the targets gate on ($(CopilotSkipCliDownload) != 'true'), so the
+  # download target is skipped.
+  CopilotSkipCliDownload: true
+
+  # Reactor builds the .slnx solution via the dotnet CLI (no dirs.proj / msbuild.exe).
+  BuildSolution: $(Build.SourcesDirectory)\Reactor.slnx
+  BuildConfiguration: Release
+  NuGetConfig: $(Build.SourcesDirectory)\build\pipelines\nuget.internal.config
+
+  WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2022/vse2022:latest' # Docker image which is used to build the project https://aka.ms/obpipelines/containers
+
+resources:
+  repositories: 
+    - repository: templates
+      type: git
+      name: OneBranch.Pipelines/GovernedTemplates
+      ref: refs/heads/main
+
+extends:
+  template: v2/OneBranch.NonOfficial.CrossPlat.yml@templates # https://aka.ms/obpipelines/templates
+  parameters:
+    globalSdl: # https://aka.ms/obpipelines/sdl
+      # tsa:
+      #  enabled: true # SDL results of non-official builds aren't uploaded to TSA by default.
+      # credscan:
+      #   suppressionsFile: $(Build.SourcesDirectory)\.config\CredScanSuppressions.json
+      policheck:
+        break: true # always break the build on policheck issues. You can disable it by setting to 'false'
+      # suppression:
+      #   suppressionFile: $(Build.SourcesDirectory)\.gdn\global.gdnsuppress
+
+    stages:
+    - stage: build
+      jobs:
+      - job: main
+        pool:
+          type: windows  # read more about custom job pool types at https://aka.ms/obpipelines/yaml/jobs
+          hostVersion:  # request a 2022 host so the ltsc2022 image runs under process isolation (kernel match), aligning CI with Official
+            Version: 2022
+        
+        variables:
+          ob_outputDirectory: '$(Build.SourcesDirectory)\out' # this directory is uploaded to pipeline artifacts, reddog and cloudvault. More info at https://aka.ms/obpipelines/artifacts
+          ob_git_fetchDepth: -1 # full git history + tags so MinVer can derive the version (shallow clone => 0.1.0 fallback)
+          # https://aka.ms/obpipelines/sdl
+          ob_sdl_binskim_enabled: true # you can disable sdl tools in non-official build 
+          ob_sdl_binskim_break: true # always break the build on binskim issues. You can disable it by setting to 'false'
+          ob_sdl_binskim_scanOutputDirectoryOnly: true
+          # ob_sdl_suppression_suppressionFile: $(Build.SourcesDirectory)\.gdn\job.gdnsuppress
+
+        steps:
+          # TODO: per-PR publish — flip pack:true and push to a preview/PR feed (NOT the
+          # release feed) so reviewers get an installable package per PR. Needs a preview
+          # feed (or settle for a pipeline artifact). The per-PR version suffix is already
+          # wired in reactor-build-steps.yml and activates under Build.Reason=PullRequest.
+          - template: /build/pipelines/templates/reactor-build-steps.yml@self
+            parameters:
+              outputDirectory: '$(Build.SourcesDirectory)\out'
+              solution: '$(BuildSolution)'
+              configuration: '$(BuildConfiguration)'
+              nugetConfig: '$(NuGetConfig)'
+              runTests: true # headless unit tests (tests/Reactor.Tests)
+              pack: false # CI validates; packaging happens in the Official pipeline
+# uncomment this section and edit parameters to enable VSTest instead of dotnet tests. When you enable this you dont need publish test results and codecoverage steps
+         # - task: VSTest@3
+         #   inputs:
+          #    testSelector: 'testAssemblies'
+           #   testAssemblyVer2: |
+            #    **\*test*.dll
+             #   !**\*TestAdapter.dll
+              #  !**\obj\**
+             # searchFolder: '$(Build.SourcesDirectory)\out' ## or use '$(Agent.BuildDirectory)'
+              ##testFiltercriteria: 'TestCategory=UnitTests'   ## update
+              #resultsFolder: '$(Build.SourcesDirectory)\out\logs\TestResults'
+              #runInParallel: true ## this setting helps to speed up test case execution but if youhave depdencies between tests you change or remove this but having it enabled is always recommended
+              #codeCoverageEnabled: true
+              #testRunTitle: 'release_x64' ## Update this for a custom readable way of taggin your test run when you query in ADO test runs view
+              #platform: 'x64' ## you can modify this as needed
+              #configuration: 'release'
+              #publishRunAttachments: false
+              #failOnMinTestsNotRun: true
+              #rerunFailedTests: true
+              #rerunFailedThreshold: '70' 
+# https://aka.ms/obpipelines/cloudtest
+# uncomment this section and edit parameters to enable CloudTest
+    # - stage: cloudtest
+    #   dependsOn: build_stage
+    #   jobs:
+    #   - job: cloudtestjob
+    #     pool:
+    #       type: cloudtestagentless
+    #     continueOnError: true
+    #     steps:
+    #     - task: CloudTestServerBuildTask@1
+    #       displayName: 'CloudTest'
+    #       inputs:
+    #         connectedServiceName: 'CloudTest-prod'
+    #         cloudTestTenant: 'onebranchtest'
+    #         testMapLocation: '[BuildRoot]\ClassLibrary.UnitTest\TestMapCdp.xml'
+    #         pipelineArtifactName: 'drop_build_main'
+    #         pipelineArtifactBuildUrl: '$(System.TaskDefinitionsUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'
+    #         parserProperties: 'worker:VsTestVersion=V150;CodeCoverageType=Dynamic;worker:TestVar=$(RUN_PIPELINE_VARIABLE)'
+    #         cacheEnabled: false
+    #         scheduleBuildRequesterAlias: 'azbldrun'

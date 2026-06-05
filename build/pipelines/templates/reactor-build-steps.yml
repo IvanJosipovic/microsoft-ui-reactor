@@ -1,0 +1,384 @@
+# Shared build steps for Microsoft.UI.Reactor OneBranch pipelines.
+#
+# Consumed by the thin entry pipelines (Official, CI/NonOfficial, Stress, ...) so the
+# build logic lives in exactly one place. Each entry pipeline owns its own trigger and
+# `extends` the appropriate governed OB template, then injects these steps with parameters.
+#
+# Notes:
+#  - Reactor builds the .slnx solution via the dotnet CLI (no dirs.proj / msbuild.exe).
+#  - Restore resolves from a pinned internal feed (build/pipelines/nuget.internal.config),
+#    a pre-seeded internal package feed.
+#  - Selftests / E2E need a live WinUI window and do NOT run in CI;
+#    `runTests` covers headless unit tests only (tests/Reactor.Tests).
+
+parameters:
+  - name: outputDirectory
+    displayName: 'Directory OB scans + uploads as artifacts (ob_outputDirectory).'
+    type: string
+  - name: solution
+    type: string
+    default: '$(Build.SourcesDirectory)\Reactor.slnx'
+  - name: configuration
+    type: string
+    default: 'Release'
+  - name: nugetConfig
+    type: string
+    default: '$(Build.SourcesDirectory)\build\pipelines\nuget.internal.config'
+  - name: npmRegistry
+    displayName: 'Internal npm registry (ADO feed) for transitive npm downloads.'
+    type: string
+    default: 'https://github-private.pkgs.visualstudio.com/microsoft/_packaging/microsoft-ui-reactor/npm/registry/'
+  - name: version
+    displayName: 'Explicit version; blank => MinVer.'
+    type: string
+    default: ''
+  - name: runTests
+    displayName: 'Run headless unit tests (tests/Reactor.Tests).'
+    type: boolean
+    default: false
+  - name: pack
+    displayName: 'Pack NuGet packages + assemble the skill kit.'
+    type: boolean
+    default: true
+  - name: sign
+    displayName: 'ESRP-sign outputs (Authenticode binaries before pack, NuGet-sign .nupkg after). Official builds only.'
+    type: boolean
+    default: false
+
+steps:
+  - task: UseDotNet@2
+    displayName: 'Setup .NET SDK'
+    inputs:
+      packageType: 'sdk'
+      useGlobalJson: true # honor global.json (.NET 10 SDK); no-op if the image already ships it
+      performMultiLevelLookup: true
+
+  - task: onebranch.pipeline.version@1 # https://aka.ms/obpipelines/versioning
+    displayName: 'Setup BuildNumber'
+    inputs:
+      system: 'RevisionCounter'
+      major: '1'
+      minor: '0'
+      exclude_commit: true
+
+  - task: NuGetAuthenticate@1
+    displayName: 'NuGet Authentication'
+    inputs:
+      forceReinstallCredentialProvider: true
+
+  # Pin a repo-root .npmrc at the internal npm registry for the build.
+  #
+  # The committed .npmrc files (src/vscode-reactor, tests/..., samples/...) point at
+  # public registry.npmjs.org so external contributors can restore. We cannot commit an
+  # internal-only .npmrc without breaking them. Instead, write the internal registry to
+  # the repo-root .npmrc at build time (the CI working tree is disposable) so transitive
+  # npm downloads (e.g. GitHub.Copilot.SDK pulling copilot-win32-x64-*.tgz) resolve from
+  # the internal feed -- which proxies npmjs.org -- instead of the public registry the
+  # build environment may not reach.
+  - pwsh: |
+      $dest = Join-Path "$(Build.SourcesDirectory)" '.npmrc'
+      @(
+        'registry=${{ parameters.npmRegistry }}'
+        'always-auth=true'
+      ) | Set-Content -Path $dest -Encoding utf8
+      Write-Host "Pinned ambient npm registry to internal feed: $dest"
+    displayName: 'Pin ambient npm to internal feed'
+
+  # Inject the feed access token into the repo-root .npmrc written above so the
+  # authenticated download against the internal registry succeeds.
+  - task: npmAuthenticate@0
+    displayName: 'npm Authentication'
+    inputs:
+      workingFile: '$(Build.SourcesDirectory)/.npmrc'
+
+  # Make the internal feed the AMBIENT NuGet config for the whole build.
+  #
+  # `--configfile` only scopes the single dotnet invocation it is passed to. Nested
+  # restores (the SignaturesGen Exec in Reactor.Cli, `dotnet tool install`, the WinUI
+  # XamlCompiler, MSBuild download targets) discover NuGet config by walking up the
+  # directory tree, where they would otherwise find the committed repo-root nuget.config
+  # that points at public nuget.org -> unreachable in a restricted CI environment.
+  #
+  # Overwriting the repo-root nuget.config with the internal-only feed (it is `<clear/>`
+  # + the internal source) makes every nested restore resolve from the internal feed with
+  # no further plumbing. The CI working tree is disposable, so mutating the tracked file
+  # here is safe.
+  - pwsh: |
+      $dest = Join-Path "$(Build.SourcesDirectory)" 'nuget.config'
+      Copy-Item "${{ parameters.nugetConfig }}" $dest -Force
+      Write-Host "Pinned ambient NuGet config to internal feed: $dest"
+    displayName: 'Pin ambient NuGet to internal feed'
+
+  - ${{ if eq(parameters.pack, true) }}:
+    - pwsh: |
+        dotnet tool install --global minver-cli --version 5.0.0 `
+          --configfile "${{ parameters.nugetConfig }}"
+      displayName: 'Install minver-cli'
+
+    - pwsh: |
+        $manualVersion = '${{ parameters.version }}'
+
+        if (-not [string]::IsNullOrWhiteSpace($manualVersion)) {
+          # Explicit override always wins, verbatim.
+          $version = $manualVersion.Trim()
+        } else {
+          $minver = Join-Path $env:USERPROFILE '.dotnet\tools\minver.exe'
+          if (-not (Test-Path $minver)) {
+            throw "minver not found at $minver"
+          }
+          # Keep parity with the GitHub workflow / ob-release.yml MinVer settings.
+          $version = (& $minver -t v -p experimental.0 -m 0.1).Trim()
+
+          # Per-PR builds: append a unique, monotonic suffix so repeated iterations /
+          # rebuilds of the same commit never collide on the feed. MinVer alone is
+          # deterministic (same commit => same version), which would clash on re-push.
+          # $(CDP_DEFINITION_BUILD_COUNT) is OneBranch's per-definition monotonic counter.
+          if ($env:BUILD_REASON -eq 'PullRequest') {
+            $pr = $env:SYSTEM_PULLREQUEST_PULLREQUESTID
+            $counter = $env:CDP_DEFINITION_BUILD_COUNT
+            $base = $version.Split('-')[0]  # strip MinVer's own prerelease tail
+            $version = "$base-pr.$pr.$counter"
+          }
+        }
+
+        if (-not $version) { throw 'Could not resolve version' }
+
+        $isPrerelease = $version.Contains('-')
+        Write-Host "##vso[task.setvariable variable=PackageVersion]$version"
+        Write-Host "##vso[task.setvariable variable=IsPrerelease]$($isPrerelease.ToString().ToLower())"
+        Write-Host "Version: $version (isPrerelease=$isPrerelease)"
+      displayName: 'Resolve version'
+
+  - pwsh: |
+      dotnet restore "${{ parameters.solution }}" --configfile "${{ parameters.nugetConfig }}"
+    displayName: 'Restore'
+
+  # Plain dotnet build. SDL static analysis is handled by CodeQL, which the governed
+  # pipeline template auto-injects around the build tasks -- it watches the compiler
+  # calls during this step. We deliberately do NOT use the legacy RoslynAnalyzers@3
+  # task: its vs2022 Roslyn toolset does not run the .NET 10 SDK source generators,
+  # producing false-positive CS8795 ([LibraryImport] partials) and CS0534
+  # (JsonSerializerContext) compile errors. A normal `dotnet build` keeps the generators
+  # intact, and CodeQL provides the SDL-required scan.
+  #
+  # -p:CI=true is passed as an explicit MSBuild global property (not the pipeline env
+  # var of the same name, which did not reliably reach MSBuild in CI). CI=true gates off
+  # Reactor.Cli's RunSignaturesGen target AND (via Directory.Build.props) sets
+  # CopilotSkipCliDownload=true so the GitHub.Copilot.SDK npmjs.org download is skipped
+  # in CI. NOTE: passing -p:CopilotSkipCliDownload=true as a global property did NOT take
+  # effect (Copilot still downloaded for DemoScriptTool + Reactor.Cli -> MSB3923) even
+  # though -p:CI=true in the same project did; we therefore derive the skip from $(CI) in
+  # Directory.Build.props instead.
+  #
+  # -maxcpucount:1 (serial build) is required because the netstandard2.0 generator/
+  # analyzer projects (e.g. Reactor.Localization.Generator) set
+  # AppendPlatformToOutputPath=false, so the x64 and ARM64 consumer graphs both build
+  # them into the SAME bin/Release/netstandard2.0 path. On a multi-core build host those
+  # two instances run concurrently and collide on the .dll / deps.json (CS2012 / MSB4018
+  # 'being used by another process'). GitHub Actions runs the identical command but
+  # survives only because its hosted runners have far fewer cores. Serializing the build
+  # makes the two writes sequential (output is identical), deterministically eliminating
+  # the race.
+  - pwsh: |
+      dotnet build "${{ parameters.solution }}" --no-restore --configuration ${{ parameters.configuration }} -maxcpucount:1 -p:CI=true
+    displayName: 'Build framework (dotnet build; CodeQL-scanned)'
+
+  - ${{ if eq(parameters.runTests, true) }}:
+    # Reactor.Tests is mapped in Reactor.slnx to the x64/ARM64 solution platforms only
+    # (no AnyCPU), so its build output lands under a platform-specific path. The main
+    # `dotnet build Reactor.slnx` step above builds it under the slnx's DEFAULT solution
+    # platform, which does not match the AnyCPU path `dotnet test --no-build` probes
+    # (test source file ... Reactor.Tests.dll ... was not found). We therefore restore +
+    # build + test the project standalone with `-p:Platform=x64`, exactly as the GitHub
+    # Actions unit-test job does (ci.yml: restore + test `-p:Platform=x64`).
+    #
+    # The restore MUST use an explicit `--configfile "${{ parameters.nugetConfig }}"`
+    # pointing at the internal feed -- the same way the solution-level "Restore" step
+    # above does. Relying on the ambient pinned nuget.config is NOT enough: a bare
+    # `dotnet test` (no --no-restore) restores against the public api.nuget.org service
+    # index, which the restricted CI environment cannot reach. `dotnet test` has no
+    # --configfile, so we do an explicit `dotnet restore ... --configfile` first, then
+    # `dotnet test --no-restore` (the build happens inside `dotnet test` from the
+    # already-restored packages, needing no network). `-p:CI=true` keeps
+    # Copilot/SignaturesGen gated off for consistency.
+    #
+    # AnalyzerTests are EXCLUDED here (`--filter "FullyQualifiedName!~AnalyzerTests"`).
+    # They use the Microsoft.CodeAnalysis.Testing harness, which resolves .NET
+    # reference-assembly packs (Microsoft.NETCore.App.Ref, etc.) at TEST RUNTIME via
+    # NuGet `Settings.LoadDefaultSettings(root: null)` -- this reads only the USER/MACHINE
+    # NuGet config, NOT our repo-root pinned nuget.config, so it bypasses the internal
+    # feed and reaches the public api.nuget.org service index, which the restricted CI
+    # environment cannot reach. The analyzers are fully gated by GitHub Actions CI (ci.yml
+    # runs the same Reactor.Tests with nuget.org reachable) on every PR, so excluding them
+    # here loses no coverage. (Future option to restore coverage: point the harness's
+    # user-level NuGet config at the internal feed so LoadDefaultSettings(null) resolves
+    # ref packs through the feed's nuget.org upstream -- only viable if upstreaming is
+    # enabled.)
+    - pwsh: |
+        dotnet restore tests/Reactor.Tests/Reactor.Tests.csproj `
+          -p:Platform=x64 --configfile "${{ parameters.nugetConfig }}"
+      displayName: 'Restore unit tests (internal feed)'
+
+    - pwsh: |
+        dotnet test tests/Reactor.Tests/Reactor.Tests.csproj `
+          --no-restore -p:Platform=x64 -p:CI=true --configuration ${{ parameters.configuration }} `
+          --filter "FullyQualifiedName!~AnalyzerTests" `
+          --logger trx --results-directory "$(Build.SourcesDirectory)\TestResults"
+      displayName: 'Unit tests (Reactor.Tests)'
+
+    - task: PublishTestResults@2
+      displayName: 'Publish test results'
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: VSTest
+        testResultsFiles: '$(Build.SourcesDirectory)\TestResults\**\*.trx'
+        failTaskOnFailedTests: true
+
+  - ${{ if eq(parameters.pack, true) }}:
+    # ── Build Reactor.Advanced (AnyCPU) for packing. ──
+    # Reactor.Advanced is NOT a direct slnx member, but tests/Reactor.Advanced.Tests is and
+    # project-references it, so the slnx build above produces Reactor.Advanced for the slnx
+    # default platform (ARM64) and the slnx restore already pulled its deps (Win2D) through
+    # the internal feed. `dotnet pack` below needs the AnyCPU output, so we build that one
+    # platform explicitly here -- mirroring the 'Build Advanced (AnyCPU)' step in
+    # .github/workflows/release.yml. --no-restore is safe (deps already restored); -p:CI=true
+    # keeps the Copilot/SignaturesGen gates off when the referenced Reactor.csproj is touched.
+    - pwsh: |
+        dotnet build src/Reactor.Advanced/Reactor.Advanced.csproj `
+          --no-restore --configuration ${{ parameters.configuration }} `
+          -p:Platform=AnyCPU -p:CI=true
+      displayName: 'Build Advanced (AnyCPU)'
+
+    # ── Phase 1a: Authenticode-sign the packed assemblies BEFORE packing. ──
+    # `dotnet pack --no-build` zips the existing build output into the .nupkg, so each
+    # authored DLL must be signed HERE for the SIGNED copy to land inside the package.
+    # Signing the .nupkg later (Phase 2) only seals the container; Guardian CodeSign
+    # post-analysis validates the members and breaks the build if any are unsigned.
+    # Authored assemblies that ship inside Microsoft.UI.Reactor.nupkg:
+    #   lib/<tfm>/Reactor.dll (+ Reactor.resources.dll satellite)
+    #   analyzers/dotnet/cs/Reactor.Analyzers.dll
+    #   analyzers/dotnet/cs/Reactor.Localization.Generator.dll
+    # And inside Microsoft.UI.Reactor.Advanced.nupkg:
+    #   lib/<tfm>/Reactor.Advanced.dll
+    # Each glob is scoped to its project's bin\ dir so we sign only our own assemblies.
+    - ${{ if eq(parameters.sign, true) }}:
+      - task: onebranch.pipeline.signing@1
+        displayName: 'Sign packed assemblies (Authenticode, pre-pack)'
+        inputs:
+          command: 'sign'
+          signing_profile: external_distribution
+          files_to_sign: 'Reactor\bin\**\Reactor.dll;Reactor\bin\**\Reactor.resources.dll;Reactor.Advanced\bin\**\Reactor.Advanced.dll;Reactor.Analyzers\bin\**\Reactor.Analyzers.dll;Reactor.Localization.Generator\bin\**\Reactor.Localization.Generator.dll'
+          search_root: '$(Build.SourcesDirectory)\src'
+
+    - pwsh: |
+        dotnet pack src/Reactor/Reactor.csproj `
+          --no-build --configuration ${{ parameters.configuration }} `
+          -p:Version=$(PackageVersion) `
+          -o "${{ parameters.outputDirectory }}\nupkg"
+      displayName: 'Pack framework NuGet'
+
+    # Pack the Advanced (Win2D/advanced controls) NuGet from the AnyCPU output built
+    # above. Mirrors the 'Pack Advanced NuGet' step in .github/workflows/release.yml.
+    - pwsh: |
+        dotnet pack src/Reactor.Advanced/Reactor.Advanced.csproj `
+          --no-build --configuration ${{ parameters.configuration }} `
+          -p:Platform=AnyCPU `
+          -p:Version=$(PackageVersion) `
+          -o "${{ parameters.outputDirectory }}\nupkg"
+      displayName: 'Pack Advanced NuGet'
+
+    - pwsh: |
+        dotnet pack tools/Templates/Microsoft.UI.Reactor.Templates.csproj `
+          --no-build --configuration ${{ parameters.configuration }} `
+          -p:Version=$(PackageVersion) `
+          -p:Platform=AnyCPU `
+          -o "${{ parameters.outputDirectory }}\nupkg"
+      displayName: 'Pack Templates'
+
+    - pwsh: |
+        dotnet publish src/Reactor.Cli/Reactor.Cli.csproj `
+          --configuration ${{ parameters.configuration }} `
+          --runtime win-x64 `
+          --self-contained false `
+          -p:Version=$(PackageVersion) `
+          -p:CI=true `
+          -o "${{ parameters.outputDirectory }}\mur\x64"
+      displayName: 'Publish mur (win-x64)'
+
+    - pwsh: |
+        dotnet publish src/Reactor.Cli/Reactor.Cli.csproj `
+          --configuration ${{ parameters.configuration }} `
+          --runtime win-arm64 `
+          --self-contained false `
+          -p:Version=$(PackageVersion) `
+          -p:CI=true `
+          -o "${{ parameters.outputDirectory }}\mur\arm64"
+      displayName: 'Publish mur (win-arm64)'
+
+    # ── Phase 1b: Authenticode-sign the mur CLI binaries BEFORE they are copied into
+    # the skill-kit staging tree, so the binaries inside reactor-skill-kit-*.zip (and the
+    # loose out\mur artifacts) are signed. The .zip itself is not Authenticode-signable.
+    - ${{ if eq(parameters.sign, true) }}:
+      - task: onebranch.pipeline.signing@1
+        displayName: 'Sign mur binaries (Authenticode, pre-zip)'
+        inputs:
+          command: 'sign'
+          signing_profile: external_distribution
+          files_to_sign: '**/*.exe;**/*.dll'
+          search_root: '${{ parameters.outputDirectory }}\mur'
+
+    - pwsh: |
+        $version = '$(PackageVersion)'
+        $outDir = '${{ parameters.outputDirectory }}'
+        $stage = "$outDir\kit-stage\reactor"
+
+        New-Item -ItemType Directory -Force -Path $stage | Out-Null
+        New-Item -ItemType Directory -Force -Path "$stage\bin\x64" | Out-Null
+        New-Item -ItemType Directory -Force -Path "$stage\bin\arm64" | Out-Null
+
+        Copy-Item SKILL.md $stage
+        Copy-Item -Recurse skills $stage
+        Copy-Item "$outDir\mur\x64\*" "$stage\bin\x64\" -Recurse
+        Copy-Item "$outDir\mur\arm64\*" "$stage\bin\arm64\" -Recurse
+        Copy-Item tools/install-skill-kit.ps1 "$stage\install-skill-kit.ps1"
+
+        Write-Host "Staged kit at: $stage"
+      displayName: 'Stage skill kit'
+
+    # Sign the installer script in the staging tree BEFORE zipping (the mur binaries
+    # copied above are already signed from Phase 1b and retain their signatures).
+    - ${{ if eq(parameters.sign, true) }}:
+      - task: onebranch.pipeline.signing@1
+        displayName: 'Sign skill-kit scripts (Authenticode, pre-zip)'
+        inputs:
+          command: 'sign'
+          signing_profile: external_distribution
+          files_to_sign: '**/*.ps1;**/*.psm1'
+          search_root: '${{ parameters.outputDirectory }}\kit-stage'
+
+    - pwsh: |
+        $version = '$(PackageVersion)'
+        $outDir = '${{ parameters.outputDirectory }}'
+
+        New-Item -ItemType Directory -Force -Path "$outDir\kit" | Out-Null
+        $zip = "$outDir\kit\reactor-skill-kit-$version.zip"
+        Compress-Archive -Path "$outDir\kit-stage\reactor" -DestinationPath $zip -Force
+
+        # Drop the staging tree so it isn't double-scanned / uploaded.
+        Remove-Item -Recurse -Force "$outDir\kit-stage"
+
+        Write-Host "Kit: $zip"
+      displayName: 'Zip skill kit'
+
+    # ── Phase 2: NuGet-sign the packages AFTER pack. This seals each .nupkg as a whole
+    # (tamper-evidence + authenticity of the container); the assemblies inside were already
+    # Authenticode-signed in Phase 1a. NuGet uses the dedicated NuGet signing cert via
+    # cp_code CP-401405, not a signing_profile.
+    - ${{ if eq(parameters.sign, true) }}:
+      - task: onebranch.pipeline.signing@1
+        displayName: 'Sign NuGet packages (post-pack)'
+        inputs:
+          command: 'sign'
+          cp_code: 'CP-401405'
+          files_to_sign: '**/*.nupkg'
+          search_root: '${{ parameters.outputDirectory }}\nupkg'

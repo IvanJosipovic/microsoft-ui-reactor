@@ -1,0 +1,112 @@
+#################################################################################
+#                               OneBranch Pipelines                             #
+# Official OneBranch pipeline for Microsoft.UI.Reactor (CrossPlat, docked).      #
+# Produces framework NuGet packages (Microsoft.UI.Reactor,                      #
+# Microsoft.UI.Reactor.Advanced + Templates) and the reactor skill kit          #
+# (mur x64 + arm64).                                                            #
+# Official builds run network-restricted: NuGet restore resolves from            #
+# build/pipelines/nuget.internal.config (a pre-seeded internal package feed).     #
+# Documentation:  https://aka.ms/obpipelines                                    #
+# Yaml Schema:    https://aka.ms/obpipelines/yaml/schema                        #
+# Retail Tasks:   https://aka.ms/obpipelines/tasks                              #
+# Support:        https://aka.ms/onebranchsup                                   #
+#################################################################################
+
+trigger: none # https://aka.ms/obpipelines/triggers
+
+parameters: # parameters are shown up in ADO UI in a build queue time
+- name: 'debug'
+  displayName: 'Enable debug output'
+  type: boolean
+  default: false
+- name: 'version'
+  displayName: 'Version to pack (manual runs only; e.g. 0.1.0-preview.1). Leave blank to use MinVer.'
+  type: string
+  default: ''
+
+variables:
+  CDP_DEFINITION_BUILD_COUNT: $[counter('', 0)] # needed for onebranch.pipeline.version task https://aka.ms/obpipelines/versioning
+  system.debug: ${{ parameters.debug }}
+
+  # Mirror GitHub Actions' CI flag so dev-only nested builds stay off in CI.
+  # Reactor.Cli's RunSignaturesGen target is gated on '$(CI)' != 'true' and otherwise
+  # runs a nested `dotnet build` that does its OWN restore, which fails in a restricted
+  # CI environment. The committed skills/reactor.api.txt is what pack consumes, so
+  # skipping regen in CI is correct.
+  CI: true
+
+  # Skip the GitHub.Copilot.SDK native CLI download in CI.
+  # The SDK's GitHub.Copilot.SDK.targets downloads copilot-<rid>.tgz via an MSBuild
+  # DownloadFile task hardcoded to registry.npmjs.org, which can fail in a restricted
+  # CI environment and cannot use an authenticated package feed. The native copilot.exe
+  # is only a RUNTIME artifact for the demo-script-tool sample; it is not needed to
+  # compile the framework, pack the NuGets, or run unit tests. MSBuild surfaces this env
+  # var as the property the targets gate on ($(CopilotSkipCliDownload) != 'true'), so the
+  # download target is skipped.
+  CopilotSkipCliDownload: true
+
+  # Reactor builds the .slnx solution via the dotnet CLI (no dirs.proj / msbuild.exe).
+  BuildSolution: $(Build.SourcesDirectory)\Reactor.slnx
+  BuildConfiguration: Release
+  # Restore resolves from the pinned internal feed config.
+  NuGetConfig: $(Build.SourcesDirectory)\build\pipelines\nuget.internal.config
+
+  WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2022/vse2022:latest' # Docker image which is used to build the project https://aka.ms/obpipelines/containers
+
+resources:
+  repositories: 
+    - repository: templates
+      type: git
+      name: OneBranch.Pipelines/GovernedTemplates
+      ref: refs/heads/main
+
+extends:
+  template: v2/OneBranch.Official.CrossPlat.yml@templates # https://aka.ms/obpipelines/templates
+  parameters:
+    cloudvault: # https://aka.ms/obpipelines/cloudvault
+      enabled: false
+    globalSdl: # https://aka.ms/obpipelines/sdl
+      tsa:
+        enabled: true
+      # credscan:
+      #   suppressionsFile: $(Build.SourcesDirectory)\.config\CredScanSuppressions.json
+      policheck:
+        break: true # always break the build on policheck issues. You can disable it by setting to 'false'
+      # suppression:
+      #   suppressionFile: $(Build.SourcesDirectory)\.gdn\global.gdnsuppress
+
+    stages:
+    - stage: build
+      jobs:
+      - job: main
+        pool:
+          type: windows  # read more about custom job pool types at https://aka.ms/obpipelines/yaml/jobs
+          hostVersion:  # request a 2022 host so the ltsc2022 image runs under process isolation (kernel match), aligning Official with CI
+            Version: 2022
+        
+        variables: # More settings at https://aka.ms/obpipelines/yaml/jobs
+          ob_outputDirectory: '$(Build.SourcesDirectory)\out' # this directory is uploaded to pipeline artifacts, reddog and cloudvault. More info at https://aka.ms/obpipelines/artifacts
+          ob_git_fetchDepth: -1 # full git history + tags so MinVer can derive the version (shallow clone => 0.1.0 fallback)
+          # https://aka.ms/obpipelines/sdl
+          ob_sdl_binskim_enabled: true # run BinSkim (matches CI; explicit for parity)
+          ob_sdl_binskim_break: true # always break the build on binskim issues, even if TSA enabled. You can disable it by setting to 'false'
+          # NOTE: unlike CI, Official does NOT set ob_sdl_binskim_scanOutputDirectoryOnly -- the
+          # release build scans the full tree (stricter compliance posture), not just out\.
+          ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}: # conditionally enable symbolsPublishing for main branch only
+            ob_symbolsPublishing_enabled: true # https://aka.ms/obpipelines/symbols
+          # ob_sdl_suppression_suppressionFile: $(Build.SourcesDirectory)\.gdn\job.gdnsuppress
+
+        steps:
+          - template: /build/pipelines/templates/reactor-build-steps.yml@self
+            parameters:
+              outputDirectory: '$(Build.SourcesDirectory)\out'
+              solution: '$(BuildSolution)'
+              configuration: '$(BuildConfiguration)'
+              nugetConfig: '$(NuGetConfig)'
+              version: ${{ parameters.version }}
+              runTests: false # selftests/E2E need a live WinUI window; not available in CI
+              pack: true
+              # Two-phase ESRP signing (Official builds only): Authenticode-sign the framework
+              # assembly + mur binaries BEFORE pack/zip so the DLLs inside the .nupkg and the
+              # skill-kit zip are signed, then NuGet-sign the .nupkg containers after pack.
+              sign: true
