@@ -1,11 +1,67 @@
+using System.Threading.Tasks;
 using Microsoft.UI.Reactor;
 using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Windows.ApplicationModel.DataTransfer;
 using static Microsoft.UI.Reactor.Factories;
 
 namespace WinUIGalleryReactor;
+
+/// <summary>
+/// A small "Copy" button used inside <see cref="GalleryControls.SampleCard"/>.
+/// Lives as a Component so we can use UseState for the transient "Copied" label.
+/// </summary>
+internal sealed class CopyToClipboardButton : Component<string>
+{
+    public override Element Render()
+    {
+        var text = Props;
+        var (copied, setCopied) = UseState(false, threadSafe: true);
+        // Per-click generation token: only the latest click is allowed to
+        // flip the label back, so rapid clicks can't reset early.
+        var generation = UseRef(0);
+        // "Mounted" flag flipped in the UseEffect cleanup below — lets the
+        // background Task.Delay continuation short-circuit if the component
+        // was unmounted before the 1.5s timer fires (avoids touching state
+        // on a torn-down RenderContext).
+        var isMounted = UseRef(true);
+        UseEffect(() =>
+        {
+            isMounted.Current = true;
+            return () => isMounted.Current = false;
+        });
+
+        return Button(copied ? "Copied" : "Copy")
+            .Click(() =>
+            {
+                try
+                {
+                    var dp = new DataPackage();
+                    dp.SetText(text);
+                    Clipboard.SetContent(dp);
+                    // Click handler always runs on the UI thread, so plain ++ is safe.
+                    // The timer continuation only READS the int, which is atomic on .NET.
+                    var myGen = ++generation.Current;
+                    setCopied(true);
+                    _ = Task.Delay(1500).ContinueWith(_ =>
+                    {
+                        if (!isMounted.Current) return;
+                        if (generation.Current == myGen) setCopied(false);
+                    });
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    // Clipboard.SetContent can throw RPC_E_CALL_REJECTED (HRESULT
+                    // 0x80010001) when another app is holding the clipboard
+                    // marshaller — swallow this specific COM transient rather
+                    // than crash the gallery. Anything else propagates.
+                }
+            })
+            .SubtleButton();
+    }
+}
 
 /// <summary>
 /// Reusable UI building blocks shared across the WinUI Gallery app.
@@ -17,6 +73,7 @@ public static class GalleryControls
     static CornerRadius OverlayRadiusCR => ThemeResource.CornerRadius("OverlayCornerRadius");
     static double ControlRadius => ControlRadiusCR.TopLeft;
     static double OverlayRadius => OverlayRadiusCR.TopLeft;
+
     /// <summary>
     /// Renders a page header with a title and description.
     /// </summary>
@@ -149,16 +206,29 @@ public static class GalleryControls
 
         children.Add(
             Expander("Source code",
-                ScrollView(
-                    TextBlock(sourceCode.Trim())
-                        .FontFamily("Consolas, 'Cascadia Code', monospace")
-                        .FontSize(13)
-                        .Padding(12)
+                Grid(
+                    columns: [GridSize.Star()], rows: [GridSize.Star()],
+                    (ScrollView(
+                        TextBlock(sourceCode.Trim())
+                            .FontFamily("Consolas, 'Cascadia Code', monospace")
+                            .FontSize(13)
+                            .Padding(12)
+                            .Set(tb =>
+                            {
+                                tb.IsTextSelectionEnabled = true;
+                                tb.TextWrapping = TextWrapping.NoWrap;
+                            })
+                    ) with { ContentOrientation = Microsoft.UI.Xaml.Controls.ScrollingContentOrientation.Both })
+                    .Height(200)
+                    .Background(Theme.SubtleFill)
+                    .Grid(row: 0, column: 0),
+
+                    Component<CopyToClipboardButton, string>(sourceCode.Trim())
+                        .HAlign(HorizontalAlignment.Right)
+                        .VAlign(VerticalAlignment.Top)
+                        .Margin(0, 8, 12, 0)
+                        .Grid(row: 0, column: 0)
                 )
-                .Height(200)
-                .Background(Theme.SubtleFill),
-                isExpanded: false,
-                onIsExpandedChanged: null
             )
             .OnMount(el =>
             {
