@@ -6,6 +6,10 @@ using Microsoft.UI.Reactor.Hosting.Messaging;
 using Microsoft.UI.Reactor.Hosting.Persistence;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 
 namespace Microsoft.UI.Reactor;
 
@@ -20,9 +24,9 @@ namespace Microsoft.UI.Reactor;
 /// <see cref="SetSize"/>, <see cref="SetPosition"/>, <see cref="CenterOnScreen"/>,
 /// <see cref="Mount(Component)"/>) must be called on the UI thread captured by
 /// <see cref="ReactorApp.UIDispatcher"/>. Read-only properties
-/// (<see cref="Spec"/>, <see cref="Dpi"/>, <see cref="State"/>,
-/// <see cref="IsVisible"/>, <see cref="IsActive"/>) snapshot a
-/// <c>Volatile.Read</c> field and are safe from any thread.</para>
+/// (<see cref="Spec"/>, <see cref="Dpi"/>, <see cref="Position"/>,
+/// <see cref="State"/>, <see cref="IsVisible"/>, <see cref="IsActive"/>)
+/// snapshot a <c>Volatile.Read</c> field and are safe from any thread.</para>
 /// <para>Disposal is idempotent — a second <see cref="Close"/> or
 /// <see cref="Dispose"/> is a no-op, not an exception.</para>
 /// </remarks>
@@ -55,6 +59,11 @@ public sealed class ReactorWindow : IDisposable
     //   dispatcher. Swallowing those just hides the developer's bug.
     private static int s_nextId;
 
+#pragma warning disable CS0649 // Assigned by test code via InternalsVisibleTo.
+    internal static bool SuppressDragMoveTimerForTests;
+#pragma warning restore CS0649
+    internal static int BeginDragMovePostCountForTests;
+
     private readonly string _id;
     private readonly Window _window;
     private readonly AppWindow _appWindow;
@@ -76,6 +85,7 @@ public sealed class ReactorWindow : IDisposable
     // them, keeping the cold-start budget clean (spec 036 §0.7 / §11.7).
     private TaskbarProgress? _taskbarProgress;
     private TaskbarOverlay? _taskbarOverlay;
+    private TaskbarItem? _taskbarItem;
     private Hosting.Shell.ThumbnailToolbarState? _thumbnailToolbar;
     private readonly object _shellLock = new();
     // Owned windows (this window's children). Copy-on-write so the cascade
@@ -85,12 +95,24 @@ public sealed class ReactorWindow : IDisposable
     private readonly object _ownedLock = new();
     private WindowSpec _spec;
     private uint _dpi = 96;
+    private DipPositionSnapshot _position = new(0, 0);
     private int _stateValue; // backing storage for State (cast WindowState <-> int)
     private bool _disposed;
     private bool _userResized; // Phase 2: once true we no longer overwrite size on DPI events.
     private bool _firstDpiApplied;
     private bool _persistenceRestoreAttempted;
     private WindowCloseReason _closingReason = WindowCloseReason.UserClosed;
+    private RECT _lastSizingRect;
+    private readonly object _aspectRatioOverrideLock = new();
+    private AspectRatioOverride[] _aspectRatioOverrides = global::System.Array.Empty<AspectRatioOverride>();
+    private int _nextAspectRatioOverrideId;
+    private UIElement? _backgroundDragRoot;
+    private PointerEventHandler? _backgroundDragHandler;
+    private FrameworkElement? _sizeToContentRoot;
+    private SizeChangedEventHandler? _sizeToContentSizeChangedHandler;
+    private EventHandler<object>? _sizeToContentLayoutUpdatedHandler;
+    private bool _sizeToContentApplying;
+    internal int SizeToContentApplyCountForTests;
 
     /// <summary>Stable id, e.g. <c>"win-3"</c>. Allocated monotonically per process.</summary>
     public string Id => _id;
@@ -103,6 +125,8 @@ public sealed class ReactorWindow : IDisposable
 
     /// <summary>The WinUI <see cref="AppWindow"/> for this window.</summary>
     public AppWindow AppWindow => _appWindow;
+
+    internal WindowMessageMonitor MessageMonitor => _messageMonitor;
 
     /// <summary>The <see cref="ReactorHost"/> driving this window's render loop.</summary>
     public ReactorHost Host => _host;
@@ -119,9 +143,26 @@ public sealed class ReactorWindow : IDisposable
     /// <summary>Last applied <see cref="WindowSpec"/> snapshot.</summary>
     public WindowSpec Spec => Volatile.Read(ref _spec);
 
+    /// <summary>Grouped taskbar features for this window. Lazily allocated.</summary>
+    public TaskbarItem TaskbarItem
+    {
+        get
+        {
+            var existing = Volatile.Read(ref _taskbarItem);
+            if (existing is not null) return existing;
+            lock (_shellLock)
+            {
+                if (_taskbarItem is not null) return _taskbarItem;
+                _taskbarItem = new TaskbarItem(this, _hwnd);
+                return _taskbarItem;
+            }
+        }
+    }
+
     /// <summary>
     /// Taskbar progress indicator for this window. Lazily allocated on first
-    /// read; apps that never touch it pay no shell-COM init cost.
+    /// read; apps that never touch it pay no shell-COM init cost. Shortcut kept
+    /// for compatibility; equivalent to <c>TaskbarItem.Progress</c>.
     /// (spec 036 §11.1)
     /// </summary>
     public TaskbarProgress Progress
@@ -140,7 +181,8 @@ public sealed class ReactorWindow : IDisposable
     }
 
     /// <summary>
-    /// Taskbar overlay icon ("badge"). Lazily allocated. (spec 036 §11.2)
+    /// Taskbar overlay icon ("badge"). Lazily allocated. Shortcut kept for
+    /// compatibility; equivalent to <c>TaskbarItem.Overlay</c>. (spec 036 §11.2)
     /// </summary>
     public TaskbarOverlay Overlay
     {
@@ -167,6 +209,16 @@ public sealed class ReactorWindow : IDisposable
     /// <summary>DIP scale factor (Dpi / 96). 1.0 at 100%, 1.5 at 150%, 2.0 at 200%.</summary>
     public double DipScale => Dpi / 96.0;
 
+    /// <summary>DIP top-left position of the window, rounded to the nearest DIP.</summary>
+    public (double X, double Y) Position
+    {
+        get
+        {
+            var snapshot = Volatile.Read(ref _position);
+            return (snapshot.X, snapshot.Y);
+        }
+    }
+
     /// <summary>Coarse window state.</summary>
     public WindowState State
     {
@@ -189,6 +241,8 @@ public sealed class ReactorWindow : IDisposable
         internal set => Volatile.Write(ref _isActiveFlag, value ? 1 : 0);
     }
     private int _isActiveFlag;
+
+    private sealed record DipPositionSnapshot(double X, double Y);
 
     // ── events ─────────────────────────────────────────────────────────
     // Phase 1 wires Activated / Deactivated / Closed; Phases 2-3 add the rest.
@@ -220,6 +274,15 @@ public sealed class ReactorWindow : IDisposable
 
     /// <summary>Fires on the UI thread after the window closes and the host disposes.</summary>
     public event EventHandler? Closed;
+
+    /// <summary>Fires on the UI thread when the window's DIP top-left position changes.</summary>
+    public event EventHandler<WindowDipPositionChangedEventArgs>? PositionChanged;
+
+    /// <summary>
+    /// Fires on the UI thread when Win32 reports a z-order transition. <see cref="WindowZOrderChangedEventArgs.IsCovered"/>
+    /// is a covered hint based on HWND insertion order, not a pixel-accurate occlusion guarantee.
+    /// </summary>
+    public event EventHandler<WindowZOrderChangedEventArgs>? ZOrderChanged;
 
     // ── construction ──────────────────────────────────────────────────
 
@@ -265,12 +328,17 @@ public sealed class ReactorWindow : IDisposable
         _appWindow.Closing += OnAppWindowClosing;
         _window.Closed += OnNativeClosed;
 
-        // Snapshot initial state from the realized presenter.
+        // Snapshot initial state and position from the realized presenter.
         _stateValue = (int)ResolveCurrentState();
+        TryUpdatePositionCache(raiseEvent: false);
+        _lastSizingRect = GetCurrentWindowRect();
     }
 
     private WindowState ResolveCurrentState()
     {
+        if (NativeShell.IsIconic(_hwnd)) return Microsoft.UI.Reactor.WindowState.Minimized;
+        if (NativeShell.IsZoomed(_hwnd)) return Microsoft.UI.Reactor.WindowState.Maximized;
+
         try
         {
             switch (_appWindow.Presenter)
@@ -305,6 +373,39 @@ public sealed class ReactorWindow : IDisposable
             dpi = NativeDpi.GetDpiForSystemFallback();
         return dpi == 0 ? 96 : dpi;
     }
+
+    private bool TryUpdatePositionCache(bool raiseEvent)
+    {
+        try
+        {
+            var pos = _appWindow.Position;
+            uint dpi = QueryDpiForWindow(_hwnd);
+            double scale = dpi / 96.0;
+            var next = new DipPositionSnapshot(
+                RoundDip(pos.X / scale),
+                RoundDip(pos.Y / scale));
+            var prev = Volatile.Read(ref _position);
+            // RoundDip produces integer-valued doubles, so == would be safe in
+            // practice — but use an epsilon comparison for defense-in-depth
+            // (and to satisfy CodeQL's floating-point-equality rule).
+            const double positionEpsilonDip = 1e-6;
+            if (Math.Abs(prev.X - next.X) < positionEpsilonDip
+                && Math.Abs(prev.Y - next.Y) < positionEpsilonDip) return false;
+
+            Volatile.Write(ref _position, next);
+            if (raiseEvent)
+                PositionChanged?.Invoke(this, new WindowDipPositionChangedEventArgs((next.X, next.Y)));
+            return true;
+        }
+        catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
+        {
+            DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.Position.snapshot", ex);
+            return false;
+        }
+    }
+
+    private static double RoundDip(double value)
+        => Math.Round(value, 0, MidpointRounding.AwayFromZero);
 
     private static class NativeDpi
     {
@@ -359,13 +460,7 @@ public sealed class ReactorWindow : IDisposable
                     break;
                 default:
                     _appWindow.SetPresenter(AppWindowPresenterKind.Overlapped);
-                    if (_appWindow.Presenter is OverlappedPresenter op)
-                    {
-                        op.IsResizable = spec.IsResizable;
-                        op.IsMinimizable = spec.IsMinimizable;
-                        op.IsMaximizable = spec.IsMaximizable;
-                        op.IsAlwaysOnTop = spec.IsAlwaysOnTop;
-                    }
+                    ApplyWindowStyle(spec, _appWindow.Presenter as OverlappedPresenter);
                     break;
             }
         }
@@ -376,19 +471,20 @@ public sealed class ReactorWindow : IDisposable
 
         try
         {
-            // Owned windows hide from the taskbar / Alt-Tab switcher by
-            // default — that's the conventional shell behavior for owned
-            // top-level windows (about box, settings, picker). The
-            // IsShownInSwitchers bool only flips when the owner is null;
-            // owned windows ignore it. (spec 036 §9)
-            _appWindow.IsShownInSwitchers = spec.Owner is null && spec.IsShownInSwitchers;
+            // AppWindow.IsShownInSwitchers is the WinUI Alt-Tab / shell-switcher flag.
+            // Owned windows hide by default — conventional shell behavior for owned top-level surfaces.
+            _appWindow.IsShownInSwitchers = spec.Owner is null && spec.ShowInSwitcher;
         }
         catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
         {
-            DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.IsShownInSwitchers.set", ex);
+            DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.ShowInSwitcher.set", ex);
         }
 
-        try { _window.ExtendsContentIntoTitleBar = spec.ExtendsContentIntoTitleBar; }
+        ApplyTaskbarVisibility(spec, isInitial);
+        ApplyWindowLevel(spec.Level);
+        ApplyCornerStyle(spec.CornerStyle);
+
+        try { _window.ExtendsContentIntoTitleBar = spec.ExtendsContentIntoTitleBar.GetValueOrDefault(false); }
         catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
         {
             DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.ExtendsContentIntoTitleBar.set", ex);
@@ -422,6 +518,8 @@ public sealed class ReactorWindow : IDisposable
         // observes the flag. Re-applied on Update so flips stick.
         SetNoActivate(spec.NoActivate);
         SetIgnorePointerInput(spec.IgnorePointerInput);
+        if (!isInitial)
+            OnHostContentRendered(_host.CurrentControl);
 
         // Owner relationship — only meaningful at initial apply time.
         // Subsequent Update calls do not re-parent (changing ownership of a
@@ -438,6 +536,153 @@ public sealed class ReactorWindow : IDisposable
                 DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.SetOwner", ex);
             }
             owner.AddOwned(this);
+        }
+    }
+
+    private static (bool Resizable, bool Minimizable, bool Maximizable) ResolveResizeMode(WindowSpec spec)
+    {
+        var (resizable, minimizable, maximizable) = spec.ResizeMode switch
+        {
+            WindowResizeMode.NoResize => (false, false, false),
+            WindowResizeMode.CanMinimize => (false, true, false),
+            _ => (true, true, true),
+        };
+        return (resizable, minimizable && spec.IsMinimizable, maximizable && spec.IsMaximizable);
+    }
+
+    private static bool EffectiveShowInTaskbar(WindowSpec spec)
+        => spec.ShowInTaskbarExplicit ? spec.ShowInTaskbar : spec.Style != WindowStyle.ToolWindow;
+
+    private void ApplyWindowStyle(WindowSpec spec, OverlappedPresenter? op)
+    {
+        switch (spec.Style)
+        {
+            case WindowStyle.None:
+                op?.SetBorderAndTitleBar(false, false);
+                ApplyWindowStyleBits(remove: NativeShell.WS_OVERLAPPEDWINDOW, add: NativeShell.WS_POPUP);
+                // Clear WS_EX_TOOLWINDOW left over from a prior ToolWindow state
+                // so the borderless window doesn't inherit tool-window framing.
+                ApplyExtendedStyleBits(remove: NativeShell.WS_EX_TOOLWINDOW, add: 0);
+                break;
+            case WindowStyle.ToolWindow:
+                op?.SetBorderAndTitleBar(true, true);
+                ApplyWindowStyleBits(remove: NativeShell.WS_POPUP, add: NativeShell.WS_OVERLAPPEDWINDOW);
+                ApplyExtendedStyleBits(remove: 0, add: NativeShell.WS_EX_TOOLWINDOW);
+                break;
+            default:
+                op?.SetBorderAndTitleBar(true, true);
+                ApplyWindowStyleBits(remove: NativeShell.WS_POPUP, add: NativeShell.WS_OVERLAPPEDWINDOW);
+                // Strip WS_EX_TOOLWINDOW when returning to Default — otherwise
+                // Default→ToolWindow→Default leaves the smaller tool-window
+                // caption set on the window.
+                ApplyExtendedStyleBits(remove: NativeShell.WS_EX_TOOLWINDOW, add: 0);
+                break;
+        }
+
+        var (resizable, minimizable, maximizable) = ResolveResizeMode(spec);
+        if (op is not null)
+        {
+            op.IsResizable = resizable;
+            op.IsMinimizable = minimizable;
+            op.IsMaximizable = maximizable;
+        }
+        ApplyResizeModeStyleBits(spec, resizable, minimizable, maximizable);
+    }
+
+    private void ApplyResizeModeStyleBits(WindowSpec spec, bool resizable, bool minimizable, bool maximizable)
+    {
+        if (spec.Style == WindowStyle.None) return;
+
+        long add = 0;
+        long remove = 0;
+        if (resizable) add |= NativeShell.WS_THICKFRAME;
+        else remove |= NativeShell.WS_THICKFRAME;
+        if (minimizable) add |= NativeShell.WS_MINIMIZEBOX;
+        else remove |= NativeShell.WS_MINIMIZEBOX;
+        if (maximizable) add |= NativeShell.WS_MAXIMIZEBOX;
+        else remove |= NativeShell.WS_MAXIMIZEBOX;
+
+        ApplyWindowStyleBits(remove, add);
+    }
+
+    private void ApplyWindowStyleBits(long remove, long add)
+    {
+        long bits = (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_STYLE);
+        long updated = (bits & ~remove) | add;
+        if (updated == bits) return;
+        _ = NativeShell.SetWindowLongPtr(_hwnd, NativeShell.GWL_STYLE, (nint)updated);
+        _ = NativeShell.SetWindowPos(_hwnd, 0, 0, 0, 0, 0,
+            NativeShell.SWP_NOMOVE | NativeShell.SWP_NOSIZE | NativeShell.SWP_NOZORDER
+            | NativeShell.SWP_NOACTIVATE | NativeShell.SWP_FRAMECHANGED);
+    }
+
+    private void ApplyExtendedStyleBits(long remove, long add)
+    {
+        long bits = (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_EXSTYLE);
+        long updated = (bits & ~remove) | add;
+        if (updated == bits) return;
+        _ = NativeShell.SetWindowLongPtr(_hwnd, NativeShell.GWL_EXSTYLE, (nint)updated);
+        // Ex-style changes (e.g. WS_EX_TOOLWINDOW) don't repaint the
+        // non-client area until SetWindowPos is called with SWP_FRAMECHANGED.
+        // Without this, toggling Style between Default and ToolWindow shows
+        // no visible chrome change until the next user resize / focus.
+        _ = NativeShell.SetWindowPos(_hwnd, 0, 0, 0, 0, 0,
+            NativeShell.SWP_NOMOVE | NativeShell.SWP_NOSIZE | NativeShell.SWP_NOZORDER
+            | NativeShell.SWP_NOACTIVATE | NativeShell.SWP_FRAMECHANGED);
+    }
+
+    private void ApplyCornerStyle(WindowCornerStyle style)
+    {
+        int preference = style switch
+        {
+            WindowCornerStyle.Square => Hosting.DwmInterop.DWMWCP_DONOTROUND,
+            WindowCornerStyle.Rounded => Hosting.DwmInterop.DWMWCP_ROUND,
+            WindowCornerStyle.RoundedSmall => Hosting.DwmInterop.DWMWCP_ROUNDSMALL,
+            _ => Hosting.DwmInterop.DWMWCP_DEFAULT,
+        };
+        _ = Hosting.DwmInterop.DwmSetWindowAttribute(
+            _hwnd,
+            Hosting.DwmInterop.DWMWA_WINDOW_CORNER_PREFERENCE,
+            ref preference,
+            sizeof(int));
+    }
+
+    private void ApplyWindowLevel(WindowLevel level)
+    {
+        nint insertAfter = level switch
+        {
+            WindowLevel.AlwaysOnTop => HWND_TOPMOST,
+            WindowLevel.Floating => HWND_TOP,
+            _ => HWND_NOTOPMOST,
+        };
+        _ = NativeShell.SetWindowPos(_hwnd, insertAfter, 0, 0, 0, 0,
+            NativeShell.SWP_NOMOVE | NativeShell.SWP_NOSIZE | NativeShell.SWP_NOACTIVATE);
+    }
+
+    internal static int TaskbarVisibilityCycleCountForTests;
+
+    private void ApplyTaskbarVisibility(WindowSpec spec, bool isInitial)
+    {
+        bool showInTaskbar = spec.Owner is null && EffectiveShowInTaskbar(spec);
+        long bits = (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_EXSTYLE);
+        long updated = showInTaskbar
+            ? (bits | NativeShell.WS_EX_APPWINDOW) & ~NativeShell.WS_EX_TOOLWINDOW
+            : (bits | NativeShell.WS_EX_TOOLWINDOW) & ~NativeShell.WS_EX_APPWINDOW;
+        if (updated == bits) return;
+
+        _ = NativeShell.SetWindowLongPtr(_hwnd, NativeShell.GWL_EXSTYLE, (nint)updated);
+        if (!isInitial && IsVisible)
+        {
+            bool wasActive = IsActive;
+            Interlocked.Increment(ref TaskbarVisibilityCycleCountForTests);
+            _ = NativeShell.ShowWindow(_hwnd, NativeShell.SW_HIDE);
+            _ = NativeShell.ShowWindow(_hwnd, NativeShell.SW_SHOW);
+            if (wasActive)
+            {
+                try { _window.Activate(); }
+                catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
+                { DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.TaskbarVisibility.Activate", ex); }
+            }
         }
     }
 
@@ -554,12 +799,17 @@ public sealed class ReactorWindow : IDisposable
         }
     }
 
-    private global::Windows.Graphics.SizeInt32 DipToPhysicalSize(double widthDip, double heightDip)
+    private int DipToPhysicalScalar(double dip)
     {
         var dpi = Dpi == 0 ? 96 : Dpi;
+        return (int)Math.Round(dip * dpi / 96.0);
+    }
+
+    private global::Windows.Graphics.SizeInt32 DipToPhysicalSize(double widthDip, double heightDip)
+    {
         return new global::Windows.Graphics.SizeInt32(
-            (int)Math.Round(widthDip * dpi / 96.0),
-            (int)Math.Round(heightDip * dpi / 96.0));
+            DipToPhysicalScalar(widthDip),
+            DipToPhysicalScalar(heightDip));
     }
 
     private global::Windows.Graphics.PointInt32 DipToPhysicalPoint(double xDip, double yDip)
@@ -607,8 +857,22 @@ public sealed class ReactorWindow : IDisposable
                 ApplyMinMaxInfo(args);
                 break;
             case WindowMessageMonitor.WM_SIZING:
+                _userResized = true;
+                // WM_SIZING precedes WM_GETMINMAXINFO / OS track-size clamping.
+                // Modify the mutable RECT in place; the OS reads it after the
+                // subclass chain returns. DO NOT mark Handled — that skips
+                // DefSubclassProc and bypasses any inner WinUI subclasses,
+                // which then miss the size change and try to "correct" it on
+                // a later message (the source of the AspectRatio flicker).
+                // (spec 054 §5.2 / R1.)
+                ApplyAspectRatioSizing(args.WParam, args.LParam);
+                break;
             case WindowMessageMonitor.WM_EXITSIZEMOVE:
                 _userResized = true;
+                _lastSizingRect = GetCurrentWindowRect();
+                break;
+            case WindowMessageMonitor.WM_WINDOWPOSCHANGED:
+                DispatchZOrderChanged(args);
                 break;
             case WindowMessageMonitor.WM_SHOWWINDOW:
                 if (args.WParam != 0)
@@ -639,10 +903,13 @@ public sealed class ReactorWindow : IDisposable
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct POINT { public int X; public int Y; }
+    internal struct POINT { public int X; public int Y; }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct MINMAXINFO
+    internal struct RECT { public int Left, Top, Right, Bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MINMAXINFO
     {
         public POINT ptReserved;
         public POINT ptMaxSize;
@@ -651,11 +918,227 @@ public sealed class ReactorWindow : IDisposable
         public POINT ptMaxTrackSize;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWPOS
+    {
+        public nint hwnd;
+        public nint hwndInsertAfter;
+        public int x;
+        public int y;
+        public int cx;
+        public int cy;
+        public uint flags;
+    }
+
+    private const uint SWP_NOZORDER = 0x0004;
+    private static readonly nint HWND_TOP = 0;
+    private static readonly nint HWND_TOPMOST = -1;
+    private static readonly nint HWND_NOTOPMOST = -2;
+
+    private unsafe void DispatchZOrderChanged(WindowMessageEventArgs args)
+    {
+        var pos = (WINDOWPOS*)args.LParam;
+        if (pos == null) return;
+        if ((pos->flags & SWP_NOZORDER) != 0) return;
+
+        bool movedToTop = pos->hwndInsertAfter == HWND_TOP || pos->hwndInsertAfter == HWND_TOPMOST;
+        ZOrderChanged?.Invoke(this, new WindowZOrderChangedEventArgs(isCovered: !movedToTop, movedToTop));
+    }
+
+    internal void RaiseZOrderChangedForTests(bool movedToTop, bool isCovered)
+        => ZOrderChanged?.Invoke(this, new WindowZOrderChangedEventArgs(isCovered, movedToTop));
+
+    private unsafe void ApplyAspectRatioSizing(nuint edge, nint rectPtr)
+    {
+        var rect = (RECT*)rectPtr;
+        if (rect == null) return;
+        // Snapshot the USER'S pre-adjusted drag rect — _lastSizingRect must
+        // store this (not our adjusted output) so the next frame's
+        // corner-drag master selection can compare against the user's
+        // actual cursor movement direction. Storing the adjusted rect
+        // creates an oscillation feedback loop where each frame's master
+        // flips and the window's width snaps wildly between drag-width
+        // and (drag-height × ratio). (spec 054 §5.2 / R1 follow-up.)
+        var userRect = *rect;
+        var adjusted = userRect;
+        if (ApplyAspectRatioSizing((int)edge, ref adjusted))
+        {
+            *rect = adjusted;
+            _lastSizingRect = userRect;
+        }
+    }
+
+    internal bool ApplyAspectRatioSizingForTests(int edge, ref RECT rect)
+    {
+        var userRect = rect;
+        var adjusted = userRect;
+        if (!ApplyAspectRatioSizing(edge, ref adjusted)) return false;
+        rect = adjusted;
+        _lastSizingRect = userRect;
+        return true;
+    }
+
+    internal RECT ClampSizingRectForTests(RECT rect)
+    {
+        var spec = _spec;
+        int minWidth = DipToPhysicalScalar(spec.MinWidth ?? 0);
+        int minHeight = DipToPhysicalScalar(spec.MinHeight ?? 0);
+        int maxWidth = spec.MaxWidth is { } maxW ? DipToPhysicalScalar(maxW) : int.MaxValue;
+        int maxHeight = spec.MaxHeight is { } maxH ? DipToPhysicalScalar(maxH) : int.MaxValue;
+        int width = Math.Clamp(rect.Right - rect.Left, minWidth, maxWidth);
+        int height = Math.Clamp(rect.Bottom - rect.Top, minHeight, maxHeight);
+        rect.Right = rect.Left + width;
+        rect.Bottom = rect.Top + height;
+        return rect;
+    }
+
+    private bool ApplyAspectRatioSizing(int edge, ref RECT rect)
+    {
+        double? ratio = EffectiveAspectRatio;
+        if (ratio is null) return false;
+        if (!(ratio.Value > 0.0) || !double.IsFinite(ratio.Value)) return false;
+
+        // When AspectRatioBasis is Client, subtract chrome so the ratio
+        // constrains the content area, not the outer window rect.
+        // chromeH/chromeV are 0 for the Window basis (the no-op fallback)
+        // AND for ExtendsContentIntoTitleBar=true: once the app paints into
+        // the title-bar area, the OS's notion of "client area" no longer
+        // matches the developer's notion of "content area" (the custom
+        // title bar lives inside the client area), so Client basis becomes
+        // ambiguous. Fall back to Window basis until a future API lets the
+        // app declare its own content-area rectangle.
+        bool useClientBasis = _spec.AspectRatioBasis == AspectRatioBasis.Client
+            && !_window.ExtendsContentIntoTitleBar;
+        var (chromeH, chromeV) = useClientBasis ? ComputeChromeInset() : (0, 0);
+
+        var previous = _lastSizingRect;
+        if (previous.Right <= previous.Left || previous.Bottom <= previous.Top)
+            previous = GetCurrentWindowRect();
+
+        int width = Math.Max(1, rect.Right - rect.Left);
+        int height = Math.Max(1, rect.Bottom - rect.Top);
+        // Side-edge drags: the user is moving the edge perpendicular to the
+        // axis they want to change. WMSZ_LEFT/RIGHT means they're moving
+        // the WIDTH; keep their width and compute height (widthMaster=true).
+        // WMSZ_TOP/BOTTOM means they're moving the HEIGHT; keep their
+        // height and compute width (widthMaster=false). Corner drags pick
+        // whichever axis moved further from the user's previous drag rect.
+        bool widthMaster = edge switch
+        {
+            WMSZ_LEFT or WMSZ_RIGHT => true,
+            WMSZ_TOP or WMSZ_BOTTOM => false,
+            _ => Math.Abs(width - Math.Max(1, previous.Right - previous.Left))
+                 >= Math.Abs(height - Math.Max(1, previous.Bottom - previous.Top)),
+        };
+
+        if (widthMaster)
+        {
+            // Solve for window height H such that (W - chromeH) / (H - chromeV) == ratio
+            //   →   H = (W - chromeH) / ratio + chromeV.
+            // Collapses to H = W / ratio when chromeH == chromeV == 0 (Window basis).
+            int clientWidth = Math.Max(1, width - chromeH);
+            int desiredHeight = Math.Max(1, (int)Math.Round(clientWidth / ratio.Value) + chromeV);
+            switch (edge)
+            {
+                case WMSZ_TOP:
+                case WMSZ_TOPLEFT:
+                case WMSZ_TOPRIGHT:
+                    rect.Top = rect.Bottom - desiredHeight;
+                    break;
+                default:
+                    rect.Bottom = rect.Top + desiredHeight;
+                    break;
+            }
+        }
+        else
+        {
+            int clientHeight = Math.Max(1, height - chromeV);
+            int desiredWidth = Math.Max(1, (int)Math.Round(clientHeight * ratio.Value) + chromeH);
+            switch (edge)
+            {
+                case WMSZ_LEFT:
+                case WMSZ_TOPLEFT:
+                case WMSZ_BOTTOMLEFT:
+                    rect.Left = rect.Right - desiredWidth;
+                    break;
+                default:
+                    rect.Right = rect.Left + desiredWidth;
+                    break;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Returns the chrome inset (caption + borders, in physical px at the
+    /// current DPI) for the current window's style and ex-style. The two
+    /// values are total horizontal (left + right border) and total vertical
+    /// (caption + bottom border) padding around the client area.
+    /// Returns <c>(0, 0)</c> if the OS call fails.
+    /// </summary>
+    private (int Horizontal, int Vertical) ComputeChromeInset()
+    {
+        var rect = new RECT { Left = 0, Top = 0, Right = 100, Bottom = 100 };
+        long style = (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_STYLE);
+        long exStyle = (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_EXSTYLE);
+        var dpi = Dpi == 0 ? 96 : Dpi;
+        if (!NativeShell.AdjustWindowRectExForDpi(ref rect, unchecked((uint)style), false, unchecked((uint)exStyle), dpi))
+            return (0, 0);
+        int horizontal = (rect.Right - 100) + (-rect.Left);
+        int vertical = (rect.Bottom - 100) + (-rect.Top);
+        return (Math.Max(0, horizontal), Math.Max(0, vertical));
+    }
+
+    internal double? EffectiveAspectRatioForTests => EffectiveAspectRatio;
+
+    internal long GetExtendedWindowStyleBitsForTests()
+        => (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_EXSTYLE);
+
+    private double? EffectiveAspectRatio
+    {
+        get
+        {
+            var overrides = Volatile.Read(ref _aspectRatioOverrides);
+            return overrides.Length > 0 ? overrides[^1].Ratio : Volatile.Read(ref _spec).AspectRatio;
+        }
+    }
+
+    private RECT GetCurrentWindowRect()
+    {
+        if (NativeWindowing.GetWindowRect(_hwnd, out var rect)) return rect;
+        var pos = _appWindow.Position;
+        var size = _appWindow.Size;
+        return new RECT { Left = pos.X, Top = pos.Y, Right = pos.X + size.Width, Bottom = pos.Y + size.Height };
+    }
+
+    private const int WMSZ_LEFT = 1;
+    private const int WMSZ_RIGHT = 2;
+    private const int WMSZ_TOP = 3;
+    private const int WMSZ_TOPLEFT = 4;
+    private const int WMSZ_TOPRIGHT = 5;
+    private const int WMSZ_BOTTOM = 6;
+    private const int WMSZ_BOTTOMLEFT = 7;
+    private const int WMSZ_BOTTOMRIGHT = 8;
+
+    internal unsafe void ApplyMinMaxInfoForTests(ref MINMAXINFO info)
+    {
+        fixed (MINMAXINFO* infoPtr = &info)
+        {
+            var args = new WindowMessageEventArgs(_hwnd, WindowMessageMonitor.WM_GETMINMAXINFO, 0, (nint)infoPtr);
+            ApplyMinMaxInfo(args);
+        }
+    }
+
     private unsafe void ApplyMinMaxInfo(WindowMessageEventArgs args)
     {
         var spec = _spec;
+        var sizeRoot = _sizeToContentRoot;
+        bool hasSizeToContent = spec.SizeToContent != WindowSizeToContent.Manual && sizeRoot is FrameworkElement;
+
         // Skip when nothing is constrained — let WinUI's default min/max stand.
-        if (spec.MinWidth is null && spec.MinHeight is null && spec.MaxWidth is null && spec.MaxHeight is null)
+        if (spec.MinWidth is null && spec.MinHeight is null
+            && spec.MaxWidth is null && spec.MaxHeight is null
+            && !hasSizeToContent)
             return;
 
         // Pointer dereferences only — no API call here that throws. An
@@ -672,6 +1155,38 @@ public sealed class ReactorWindow : IDisposable
         if (spec.MinHeight is { } mnh) info->ptMinTrackSize.Y = DipToPxScalar(mnh);
         if (spec.MaxWidth is { } mxw) info->ptMaxTrackSize.X = DipToPxScalar(mxw);
         if (spec.MaxHeight is { } mxh) info->ptMaxTrackSize.Y = DipToPxScalar(mxh);
+
+        // SizeToContent: clamp min=max to content size for the constrained
+        // axis (or both). Doing it here — at the OS's pre-drag WM_GETMINMAXINFO
+        // gate — eliminates the post-resize flicker that happens when we
+        // correct via AppWindow.Resize from a SizeChanged handler after the
+        // OS has already painted the user's drag size. (spec 054 §6.3 R7.)
+        if (hasSizeToContent)
+        {
+            // hasSizeToContent guarantees sizeRoot is non-null FrameworkElement.
+            var fwSize = (FrameworkElement)sizeRoot!;
+            var desired = ResolveSizeToContentDesiredDip(fwSize);
+            if (desired.Width > 0 && desired.Height > 0)
+            {
+                var rect = new RECT { Left = 0, Top = 0, Right = DipToPxScalar(desired.Width), Bottom = DipToPxScalar(desired.Height) };
+                long style = (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_STYLE);
+                long exStyle = (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_EXSTYLE);
+                _ = NativeShell.AdjustWindowRectExForDpi(ref rect, unchecked((uint)style), false, unchecked((uint)exStyle), dpi);
+                int wPx = ClampPhysicalDimension(Math.Max(1, rect.Right - rect.Left), spec.MinWidth, spec.MaxWidth);
+                int hPx = ClampPhysicalDimension(Math.Max(1, rect.Bottom - rect.Top), spec.MinHeight, spec.MaxHeight);
+                if (spec.SizeToContent is WindowSizeToContent.Width or WindowSizeToContent.WidthAndHeight)
+                {
+                    info->ptMinTrackSize.X = wPx;
+                    info->ptMaxTrackSize.X = wPx;
+                }
+                if (spec.SizeToContent is WindowSizeToContent.Height or WindowSizeToContent.WidthAndHeight)
+                {
+                    info->ptMinTrackSize.Y = hPx;
+                    info->ptMaxTrackSize.Y = hPx;
+                }
+            }
+        }
+
         args.Handled = true;
         args.Result = 0;
     }
@@ -682,10 +1197,24 @@ public sealed class ReactorWindow : IDisposable
         bool wasActive = IsActive;
         IsActive = isActive;
         IsVisible = true;
+        if (isActive)
+            ReassertFloatingWindowsForActivation(this);
         if (isActive && !wasActive)
             Activated?.Invoke(this, EventArgs.Empty);
         else if (!isActive && wasActive)
             Deactivated?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static void ReassertFloatingWindowsForActivation(ReactorWindow activated)
+    {
+        var windows = ReactorApp.Windows;
+        for (int i = 0; i < windows.Count; i++)
+        {
+            var candidate = windows[i];
+            if (ReferenceEquals(candidate, activated) || candidate._disposed) continue;
+            if (candidate.Spec.Level != WindowLevel.Floating) continue;
+            candidate.ApplyWindowLevel(WindowLevel.Floating);
+        }
     }
 
     private void OnNativeSizeChanged(object sender, Microsoft.UI.Xaml.WindowSizeChangedEventArgs args)
@@ -700,6 +1229,9 @@ public sealed class ReactorWindow : IDisposable
 
     private void OnAppWindowChanged(AppWindow sender, Microsoft.UI.Windowing.AppWindowChangedEventArgs args)
     {
+        if (args.DidPositionChange)
+            TryUpdatePositionCache(raiseEvent: true);
+
         if (!args.DidPresenterChange && !args.DidVisibilityChange) return;
         var newState = ResolveCurrentState();
         var prev = (WindowState)Volatile.Read(ref _stateValue);
@@ -850,6 +1382,174 @@ public sealed class ReactorWindow : IDisposable
         }
     }
 
+    internal void OnHostContentRendered(UIElement? root)
+    {
+        if (_disposed) return;
+        var spec = Volatile.Read(ref _spec);
+        if (spec.IsMovableByBackground)
+            AttachBackgroundDragRoot(root);
+        else
+            DetachBackgroundDragRoot();
+        AttachSizeToContentRoot(spec, root as FrameworkElement);
+    }
+
+    private void AttachBackgroundDragRoot(UIElement? root)
+    {
+        if (ReferenceEquals(_backgroundDragRoot, root)) return;
+        DetachBackgroundDragRoot();
+        if (root is null) return;
+        _backgroundDragHandler = OnBackgroundPointerPressed;
+        root.PointerPressed += _backgroundDragHandler;
+        _backgroundDragRoot = root;
+    }
+
+    private void DetachBackgroundDragRoot()
+    {
+        if (_backgroundDragRoot is not null && _backgroundDragHandler is not null)
+            _backgroundDragRoot.PointerPressed -= _backgroundDragHandler;
+        _backgroundDragRoot = null;
+        _backgroundDragHandler = null;
+    }
+
+    private void AttachSizeToContentRoot(WindowSpec spec, FrameworkElement? root)
+    {
+        if (spec.SizeToContent == WindowSizeToContent.Manual || root is null)
+        {
+            DetachSizeToContentRoot();
+            return;
+        }
+
+        if (!ReferenceEquals(_sizeToContentRoot, root))
+        {
+            DetachSizeToContentRoot();
+            _sizeToContentSizeChangedHandler = (_, _) => ApplySizeToContent();
+            _sizeToContentLayoutUpdatedHandler = (_, _) => ApplySizeToContent();
+            root.SizeChanged += _sizeToContentSizeChangedHandler;
+            root.LayoutUpdated += _sizeToContentLayoutUpdatedHandler;
+            _sizeToContentRoot = root;
+        }
+
+        // SizeToContent is inherently one layout pass behind the initial content mount,
+        // so apply after root layout settles; this can leave one frame at the initial size.
+        ApplySizeToContent();
+    }
+
+    private void DetachSizeToContentRoot()
+    {
+        if (_sizeToContentRoot is not null)
+        {
+            if (_sizeToContentSizeChangedHandler is not null)
+                _sizeToContentRoot.SizeChanged -= _sizeToContentSizeChangedHandler;
+            if (_sizeToContentLayoutUpdatedHandler is not null)
+                _sizeToContentRoot.LayoutUpdated -= _sizeToContentLayoutUpdatedHandler;
+        }
+        _sizeToContentRoot = null;
+        _sizeToContentSizeChangedHandler = null;
+        _sizeToContentLayoutUpdatedHandler = null;
+    }
+
+    private void OnBackgroundPointerPressed(object sender, PointerRoutedEventArgs args)
+    {
+        if (args.OriginalSource is DependencyObject source && !ShouldSuppressBackgroundDrag(source))
+            BeginDragMove();
+        // Deliberately do not mark handled: pointer/click semantics still bubble
+        // for controls, tests, and accessibility (spec 054 §5.3 / R2).
+    }
+
+    internal static int SizeToContentMaximizedWarningCountForTests;
+
+    internal void ApplySizeToContentForTests() => ApplySizeToContent();
+
+    private void ApplySizeToContent()
+    {
+        var spec = Volatile.Read(ref _spec);
+        if (spec.SizeToContent == WindowSizeToContent.Manual) return;
+        var root = _sizeToContentRoot;
+        if (root is null || _sizeToContentApplying) return;
+
+        if (ResolveCurrentState() == WindowState.Maximized)
+        {
+            Interlocked.Increment(ref SizeToContentMaximizedWarningCountForTests);
+            DiagnosticLog.Warning(LogCategory.Hosting, "ReactorWindow.SizeToContent", "SizeToContent is ignored while the window is maximized.");
+            return;
+        }
+
+        var desiredDip = ResolveSizeToContentDesiredDip(root);
+        if (!(desiredDip.Width > 0) || !(desiredDip.Height > 0)) return;
+
+        int desiredClientWidth = DipToPhysicalScalar(desiredDip.Width);
+        int desiredClientHeight = DipToPhysicalScalar(desiredDip.Height);
+        var rect = new RECT { Left = 0, Top = 0, Right = desiredClientWidth, Bottom = desiredClientHeight };
+        long style = (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_STYLE);
+        long exStyle = (long)NativeShell.GetWindowLongPtr(_hwnd, NativeShell.GWL_EXSTYLE);
+        _ = NativeShell.AdjustWindowRectExForDpi(ref rect, unchecked((uint)style), false, unchecked((uint)exStyle), Dpi == 0 ? 96 : Dpi);
+
+        int targetWidth = Math.Max(1, rect.Right - rect.Left);
+        int targetHeight = Math.Max(1, rect.Bottom - rect.Top);
+        targetWidth = ClampPhysicalDimension(targetWidth, spec.MinWidth, spec.MaxWidth);
+        targetHeight = ClampPhysicalDimension(targetHeight, spec.MinHeight, spec.MaxHeight);
+
+        var current = _appWindow.Size;
+        int nextWidth = spec.SizeToContent is WindowSizeToContent.Width or WindowSizeToContent.WidthAndHeight
+            ? targetWidth
+            : current.Width;
+        int nextHeight = spec.SizeToContent is WindowSizeToContent.Height or WindowSizeToContent.WidthAndHeight
+            ? targetHeight
+            : current.Height;
+
+        if (nextWidth == current.Width && nextHeight == current.Height) return;
+
+        _sizeToContentApplying = true;
+        try
+        {
+            SizeToContentApplyCountForTests++;
+            _appWindow.Resize(new global::Windows.Graphics.SizeInt32(nextWidth, nextHeight));
+        }
+        catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
+        {
+            DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.SizeToContent.Resize", ex);
+        }
+        finally
+        {
+            _sizeToContentApplying = false;
+        }
+    }
+
+    private int ClampPhysicalDimension(int value, double? minDip, double? maxDip)
+    {
+        if (minDip is { } min)
+            value = Math.Max(value, DipToPhysicalScalar(min));
+        if (maxDip is { } max)
+            value = Math.Min(value, DipToPhysicalScalar(max));
+        return value;
+    }
+
+    private static global::Windows.Foundation.Size ResolveSizeToContentDesiredDip(FrameworkElement root)
+    {
+        FrameworkElement target = root;
+        if (root is ScrollViewer sv && sv.Content is FrameworkElement content)
+            target = content;
+
+        var desired = target.DesiredSize;
+        double width = desired.Width > 0 ? desired.Width : target.ActualWidth;
+        double height = desired.Height > 0 ? desired.Height : target.ActualHeight;
+        return new global::Windows.Foundation.Size(width, height);
+    }
+
+    private static bool ShouldSuppressBackgroundDrag(DependencyObject source)
+        => BackgroundDragSuppressorForTests(source) is not null;
+
+    private static bool IsBuiltInInteractive(DependencyObject current)
+        => current is ButtonBase
+            or TextBox
+            or PasswordBox
+            or RichEditBox
+            or Slider
+            or Thumb
+            or Selector
+            or ListViewBase
+            or ComboBox;
+
     // ── public mutators ───────────────────────────────────────────────
 
     /// <summary>
@@ -905,6 +1605,14 @@ public sealed class ReactorWindow : IDisposable
         { DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.Close", ex); }
     }
 
+    /// <summary>Force-save the current window placement when placement persistence is enabled.</summary>
+    public void SavePlacement()
+    {
+        ThreadAffinity.ThrowIfNotOnUIThread(nameof(SavePlacement));
+        if (_disposed) return;
+        TrySavePersistedPlacement();
+    }
+
     /// <summary>
     /// Diff <paramref name="next"/> against the current spec and apply only the
     /// fields that changed. UI-thread only.
@@ -930,6 +1638,18 @@ public sealed class ReactorWindow : IDisposable
             // tree carries no Backdrop modifier of its own. (spec 036 §3.3)
             if (!Equals(prev.Backdrop, next.Backdrop))
                 _host.BackdropApplier.SetWindowDefault(next.Backdrop);
+            // When the aspect-ratio lock changed to a new non-null value,
+            // immediately resize the window to conform — otherwise the new
+            // ratio only takes effect on the next interactive resize, which
+            // looks broken from the user's perspective. Also re-conform
+            // when only the basis flipped (Window ↔ Client) but the ratio
+            // stayed the same — switching from window-rect to client-rect
+            // at 1:1 means the window must grow vertically to keep the
+            // client area square.
+            bool aspectChanged = !Nullable.Equals(prev.AspectRatio, next.AspectRatio);
+            bool basisChanged = prev.AspectRatioBasis != next.AspectRatioBasis && next.AspectRatio is not null;
+            if (aspectChanged || basisChanged)
+                ConformToAspectRatio(aspectChanged ? prev.AspectRatio : null, next.AspectRatio);
         }
     }
 
@@ -966,9 +1686,213 @@ public sealed class ReactorWindow : IDisposable
     {
         ThreadAffinity.ThrowIfNotOnUIThread(nameof(SetPosition));
         if (_disposed) return;
-        try { _appWindow.Move(DipToPhysicalPoint(x, y)); }
+        try
+        {
+            _appWindow.Move(DipToPhysicalPoint(x, y));
+            TryUpdatePositionCache(raiseEvent: true);
+        }
         catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
         { DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.SetPosition", ex); }
+    }
+
+    /// <summary>Set or clear the width/height aspect lock used during interactive resize.</summary>
+    public void SetAspectRatio(double? ratio)
+    {
+        ThreadAffinity.ThrowIfNotOnUIThread(nameof(SetAspectRatio));
+        if (_disposed) return;
+        ValidateAspectRatio(ratio, Volatile.Read(ref _spec).ResizeMode);
+        var prev = Volatile.Read(ref _spec);
+        Volatile.Write(ref _spec, prev with { AspectRatio = ratio });
+        ConformToAspectRatio(prev.AspectRatio, ratio);
+    }
+
+    /// <summary>
+    /// When the aspect-ratio lock changes to a non-null value (either from
+    /// null or from a different ratio), immediately resize the window so its
+    /// current dimensions conform to the new ratio. Width is preserved and
+    /// height is recomputed (<c>height = width / ratio</c>) — matches the
+    /// width-master convention used in the WM_SIZING handler for side-edge
+    /// drags. Clamps the new height against <c>MinHeight</c>/<c>MaxHeight</c>
+    /// constraints. No-op when the new ratio is null, invalid, the same as
+    /// the previous (or close enough), or the window is already conforming.
+    /// </summary>
+    private void ConformToAspectRatio(double? prevRatio, double? newRatio)
+    {
+        if (newRatio is not double ratio) return;
+        if (!(ratio > 0.0) || !double.IsFinite(ratio)) return;
+        if (prevRatio is double p && Math.Abs(p - ratio) < 0.0001) return;
+        try
+        {
+            var current = _appWindow.Size;
+            if (current.Width <= 0 || current.Height <= 0) return;
+            var spec = _spec;
+            // See ApplyAspectRatioSizing for the ExtendsContentIntoTitleBar
+            // rationale — Client basis is ambiguous when the app paints
+            // into the title bar, so fall back to Window basis.
+            bool useClientBasis = spec.AspectRatioBasis == AspectRatioBasis.Client
+                && !_window.ExtendsContentIntoTitleBar;
+            var (chromeH, chromeV) = useClientBasis ? ComputeChromeInset() : (0, 0);
+            int clientW = Math.Max(1, current.Width - chromeH);
+            int clientH = Math.Max(1, current.Height - chromeV);
+            var currentRatio = (double)clientW / clientH;
+            if (Math.Abs(currentRatio - ratio) < 0.001) return;
+
+            int newHeight = Math.Max(1, (int)Math.Round(clientW / ratio) + chromeV);
+            newHeight = ClampPhysicalDimension(newHeight, spec.MinHeight, spec.MaxHeight);
+            _userResized = true;
+            _appWindow.Resize(new global::Windows.Graphics.SizeInt32(current.Width, newHeight));
+        }
+        catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
+        {
+            DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.ConformToAspectRatio", ex);
+        }
+    }
+
+    private int _dragMoveActive; // 0 = idle, 1 = drag-in-progress
+
+    /// <summary>Begin a window drag/move loop as if the title bar had been clicked-and-dragged.</summary>
+    /// <remarks>
+    /// Call from a left-button <c>PointerPressed</c> handler. We snapshot the
+    /// initial cursor + window screen position, then run a dispatcher timer
+    /// that polls <c>GetCursorPos</c> at ~60Hz and calls <c>AppWindow.Move</c>
+    /// until <c>GetAsyncKeyState(VK_LBUTTON)</c> reports the button is no
+    /// longer pressed. The timer-based approach is necessary because WinUI 3
+    /// routes pointer input through a child <c>InputSiteBridge</c> HWND, so
+    /// synthesizing <c>WM_NCLBUTTONDOWN</c> (or <c>WM_SYSCOMMAND</c> +
+    /// <c>SC_MOVE | HTCAPTION</c>) on the top-level HWND silently falls into
+    /// keyboard/cursor-track move mode rather than mouse-driven click-drag
+    /// (DefWindowProc doesn't see a recent WM_LBUTTONDOWN message). The
+    /// polling approach is simple, reliable, and doesn't depend on the OS's
+    /// non-client message routing. The trade-off vs. the OS modal drag loop
+    /// is no Aero Snap during the drag — acceptable for the small floating
+    /// windows (command palettes, tool palettes) that need IsMovableByBackground.
+    /// </remarks>
+    public void BeginDragMove()
+    {
+        ThreadAffinity.ThrowIfNotOnUIThread(nameof(BeginDragMove));
+        if (_disposed) return;
+        // Re-entrancy: one active drag at a time per window.
+        if (Interlocked.CompareExchange(ref _dragMoveActive, 1, 0) != 0) return;
+
+        Interlocked.Increment(ref BeginDragMovePostCountForTests);
+
+        if (SuppressDragMoveTimerForTests)
+        {
+            // Selftest path: leave _dragMoveActive=1 so reentrancy tests can
+            // observe the guard. Tests reset state at fixture teardown.
+            return;
+        }
+
+        if (!NativeWindowing.GetCursorPos(out var startCursor))
+        {
+            Volatile.Write(ref _dragMoveActive, 0);
+            return;
+        }
+        var startWindowPos = _appWindow.Position;
+
+        var timer = _window.DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(16); // ~60Hz follow rate
+        timer.Tick += (_, _) =>
+        {
+            // Stop when the left mouse button is no longer held — that ends
+            // the drag the same way a real title-bar drag does on release.
+            if ((NativeWindowing.GetAsyncKeyState(NativeWindowing.VK_LBUTTON) & 0x8000) == 0)
+            {
+                timer.Stop();
+                Volatile.Write(ref _dragMoveActive, 0);
+                return;
+            }
+            if (_disposed)
+            {
+                timer.Stop();
+                Volatile.Write(ref _dragMoveActive, 0);
+                return;
+            }
+            if (!NativeWindowing.GetCursorPos(out var cursor)) return;
+            var dx = cursor.X - startCursor.X;
+            var dy = cursor.Y - startCursor.Y;
+            try
+            {
+                _appWindow.Move(new global::Windows.Graphics.PointInt32(
+                    startWindowPos.X + dx, startWindowPos.Y + dy));
+            }
+            catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
+            {
+                // Window closing mid-drag — bail out cleanly.
+                timer.Stop();
+                Volatile.Write(ref _dragMoveActive, 0);
+                DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.BeginDragMove.Move", ex);
+            }
+        };
+        timer.Start();
+    }
+
+    internal bool SimulateBackgroundPointerPressedForTests(DependencyObject source)
+    {
+        if (ShouldSuppressBackgroundDrag(source)) return false;
+        BeginDragMove();
+        return true;
+    }
+
+    internal static string? BackgroundDragSuppressorForTests(DependencyObject source)
+    {
+        for (DependencyObject? current = source; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (DragAttachedProperties.GetIsDragEnabled(current) == false)
+                return $"DragFalse:{current.GetType().Name}";
+            if (IsBuiltInInteractive(current))
+                return $"Interactive:{current.GetType().Name}";
+        }
+        return null;
+    }
+
+    internal IDisposable RegisterAspectRatioOverride(double? ratio)
+    {
+        ThreadAffinity.ThrowIfNotOnUIThread(nameof(RegisterAspectRatioOverride));
+        ValidateAspectRatio(ratio, Volatile.Read(ref _spec).ResizeMode);
+        var entry = new AspectRatioOverride(Interlocked.Increment(ref _nextAspectRatioOverrideId), ratio);
+        lock (_aspectRatioOverrideLock)
+        {
+            var current = Volatile.Read(ref _aspectRatioOverrides);
+            var next = new AspectRatioOverride[current.Length + 1];
+            Array.Copy(current, next, current.Length);
+            next[^1] = entry;
+            Volatile.Write(ref _aspectRatioOverrides, next);
+        }
+        return new AspectRatioOverrideToken(this, entry.Id);
+    }
+
+    private sealed record AspectRatioOverride(int Id, double? Ratio);
+
+    private sealed class AspectRatioOverrideToken : IDisposable
+    {
+        private ReactorWindow? _owner;
+        private readonly int _id;
+        public AspectRatioOverrideToken(ReactorWindow owner, int id) { _owner = owner; _id = id; }
+        public void Dispose()
+        {
+            var owner = Interlocked.Exchange(ref _owner, null);
+            if (owner is null) return;
+            lock (owner._aspectRatioOverrideLock)
+            {
+                var current = Volatile.Read(ref owner._aspectRatioOverrides);
+                int idx = Array.FindIndex(current, e => e.Id == _id);
+                if (idx < 0) return;
+                var next = new AspectRatioOverride[current.Length - 1];
+                if (idx > 0) Array.Copy(current, 0, next, 0, idx);
+                if (idx < current.Length - 1) Array.Copy(current, idx + 1, next, idx, current.Length - idx - 1);
+                Volatile.Write(ref owner._aspectRatioOverrides, next);
+            }
+        }
+    }
+
+    private static void ValidateAspectRatio(double? ratio, WindowResizeMode resizeMode)
+    {
+        if (ratio is null) return;
+        if (!(ratio.Value > 0.0) || !double.IsFinite(ratio.Value))
+            throw new ArgumentOutOfRangeException(nameof(ratio), "Aspect ratio must be finite and greater than 0.");
+        if (resizeMode == WindowResizeMode.NoResize)
+            throw new InvalidOperationException("Aspect ratio cannot be combined with ResizeMode.NoResize.");
     }
 
     /// <summary>
@@ -1102,6 +2026,81 @@ public sealed class ReactorWindow : IDisposable
             Volatile.Write(ref _spec, prev with { IgnorePointerInput = ignore });
     }
 
+    private static class NativeShell
+    {
+        public const int GWL_STYLE = -16;
+        public const int GWL_EXSTYLE = -20;
+        public const long WS_BORDER = 0x00800000;
+        public const long WS_CAPTION = 0x00C00000;
+        public const long WS_SYSMENU = 0x00080000;
+        public const long WS_THICKFRAME = 0x00040000;
+        public const long WS_MINIMIZEBOX = 0x00020000;
+        public const long WS_MAXIMIZEBOX = 0x00010000;
+        public const long WS_OVERLAPPEDWINDOW = WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+        public const long WS_POPUP = 0x80000000L;
+        public const long WS_EX_TOOLWINDOW = 0x00000080;
+        public const long WS_EX_APPWINDOW = 0x00040000;
+        public const long WS_EX_TOPMOST = 0x00000008;
+        public const int SW_HIDE = 0;
+        public const int SW_SHOW = 5;
+        public const uint SWP_NOSIZE = 0x0001;
+        public const uint SWP_NOMOVE = 0x0002;
+        public const uint SWP_NOZORDER = 0x0004;
+        public const uint SWP_NOACTIVATE = 0x0010;
+        public const uint SWP_FRAMECHANGED = 0x0020;
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
+        public static extern nint GetWindowLongPtr(nint hWnd, int nIndex);
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
+        public static extern nint SetWindowLongPtr(nint hWnd, int nIndex, nint dwNewLong);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool ShowWindow(nint hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsIconic(nint hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsZoomed(nint hWnd);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetWindowPos(nint hWnd, nint hWndInsertAfter,
+            int X, int Y, int cx, int cy, uint uFlags);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool AdjustWindowRectExForDpi(ref RECT lpRect, uint dwStyle,
+            [MarshalAs(UnmanagedType.Bool)] bool bMenu, uint dwExStyle, uint dpi);
+    }
+
+    private static class NativeWindowing
+    {
+        public const int VK_LBUTTON = 0x01;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetCursorPos(out POINT lpPoint);
+
+        [DllImport("user32.dll")]
+        public static extern short GetAsyncKeyState(int vKey);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetWindowRect(nint hWnd, out RECT lpRect);
+    }
+
     private static class NativeOpacity
     {
         public const int GWL_EXSTYLE = -20;
@@ -1146,15 +2145,17 @@ public sealed class ReactorWindow : IDisposable
             int x = area.Value.X + (area.Value.Width - _appWindow.Size.Width) / 2;
             int y = area.Value.Y + (area.Value.Height - _appWindow.Size.Height) / 2;
             _appWindow.Move(new global::Windows.Graphics.PointInt32(x, y));
+            TryUpdatePositionCache(raiseEvent: true);
         }
         catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
         { DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.CenterOnScreen", ex); }
     }
 
     /// <summary>
-    /// Replace the thumbnail-toolbar buttons for this window. Up to seven
-    /// buttons; duplicate ids throw. The first call adds the button set, later
-    /// calls diff and update only the changed slots. (spec 036 §11.5)
+    /// Replace the thumbnail-toolbar buttons for this window. Shortcut kept for
+    /// compatibility; equivalent to <c>TaskbarItem.SetThumbnailToolbar(...)</c>.
+    /// Up to seven buttons; duplicate ids throw. The first call adds the button
+    /// set, later calls diff and update only the changed slots. (spec 036 §11.5)
     /// </summary>
     /// <exception cref="ArgumentException">
     /// Thrown when more than seven buttons are supplied or when ids are
@@ -1175,8 +2176,10 @@ public sealed class ReactorWindow : IDisposable
     }
 
     /// <summary>
-    /// Hide all thumbnail-toolbar buttons. Idempotent; safe to call before
-    /// <see cref="SetThumbnailToolbar"/> has been called. (spec 036 §11.5)
+    /// Hide all thumbnail-toolbar buttons. Shortcut kept for compatibility;
+    /// equivalent to <c>TaskbarItem.ClearThumbnailToolbar()</c>. Idempotent;
+    /// safe to call before <see cref="SetThumbnailToolbar"/> has been called.
+    /// (spec 036 §11.5)
     /// </summary>
     public void ClearThumbnailToolbar()
     {
@@ -1215,6 +2218,9 @@ public sealed class ReactorWindow : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+
+        DetachBackgroundDragRoot();
+        DetachSizeToContentRoot();
 
         // Event unsubscription — these throw at most COMException when the
         // proxy is already disconnected (which is exactly the "we're tearing
@@ -1269,17 +2275,11 @@ public sealed class ReactorWindow : IDisposable
     // ── Persistence + initial placement (spec 036 §3.2 / §8) ──────────
 
     /// <summary>
-    /// On the first <c>WM_SHOWWINDOW</c>, apply the spec's
-    /// <see cref="WindowSpec.StartPosition"/>. For
-    /// <see cref="WindowStartPosition.RestoreFromPersistence"/> we read the
-    /// persisted placement (if any) from
-    /// <see cref="ReactorApp.WindowPersistenceStore"/> and re-apply it via
-    /// <c>SetWindowPlacement</c>; on any of the failure modes we fall through
-    /// to the default placement so the window still appears. For the other
-    /// placement values we move/center the AppWindow against the resolved
-    /// monitor's work area. Idempotent: subsequent shows take no action so a
-    /// hide/show cycle preserves the user's interactive resize.
-    /// (spec 036 §3.2 / §8)
+    /// On the first <c>WM_SHOWWINDOW</c>, apply initial placement. When
+    /// <see cref="WindowSpec.PersistPlacement"/> is enabled we first try the
+    /// registered placement store; if no payload restores, we apply
+    /// <see cref="WindowSpec.PersistenceFallback"/>. Idempotent: subsequent
+    /// shows take no action so hide/show cycles preserve user placement.
     /// </summary>
     private void TryApplyInitialPlacement()
     {
@@ -1288,26 +2288,28 @@ public sealed class ReactorWindow : IDisposable
 
         var spec = _spec;
 
-        bool restored = false;
-        if (spec.StartPosition == WindowStartPosition.RestoreFromPersistence
-            || !string.IsNullOrEmpty(spec.PersistenceId))
-        {
-            restored = TryRestorePersistedPlacementCore(spec);
-        }
+        bool restored = spec.PersistPlacement
+            && !string.IsNullOrEmpty(spec.PersistenceId)
+            && TryRestorePersistedPlacementCore(spec);
         if (restored)
         {
-            // The placement we just applied counts as a user-resized state
-            // so the first-DPI re-apply path doesn't fight it.
             _userResized = true;
             return;
         }
 
+        var placement = spec.PersistPlacement ? spec.PersistenceFallback : spec.StartPosition;
+        ApplyInitialPlacement(spec, placement);
+    }
+
+    private void ApplyInitialPlacement(WindowSpec spec, WindowStartPosition placement)
+    {
         try
         {
-            switch (spec.StartPosition)
+            switch (placement)
             {
                 case WindowStartPosition.Manual when spec.ManualPosition is { } pos:
                     _appWindow.Move(DipToPhysicalPoint(pos.X, pos.Y));
+                    TryUpdatePositionCache(raiseEvent: true);
                     break;
                 case WindowStartPosition.CenterOnPrimary:
                     CenterIn(DisplayArea.Primary);
@@ -1315,21 +2317,21 @@ public sealed class ReactorWindow : IDisposable
                 case WindowStartPosition.CenterOnOwner:
                     CenterIn(ResolveOwnerDisplayArea(spec.Owner));
                     break;
-                // Default and RestoreFromPersistence (with no saved data)
-                // fall through to WinUI's default placement.
+                case WindowStartPosition.CenterOnCurrent:
+                    CenterOnCurrentMonitor();
+                    break;
+                // Default falls through to WinUI's default placement.
             }
         }
         catch (COMException ex) when (HResults.IsTeardownReentry(ex.HResult))
         {
-            // _appWindow.Move / DisplayArea.GetFromWindowId during teardown
-            // reentry. Anything outside this HR set is a real bug.
             DiagnosticLog.SwallowedError(LogCategory.Hosting, "ReactorWindow.TryApplyInitialPlacement", ex);
         }
     }
 
     private bool TryRestorePersistedPlacementCore(WindowSpec spec)
     {
-        if (string.IsNullOrEmpty(spec.PersistenceId)) return false;
+        if (!spec.PersistPlacement || string.IsNullOrEmpty(spec.PersistenceId)) return false;
         var store = ReactorApp.ResolvePersistenceStore();
         if (store is null) return false;
 
@@ -1356,6 +2358,65 @@ public sealed class ReactorWindow : IDisposable
         int x = work.X + Math.Max(0, (work.Width - size.Width) / 2);
         int y = work.Y + Math.Max(0, (work.Height - size.Height) / 2);
         _appWindow.Move(new global::Windows.Graphics.PointInt32(x, y));
+        TryUpdatePositionCache(raiseEvent: true);
+    }
+
+    private void CenterOnCurrentMonitor()
+    {
+        if (!NativePlacement.GetCursorPos(out var pt))
+        {
+            CenterIn(DisplayArea.Primary);
+            return;
+        }
+
+        nint monitor = NativePlacement.MonitorFromPoint(pt, NativePlacement.MONITOR_DEFAULTTONEAREST);
+        if (monitor == 0)
+        {
+            CenterIn(DisplayArea.Primary);
+            return;
+        }
+
+        var info = new NativePlacement.MONITORINFO { cbSize = Marshal.SizeOf<NativePlacement.MONITORINFO>() };
+        if (!NativePlacement.GetMonitorInfo(monitor, ref info))
+        {
+            CenterIn(DisplayArea.Primary);
+            return;
+        }
+
+        var work = info.rcWork;
+        var size = _appWindow.Size;
+        int x = work.Left + Math.Max(0, (work.Right - work.Left - size.Width) / 2);
+        int y = work.Top + Math.Max(0, (work.Bottom - work.Top - size.Height) / 2);
+        _appWindow.Move(new global::Windows.Graphics.PointInt32(x, y));
+        TryUpdatePositionCache(raiseEvent: true);
+    }
+
+    private static class NativePlacement
+    {
+        public const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT { public int Left, Top, Right, Bottom; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MONITORINFO
+        {
+            public int cbSize;
+            public RECT rcMonitor;
+            public RECT rcWork;
+            public int dwFlags;
+        }
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetCursorPos(out POINT lpPoint);
+
+        [DllImport("user32.dll")]
+        public static extern nint MonitorFromPoint(POINT pt, uint dwFlags);
+
+        [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetMonitorInfo(nint hMonitor, ref MONITORINFO lpmi);
     }
 
     private static DisplayArea? ResolveOwnerDisplayArea(ReactorWindow? owner)
@@ -1375,20 +2436,21 @@ public sealed class ReactorWindow : IDisposable
     /// Best-effort: failures log and don't bubble into the close path.
     /// (spec 036 §8)
     /// </summary>
-    private void TrySavePersistedPlacement()
+    private bool TrySavePersistedPlacement()
     {
         var spec = _spec;
-        if (string.IsNullOrEmpty(spec.PersistenceId)) return;
+        if (!spec.PersistPlacement || string.IsNullOrEmpty(spec.PersistenceId)) return false;
 
         var store = ReactorApp.ResolvePersistenceStore();
-        if (store is null) return;
+        if (store is null) return false;
 
         // Same shape as TryRestorePersistedPlacementCore — every downstream
         // failure mode now returns a sentinel value (null/false) rather than
         // throwing. store.Write narrows internally per the C.5 audit entry.
         var monitors = MonitorEnumeration.Snapshot();
         var payload = WindowPlacementCodec.Capture(_hwnd, monitors);
-        if (payload is null) return;
+        if (payload is null) return false;
         store.Write(spec.PersistenceId!, payload);
+        return true;
     }
 }

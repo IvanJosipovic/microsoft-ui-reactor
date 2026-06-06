@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** — 2026-06-04. Builds on [spec 036 — Window Model](036-window-design.md), which
+**Implemented** — 2026-06-05. Builds on [spec 036 — Window Model](036-window-design.md), which
 established `WindowSpec` / `ReactorWindow` / `ReactorApp.OpenWindow` and the multi-window
 hosting story. This spec catches Reactor's windowing surface up to the gaps identified
 by the WinUI windowing reform proposal — sizing / state / presenter ergonomics, persistence
@@ -168,7 +168,7 @@ Already covered by spec 036 (✅), evolving in this spec (▲), missing (❌), o
 | `WindowLevel` enum (Normal/Floating/AlwaysOnTop/Overlay) | only `IsAlwaysOnTop` bool | ▲ §6.4 partial — 3 useful tiers, not NSWindow's level stack |
 | `SizeToContent` | none — manual `SetSize` after measure | ▲ §6.3 |
 | `AspectRatio` | none | ▲ §5.2 (rock-solid via `WM_SIZING`) |
-| `IsMovableByBackground` / `DragMove()` | none | ▲ §5.3 (rock-solid via `WM_SYSCOMMAND`/`SC_MOVE`+`HTCAPTION`) |
+| `IsMovableByBackground` / `DragMove()` | none | ▲ §5.3 (`GetCursorPos`-polled `AppWindow.Move` driven from `PointerPressed`; `WM_NCLBUTTONDOWN` synthesis is unreliable under WinUI 3) |
 | `CornerRadius` | none on `WindowSpec` | ▲ §6.2 — discrete (`Default`/`Square`/`Rounded`/`Small`) via `DWMWA_WINDOW_CORNER_PREFERENCE`; arbitrary radius rejected (§7.2) |
 | `IsHitTestVisible` (click-through) | `WindowSpec.IgnorePointerInput` + opacity prereq | ✅ (already shipped for tear-off; document for general use) |
 | `Opacity` 0..1 | `WindowSpec.Opacity` | ✅ |
@@ -195,8 +195,9 @@ question separates "ship and forget" from "ship with footnotes."
 
 - **Tier A — rock solid.** The OS has a stable, well-documented mechanism;
   Reactor adds an idiomatic shape over it. No surprises. **Default
-  shipping target.** Examples: `WM_SIZING` for aspect ratio, `WM_SYSCOMMAND`
-  + `SC_MOVE` for drag-from-anywhere, `DwmSetWindowAttribute` for corner
+  shipping target.** Examples: `WM_SIZING` for aspect ratio,
+  `GetCursorPos`-polled `AppWindow.Move` for drag-from-anywhere,
+  `DwmSetWindowAttribute` for corner
   preference, `AppWindow.Position` for read-back.
 - **Tier B — works, with documented constraints.** The OS supports it but
   with caveats users should know about (e.g. `SizeToContent` needs a full
@@ -281,19 +282,60 @@ public WindowSpec WithAspectRatio(double widthOverHeight) =>
 
 // On WindowSpec:
 public double? AspectRatio { get; init; }   // width / height; null = unconstrained
+public AspectRatioBasis AspectRatioBasis { get; init; } = AspectRatioBasis.Window;
+
+public enum AspectRatioBasis
+{
+    Window,   // ratio applies to the outer window rect (default; cheap, matches WM_SIZING)
+    Client,   // ratio applies to the client (content) area; framework computes chrome inset via AdjustWindowRectExForDpi
+}
 ```
 
 Validation: `> 0` and finite (else throw); rejected when `ResizeMode ==
 NoResize` (no drag means no constraint to apply) — that combination is a
 spec mistake worth catching at the boundary, not silently ignoring.
 
+**Window vs. client basis.** `AspectRatioBasis.Window` (the default) is
+the cheap shape — `WM_SIZING` hands us the outer window rect and we
+enforce the ratio on it directly. `AspectRatioBasis.Client` is what
+media/game/canvas apps want: a 1:1 *content* area for a square video, a
+16:9 viewport for a game. The framework subtracts the chrome inset
+(caption + borders, via `AdjustWindowRectExForDpi` at the current
+window style + DPI) before applying the ratio, then adds it back. The
+ratio stays accurate across DPI changes and `WindowStyle` flips because
+the inset is re-computed every message.
+
+**`Client` basis silently falls back to `Window` when
+`ExtendsContentIntoTitleBar = true`.** Once the app paints into the
+title-bar area, the OS's notion of "client area" (which still excludes
+the caption-button inset) no longer matches the developer's notion of
+"content area" — the custom title bar lives inside the client area, so
+constraining client-rect aspect would size the *title bar + content*
+together, not the content alone. The framework can't disambiguate these
+without an explicit content-rectangle declaration from the app, so for
+now it conservatively treats `Client` as `Window` in that configuration.
+A future iteration may add a `Window.SetContentDragRegion(rect)`-style
+API for apps that want client-basis aspect ratio together with a custom
+title bar.
+
+**Maximize bypasses the lock — by design.** Clicking the maximize
+caption button (or pressing <kbd>Win</kbd>+<kbd>↑</kbd>) sends
+`WM_SYSCOMMAND` with `SC_MAXIMIZE`, which goes straight to
+`ShowWindow(SW_MAXIMIZE)` without firing `WM_SIZING`. The window
+expands to fill the work area regardless of `AspectRatio`. This is
+intentional — users expect "maximize fills the work area"; an
+AspectRatio that refuses to maximize would surprise everyone. Apps
+that genuinely want to forbid maximize should set
+`ResizeMode = CanMinimize` (disables the maximize button outright).
+The lock re-engages on the next interactive drag-resize after restore.
+
 **Edge handling.** The algorithm picks the master dimension from the
 `wParam` of `WM_SIZING`:
 
 | Drag handle | Master | Slave |
 | --- | --- | --- |
-| `WMSZ_LEFT` / `WMSZ_RIGHT` | height | width |
-| `WMSZ_TOP` / `WMSZ_BOTTOM` | width | height |
+| `WMSZ_LEFT` / `WMSZ_RIGHT` | width | height |
+| `WMSZ_TOP` / `WMSZ_BOTTOM` | height | width |
 | Corner | whichever has the larger user delta (sticks-to-mouse) |
 
 Min/max constraints still apply through `WM_GETMINMAXINFO`; aspect-ratio
@@ -307,17 +349,34 @@ file). Mirrors into `_spec` like other live setters.
 
 ### 5.3 `IsMovableByBackground` — drag-from-anywhere
 
-**Platform quality: Tier A.** Two clean implementations exist:
+**Platform quality: Tier A.** The reliable mechanism in WinUI 3 is a
+**`GetCursorPos` polling drag** driven from a `PointerPressed` handler:
 
-1. `WM_NCLBUTTONDOWN` synthesis: post `WM_SYSCOMMAND` with
-   `SC_MOVE | HTCAPTION` from a `PointerPressed` handler on the root.
-   The OS then runs its own modal move loop — same one used for normal
-   title-bar drag. Pixel-perfect smooth, snap-aware, multi-monitor-aware,
-   handles Aero Snap layouts.
-2. `InputNonClientPointerSource` drag regions covering the client area.
-   Works but requires opting the whole client area out of input.
+1. On `PointerPressed` (left button, root element, no interactive
+   suppression): snapshot `GetCursorPos()` and `AppWindow.Position`,
+   then start a `DispatcherQueueTimer` (~60Hz).
+2. Each tick: if `GetAsyncKeyState(VK_LBUTTON)` shows the button is no
+   longer held, stop. Otherwise, `GetCursorPos()` and
+   `AppWindow.Move(initialWindowPos + cursorDelta)`.
 
-Approach (1) is materially simpler and is what WinUIEx does. Pick (1).
+Why not `WM_NCLBUTTONDOWN` + `HTCAPTION` (the WPF/WinForms `DragMove`
+trick)? In WinUI 3 the top-level HWND never sees the `WM_LBUTTONDOWN`
+that `DefWindowProc` looks for to enter mouse-track drag mode — pointer
+input is routed through a child `InputSiteBridge` HWND. The synthesized
+`WM_NCLBUTTONDOWN` silently falls back to the system-menu
+cursor-follow Move mode (click does nothing; releasing then moving
+the mouse moves the window), which is the wrong UX.
+`WM_SYSCOMMAND`+`SC_MOVE|HTCAPTION` has the same problem for the
+same reason. `Window.SetTitleBar(root)` works for drag but doesn't
+reliably auto-exclude nested interactive controls (`TextBox` text
+selection, etc.) — fine for a thin caption strip, wrong here.
+
+The polling-timer approach is simple, reliable, and lets WinUI's normal
+input routing handle interactive controls correctly (a `PointerPressed`
+marked `Handled` by a `TextBox`/`Button` never reaches the root
+handler). The trade-off vs. an OS-modal drag loop is **no Aero Snap
+during the drag** — acceptable for the small floating windows
+(command palettes, tool palettes) that need `IsMovableByBackground`.
 
 Surface:
 
@@ -330,7 +389,10 @@ Plus a method for ad-hoc drag (e.g. from a custom toolbar):
 ```csharp
 public sealed class ReactorWindow
 {
-    public void BeginDragMove();   // Posts WM_SYSCOMMAND SC_MOVE|HTCAPTION immediately
+    public void BeginDragMove();   // GetCursorPos baseline + 60Hz DispatcherQueueTimer
+                                   // polling AppWindow.Move until GetAsyncKeyState(VK_LBUTTON)
+                                   // shows the button is released. Returns immediately;
+                                   // re-entrant calls while a drag is active no-op.
 }
 ```
 
@@ -1201,6 +1263,7 @@ into its own spec if scoping requires.
    it also stay above the _owner_ when both are non-topmost? WPF's
    `ToolWindow` does. Recommendation: yes, because authors using
    `Floating` expect tool-palette semantics. Pin in Phase 4 selftest.
+   **Resolution:** yes — `Floating` stays above the owner as well as sibling Reactor app windows; Phase 4 selftests pin this.
 
 2. **`SizeToContent` + min/max constraints visual contract.** When
    content desires `400×300` but `MinWidth=500`, do we set the window
@@ -1209,17 +1272,20 @@ into its own spec if scoping requires.
    document the choice — `AspectRatio` is exclusive with `SizeToContent`
    anyway (§9.1), so the only conflict is min/max vs. content desired,
    and min/max wins.
+   **Resolution:** min/max wins; `SizeToContent` clamps to the declared size bounds rather than preserving aspect.
 
 3. **`UseWindowDragMove` reentrancy.** The pattern returns an `Action` —
    calling it during an active drag is a no-op? Or queues a second drag?
    Recommendation: no-op when `GetCapture()` reports a drag in progress;
    document.
+   **Resolution:** no-op while `GetCapture()` indicates an active drag; no queued second drag is started.
 
 4. **`PositionChanged` firing rate during user drag.** `AppWindow.Changed`
    fires on every interactive move. Do we coalesce, or fire eagerly?
    Recommendation: fire eagerly. Apps that need throttling have
    `UseDebounced` from the async-resources spec. Throttling at the
    framework level would block snap-to-edge UIs.
+   **Resolution:** fire eagerly; hooks short-circuit unchanged DIP values and consumers debounce if needed.
 
 5. **`Transparent` BackdropKind on Windows 10.** `TransparentBackdrop`
    requires WinAppSDK 1.3+ which targets Windows 10 1809+, but the
@@ -1227,12 +1293,14 @@ into its own spec if scoping requires.
    it. Should we throw at `Validate()` time, log a warning at apply, or
    silently no-op? Recommendation: log warning at apply (matches existing
    Mica behavior), don't throw.
+   **Resolution:** log a warning at apply time and continue; validation does not reject Windows 10 fallback cases.
 
 6. **Should `CenterOnCurrent` use cursor position or foreground-window
    position?** Cursor is what users expect ("open here"); foreground is
    what WPF's `CenterScreen` actually does. Recommendation: cursor first,
    fall back to foreground monitor if cursor is on a disconnected
    monitor (rare).
+   **Resolution:** use the cursor monitor first; fall back to the foreground monitor when no usable cursor monitor is available.
 
 ---
 
@@ -1291,7 +1359,7 @@ response.
 | `WindowLevel.Overlay` | ❌ rejected (no Win32 tier) | §7.3 |
 | `SizeToContent` | ▲ new enum | §6.3 |
 | `AspectRatio` | ▲ new field + `WM_SIZING` | §5.2 |
-| `IsMovableByBackground` | ▲ new field + `WM_SYSCOMMAND` | §5.3 |
+| `IsMovableByBackground` | ▲ new field + `GetCursorPos`-polled `AppWindow.Move` | §5.3 |
 | `CornerRadius` (arbitrary) | ❌ rejected | §7.2 |
 | `CornerStyle` (discrete) | ▲ new enum (DWM) | §6.2 |
 | `IsHitTestVisible` / click-through | ✅ shipped via `IgnorePointerInput` | — |
