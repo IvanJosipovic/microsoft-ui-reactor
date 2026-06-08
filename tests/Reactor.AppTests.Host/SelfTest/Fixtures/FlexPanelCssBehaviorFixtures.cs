@@ -1,4 +1,5 @@
 using Microsoft.UI.Reactor.AppTests.Host.SelfTest;
+using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Reactor.Layout;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -36,6 +37,16 @@ namespace Microsoft.UI.Reactor.AppTests.Host.SelfTest.Fixtures;
 internal static class FlexPanelCssBehaviorFixtures
 {
     private const double Tolerance = 1.5;
+
+    private static Brush ThemeBrush(string key)
+    {
+        var app = Application.Current
+            ?? throw new InvalidOperationException("Application resources are required for theme-aware selftest brushes.");
+
+        var isDark = app.RequestedTheme == ApplicationTheme.Dark;
+        return ThemeRef.Resolve(key, isDark)
+            ?? throw new InvalidOperationException($"Theme brush '{key}' was not found.");
+    }
 
     private static bool Near(double a, double b, double tol = Tolerance)
         => Math.Abs(a - b) <= tol;
@@ -93,7 +104,7 @@ internal static class FlexPanelCssBehaviorFixtures
         var b = new Border
         {
             Tag = tag,
-            Background = new SolidColorBrush(Microsoft.UI.Colors.LightGray),
+            Background = ThemeBrush("SubtleFillColorSecondaryBrush"),
             Child = new TextBlock { Text = tag },
         };
         if (width is not null) b.Width = width.Value;
@@ -589,7 +600,7 @@ internal static class FlexPanelCssBehaviorFixtures
             var paneA = new Border
             {
                 Tag = "A",
-                Background = new SolidColorBrush(Microsoft.UI.Colors.LightBlue),
+                Background = ThemeBrush("SystemFillColorAttentionBackgroundBrush"),
                 Child = new Border { Width = 500, Height = 30,
                     Background = new SolidColorBrush(Microsoft.UI.Colors.SteelBlue) },
             };
@@ -802,7 +813,7 @@ internal static class FlexPanelCssBehaviorFixtures
             var paneA = new Border
             {
                 Tag = "A",
-                Background = new SolidColorBrush(Microsoft.UI.Colors.LightGray),
+                Background = ThemeBrush("SubtleFillColorSecondaryBrush"),
                 Child = new Border { Width = 100, Height = 80,
                     Background = new SolidColorBrush(Microsoft.UI.Colors.DarkSlateBlue) },
             };
@@ -840,7 +851,7 @@ internal static class FlexPanelCssBehaviorFixtures
             var paneA = new Border
             {
                 Tag = "A",
-                Background = new SolidColorBrush(Microsoft.UI.Colors.LightBlue),
+                Background = ThemeBrush("SystemFillColorAttentionBackgroundBrush"),
                 Child = new Border { Width = 50, Height = 500,
                     Background = new SolidColorBrush(Microsoft.UI.Colors.SteelBlue) },
             };
