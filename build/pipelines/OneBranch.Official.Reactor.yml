@@ -2,8 +2,8 @@
 #                               OneBranch Pipelines                             #
 # Official OneBranch pipeline for Microsoft.UI.Reactor (CrossPlat, docked).      #
 # Produces framework NuGet packages (Microsoft.UI.Reactor,                      #
-# Microsoft.UI.Reactor.Advanced + Templates) and the reactor skill kit          #
-# (mur x64 + arm64).                                                            #
+# Microsoft.UI.Reactor.Advanced, Microsoft.UI.Reactor.Devtools + Templates)     #
+# and the reactor skill kit (mur x64 + arm64).                                  #
 # Official builds run network-restricted: NuGet restore resolves from            #
 # build/pipelines/nuget.internal.config (a pre-seeded internal package feed).     #
 # Documentation:  https://aka.ms/obpipelines                                    #

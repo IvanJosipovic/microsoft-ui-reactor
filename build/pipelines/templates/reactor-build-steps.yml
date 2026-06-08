@@ -249,6 +249,19 @@ steps:
           -p:Platform=AnyCPU -p:CI=true
       displayName: 'Build Advanced (AnyCPU)'
 
+    # ── Build Reactor.Devtools (AnyCPU) for packing. ──
+    # Reactor.Devtools IS a direct slnx member, so the slnx build above produced it for the
+    # solution platform (x64/ARM64 -- the slnx declares no AnyCPU configuration) and the slnx
+    # restore already pulled its deps through the internal feed. `dotnet pack` below needs the
+    # AnyCPU output, so we build that one platform explicitly here -- same shape as the Advanced
+    # step above. --no-restore is safe (deps already restored); -p:CI=true keeps the
+    # Copilot/SignaturesGen gates off when the referenced Reactor.csproj is touched.
+    - pwsh: |
+        dotnet build src/Reactor.Devtools/Reactor.Devtools.csproj `
+          --no-restore --configuration ${{ parameters.configuration }} `
+          -p:Platform=AnyCPU -p:CI=true
+      displayName: 'Build Devtools (AnyCPU)'
+
     # ── Phase 1a: Authenticode-sign the packed assemblies BEFORE packing. ──
     # `dotnet pack --no-build` zips the existing build output into the .nupkg, so each
     # authored DLL must be signed HERE for the SIGNED copy to land inside the package.
@@ -260,6 +273,8 @@ steps:
     #   analyzers/dotnet/cs/Reactor.Localization.Generator.dll
     # And inside Microsoft.UI.Reactor.Advanced.nupkg:
     #   lib/<tfm>/Reactor.Advanced.dll
+    # And inside Microsoft.UI.Reactor.Devtools.nupkg:
+    #   lib/<tfm>/Microsoft.UI.Reactor.Devtools.dll
     # Each glob is scoped to its project's bin\ dir so we sign only our own assemblies.
     - ${{ if eq(parameters.sign, true) }}:
       - task: onebranch.pipeline.signing@1
@@ -267,7 +282,7 @@ steps:
         inputs:
           command: 'sign'
           signing_profile: external_distribution
-          files_to_sign: 'Reactor\bin\**\Reactor.dll;Reactor\bin\**\Reactor.resources.dll;Reactor.Advanced\bin\**\Reactor.Advanced.dll;Reactor.Analyzers\bin\**\Reactor.Analyzers.dll;Reactor.Localization.Generator\bin\**\Reactor.Localization.Generator.dll'
+          files_to_sign: 'Reactor\bin\**\Reactor.dll;Reactor\bin\**\Reactor.resources.dll;Reactor.Advanced\bin\**\Reactor.Advanced.dll;Reactor.Devtools\bin\**\Microsoft.UI.Reactor.Devtools.dll;Reactor.Analyzers\bin\**\Reactor.Analyzers.dll;Reactor.Localization.Generator\bin\**\Reactor.Localization.Generator.dll'
           search_root: '$(Build.SourcesDirectory)\src'
 
     - pwsh: |
@@ -286,6 +301,16 @@ steps:
           -p:Version=$(PackageVersion) `
           -o "${{ parameters.outputDirectory }}\nupkg"
       displayName: 'Pack Advanced NuGet'
+
+    # Pack the Devtools (optional devtools host) NuGet from the AnyCPU output built above.
+    # Mirrors the 'Pack Devtools NuGet' step in .github/workflows/release.yml.
+    - pwsh: |
+        dotnet pack src/Reactor.Devtools/Reactor.Devtools.csproj `
+          --no-build --configuration ${{ parameters.configuration }} `
+          -p:Platform=AnyCPU `
+          -p:Version=$(PackageVersion) `
+          -o "${{ parameters.outputDirectory }}\nupkg"
+      displayName: 'Pack Devtools NuGet'
 
     - pwsh: |
         dotnet pack tools/Templates/Microsoft.UI.Reactor.Templates.csproj `
