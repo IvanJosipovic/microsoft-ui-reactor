@@ -20,9 +20,17 @@ parameters: # parameters are shown up in ADO UI in a build queue time
   type: boolean
   default: false
 - name: 'version'
-  displayName: 'Version to pack (manual runs only; e.g. 0.1.0-preview.1). Leave blank to use MinVer.'
+  displayName: 'Version to pack (manual runs only; e.g. 0.1.0-preview.1). Leave as "auto" to use MinVer (release tags).'
   type: string
-  default: ''
+  # NOTE: a non-empty default ('auto') is deliberate. ADO's "Run pipeline" UI treats a
+  # string parameter whose default is the EMPTY string as "required" (red asterisk) and
+  # blocks queueing until a value is typed. The 'auto' sentinel removes that friction;
+  # the resolve-version step maps 'auto' (and blank) back to the MinVer path.
+  default: 'auto'
+- name: 'publishNuGet'
+  displayName: 'Publish packages to nuget.org (requires the NuGetApiKey secret variable). Leave OFF to only build + sign.'
+  type: boolean
+  default: false
 
 variables:
   CDP_DEFINITION_BUILD_COUNT: $[counter('', 0)] # needed for onebranch.pipeline.version task https://aka.ms/obpipelines/versioning
@@ -110,3 +118,8 @@ extends:
               # assembly + mur binaries BEFORE pack/zip so the DLLs inside the .nupkg and the
               # skill-kit zip are signed, then NuGet-sign the .nupkg containers after pack.
               sign: true
+              # Opt-in nuget.org publish (checkbox at queue time). When true, the packed +
+              # signed .nupkg files are pushed to nuget.org using the NuGetApiKey secret
+              # pipeline variable. Default OFF: a normal run only builds + signs + uploads
+              # artifacts.
+              publishNuGet: ${{ parameters.publishNuGet }}

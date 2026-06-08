@@ -29,9 +29,9 @@ parameters:
     type: string
     default: 'https://github-private.pkgs.visualstudio.com/microsoft/_packaging/microsoft-ui-reactor/npm/registry/'
   - name: version
-    displayName: 'Explicit version; blank => MinVer.'
+    displayName: 'Explicit version; "auto" or blank => MinVer.'
     type: string
-    default: ''
+    default: 'auto'
   - name: runTests
     displayName: 'Run headless unit tests (tests/Reactor.Tests).'
     type: boolean
@@ -44,6 +44,18 @@ parameters:
     displayName: 'ESRP-sign outputs (Authenticode binaries before pack, NuGet-sign .nupkg after). Official builds only.'
     type: boolean
     default: false
+  - name: publishNuGet
+    displayName: 'Push the packed .nupkg files to nuget.org. Requires the NuGetApiKey secret pipeline variable.'
+    type: boolean
+    default: false
+  - name: nuGetApiKeyVariable
+    displayName: 'Name of the SECRET pipeline variable holding the nuget.org API key.'
+    type: string
+    default: 'NuGetApiKey'
+  - name: nuGetFeed
+    displayName: 'Target NuGet feed (push destination).'
+    type: string
+    default: 'https://api.nuget.org/v3/index.json'
 
 steps:
   - task: UseDotNet@2
@@ -118,7 +130,7 @@ steps:
     - pwsh: |
         $manualVersion = '${{ parameters.version }}'
 
-        if (-not [string]::IsNullOrWhiteSpace($manualVersion)) {
+        if (-not [string]::IsNullOrWhiteSpace($manualVersion) -and $manualVersion.Trim() -ne 'auto') {
           # Explicit override always wins, verbatim.
           $version = $manualVersion.Trim()
         } else {
@@ -407,3 +419,38 @@ steps:
           cp_code: 'CP-401405'
           files_to_sign: '**/*.nupkg'
           search_root: '${{ parameters.outputDirectory }}\nupkg'
+
+    # ── Publish to nuget.org (opt-in via the publishNuGet checkbox). ──
+    # Gated behind a parameter so a normal Official build only PRODUCES the signed
+    # packages (uploaded as artifacts); flipping the checkbox at queue time additionally
+    # pushes them to the public feed. The API key comes from a SECRET pipeline variable
+    # (default name: NuGetApiKey) configured in the pipeline's settings -- never committed.
+    # Secrets are NOT auto-exposed to script env, so it is mapped explicitly via `env:`;
+    # `--skip-duplicate` makes re-runs idempotent (a version already on the feed is
+    # immutable and would otherwise 409). Pushes the framework package first, then the
+    # rest; *.snupkg symbol packages are pushed by the same glob (nuget.org accepts them).
+    - ${{ if eq(parameters.publishNuGet, true) }}:
+      - pwsh: |
+          $key = $env:NUGET_API_KEY
+          if ([string]::IsNullOrWhiteSpace($key)) {
+            throw "publishNuGet=true but the secret variable '${{ parameters.nuGetApiKeyVariable }}' is empty or not set. " +
+                  "Add it as a SECRET pipeline variable before queueing a publish run."
+          }
+
+          $packages = Get-ChildItem "${{ parameters.outputDirectory }}\nupkg" -Filter *.nupkg -File
+          if ($packages.Count -eq 0) { throw "No .nupkg files found to publish." }
+
+          Write-Host "Publishing $($packages.Count) package(s) to ${{ parameters.nuGetFeed }}"
+          foreach ($pkg in $packages) {
+            Write-Host "  -> $($pkg.Name)"
+          }
+
+          dotnet nuget push "${{ parameters.outputDirectory }}\nupkg\*.nupkg" `
+            --source "${{ parameters.nuGetFeed }}" `
+            --api-key $key `
+            --skip-duplicate
+        displayName: 'Publish NuGet packages (nuget.org)'
+        env:
+          # Map the secret pipeline variable into the script environment; secrets are not
+          # injected automatically. The variable NAME is templated; its VALUE stays secret.
+          NUGET_API_KEY: $(${{ parameters.nuGetApiKeyVariable }})
