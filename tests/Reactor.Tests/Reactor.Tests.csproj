@@ -49,6 +49,7 @@
          license + reference; no test consumes it post-§2.19. -->
     <ProjectReference Include="..\..\samples\apps\minesweeper\Minesweeper.csproj" />
     <ProjectReference Include="..\..\tools\Reactor.MurCheckGuardrail\Reactor.MurCheckGuardrail.csproj" />
+    <ProjectReference Include="..\..\tools\Reactor.ApiIndex\Reactor.ApiIndex.csproj" />
   </ItemGroup>
 
 </Project>
