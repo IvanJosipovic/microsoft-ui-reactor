@@ -24,7 +24,8 @@ internal record ReactorAppOptions(
     double WindowWidth = 1024,
     double WindowHeight = 768,
     bool FullScreen = false,
-    Action<ReactorAppContext>? Startup = null);
+    Action<ReactorAppContext>? Startup = null,
+    WindowSpec? InitialWindowSpec = null);
 
 public static class ReactorApp
 {
@@ -457,15 +458,29 @@ public static class ReactorApp
         Func<RenderContext, Element>? renderFunc,
         Action<ReactorHost>? configure)
     {
-        var window = new ReactorWindow(spec);
-        configure?.Invoke(window.Host);
+        Console.Error.WriteLine("[embed:trace] OpenWindowCore enter (embed=" + (spec.Embed is not null) + ")");
+        ReactorWindow window;
+        try
+        {
+            window = new ReactorWindow(spec);
+            Console.Error.WriteLine("[embed:trace] OpenWindowCore: ReactorWindow ctor ok");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine("[embed:trace] ReactorWindow ctor THREW: " + ex);
+            throw;
+        }
+        try { configure?.Invoke(window.Host); Console.Error.WriteLine("[embed:trace] OpenWindowCore: configure ok"); }
+        catch (Exception ex) { Console.Error.WriteLine("[embed:trace] configure THREW: " + ex); throw; }
         RegisterWindow(window);
         try
         {
             window.MountAndActivate(rootFactory, renderFunc);
+            Console.Error.WriteLine("[embed:trace] OpenWindowCore: MountAndActivate ok");
         }
-        catch
+        catch (Exception ex)
         {
+            Console.Error.WriteLine("[embed:trace] MountAndActivate THREW: " + ex);
             UnregisterWindow(window);
             try { window.Dispose(); } catch { /* best effort */ }
             throw;
@@ -708,6 +723,14 @@ public static class ReactorApp
             return true;
         }
 
+        if (!string.IsNullOrEmpty(options.EmbedValidationError))
+        {
+            Console.Error.WriteLine($"[reactor] {options.EmbedValidationError}");
+            Environment.ExitCode = 2;
+            if (exitOnUnavailable) Environment.Exit(2);
+            return true;
+        }
+
         if (options.Subverb is null) return false;
 
         if (ReactorFeatures.IsDevtoolsSupported && ReactorDevtoolsBootstrap.Current is { } host)
@@ -947,7 +970,7 @@ public partial class ReactorApplication : Application, IXamlMetadataProvider
         // during OnLaunched). (spec 036 §4.3)
         if (opts.RootFactory is null && opts.RootRenderFunc is null) return;
 
-        var spec = new WindowSpec
+        var spec = opts.InitialWindowSpec ?? new WindowSpec
         {
             Title = opts.WindowTitle,
             Width = opts.WindowWidth,

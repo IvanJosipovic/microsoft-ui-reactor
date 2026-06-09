@@ -1,0 +1,102 @@
+<UserControl x:Class="Microsoft.UI.Reactor.VsExtension.UI.ReactorEmbedControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Microsoft.UI.Reactor.VsExtension.UI"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vs="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             mc:Ignorable="d"
+             Background="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowBackgroundBrushKey}}"
+             Foreground="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowTextBrushKey}}"
+             Loaded="OnLoaded"
+             Unloaded="OnUnloaded">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <local:BooleanToHiddenVisibilityConverter x:Key="BoolToHiddenVisibility" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" LastChildFill="True"
+                   Background="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowBackgroundBrushKey}}">
+            <Button DockPanel.Dock="Right" Content="↻" Width="24" Margin="4,2"
+                    Command="{Binding ForceReloadCommand}" ToolTip="Force reload" />
+            <ComboBox ItemsSource="{Binding Components}"
+                      SelectedItem="{Binding SelectedComponent}"
+                      Margin="4,2" />
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <!--
+                The placeholder overlay is drawn BENEATH the HwndHostPlaceholder in
+                Z-order, but becomes visible because the host's HWND is hidden
+                (SW_HIDE) via EmbeddedHostVisible whenever the embedded child isn't
+                rendering yet. WPF airspace would otherwise show the empty Win32
+                placeholder HWND on top, hiding this content. The placeholder HWND
+                itself stays alive across visibility toggles so the EmbedClient's
+                SetParent flow keeps working.
+
+                Brushes resolve through `vs:EnvironmentColors.*` (Microsoft.VisualStudio
+                .PlatformUI) so the overlay tracks the active VS color theme — Dark,
+                Blue, Light, system, custom. The legacy `SystemColors.*` keys resolve
+                against Windows OS theme and ignored VS's preference, producing the
+                classic "white card in Dark theme" mismatch.
+            -->
+            <Border Visibility="{Binding PlaceholderVisible, Converter={StaticResource BoolToVisibility}}"
+                    Background="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowBackgroundBrushKey}}">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32" MaxWidth="420">
+                    <TextBlock Text="{Binding PlaceholderTitle}"
+                               Foreground="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowTextBrushKey}}"
+                               FontSize="18" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding PlaceholderDetail}"
+                               Foreground="{DynamicResource {x:Static vs:EnvironmentColors.ControlEditHintTextBrushKey}}"
+                               Margin="0,8,0,0"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center" />
+                    <ProgressBar IsIndeterminate="True"
+                                 Width="220" Height="4"
+                                 Margin="0,16,0,0" />
+                    <TextBlock Text="{Binding StatusText}"
+                               Foreground="{Binding StatusBrush}"
+                               Margin="0,8,0,0"
+                               FontStyle="Italic"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+            <local:HwndHostPlaceholder x:Name="PlaceholderHost"
+                                       Visibility="{Binding EmbeddedHostVisible, Converter={StaticResource BoolToHiddenVisibility}}" />
+            <Border Visibility="{Binding ErrorOverlayVisible, Converter={StaticResource BoolToVisibility}}"
+                    Background="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowBackgroundBrushKey}}"
+                    Opacity="0.96">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
+                    <TextBlock Text="{Binding ErrorTitle}"
+                               Foreground="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowTextBrushKey}}"
+                               FontWeight="Bold" FontSize="16" />
+                    <TextBlock Text="{Binding ErrorDetail}"
+                               Foreground="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowTextBrushKey}}"
+                               TextWrapping="Wrap" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+            <Border Visibility="{Binding BuildingVisible, Converter={StaticResource BoolToVisibility}}"
+                    Background="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowBackgroundBrushKey}}"
+                    Opacity="0.92"
+                    Height="24" VerticalAlignment="Top">
+                <TextBlock Text="Building…"
+                           Foreground="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowTextBrushKey}}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2"
+                Background="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowBackgroundBrushKey}}"
+                BorderBrush="{DynamicResource {x:Static vs:EnvironmentColors.ToolWindowBorderBrushKey}}"
+                BorderThickness="0,1,0,0">
+            <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" Margin="6,3" />
+        </Border>
+    </Grid>
+</UserControl>
