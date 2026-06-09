@@ -22,6 +22,10 @@
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
     <Description>Advanced Reactor components — first inhabitant: Win2D canvas.</Description>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageProjectUrl>https://github.com/microsoft/microsoft-ui-reactor</PackageProjectUrl>
     <RepositoryUrl>https://github.com/microsoft/microsoft-ui-reactor</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -42,6 +46,7 @@
   <ItemGroup>
     <None Include="..\..\skills\advanced.md"
           Pack="true" PackagePath="agentkit/skills/reactor-advanced.md" Visible="false" />
+    <None Include="..\..\assets\Icon.png" Pack="true" PackagePath="" Visible="false" />
   </ItemGroup>
 
 </Project>
