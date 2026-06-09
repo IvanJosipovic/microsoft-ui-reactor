@@ -117,6 +117,19 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           -o artifacts/nupkg
 
+      - name: Pack Devtools NuGet
+        # Microsoft.UI.Reactor.Devtools is referenced by the scaffolded
+        # `dotnet new reactorapp` csproj's Debug-only ItemGroup (the
+        # devtools menu + the Reactor Visual Studio embedded-preview
+        # extension both need it). Ship it alongside the framework so the
+        # template's restore succeeds against the published feed. Version
+        # is locked to the framework version (spec 022).
+        run: >
+          dotnet pack src/Reactor.Devtools/Reactor.Devtools.csproj
+          --no-build --configuration Release
+          -p:Version=${{ steps.version.outputs.version }}
+          -o artifacts/nupkg
+
       - name: Build Advanced (AnyCPU)
         # The slnx build above produces Reactor.Advanced for ARM64 (its slnx default
         # platform) but the pack below needs the AnyCPU output. This mirrors how
@@ -160,6 +173,29 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           -p:Platform=AnyCPU
           -o artifacts/nupkg
+
+      - name: Build VSIX
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/vsix | Out-Null
+          $desktopVsix = 'src\vs-reactor\Reactor.VsExtension\bin\Release\Reactor.VsExtension.vsix'
+          pwsh -File src\vs-reactor\Build-Vsix.ps1 -Configuration Release -NoRestore -Version '${{ steps.version.outputs.version }}'
+          $buildExit = $LASTEXITCODE
+          if ($buildExit -ne 0) {
+            if ('${{ github.event_name }}' -eq 'pull_request') {
+              Write-Warning "Desktop VSIX build failed with exit code $buildExit; PR package validation will not publish a structural VSIX fallback."
+              return
+            }
+            throw "Desktop VSIX build failed with exit code $buildExit"
+          }
+          if (-not (Test-Path $desktopVsix)) {
+            if ('${{ github.event_name }}' -eq 'pull_request') {
+              Write-Warning "Desktop VSIX was not produced; PR package validation will not publish a structural VSIX fallback."
+              return
+            }
+            throw "VSIX was not produced at $desktopVsix"
+          }
+          Copy-Item $desktopVsix artifacts\vsix\Reactor.VsExtension.vsix -Force
 
       # Framework-dependent: the consumer's machine supplies the .NET 10
       # runtime — saves ~70 MB per RID. install-skill-kit.ps1 checks for it
@@ -249,6 +285,7 @@ jobs:
           path: |
             artifacts/nupkg/*
             artifacts/kit/*.zip
+            artifacts/vsix/*.vsix
           retention-days: 30
 
       - name: Create GitHub Release
@@ -264,12 +301,17 @@ jobs:
             artifacts/nupkg/*.nupkg
             artifacts/nupkg/*.snupkg
             artifacts/kit/*.zip
+            artifacts/vsix/Reactor.VsExtension.vsix
           body: |
             **Reactor ${{ steps.version.outputs.version }}**
 
             > Interim distribution — see [spec 022](https://github.com/microsoft/microsoft-ui-reactor/blob/main/docs/specs/022-packaging-and-distribution.md) for the rollout plan.
 
-            ## Four assets
+            ## New in this release
+
+            `Reactor.VsExtension.vsix` — very rough, experimental live embedded preview for Visual Studio 2022. This is the roughest surface in the experimental Reactor repo; expect install friction, solution-load races, HWND/DPI edge cases, and breaking changes. Requires Windows 11 23H2+ and WinAppSDK 1.6+. See [VS extension guide](https://github.com/microsoft/microsoft-ui-reactor/blob/main/docs/guide/vs-extension.md) or [src/vs-reactor/README.md](https://github.com/microsoft/microsoft-ui-reactor/blob/main/src/vs-reactor/README.md). Phase 1 dev distribution may be unsigned.
+
+            ## Five assets
 
             ### `Microsoft.UI.Reactor.${{ steps.version.outputs.version }}.nupkg` — the framework
 
@@ -295,9 +337,14 @@ jobs:
 
             Versioned in lock-step with the framework package.
 
-            ### `Microsoft.UI.Reactor.Devtools.${{ steps.version.outputs.version }}.nupkg` — optional devtools host
+            ### `Microsoft.UI.Reactor.Devtools.${{ steps.version.outputs.version }}.nupkg` — optional devtools host (debug + VS preview)
 
-            Versioned in lock-step with the framework package.
+            Referenced by the scaffolded `dotnet new reactorapp` csproj in a
+            Debug-only `ItemGroup`, paired with `RuntimeHostConfigurationOption
+            Reactor.DevtoolsSupport=true`. Required to light up the right-click
+            devtools menu in Debug F5 launches and for the Reactor VS embedded
+            preview extension's embed-host activation. Versioned in lock-step
+            with the framework package.
 
             ### `reactor-skill-kit-${{ steps.version.outputs.version }}.zip` — agent skill bundle + `mur` CLI
 
@@ -309,3 +356,7 @@ jobs:
             ```
 
             Installs to `~/.claude/skills/reactor/` and adds `bin/<arch>` to your user PATH. After a new shell, `mur --version` should resolve.
+
+            ### `Reactor.VsExtension.vsix` — Visual Studio 2022 embedded preview
+
+            Double-click to install per-user, or install into the Experimental hive for smoke testing. This VSIX is intentionally rougher than the rest of the release assets and should be treated as an experimental feedback vehicle, not a stable workflow. See `src/vs-reactor/TESTING.md` before release promotion.

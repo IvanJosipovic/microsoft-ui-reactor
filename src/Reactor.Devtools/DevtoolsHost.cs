@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Reactor;
 using Microsoft.UI.Reactor.Core;
 using Microsoft.UI.Xaml;
 
@@ -8,6 +10,13 @@ namespace Microsoft.UI.Reactor.Hosting.Devtools;
 internal sealed class DevtoolsHost : IReactorDevtoolsHost
 {
     private const int DevtoolsReloadExitCode = 42;
+
+    private readonly int _embedGeneration = 1;
+    private readonly object _embedResizeLock = new();
+    private (int W, int H) _latestEmbedResize;
+    private int _embedResizePending;
+
+    internal int EmbedGenerationForTests => _embedGeneration;
 
     public Element? BuildDevtoolsMenu(
         Func<IEnumerable<MenuFlyoutItemBase>>? items,
@@ -20,6 +29,9 @@ internal sealed class DevtoolsHost : IReactorDevtoolsHost
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Optional devtools package implementation; invoked only through the devtools host gate.")]
     public bool TryHandleCommandLine(ReactorDevtoolsBootRequest request)
     {
+        if (TryReportPackageMismatch())
+            return true;
+
         var options = request.Options;
 
         if (options.Subverb == DevtoolsSubverb.Run && !options.LogsDisabled)
@@ -34,13 +46,20 @@ internal sealed class DevtoolsHost : IReactorDevtoolsHost
         if (options.UsedDeprecatedPreview)
             Console.Error.WriteLine("[reactor] '--preview' is deprecated; use '--devtools run'.");
 
+        var embedValidationError = GetOptionalStringProperty(options, "EmbedValidationError");
+        if (!string.IsNullOrEmpty(embedValidationError))
+        {
+            Console.Error.WriteLine($"[reactor] {embedValidationError}");
+            return true;
+        }
+
         switch (options.Subverb)
         {
             case DevtoolsSubverb.List:
                 return RunListSubverb(options);
             case DevtoolsSubverb.Run:
                 ReactorApp.DevtoolsEnabled = true;
-                return RunRunSubverb(options, request.Title, request.Width, request.Height, request.Configure, request.HostRoot, request.HostRootFactory);
+                return RunRunSubverb(options, request.Title, request.Width, request.Height, request.FullScreen, request.Configure, request.HostRoot, request.HostRootFactory);
             case DevtoolsSubverb.Screenshot:
                 return RunScreenshotSubverb(options, request.Width, request.Height, request.Configure, request.HostRoot);
             case DevtoolsSubverb.Tree:
@@ -52,6 +71,34 @@ internal sealed class DevtoolsHost : IReactorDevtoolsHost
             default:
                 return false;
         }
+    }
+
+    private static bool TryReportPackageMismatch()
+    {
+        var coreVersion = GetInformationalVersion(typeof(ReactorApp).Assembly);
+        var devtoolsVersion = GetInformationalVersion(typeof(DevtoolsHost).Assembly);
+        if (string.Equals(coreVersion, devtoolsVersion, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        Console.Error.WriteLine("[reactor] Microsoft.UI.Reactor and Microsoft.UI.Reactor.Devtools package payloads do not match.");
+        Console.Error.WriteLine($"[reactor]   Microsoft.UI.Reactor:          {coreVersion}");
+        Console.Error.WriteLine($"[reactor]   Microsoft.UI.Reactor.Devtools: {devtoolsVersion}");
+        Console.Error.WriteLine("[reactor] This usually means NuGet restored stale 0.0.0-local package contents. Run `mur pack-local`, delete bin/obj for this app, then restore/build again.");
+        return true;
+    }
+
+    private static string GetInformationalVersion(Assembly assembly)
+    {
+        return assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString()
+            ?? "<unknown>";
+    }
+
+    private static string? GetOptionalStringProperty<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] T>(T instance, string propertyName)
+    {
+        return typeof(T).GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public)?.GetValue(instance) as string;
     }
 
     [RequiresUnreferencedCode("Devtools component discovery uses Assembly.GetTypes().")]
@@ -134,10 +181,8 @@ internal sealed class DevtoolsHost : IReactorDevtoolsHost
     }
 
     [RequiresUnreferencedCode("Devtools component discovery uses Assembly.GetTypes() and Activator.CreateInstance.")]
-    private static bool RunRunSubverb(DevtoolsCliOptions options, string title, double width, double height, Action<ReactorHost>? configure, Type? hostRoot = null, Func<Component>? hostRootFactory = null)
+    private bool RunRunSubverb(DevtoolsCliOptions options, string title, double width, double height, bool fullScreen, Action<ReactorHost>? configure, Type? hostRoot = null, Func<Component>? hostRootFactory = null)
     {
-        _ = title;
-
         string? componentName = options.ComponentName;
         Type? componentType = null;
         if (componentName != null)
@@ -223,6 +268,22 @@ internal sealed class DevtoolsHost : IReactorDevtoolsHost
                     server.GetComponents = () => FindAllComponentNames().ToList();
                     server.GetCurrentComponent = () => initialComponentName;
                     server.SwitchComponent = SwitchComponentCore;
+
+                    if (options.EmbedRequested)
+                    {
+                        server.EmbedMode = true;
+                        server.Generation = _embedGeneration;
+                        server.GetHwnd = () => GetHostHwnd(host);
+                        server.AckEmbed = (parent, w, h, generation) => ApplyEmbedAck(options, host, parent, w, h, generation);
+                        server.ResizeEmbed = (w, h) => ApplyEmbedResize(host, w, h);
+                        server.MoveEmbed = options.EmbedStyle == WindowEmbedStyle.Owner
+                            ? (x, y) => ApplyEmbedMove(host, x, y)
+                            : null;
+                        server.ReleaseEmbed = () => ApplyEmbedRelease(options, host);
+
+                        if (options.EmbedAutoEnabledVsCode)
+                            Console.Error.WriteLine("[reactor] --embed implies --vscode; enabling VsCode mode");
+                    }
 
                     server.Start();
                     host.Window.Closed += (_, _) => server.Dispose();
@@ -318,7 +379,11 @@ internal sealed class DevtoolsHost : IReactorDevtoolsHost
                 Configure: combinedConfigure,
                 WindowTitle: $"Preview — {initialComponentName}",
                 WindowWidth: width,
-                WindowHeight: height);
+                WindowHeight: height,
+                FullScreen: fullScreen,
+                InitialWindowSpec: options.EmbedRequested
+                    ? BuildEmbedWindowSpec(options, $"Preview — {initialComponentName}", width, height)
+                    : null);
 
             Application.Start(_ =>
             {
@@ -329,6 +394,172 @@ internal sealed class DevtoolsHost : IReactorDevtoolsHost
         });
 
         return true;
+    }
+
+
+    internal static WindowSpec BuildEmbedWindowSpec(DevtoolsCliOptions options, string baseTitle, double width, double height)
+    {
+        if (!options.EmbedRequested || options.EmbedHostPid is not { } hostPid)
+            throw new ArgumentException("Embed options must include --embed and --embed-host-pid.", nameof(options));
+
+        return new WindowSpec
+        {
+            Title = baseTitle,
+            Width = width,
+            Height = height,
+            Presenter = PresenterKind.Overlapped,
+            Embed = new EmbedRequest(options.EmbedStyle, hostPid, InitialVisibility: options.EmbedStyle == WindowEmbedStyle.Child),
+            PersistPlacement = false,
+        };
+    }
+
+    private static nint GetHostHwnd(ReactorHost host)
+        => host.OwningWindow?.Hwnd ?? WinRT.Interop.WindowNative.GetWindowHandle(host.Window);
+
+    internal static bool IsDpiCompatible(IntPtr parent, IntPtr child)
+    {
+        var parentContext = EmbedNative.GetWindowDpiAwarenessContext(parent);
+        var childContext = EmbedNative.GetWindowDpiAwarenessContext(child);
+        return parentContext != 0
+            && childContext != 0
+            && EmbedNative.AreDpiAwarenessContextsEqual(parentContext, childContext);
+    }
+
+    private EmbedAckResult ApplyEmbedAck(DevtoolsCliOptions options, ReactorHost host, IntPtr parent, int w, int h, int generation)
+    {
+        if (generation != _embedGeneration)
+            return EmbedAckResult.GenerationMismatch;
+
+        var hwnd = GetHostHwnd(host);
+        if (!IsDpiCompatible(parent, hwnd))
+            return EmbedAckResult.DpiMismatch;
+
+        var completed = new ManualResetEventSlim(false);
+        var result = EmbedAckResult.NotReady;
+        var enqueued = host.Window.DispatcherQueue.TryEnqueue(() =>
+        {
+            try
+            {
+                if (options.EmbedStyle == WindowEmbedStyle.Owner)
+                {
+                    EmbedNative.SetWindowLongPtr(hwnd, EmbedNative.GWLP_HWNDPARENT, parent);
+                }
+                else
+                {
+                    EmbedNative.SetParent(hwnd, parent);
+                    EmbedNative.SetWindowStyleForChildEmbed(hwnd);
+                    if (EmbedNative.GetParent(hwnd) != parent)
+                    {
+                        Console.Error.WriteLine("[reactor] embed attach failed: SetParent did not attach the child window to the VS placeholder.");
+                        result = EmbedAckResult.Rejected;
+                        return;
+                    }
+                }
+
+                if (!EmbedNative.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, w, h,
+                    EmbedNative.SWP_NOZORDER | EmbedNative.SWP_NOACTIVATE | EmbedNative.SWP_SHOWWINDOW))
+                {
+                    Console.Error.WriteLine("[reactor] embed attach failed: SetWindowPos before activation failed.");
+                    result = EmbedAckResult.Rejected;
+                    return;
+                }
+
+                host.Window.Activate();
+
+                if (!EmbedNative.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, w, h,
+                    EmbedNative.SWP_NOZORDER | EmbedNative.SWP_NOACTIVATE | EmbedNative.SWP_SHOWWINDOW))
+                {
+                    Console.Error.WriteLine("[reactor] embed attach failed: SetWindowPos after activation failed.");
+                    result = EmbedAckResult.Rejected;
+                    return;
+                }
+
+                EmbedNative.ShowWindow(hwnd, EmbedNative.SW_SHOW);
+                if (options.EmbedStyle == WindowEmbedStyle.Child && EmbedNative.GetParent(hwnd) != parent)
+                {
+                    Console.Error.WriteLine("[reactor] embed attach failed: child window parent changed during activation.");
+                    result = EmbedAckResult.Rejected;
+                    return;
+                }
+
+                EmbedNative.SetFocus(hwnd);
+                result = EmbedAckResult.Success;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[reactor] embed attach failed: {ex.GetType().Name}: {ex.Message}");
+                result = EmbedAckResult.Rejected;
+            }
+            finally
+            {
+                completed.Set();
+            }
+        });
+
+        if (!enqueued)
+        {
+            Console.Error.WriteLine("[reactor] embed attach failed: dispatcher queue rejected the attach operation.");
+            return EmbedAckResult.NotReady;
+        }
+
+        if (!completed.Wait(TimeSpan.FromSeconds(2)))
+        {
+            Console.Error.WriteLine("[reactor] embed attach failed: timed out waiting for the UI thread to attach the child window.");
+            return EmbedAckResult.NotReady;
+        }
+
+        return result;
+    }
+
+    private void ApplyEmbedResize(ReactorHost host, int w, int h)
+    {
+        lock (_embedResizeLock) _latestEmbedResize = (w, h);
+        if (Interlocked.Exchange(ref _embedResizePending, 1) == 1) return;
+
+        host.Window.DispatcherQueue.TryEnqueue(() =>
+        {
+            Interlocked.Exchange(ref _embedResizePending, 0);
+            (int W, int H) size;
+            lock (_embedResizeLock) size = _latestEmbedResize;
+            EmbedNative.SetWindowPos(GetHostHwnd(host), IntPtr.Zero, 0, 0, size.W, size.H,
+                EmbedNative.SWP_NOZORDER | EmbedNative.SWP_NOMOVE | EmbedNative.SWP_NOACTIVATE);
+        });
+    }
+
+    private static void ApplyEmbedMove(ReactorHost host, int x, int y)
+    {
+        host.Window.DispatcherQueue.TryEnqueue(() =>
+        {
+            EmbedNative.SetWindowPos(GetHostHwnd(host), IntPtr.Zero, x, y, 0, 0,
+                EmbedNative.SWP_NOZORDER | EmbedNative.SWP_NOSIZE | EmbedNative.SWP_NOACTIVATE);
+        });
+    }
+
+    private static void ApplyEmbedRelease(DevtoolsCliOptions options, ReactorHost host)
+    {
+        void ExitNow(object? sender, EventArgs args) => Environment.Exit(0);
+        if (host.OwningWindow is { } owning)
+            owning.Closed += ExitNow;
+        else
+            host.Window.Closed += (_, _) => Environment.Exit(0);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1000);
+            Environment.Exit(0);
+        });
+
+        host.Window.DispatcherQueue.TryEnqueue(() =>
+        {
+            var hwnd = GetHostHwnd(host);
+            if (options.EmbedStyle == WindowEmbedStyle.Owner)
+                EmbedNative.SetWindowLongPtr(hwnd, EmbedNative.GWLP_HWNDPARENT, IntPtr.Zero);
+            else
+                EmbedNative.SetParent(hwnd, IntPtr.Zero);
+            if (host.OwningWindow is { } owningWindow)
+                owningWindow.Close();
+            else
+                host.Window.Close();
+        });
     }
 
     [RequiresUnreferencedCode("Devtools component discovery uses Assembly.GetTypes().")]
