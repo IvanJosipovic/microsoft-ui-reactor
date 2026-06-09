@@ -6,13 +6,27 @@
 # and the reactor skill kit (mur x64 + arm64).                                  #
 # Official builds run network-restricted: NuGet restore resolves from            #
 # build/pipelines/nuget.internal.config (a pre-seeded internal package feed).     #
+# Release model (docs/specs/057-release-channels.md): a `v*` tag push            #
+# auto-builds + signs (stage `build`), then the publish to nuget.org runs in a   #
+# separate approval-gated release stage (`Production_PublishNuGet`, the          #
+# OneBranch "Deploy Box Products" / NonAzure pathway). Build is automatic; the   #
+# irreversible public push waits behind a OneBranch Approver Group check.        #
 # Documentation:  https://aka.ms/obpipelines                                    #
 # Yaml Schema:    https://aka.ms/obpipelines/yaml/schema                        #
 # Retail Tasks:   https://aka.ms/obpipelines/tasks                              #
 # Support:        https://aka.ms/onebranchsup                                   #
 #################################################################################
 
-trigger: none # https://aka.ms/obpipelines/triggers
+# Auto-build + sign on a release tag push. The publish stage (gated by approval) only
+# runs for tag builds (or a manual publishNuGet run), so a tag is the release trigger.
+# branches: none keeps ordinary branch pushes off this Official pipeline (CI covers those).
+trigger: # https://aka.ms/obpipelines/triggers
+  branches:
+    exclude:
+      - '*'
+  tags:
+    include:
+      - 'v*'
 
 parameters: # parameters are shown up in ADO UI in a build queue time
 - name: 'debug'
@@ -28,7 +42,7 @@ parameters: # parameters are shown up in ADO UI in a build queue time
   # the resolve-version step maps 'auto' (and blank) back to the MinVer path.
   default: 'auto'
 - name: 'publishNuGet'
-  displayName: 'Publish packages to nuget.org (requires the NuGetApiKey secret variable). Leave OFF to only build + sign.'
+  displayName: 'Publish packages to nuget.org. Tag pushes publish automatically (approval-gated); check this to run the gated publish on a manual run.'
   type: boolean
   default: false
 
@@ -71,6 +85,11 @@ resources:
 extends:
   template: v2/OneBranch.Official.CrossPlat.yml@templates # https://aka.ms/obpipelines/templates
   parameters:
+    # Opt into the OneBranch "Deploy Box Products" release pathway: publishing packages to a
+    # public, non-Azure feed (nuget.org) is a NonAzure-category release. This unlocks the
+    # release stage below and applies the NonAzure release-task allow-list.
+    release: # https://aka.ms/obpipelines/release
+      category: NonAzure
     cloudvault: # https://aka.ms/obpipelines/cloudvault
       enabled: false
     globalSdl: # https://aka.ms/obpipelines/sdl
@@ -118,8 +137,62 @@ extends:
               # assembly + mur binaries BEFORE pack/zip so the DLLs inside the .nupkg and the
               # skill-kit zip are signed, then NuGet-sign the .nupkg containers after pack.
               sign: true
-              # Opt-in nuget.org publish (checkbox at queue time). When true, the packed +
-              # signed .nupkg files are pushed to nuget.org using the NuGetApiKey secret
-              # pipeline variable. Default OFF: a normal run only builds + signs + uploads
-              # artifacts.
-              publishNuGet: ${{ parameters.publishNuGet }}
+              # The build job NEVER pushes to nuget.org. Publishing is the job of the
+              # separate `Production_PublishNuGet` release stage (OneBranch NonAzure
+              # pathway) below, which consumes this stage's signed artifact and runs an
+              # approval-gated NuGetCommand@2 push. Always false here so we never push twice.
+              publishNuGet: false
+
+    # ───────────────────────────────────────────────────────────────────────────────────
+    # Publish stage — OneBranch "Deploy Box Products" (NonAzure) release pathway.
+    # Pushes the SIGNED packages produced by `build` to nuget.org. Runs automatically on a
+    # release tag push (vX.Y.Z / vX.Y.Z-preview.N) and on a manual run with the publishNuGet
+    # checkbox. A OneBranch Approver Group check on the `Production` ADO Environment pauses
+    # the run here until a maintainer approves — making the irreversible public push
+    # deliberate (see docs/specs/057-release-channels.md §8).
+    #
+    # PORTAL PREREQUISITES (configured once, outside YAML — see §8.3 / §11):
+    #   • A `Production` ADO Environment with a OneBranch Approver Group required check.
+    #   • A NuGet service connection named `nuget-org` holding the nuget.org API key.
+    # ───────────────────────────────────────────────────────────────────────────────────
+    - stage: Production_PublishNuGet
+      dependsOn: build
+      # Publish on a release tag push, or when the publishNuGet checkbox is set on a manual run.
+      # ${{ parameters.publishNuGet }} expands at compile time to True/False.
+      condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'), eq(${{ parameters.publishNuGet }}, true)))
+      variables:
+        # A "release stage" = every job sets pool.type: release, and ob_release_environment is
+        # mandatory. Production = public PROD push. https://aka.ms/obpipelines/release
+        ob_release_environment: Production
+        # Turn the release job into an ADO deployment job bound to an Environment, so the
+        # Environment's approval check gates the push. Both variables are required together.
+        # The `Production` ADO Environment + its OneBranch Approver Group live in the project
+        # settings (portal), NOT in YAML. Prod env names are a fixed set:
+        # Production | Mooncake | Fairfax | USSec | USNat | Bleu.
+        ob_release_usedeploymentjob: true
+        ob_deploymentjob_environment: Production
+      jobs:
+      - job: push
+        pool:
+          type: release  # release agents; the ADO pool still shows as "OneBranchPipelines"
+        templateContext:
+          # Declarative artifact download — OneBranch blocks `checkout` and explicit download
+          # tasks in release stages. The build job uploads its ob_outputDirectory as
+          # drop_<stage>_<job> => drop_build_main, auto-downloaded to
+          # $(Pipeline.Workspace)/drop_build_main with SBOM + governed-build validation injected.
+          inputs:
+          - input: pipelineArtifact
+            artifactName: drop_build_main
+        steps:
+          # `dotnet nuget push` (a raw CLI/script) is NOT on the NonAzure allow-list; the
+          # allowed publish task is NuGetCommand@2 with command: push. nuget.org credentials
+          # come from a NuGet SERVICE CONNECTION (holding the API key), referenced by name —
+          # never a YAML secret/env var.
+          - task: NuGetCommand@2
+            displayName: 'Publish NuGet packages (nuget.org)'
+            inputs:
+              command: push
+              packagesToPush: '$(Pipeline.Workspace)/drop_build_main/nupkg/*.nupkg'
+              nuGetFeedType: external
+              publishFeedCredentials: 'nuget-org'  # ADO NuGet service connection (create in portal)
+              allowPackageConflicts: true  # idempotent re-runs: a version already on the feed is skipped, not a 409
