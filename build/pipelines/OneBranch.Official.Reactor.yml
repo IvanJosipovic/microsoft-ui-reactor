@@ -147,12 +147,12 @@ extends:
     # Publish stage — OneBranch "Deploy Box Products" (NonAzure) release pathway.
     # Pushes the SIGNED packages produced by `build` to nuget.org. Runs automatically on a
     # release tag push (vX.Y.Z / vX.Y.Z-preview.N) and on a manual run with the publishNuGet
-    # checkbox. A OneBranch Approver Group check on the `Production` ADO Environment pauses
-    # the run here until a maintainer approves — making the irreversible public push
-    # deliberate (see docs/specs/057-release-channels.md §8).
+    # checkbox. A OneBranch Approver Group check on the `microsoft-ui-reactor-release` ADO
+    # Environment pauses the run here until a maintainer approves — making the irreversible
+    # public push deliberate (see docs/specs/057-release-channels.md §8).
     #
     # PORTAL PREREQUISITES (configured once, outside YAML — see §8.3 / §11):
-    #   • A `Production` ADO Environment with a OneBranch Approver Group required check.
+    #   • A `microsoft-ui-reactor-release` ADO Environment with a OneBranch Approver Group check.
     #   • A NuGet service connection named `nuget-org` holding the nuget.org API key.
     # ───────────────────────────────────────────────────────────────────────────────────
     - stage: Production_PublishNuGet
@@ -162,15 +162,19 @@ extends:
       condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'), eq(${{ parameters.publishNuGet }}, true)))
       variables:
         # A "release stage" = every job sets pool.type: release, and ob_release_environment is
-        # mandatory. Production = public PROD push. https://aka.ms/obpipelines/release
+        # mandatory. This is the OneBranch release-RING classification (drives which SDL /
+        # validations inject), NOT an ADO resource. It must be one of the fixed values:
+        # Production | Mooncake | Fairfax | USSec | USNat | Bleu. Production = public PROD push.
+        # https://aka.ms/obpipelines/release
         ob_release_environment: Production
-        # Turn the release job into an ADO deployment job bound to an Environment, so the
+        # Turn the release job into an ADO deployment job bound to an ADO Environment, so that
         # Environment's approval check gates the push. Both variables are required together.
-        # The `Production` ADO Environment + its OneBranch Approver Group live in the project
-        # settings (portal), NOT in YAML. Prod env names are a fixed set:
-        # Production | Mooncake | Fairfax | USSec | USNat | Bleu.
+        # ob_deploymentjob_environment names the literal ADO Environment RESOURCE (the thing in
+        # Pipelines → Environments) — an arbitrary, project-unique name, NOT the fixed ring set
+        # above. The Environment + its OneBranch Approver Group check live in project settings
+        # (portal), NOT in YAML.
         ob_release_usedeploymentjob: true
-        ob_deploymentjob_environment: Production
+        ob_deploymentjob_environment: microsoft-ui-reactor-release
       jobs:
       - job: push
         pool:
