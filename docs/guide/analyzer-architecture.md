@@ -142,6 +142,7 @@ via `.editorconfig`.
 | `REACTOR_THEME_002` | Warning | Prefer lightweight styling | `UseLightweightStylingAnalyzer.cs` |
 | `REACTOR_THEME_003` | Warning | RequestedTheme set on a non-root element | `RequestedThemeSetAnalyzer.cs` |
 | `REACTOR_DSL_001` | Warning | Dynamic list item missing .WithKey | `MissingWithKeyAnalyzer.cs` |
+| `REACTOR_DOCK_001` | Warning | OnLiveLayoutChanged feeds the live layout back into state | `OnLiveLayoutRoundTripAnalyzer.cs` |
 | `REACTOR_DOC_001` | Warning | Public API missing XML doc summary | `XmlDocSummaryAnalyzer.cs` |
 | `REACTOR_DOC_002` | Warning | XML doc cref does not resolve | `XmlDocCrefAnalyzer.cs` |
 | `REACTOR_POOL_001` | Warning | `.Set` writes to a property that pool reset clears | `PoolResetSetAnalyzer.cs` |
