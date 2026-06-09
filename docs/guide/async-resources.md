@@ -89,7 +89,7 @@ class AfterUseResourceExample : Component
 
         return user.Match<Element>(
             loading: () => TextBlock("Loading…").Padding(24),
-            data: u => VStack(4,
+            loaded: u => VStack(4,
                 Heading("After: one hook").FontSize(14),
                 TextBlock(u.Name).FontSize(20).Bold(),
                 TextBlock(u.Role).Opacity(0.6)
@@ -104,8 +104,10 @@ class AfterUseResourceExample : Component
 `AsyncValue<T>.Match` dispatches on the four states:
 `Loading` (first fetch), `Data(value)` (success), `Error(exception)` (failure),
 and `Reloading(previous)` (stale-while-revalidate — a refetch with the old value
-still available). Omitting the `reloading` arm makes it fall back to `data`, so
-the UI keeps the last-known value visible while revalidating.
+still available). Omitting the `reloading` arm makes it fall through to the
+`loading` arm, so a refresh shows the loading UI. To keep the last-known value
+visible while revalidating (stale-while-revalidate), pass a `reloading:` handler
+explicitly.
 
 ## Infinite Scroll with UseInfiniteResource
 
@@ -268,7 +270,7 @@ class PendingFallbackExample : Component
                 deps: new object[] { "user-1" });
             return user.Match<Element>(
                 loading: () => TextBlock("• user loading…").Opacity(0.5),
-                data: u => TextBlock($"• {u.Name} ({u.Role})"),
+                loaded: u => TextBlock($"• {u.Name} ({u.Role})"),
                 error: ex => TextBlock($"• error: {ex.Message}"));
         }
     }
@@ -297,7 +299,7 @@ class PendingFallbackExample : Component
                 deps: new object[] { "stats" });
             return user.Match(
                 loading: () => TextBlock("• stats loading…").Opacity(0.5),
-                data: _ => TextBlock("• stats ready"),
+                loaded: _ => TextBlock("• stats ready"),
                 error: ex => TextBlock($"• error: {ex.Message}"));
         }
     }

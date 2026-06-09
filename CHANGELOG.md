@@ -195,6 +195,16 @@ Conventions for contributors:
 
 ### Changed (breaking)
 
+- **`AsyncValue<T>.Match` success arm renamed `data` → `loaded`; omitted
+  `reloading` now falls through to `loading()`.** The success delegate parameter
+  was renamed (source-breaking for named-argument callers; no back-compat
+  overload is possible because overloads can't differ by parameter name alone).
+  When the value is `Reloading` and no `reloading:` handler is supplied, `Match`
+  now renders the `loading()` arm instead of reusing the success arm
+  (`(reloading ?? data)(r.Previous)`). Pass `reloading:` explicitly to keep the
+  last-known value visible during a refresh (stale-while-revalidate).
+  (issue #548, spec 020 §5.1)
+
 - **`ReactorApp.Run` devtools parameters removed (spec 051 §13).** The
   `devtools:` and `preview:` overload parameters are gone. Enable devtools
   capability in the app project with `<RuntimeHostConfigurationOption

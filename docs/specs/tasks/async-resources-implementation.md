@@ -38,14 +38,14 @@ Scope: new files `Reactor/Core/AsyncValue.cs`, `Reactor/Core/QueryCache.cs`, `Re
 
 - [x] Create `Reactor/Core/AsyncValue.cs`
 - [x] Define `abstract record AsyncValue<T>` with nested sealed records `Loading`, `Data(T Value)`, `Error(Exception Exception)`, `Reloading(T Previous)`
-- [x] Implement `.Match<TResult>(loading, data, error, reloading = null)` convenience method per spec §5 — `reloading ?? data` fallback
+- [x] Implement `.Match<TResult>(loading, loaded, error, reloading = null)` convenience method per spec §5 — omitted `reloading` falls through to `loading()` (historical: originally shipped as `reloading ?? data`, flipped per issue #548)
 - [x] Add XML docs linking each state to the transition rules in §6.2
 - [x] Verify record equality: `Data(5)` equals `Data(5)`, `Reloading(5)` does not equal `Data(5)`
 
 #### Tests — unit (pure)
 
 - [x] Construct every state; assert type-discrimination via pattern match
-- [x] `Match` invokes the correct delegate for each state; `reloading` fallback lands in `data` when null
+- [x] `Match` invokes the correct delegate for each state; omitted `reloading` falls through to `loading()` (historical: originally landed in `data`, flipped per issue #548)
 - [x] Record equality for each pair (same-state-same-value, same-state-different-value, different-state-same-value)
 - [x] Equality when `T` is itself an `AsyncValue<_>` (nested) — guard against regression if callers accidentally wrap
 - [x] Equality when `T` holds a mutable reference type and the underlying value mutates (equality should still be reference-equal for the record; document this)

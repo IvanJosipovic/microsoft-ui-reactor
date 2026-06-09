@@ -222,7 +222,7 @@ internal static class Issue522TextBlockStyleResetFixture
 
                 return value.Match<Element>(
                     loading: () => Heading("Loading url..."),
-                    data: (s) => TextBlock("Valid URL: " + s),
+                    loaded: (s) => TextBlock("Valid URL: " + s),
                     error: (e) => TextBlock("Error: " + e.Message).Foreground(new ThemeRef("SystemFillColorCriticalBrush")),
                     reloading: (s) => Heading("Reloading url..."));
             });

@@ -53,8 +53,10 @@ an `AsyncValue<T>` you pattern-match against:
 `AsyncValue<T>.Match` dispatches on the four states:
 `Loading` (first fetch), `Data(value)` (success), `Error(exception)` (failure),
 and `Reloading(previous)` (stale-while-revalidate — a refetch with the old value
-still available). Omitting the `reloading` arm makes it fall back to `data`, so
-the UI keeps the last-known value visible while revalidating.
+still available). Omitting the `reloading` arm makes it fall through to the
+`loading` arm, so a refresh shows the loading UI. To keep the last-known value
+visible while revalidating (stale-while-revalidate), pass a `reloading:` handler
+explicitly.
 
 ## Infinite Scroll with UseInfiniteResource
 

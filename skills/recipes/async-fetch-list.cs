@@ -57,7 +57,7 @@ class App : Component
 
             repos.Match<Element>(
                 loading: () => HStack(8, ProgressRing(), TextBlock("Loading…")),
-                data: list => VStack(8, list.Select(r =>
+                loaded: list => VStack(8, list.Select(r =>
                     Border(VStack(2,
                             TextBlock(r.Name).Bold(),
                             Caption(r.Description)))

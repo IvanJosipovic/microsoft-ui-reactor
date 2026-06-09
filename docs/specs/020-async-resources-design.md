@@ -258,19 +258,36 @@ The switch also supports guards (`Data d when d.Value.IsStale => ...`),
 per-arm debugging breakpoints, and partial matches where the compiler
 warns on the uncovered cases — all things a helper method can't give you.
 
-**When to use `.Match()`:** as a convenience when (a) you explicitly want
-`Reloading` to render the same tree as `Data` and don't want to duplicate
-the expression, or (b) you're in a non-hot-path site where the two or
-three delegate allocations per call are irrelevant and you prefer the
-named-argument reading. Everywhere else, prefer the switch.
+**When to use `.Match()`:** as a convenience when (a) you want a refresh to
+render the loading UI and don't want to duplicate the `loading` arm — omit
+`reloading` and `Reloading` falls through to `loading()`, or (b) you're in a
+non-hot-path site where the two or three delegate allocations per call are
+irrelevant and you prefer the named-argument reading. Everywhere else, prefer
+the switch. To keep the last-known value visible during a refresh
+(stale-while-revalidate), pass a `reloading:` handler explicitly.
 
 ```csharp
-// Both read Reloading as Data — fallback is automatic.
+// No reloading arm → Reloading shows the loading UI.
 return user.Match(
     loading: () => Skeleton().Height(120),
-    data:    u  => VStack(Heading(u.Name), Text(u.Email)),
+    loaded:  u  => VStack(Heading(u.Name), Text(u.Email)),
     error:   e  => Text($"Failed: {e.Message}").Foreground(Red));
+
+// Pass reloading: explicitly to keep stale data visible while revalidating.
+return user.Match(
+    loading:   () => Skeleton().Height(120),
+    loaded:    u  => VStack(Heading(u.Name), Text(u.Email)),
+    reloading: u  => VStack(Heading(u.Name), Text(u.Email)).Opacity(0.6),
+    error:     e  => Text($"Failed: {e.Message}").Foreground(Red));
 ```
+
+> **ADR note (reactor-spec-as-adr) — supersedes the original §5.1 `Match` default (issue #548):**
+> The success arm was renamed `data` → `loaded`, and an omitted `reloading`
+> arm now falls through to `loading()` instead of reusing the success arm
+> (`(reloading ?? data)(r.Previous)`). The previous default silently rendered
+> stale data on every refresh; the new default shows the loading UI and makes
+> stale-while-revalidate an explicit opt-in via `reloading:`, so authors no
+> longer have to duplicate — or accidentally inherit — the success arm.
 
 ### Why four states, not three
 
