@@ -222,15 +222,15 @@ public abstract record AsyncValue<T>
     // Convenience shorthand — see §5.1.
     public TResult Match<TResult>(
         Func<TResult> loading,
-        Func<T, TResult> data,
+        Func<T, TResult> loaded,
         Func<Exception, TResult> error,
         Func<T, TResult>? reloading = null)
         => this switch
         {
             Loading       => loading(),
-            Data d        => data(d.Value),
+            Data d        => loaded(d.Value),
             Error e       => error(e.Exception),
-            Reloading r   => (reloading ?? data)(r.Previous),
+            Reloading r   => reloading is not null ? reloading(r.Previous) : loading(),
             _             => throw new UnreachableException()
         };
 }
