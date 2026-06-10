@@ -45,15 +45,15 @@ parameters:
     type: boolean
     default: false
   - name: publishNuGet
-    displayName: 'Push the packed .nupkg files to nuget.org. Requires the NuGetApiKey secret pipeline variable.'
+    displayName: 'Push the packed .nupkg files to a feed from the BUILD job. Reserved for the internal nightly channel; the public nuget.org release uses the gated release stage, NOT this. Requires the NuGetApiKey secret variable.'
     type: boolean
     default: false
   - name: nuGetApiKeyVariable
-    displayName: 'Name of the SECRET pipeline variable holding the nuget.org API key.'
+    displayName: 'Name of the SECRET pipeline variable holding the target-feed API key.'
     type: string
     default: 'NuGetApiKey'
   - name: nuGetFeed
-    displayName: 'Target NuGet feed (push destination).'
+    displayName: 'Target NuGet feed (push destination). Default is nuget.org, but the build-job push is intended for the internal nightly feed.'
     type: string
     default: 'https://api.nuget.org/v3/index.json'
 
@@ -420,15 +420,25 @@ steps:
           files_to_sign: '**/*.nupkg'
           search_root: '${{ parameters.outputDirectory }}\nupkg'
 
-    # ── Publish to nuget.org (opt-in via the publishNuGet checkbox). ──
-    # Gated behind a parameter so a normal Official build only PRODUCES the signed
-    # packages (uploaded as artifacts); flipping the checkbox at queue time additionally
-    # pushes them to the public feed. The API key comes from a SECRET pipeline variable
-    # (default name: NuGetApiKey) configured in the pipeline's settings -- never committed.
-    # Secrets are NOT auto-exposed to script env, so it is mapped explicitly via `env:`;
-    # `--skip-duplicate` makes re-runs idempotent (a version already on the feed is
-    # immutable and would otherwise 409). Pushes the framework package first, then the
-    # rest; *.snupkg symbol packages are pushed by the same glob (nuget.org accepts them).
+    # ── Build-job push to a feed (opt-in via publishNuGet). RESERVED FOR THE INTERNAL
+    # NIGHTLY CHANNEL -- NOT the public nuget.org release path. ──
+    # The public nuget.org release is handled by the approval-gated `Production_PublishNuGet`
+    # release stage in OneBranch.Official.Reactor.yml (NonAzure pathway, NuGetCommand@2 +
+    # `nuget-org` service connection). The Official pipeline always passes publishNuGet:false
+    # here, so this step never runs for the public release. Per docs/specs/057-release-channels.md
+    # this build-job push is retained for the deferred Phase B/C nightly channel, which pushes
+    # signed packages to an INTERNAL ADO feed (feed identity / NuGetAuthenticate) where a raw
+    # `dotnet nuget push` is appropriate and no approval gate is required. Note: a raw
+    # `dotnet nuget push` is NOT on the OneBranch NonAzure allow-list, so this path must target
+    # the internal feed, never nuget.org.
+    #
+    # Gated behind a parameter so a normal Official build only PRODUCES the signed packages
+    # (uploaded as artifacts). The API key comes from a SECRET pipeline variable (default name:
+    # NuGetApiKey) -- never committed. Secrets are NOT auto-exposed to script env, so it is
+    # mapped explicitly via `env:`; `--skip-duplicate` makes re-runs idempotent (a version
+    # already on the feed is immutable and would otherwise 409). `dotnet nuget push` also
+    # auto-pushes the adjacent *.snupkg symbol package for each *.nupkg when the target feed
+    # supports symbols, so symbols travel with the package without a separate glob.
     - ${{ if eq(parameters.publishNuGet, true) }}:
       - pwsh: |
           $key = $env:NUGET_API_KEY
@@ -449,7 +459,7 @@ steps:
             --source "${{ parameters.nuGetFeed }}" `
             --api-key $key `
             --skip-duplicate
-        displayName: 'Publish NuGet packages (nuget.org)'
+        displayName: 'Publish NuGet packages (internal nightly feed)'
         env:
           # Map the secret pipeline variable into the script environment; secrets are not
           # injected automatically. The variable NAME is templated; its VALUE stays secret.
