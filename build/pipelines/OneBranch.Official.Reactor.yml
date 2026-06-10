@@ -191,15 +191,21 @@ extends:
           # `dotnet nuget push` (a raw CLI/script) is NOT on the NonAzure allow-list; the
           # allowed publish task is NuGetCommand@2 with command: push. nuget.org credentials
           # come from a NuGet SERVICE CONNECTION (holding the API key), referenced by name —
-          # never a YAML secret/env var. The *.snupkg symbol packages are listed explicitly:
-          # NuGetCommand@2 does NOT auto-push symbols, so the .nupkg glob alone would leave
-          # symbols unpublished. allowPackageConflicts makes the push idempotent, so a symbol
-          # package already on the feed is skipped rather than failing the run.
+          # never a YAML secret/env var. The glob matches *.nupkg ONLY — never *.snupkg.
+          # NuGetCommand@2 shells out to nuget.exe, and `nuget.exe push <pkg>.nupkg`
+          # AUTOMATICALLY pushes the adjacent <pkg>.snupkg to nuget.org's symbol endpoint.
+          # Adding *.snupkg to the glob therefore pushes each symbol package twice: the second
+          # (explicit) push hits HTTP 409 "another copy of this symbols package pending
+          # validation", which allowPackageConflicts does NOT suppress (it only neutralizes the
+          # main-package "already exists" conflict, not the symbol-server pending-validation
+          # 409). Listing *.nupkg alone publishes both the package and its symbols exactly once.
+          # allowPackageConflicts keeps re-runs idempotent: a package version already on the
+          # feed is skipped rather than failing the run.
           - task: NuGetCommand@2
             displayName: 'Publish NuGet packages (nuget.org)'
             inputs:
               command: push
-              packagesToPush: '$(Pipeline.Workspace)/drop_build_main/nupkg/*.nupkg;$(Pipeline.Workspace)/drop_build_main/nupkg/*.snupkg'
+              packagesToPush: '$(Pipeline.Workspace)/drop_build_main/nupkg/*.nupkg'
               nuGetFeedType: external
               publishFeedCredentials: 'nuget-org'  # ADO NuGet service connection (create in portal)
               allowPackageConflicts: true  # idempotent re-runs: a version already on the feed is skipped, not a 409
