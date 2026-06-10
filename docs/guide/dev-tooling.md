@@ -177,7 +177,7 @@ subcommands map one-to-one to the workflows below.
 | `mur loc` | Run the localization pipeline (extract strings, validate `.resw`, generate manifests) | `mur loc extract` |
 | `mur devtools` | Start the MCP server for VS Code or agent integration | `mur devtools serve` |
 | `mur check` | Repo-health checks (cref validity, namespace policy, "did you mean" suggestions) | `mur check` |
-| `mur pack-local` / `mur clean-local` | Package / clean the local NuGet feed for samples that consume `Microsoft.UI.Reactor` as a package | `mur pack-local` |
+| `mur pack-local` / `mur clean-local` | Package / clean the local NuGet feed for source-built framework smoke tests; the app template defaults to the public Reactor preview unless `--MSUIReactorVersion` is supplied | `mur pack-local` |
 
 `mur docs compile` is the workflow you reach for most often. See
 [the doc-pipeline contributor guide](https://github.com/microsoft/microsoft-ui-reactor/blob/main/docs/contributing/doc-pipeline.md)
@@ -208,12 +208,23 @@ a side panel that:
 - Highlights the source line for any element you click in the tree.
 - Renders the latest screenshot capture next to your editor (the same
   PNGs the doc pipeline produces).
+- Toggles a **References** overlay that draws the app's reactive
+  reference graph — `descriptor.Reference`/`.ReferenceList`, the
+  `binding.Reference` bridge, and modifier edges such as `.LabeledBy`
+  or `.XYFocusDown` — and flags reference cycles and perpetually-null
+  (unresolved) references as diagnostics. See
+  [focus &amp; input internals](focus-and-input-internals.md).
 - Exposes a "compile docs" button that shells out to `mur docs compile`.
 
 The extension talks to the MCP server (above), so a panel session is
 just a long-lived `mur devtools serve` plus a UI on top. Reactor has
 no special editor requirement beyond the standard C# Dev Kit — the
 panel is additive.
+
+When you use **Reactor: Connect to Preview** against an already-running
+preview process, enter both the `CAPTURE_PORT=...` and `CAPTURE_TOKEN=...`
+values from that process's output. The capture server requires the bearer
+token before any endpoint probe, including `/status`.
 
 ## In-App Dev Menu
 

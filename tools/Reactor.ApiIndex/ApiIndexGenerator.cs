@@ -33,13 +33,14 @@ public static class ApiIndexGenerator
         sb.AppendLine("# Regenerate: `mur --regen-api`  (or build tools/Reactor.SignaturesGen — its");
         sb.AppendLine("#             AfterBuild target rewrites this file).");
         sb.AppendLine("# Format: one symbol per line. No prose. Alphabetized within each section.");
-        sb.AppendLine("# Sections: Factories, Modifiers, Hooks, Theme, Enums, Public types.");
+        sb.AppendLine("# Sections: Factories, Modifiers, Reference builders, Hooks, Theme, Enums, Public types.");
         sb.AppendLine("# Public types now ARE covered — ctors/properties/methods/events on every");
         sb.AppendLine("# public type (e.g. WindowSpec.Opacity, ReactorWindow.SetPosition).");
         sb.AppendLine();
 
         EmitFactories(asm, sb);
         EmitModifiers(asm, sb);
+        EmitReferenceBuilders(asm, sb);
         EmitHooks(asm, sb);
         EmitTheme(asm, sb);
         EmitEnums(asm, sb);
@@ -87,6 +88,33 @@ public static class ApiIndexGenerator
             .Where(m => IsElementExtension(m))
             .Where(m => !IsObsolete(m))
             .Select(FormatMethod)
+            .Distinct()
+            .OrderBy(s => s, StringComparer.Ordinal);
+
+        foreach (var line in lines) sb.AppendLine(line);
+        sb.AppendLine();
+    }
+
+    static void EmitReferenceBuilders(Assembly asm, StringBuilder sb)
+    {
+        sb.AppendLine("## Reference builders (custom controls)");
+        sb.AppendLine("# Use descriptor.Reference/ReferenceList for regular custom controls;");
+        sb.AppendLine("# use binding.Reference/ReferenceList from hand-coded handlers.");
+        sb.AppendLine();
+
+        var typeNames = new[]
+        {
+            "Microsoft.UI.Reactor.Core.V1Protocol.Descriptor.ControlDescriptor`2",
+            "Microsoft.UI.Reactor.Core.V1Protocol.ReactorBinding`1",
+        };
+
+        var lines = typeNames
+            .Select(asm.GetType)
+            .Where(t => t is not null)
+            .SelectMany(t => t!.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(m => m.Name is "Reference" or "ReferenceList")
+                .Where(m => !IsObsolete(m))
+                .Select(m => Short(t) + "." + FormatMethod(m)))
             .Distinct()
             .OrderBy(s => s, StringComparer.Ordinal);
 

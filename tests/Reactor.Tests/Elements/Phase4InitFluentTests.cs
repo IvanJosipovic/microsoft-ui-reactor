@@ -874,6 +874,15 @@ public class Phase4InitFluentTests
     }
 
     [Fact]
+    public void TeachingTip_Target_Sets()
+    {
+        var target = Microsoft.UI.Reactor.Input.TypedElementRef.Create<Microsoft.UI.Xaml.FrameworkElement>();
+        Microsoft.UI.Reactor.Input.ElementRef targetCell = target;
+        var el = TeachingTip("t").Target(target);
+        Assert.Same(targetCell, el.Target);
+    }
+
+    [Fact]
     public void TeachingTip_PlacementMargin_Sets()
     {
         var el = TeachingTip("t").PlacementMargin(new Microsoft.UI.Xaml.Thickness(12));

@@ -3,7 +3,7 @@
 # Regenerate: `mur --regen-api`  (or build tools/Reactor.SignaturesGen — its
 #             AfterBuild target rewrites this file).
 # Format: one symbol per line. No prose. Alphabetized within each section.
-# Sections: Factories, Modifiers, Hooks, Theme, Enums, Public types.
+# Sections: Factories, Modifiers, Reference builders, Hooks, Theme, Enums, Public types.
 # Public types now ARE covered — ctors/properties/methods/events on every
 # public type (e.g. WindowSpec.Opacity, ReactorWindow.SetPosition).
 
@@ -183,7 +183,7 @@ Tab(string header, Element content) → TabViewItemData
 TabView(Optional<int> selectedIndex, Action<int> onSelectedIndexChanged = null, TabViewItemData[] tabs) → TabViewElement
 TabView(TabViewItemData[] tabs) → TabViewElement
 TabView(int? selectedIndex, Action<int> onSelectedIndexChanged = null, TabViewItemData[] tabs) → TabViewElement
-TeachingTip(string title, string subtitle = null) → TeachingTipElement
+TeachingTip(string title, string subtitle = null, ElementRef target = null) → TeachingTipElement
 TextBlock(string content) → TextBlockElement
 TextBox(Optional<string> value = null, Action<string> onChanged = null, string placeholderText = null, string header = null) → TextBoxElement
 Thick(double horizontal, double vertical) → Thickness
@@ -575,9 +575,12 @@ T.CenterPoint<T>(Vector3 center) → T
 T.ConnectedAnimation<T>(string key) → T
 T.CornerRadius<T>(double radius) → T
 T.CornerRadius<T>(double topLeft, double topRight, double bottomRight, double bottomLeft) → T
+T.DescribedBy<T>(ElementRef[] targets) → T
 T.Drag<T>(bool enabled) → T
 T.DraggableWhen<T>(Func<bool> canDrag) → T
 T.Flex<T>(double grow = 0, double shrink = 1, double? basis = null, double? minWidth = null, double? minHeight = null, FlexAlign? alignSelf = null, FlexPositionType position = FlexPositionType.Relative, double? left = null, double? top = null, double? right = null, double? bottom = null) → T
+T.FlowsFrom<T>(ElementRef[] targets) → T
+T.FlowsTo<T>(ElementRef[] targets) → T
 T.FocusMeta<T>(FocusManager fm, string fieldName, bool autoFocus = false) → T
 T.FocusTrap<T>(FocusTrapHandle handle) → T
 T.FontFamily<T>(FontFamily family) → T
@@ -605,6 +608,7 @@ T.IsVisible<T>(bool isVisible) → T
 T.ItemContainerTransitions<T>(Transition[] transitions) → T
 T.ItemStatus<T>(string status) → T
 T.Keyframes<T>(string name, object trigger, Func<KeyframeBuilder, KeyframeBuilder> configure) → T
+T.LabeledBy<T>(ElementRef target) → T
 T.LabeledBy<T>(string labelAutomationId) → T
 T.Landmark<T>(AutomationLandmarkType type) → T
 T.LayoutAnimation<T>() → T
@@ -712,7 +716,11 @@ T.WithToolTip<T>(Element tooltip) → T
 T.WithTransitions<T>(Transition[] transitions) → T
 T.WrapGridColumnSpan<T>(int columnSpan) → T
 T.WrapGridRowSpan<T>(int rowSpan) → T
+T.XYFocusDown<T>(ElementRef target) → T
 T.XYFocusKeyboardNavigation<T>(XYFocusKeyboardNavigationMode mode) → T
+T.XYFocusLeft<T>(ElementRef target) → T
+T.XYFocusRight<T>(ElementRef target) → T
+T.XYFocusUp<T>(ElementRef target) → T
 TabViewElement.AddTabButtonClick(Action handler) → TabViewElement
 TabViewElement.AllowDropTabs(bool allow = true) → TabViewElement
 TabViewElement.CanDragTabs(bool canDrag = true) → TabViewElement
@@ -734,6 +742,7 @@ TeachingTipElement.IconSource(IconData icon) → TeachingTipElement
 TeachingTipElement.PlacementMargin(Thickness margin) → TeachingTipElement
 TeachingTipElement.PreferredPlacement(TeachingTipPlacementMode placement) → TeachingTipElement
 TeachingTipElement.Set(Action<TeachingTip> configure) → TeachingTipElement
+TeachingTipElement.Target(ElementRef target) → TeachingTipElement
 TemplatedFlipViewElement<T>.SelectedIndexChanged<T>(Action<int> handler) → TemplatedFlipViewElement<T>
 TemplatedFlipViewElement<T>.Set<T>(Action<FlipView> configure) → TemplatedFlipViewElement<T>
 TemplatedGridViewElement<T>.ItemClick<T>(Action<T> handler) → TemplatedGridViewElement<T>
@@ -822,6 +831,16 @@ WebView2Element.NavigationStarting(Action<Uri> handler) → WebView2Element
 WebView2Element.Set(Action<WebView2> configure) → WebView2Element
 WebView2Element.WebMessageReceived(Action<string> handler) → WebView2Element
 WrapGridElement.Set(Action<VariableSizedWrapGrid> configure) → WrapGridElement
+
+## Reference builders (custom controls)
+# Use descriptor.Reference/ReferenceList for regular custom controls;
+# use binding.Reference/ReferenceList from hand-coded handlers.
+
+ControlDescriptor<TElement, TControl>.Reference(Func<TElement, ElementRef> get, Action<TControl, FrameworkElement> set) → ControlDescriptor<TElement, TControl>
+ControlDescriptor<TElement, TControl>.Reference<TTarget>(Func<TElement, ElementRef<TTarget>> get, Action<TControl, TTarget> set) → ControlDescriptor<TElement, TControl>
+ControlDescriptor<TElement, TControl>.ReferenceList<TTarget>(Func<TElement, IReadOnlyList<ElementRef<TTarget>>> get, Action<TControl, IReadOnlyList<TTarget>> apply) → ControlDescriptor<TElement, TControl>
+ReactorBinding<TElement>.Reference<TTarget>(Func<TElement, ElementRef<TTarget>> get, Action<FrameworkElement, TTarget> set) → void
+ReactorBinding<TElement>.ReferenceList<TTarget>(Func<TElement, IReadOnlyList<ElementRef<TTarget>>> get, Action<FrameworkElement, IReadOnlyList<TTarget>> apply) → void
 
 ## Hooks (RenderContext / Component)
 # Call from Render() / function-component body. Same order every render —
@@ -1067,6 +1086,10 @@ new()
 AccessibilityView? AccessibilityView { get; init; }
 AutomationLandmarkType? LandmarkType { get; init; }
 AutomationLiveSetting? LiveSetting { get; init; }
+ElementRef LabeledByRef { get; init; }
+IReadOnlyList<ElementRef> DescribedByRefs { get; init; }
+IReadOnlyList<ElementRef> FlowsFromRefs { get; init; }
+IReadOnlyList<ElementRef> FlowsToRefs { get; init; }
 KeyboardNavigationMode? TabFocusNavigation { get; init; }
 bool? IsRequiredForForm { get; init; }
 int? Level { get; init; }
@@ -1948,6 +1971,9 @@ OneWay<TValue>(Func<TElement, Optional<TValue>> get, Action<TControl, TValue> se
 OneWay<TValue>(Func<TElement, TValue> get, Action<TControl, TValue> set, IEqualityComparer<TValue> comparer = null) → ControlDescriptor<TElement, TControl>
 OneWayBridged<TValue>(Func<TElement, TValue> get, OneWayBridgedSetter<TControl, TValue> set, Func<TElement, bool> shouldWrite, IEqualityComparer<TValue> comparer = null) → ControlDescriptor<TElement, TControl>
 OneWayConditional<TValue>(Func<TElement, TValue> get, Action<TControl, TValue> set, Func<TElement, bool> shouldWrite, IEqualityComparer<TValue> comparer = null) → ControlDescriptor<TElement, TControl>
+Reference(Func<TElement, ElementRef> get, Action<TControl, FrameworkElement> set) → ControlDescriptor<TElement, TControl>
+Reference<TTarget>(Func<TElement, ElementRef<TTarget>> get, Action<TControl, TTarget> set) → ControlDescriptor<TElement, TControl>
+ReferenceList<TTarget>(Func<TElement, IReadOnlyList<ElementRef<TTarget>>> get, Action<TControl, IReadOnlyList<TTarget>> apply) → ControlDescriptor<TElement, TControl>
 
 ### record Curve
 Ease(int durationMs, Easing easing = null) → Curve
@@ -2888,6 +2914,10 @@ Element AttachedFlyout { get; init; }
 Element ContextFlyout { get; init; }
 Element RichToolTip { get; init; }
 ElementRef Ref { get; init; }
+ElementRef XYFocusDownRef { get; init; }
+ElementRef XYFocusLeftRef { get; init; }
+ElementRef XYFocusRightRef { get; init; }
+ElementRef XYFocusUpRef { get; init; }
 ElementSoundMode? ElementSoundMode { get; init; }
 ElementTheme? RequestedTheme { get; init; }
 FontFamily FontFamily { get; init; }
@@ -5414,6 +5444,8 @@ OnPointerReleased(Action<TElement, PointerRoutedEventArgs> handler) → void
 OnPointerWheelChanged(Action<TElement, PointerRoutedEventArgs> handler) → void
 OnRightTapped(Action<TElement, RightTappedRoutedEventArgs> handler) → void
 OnTapped(Action<TElement, TappedRoutedEventArgs> handler) → void
+Reference<TTarget>(Func<TElement, ElementRef<TTarget>> get, Action<FrameworkElement, TTarget> set) → void
+ReferenceList<TTarget>(Func<TElement, IReadOnlyList<ElementRef<TTarget>>> get, Action<FrameworkElement, IReadOnlyList<TTarget>> apply) → void
 WriteSuppressed(Action mutate) → void
 
 ### record ReactorDevtoolsBootRequest
@@ -6443,6 +6475,7 @@ Action OnActionButtonClick { get; init; }
 Action OnClosed { get; init; }
 Element Content { get; init; }
 Element HeroContent { get; init; }
+ElementRef Target { get; init; }
 IconData IconSource { get; init; }
 TeachingTipPlacementMode PreferredPlacement { get; init; }
 Thickness PlacementMargin { get; init; }

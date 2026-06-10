@@ -21,6 +21,9 @@
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
     <Description>Optional devtools host for Microsoft.UI.Reactor.</Description>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageProjectUrl>https://github.com/microsoft/microsoft-ui-reactor</PackageProjectUrl>
     <RepositoryUrl>https://github.com/microsoft/microsoft-ui-reactor</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -49,6 +52,7 @@
 
   <ItemGroup>
     <None Include="..\..\LICENSE" Pack="true" PackagePath="" Visible="false" />
+    <None Include="..\..\assets\Icon.png" Pack="true" PackagePath="" Visible="false" />
   </ItemGroup>
 
 </Project>

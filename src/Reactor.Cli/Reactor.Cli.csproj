@@ -31,6 +31,9 @@
     <Description>Microsoft.UI.Reactor CLI — scaffolding, doc pipeline, find, check, localization, devtools supervisor, and Roslyn analyzer host.</Description>
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageProjectUrl>https://github.com/microsoft/microsoft-ui-reactor</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RollForward>LatestMajor</RollForward>
@@ -77,6 +80,10 @@
     <!-- Pin the transitive Nerdbank.MessagePack (via GitHub.Copilot.SDK → StreamJsonRpc)
          to a version that includes the GHSA-2cwq-pwfr-wcw3 / CVE-2026-44375 fix. -->
     <PackageReference Include="Nerdbank.MessagePack" Version="1.2.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\assets\Icon.png" Pack="true" PackagePath="" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>
