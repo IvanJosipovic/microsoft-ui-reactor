@@ -22,6 +22,7 @@
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
     <Description>Advanced Reactor components — first inhabitant: Win2D canvas.</Description>
+    <PackageTags>WinUI;WinUI3;Windows App SDK;WinAppSDK;XAML;Windows;desktop;UI;declarative;Reactor;Win2D;canvas;graphics;charts</PackageTags>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageIcon>Icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

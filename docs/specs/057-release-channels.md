@@ -347,6 +347,50 @@ minutes or hours later still publishes the exact bits signed at tag time.
 > Surface the resolved version in the stage/run display name so the approver can
 > eyeball it before clicking.
 
+### 8.4 Pre-publish compliance gate (NuGet.org Microsoft policy)
+
+The approval gate (§8.1) makes the publish _deliberate_; it does **not** make it
+_valid_. A maintainer approving "Publish `0.2.0-preview.3` to nuget.org?" cannot
+see, from the prompt, that one of the four packages is missing required
+metadata. nuget.org enforces the
+[Microsoft NuGet compliance policy](https://aka.ms/Microsoft-NuGet-Compliance)
+(ProjectUrl, license, `Microsoft` authors, an approved copyright notice, …) on
+**every** Microsoft-signed package, and rejects a non-compliant one with an
+HTTP 400 **at push time**.
+
+That is the worst possible moment to find out, because **the push loop is not
+atomic.** `NuGetCommand@2 push` iterates the packages one at a time, so a
+rejection on the _last_ package lands after the earlier ones are already public
+and permanent (§8.1 — unlist-only). This actually happened: build 118951 pushed
+`Microsoft.UI.Reactor`, `.Advanced`, and `.Devtools` successfully, then failed on
+`Microsoft.UI.Reactor.ProjectTemplates` ("The package metadata is missing
+required ProjectUrl"), leaving a half-published `preview.3`.
+
+To convert that irreversible publish-time failure into a cheap build-time one,
+the **build stage** runs the official Microsoft verifier **before** the gate:
+
+- **Step:** `Verify NuGet.org Microsoft compliance (NuGet.VerifyMicrosoftPackage)`
+  in `build/pipelines/templates/reactor-build-steps.yml`, gated by `pack: true`,
+  positioned after the last `dotnet pack` and before any publish.
+- **Tool:** [`NuGet.VerifyMicrosoftPackage`](https://github.com/NuGet/NuGetGallery/tree/main/src/VerifyMicrosoftPackage)
+  — the NuGetGallery team's own verifier, so the rule set never drifts from what
+  nuget.org actually enforces. It is a `net472` console exe shipped _inside_ the
+  `1.0.0` package's `tools/` folder (not a `dotnet tool`). The sealed build
+  container can't reach nuget.org, so the package is seeded into the internal
+  feed and restored via a throwaway `PackageReference` project; the step then
+  runs `NuGet.VerifyMicrosoftPackage.exe out\nupkg\*.nupkg` (the `*.nupkg`
+  wildcard correctly excludes `.snupkg`).
+- **Effect:** any non-compliant package makes the tool exit `1`, which fails the
+  build stage **before** the artifact ever reaches the publish stage. A
+  metadata regression can no longer produce a partial public release; it shows
+  up as a red build on the PR/tag instead.
+
+The durable fix for the specific ProjectUrl gap is centralized in the root
+`Directory.Build.props` (guarded `PackageProjectUrl` / `RepositoryUrl` /
+`RepositoryType` defaults) so every current and future packable project inherits
+compliant metadata; this verifier step is the backstop that proves it for every
+package on every build.
+
 ## 9. Consumer Experience
 
 ```xml
