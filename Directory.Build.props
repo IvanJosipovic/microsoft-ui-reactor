@@ -23,6 +23,23 @@
   </PropertyGroup>
 
   <!--
+    Repository / project URL metadata for every packable project. NuGet.org's
+    Microsoft compliance policy (https://aka.ms/Microsoft-NuGet-Compliance)
+    REJECTS any Microsoft-signed package that is missing ProjectUrl — the push
+    fails with HTTP 400 at publish time, AFTER earlier packages in the same
+    push loop have already gone out (the loop is not atomic). Centralizing the
+    defaults here guarantees every current and future package id (framework,
+    Advanced, Devtools, ProjectTemplates, …) inherits compliant metadata, so a
+    new package can never silently ship without it. Individual csprojs may still
+    override (the '== '' guard makes these defaults, not forced values).
+  -->
+  <PropertyGroup>
+    <PackageProjectUrl Condition="'$(PackageProjectUrl)' == ''">https://github.com/microsoft/microsoft-ui-reactor</PackageProjectUrl>
+    <RepositoryUrl Condition="'$(RepositoryUrl)' == ''">https://github.com/microsoft/microsoft-ui-reactor</RepositoryUrl>
+    <RepositoryType Condition="'$(RepositoryType)' == ''">git</RepositoryType>
+  </PropertyGroup>
+
+  <!--
     In CI we never need the GitHub.Copilot.SDK native CLI (copilot.exe), which the
     SDK's build targets fetch from registry.npmjs.org via an unauthenticated MSBuild
     DownloadFile task. That download can fail in restricted CI environments and cannot

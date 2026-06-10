@@ -332,6 +332,71 @@ steps:
           -o "${{ parameters.outputDirectory }}\nupkg"
       displayName: 'Pack Templates'
 
+    # ── NuGet.org Microsoft-compliance pre-flight (fail BEFORE the gated publish). ──
+    # nuget.org enforces https://aka.ms/Microsoft-NuGet-Compliance on every
+    # Microsoft-signed package: a missing ProjectUrl (or other required field) is
+    # rejected with HTTP 400 *at push time*. The release push loop is NOT atomic —
+    # a mid-list rejection leaves the earlier packages permanently published while
+    # the offending one never ships, producing a half-released (and immutable)
+    # version. This step validates every packed package up front so any compliance
+    # gap breaks the BUILD stage, before approval — never after a partial publish.
+    #
+    # We run the OFFICIAL verifier `NuGet.VerifyMicrosoftPackage` (authored by the
+    # NuGetGallery team) rather than a hand-rolled nuspec check, so the rules can
+    # never drift from what nuget.org actually enforces — the tool embeds the same
+    # default rule set the server uses (required ProjectUrl + license, authors must
+    # be "Microsoft", allowed copyright notices, etc.) and emits the identical
+    # "missing required ProjectUrl" message we saw reject ProjectTemplates at push
+    # time. It is a net472 console exe shipped INSIDE the package's tools/ folder
+    # (NOT a dotnet tool — `dotnet tool install` rejects it), so we restore the
+    # package from the INTERNAL feed (it has been seeded there; the sealed build
+    # container cannot reach nuget.org) via a throwaway PackageReference project,
+    # then invoke the extracted exe against every packed .nupkg. Exit code 1 on any
+    # non-compliant package fails the build.
+    - pwsh: |
+        $ErrorActionPreference = 'Stop'
+        $nupkgDir = "${{ parameters.outputDirectory }}\nupkg"
+        $pkgs = Get-ChildItem -Path $nupkgDir -Filter *.nupkg -ErrorAction SilentlyContinue
+        if (-not $pkgs) { throw "No .nupkg files found in $nupkgDir to validate." }
+
+        # Restore the verifier from the internal feed via a throwaway project. The
+        # package is tools-only (no lib/dependencies) so a net10.0 PackageReference
+        # restores cleanly with no TFM-compat error; it just lands in --packages.
+        $work = Join-Path "$(Agent.TempDirectory)" 'nuget-verifier'
+        $pkgsDir = Join-Path $work 'pkgs'
+        New-Item -ItemType Directory -Force -Path $work | Out-Null
+        $proj = Join-Path $work 'verifier.csproj'
+        @'
+        <Project Sdk="Microsoft.NET.Sdk">
+          <PropertyGroup>
+            <TargetFramework>net10.0</TargetFramework>
+            <IsPackable>false</IsPackable>
+          </PropertyGroup>
+          <ItemGroup>
+            <PackageReference Include="NuGet.VerifyMicrosoftPackage" Version="1.0.0" />
+          </ItemGroup>
+        </Project>
+        '@ | Set-Content -Path $proj -Encoding utf8
+
+        dotnet restore $proj --packages $pkgsDir --configfile "${{ parameters.nugetConfig }}"
+        if ($LASTEXITCODE -ne 0) { throw "Failed to restore NuGet.VerifyMicrosoftPackage from the internal feed." }
+
+        $exe = Get-ChildItem -Path $pkgsDir -Recurse -Filter 'NuGet.VerifyMicrosoftPackage.exe' |
+               Select-Object -First 1 -ExpandProperty FullName
+        if (-not $exe) { throw "NuGet.VerifyMicrosoftPackage.exe not found after restore under $pkgsDir." }
+        Write-Host "Using verifier: $exe"
+
+        # The tool accepts a filename wildcard (directory wildcards are NOT supported)
+        # and validates every match, printing per-package VALID/INVALID + a summary.
+        & $exe "$nupkgDir\*.nupkg"
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "##[error]One or more packages are NOT compliant with https://aka.ms/Microsoft-NuGet-Compliance."
+          Write-Host "##[error]Fix the package metadata before release — the gated publish is NOT atomic and a mid-push rejection leaves a partial, immutable release."
+          throw "NuGet.VerifyMicrosoftPackage reported non-compliant package(s) (exit $LASTEXITCODE)."
+        }
+        Write-Host "All $($pkgs.Count) package(s) passed the official NuGet.VerifyMicrosoftPackage compliance check."
+      displayName: 'Verify NuGet.org Microsoft compliance (NuGet.VerifyMicrosoftPackage)'
+
     - pwsh: |
         dotnet publish src/Reactor.Cli/Reactor.Cli.csproj `
           --configuration ${{ parameters.configuration }} `

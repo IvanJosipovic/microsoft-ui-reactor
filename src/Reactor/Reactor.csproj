@@ -34,6 +34,7 @@
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
     <Description>Functional, declarative UI framework for WinUI 3.</Description>
+    <PackageTags>WinUI;WinUI3;Windows App SDK;WinAppSDK;XAML;Windows;desktop;UI;declarative;functional;reactive;MVU;components;hooks;Reactor</PackageTags>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageIcon>Icon.png</PackageIcon>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>

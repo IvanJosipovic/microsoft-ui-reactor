@@ -21,6 +21,7 @@
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
     <Description>Optional devtools host for Microsoft.UI.Reactor.</Description>
+    <PackageTags>WinUI;WinUI3;Windows App SDK;WinAppSDK;Windows;desktop;Reactor;devtools;diagnostics;hot-reload;preview;MCP</PackageTags>
     <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
     <PackageIcon>Icon.png</PackageIcon>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
