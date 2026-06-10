@@ -36,6 +36,15 @@ source pointers that let you verify it.
 
 Every section below explains how one of those rows is implemented.
 
+Reference props add one post-commit step to the table. `.Ref(cell)` sets
+the cell to the mounted control and clears it on unmount; referrers such
+as `TeachingTip.Target`, automation relationships, and `XYFocus*`
+subscribe to those cells. During reconciliation, changed cells enqueue
+their reference edges in a dirty set. After the tree commit finishes,
+the reconciler flushes that set so every reference write observes the
+final mounted/unmounted state. Referrer unmount and pool return tear
+down their edge bag, so subscriptions do not leak.
+
 ## Reconcile — the entry point
 
 ```csharp
@@ -45,57 +54,14 @@ public UIElement? Reconcile(
     UIElement? existingControl,
     Action requestRerender)
 {
-    // Trace only top-level reconcile passes (depth == 0) to avoid flooding
-    // the provider with per-subtree entries; nested Reconcile() calls during
-    // the same pass don't emit their own start/stop. Gate the depth counter
-    // and Start emit on IsEnabled so the disabled path pays nothing extra.
-    bool emitTrace = Diagnostics.ReactorEventSource.Log.IsEnabled(
-        global::System.Diagnostics.Tracing.EventLevel.Informational,
-        Diagnostics.ReactorEventSource.Keywords.Reconcile)
-        && _reconcileTraceDepth++ == 0;
-    if (emitTrace)
+    return (oldElement, newElement) switch
     {
-        Diagnostics.ReactorEventSource.Log.ReconcileStart(
-            newElement?.GetType().Name ?? "null");
-    }
-    if (_debugReconcileDepth++ == 0)
-    {
-        DebugElementsDiffed = 0;
-        DebugElementsSkipped = 0;
-        DebugUIElementsCreated = 0;
-        DebugUIElementsModified = 0;
-        if (ReactorFeatureFlags.HighlightReconcileChanges)
-        {
-            (_highlightMounted ??= new()).Clear();
-            (_highlightModified ??= new()).Clear();
-        }
-        // Consume the hot-reload signal exactly once per top-level pass so
-        // every component re-runs Render() even when props/deps are unchanged.
-        _forceFullRenderActive = ForceFullRenderPending;
-        ForceFullRenderPending = false;
-
-        // Build the dirty-ancestor path. For every component node
-        // whose SelfTriggered is true, walk up the realized visual
-        // tree and add each ancestor control. Consumed by Update's
-        // shallow-equality short-circuit so the walk can reach the
-        // self-triggered descendant even when its ancestor element
-        // records are structurally unchanged.
-        PopulateDirtyAncestorPath();
-    }
-    try {
-    try
-    {
-        if (newElement is null or EmptyElement)
-        {
-            if (existingControl is not null)
-                Unmount(existingControl);
-            return null;
-        }
-
-        if (oldElement is null or EmptyElement || existingControl is null)
-            return Mount(newElement, requestRerender);
-
-        return ReconcileImperative(oldElement, newElement, existingControl, requestRerender);
+        (null, not null) => Mount(newElement, requestRerender),
+        (not null, null) => UnmountAndReturnNull(existingControl),
+        (not null, not null) => Update(oldElement, newElement, existingControl!, requestRerender),
+        _ => null,
+    };
+}
 ```
 
 `Reconcile` is short on purpose. The interesting work is in `Mount`,
@@ -160,63 +126,14 @@ don't end up paying GC cost proportional to scroll velocity.
 ## Update — patching in place
 
 ```csharp
-public UIElement? Reconcile(
-    Element? oldElement,
-    Element? newElement,
-    UIElement? existingControl,
-    Action requestRerender)
+private void UpdateButton(ButtonElement oldEl, ButtonElement newEl, Button control)
 {
-    // Trace only top-level reconcile passes (depth == 0) to avoid flooding
-    // the provider with per-subtree entries; nested Reconcile() calls during
-    // the same pass don't emit their own start/stop. Gate the depth counter
-    // and Start emit on IsEnabled so the disabled path pays nothing extra.
-    bool emitTrace = Diagnostics.ReactorEventSource.Log.IsEnabled(
-        global::System.Diagnostics.Tracing.EventLevel.Informational,
-        Diagnostics.ReactorEventSource.Keywords.Reconcile)
-        && _reconcileTraceDepth++ == 0;
-    if (emitTrace)
-    {
-        Diagnostics.ReactorEventSource.Log.ReconcileStart(
-            newElement?.GetType().Name ?? "null");
-    }
-    if (_debugReconcileDepth++ == 0)
-    {
-        DebugElementsDiffed = 0;
-        DebugElementsSkipped = 0;
-        DebugUIElementsCreated = 0;
-        DebugUIElementsModified = 0;
-        if (ReactorFeatureFlags.HighlightReconcileChanges)
-        {
-            (_highlightMounted ??= new()).Clear();
-            (_highlightModified ??= new()).Clear();
-        }
-        // Consume the hot-reload signal exactly once per top-level pass so
-        // every component re-runs Render() even when props/deps are unchanged.
-        _forceFullRenderActive = ForceFullRenderPending;
-        ForceFullRenderPending = false;
+    if (oldEl.Content != newEl.Content)
+        control.Content = newEl.Content;
 
-        // Build the dirty-ancestor path. For every component node
-        // whose SelfTriggered is true, walk up the realized visual
-        // tree and add each ancestor control. Consumed by Update's
-        // shallow-equality short-circuit so the walk can reach the
-        // self-triggered descendant even when its ancestor element
-        // records are structurally unchanged.
-        PopulateDirtyAncestorPath();
-    }
-    try {
-    try
-    {
-        if (newElement is null or EmptyElement)
-        {
-            if (existingControl is not null)
-                Unmount(existingControl);
-            return null;
-        }
-
-        if (oldElement is null or EmptyElement || existingControl is null)
-            return Mount(newElement, requestRerender);
-
-        return ReconcileImperative(oldElement, newElement, existingControl, requestRerender);
+    ApplyModifiers(control, oldEl.Modifiers, newEl.Modifiers);
+    ReconcileChildren(oldEl.Children, newEl.Children, control);
+}
 ```
 
 `Update` is the other type-switch. For each subclass, `UpdateXxx`

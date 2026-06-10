@@ -56,6 +56,7 @@ public sealed class ControlDescriptor<TElement, TControl>
     where TControl : FrameworkElement, new()
 {
     private readonly List<PropEntry<TElement, TControl>> _properties = new();
+    private int _referenceSlotCount;
 
     /// <summary>Optional factory the engine invokes when the pool is empty
     /// or <see cref="PoolPolicy"/> opts out. Defaults to <c>new TControl()</c>
@@ -155,6 +156,46 @@ public sealed class ControlDescriptor<TElement, TControl>
         Action<TControl, TValue> set)
     {
         _properties.Add(new InitialOnlyPropEntry<TElement, TControl, TValue>(get, set));
+        return this;
+    }
+
+    /// <summary>
+    /// Add a reference property binding. The control property is written from
+    /// the referenced cell at mount and whenever the cell changes.
+    /// </summary>
+    public ControlDescriptor<TElement, TControl> Reference<TTarget>(
+        Func<TElement, Microsoft.UI.Reactor.Input.ElementRef<TTarget>?> get,
+        Action<TControl, TTarget?> set)
+        where TTarget : FrameworkElement
+    {
+        _properties.Add(new ReferencePropEntry<TElement, TControl, TTarget>(get, set, _referenceSlotCount++));
+        return this;
+    }
+
+    /// <summary>
+    /// CR-004 untyped reference binding: accepts an element-record slot that stores an
+    /// untyped <see cref="Microsoft.UI.Reactor.Input.ElementRef"/> (so authors can supply
+    /// any <c>ElementRef&lt;TConcrete&gt;</c>). The resolved target is surfaced as a
+    /// <see cref="FrameworkElement"/>.
+    /// </summary>
+    public ControlDescriptor<TElement, TControl> Reference(
+        Func<TElement, Microsoft.UI.Reactor.Input.ElementRef?> get,
+        Action<TControl, FrameworkElement?> set)
+    {
+        _properties.Add(new UntypedReferencePropEntry<TElement, TControl>(get, set, _referenceSlotCount++));
+        return this;
+    }
+
+    /// <summary>
+    /// Add a list-valued reference binding. The control list is rebuilt from
+    /// currently-resolved targets, preserving the author's declaration order.
+    /// </summary>
+    public ControlDescriptor<TElement, TControl> ReferenceList<TTarget>(
+        Func<TElement, IReadOnlyList<Microsoft.UI.Reactor.Input.ElementRef<TTarget>>?> get,
+        Action<TControl, IReadOnlyList<TTarget>> apply)
+        where TTarget : FrameworkElement
+    {
+        _properties.Add(new ReferenceListPropEntry<TElement, TControl, TTarget>(get, apply, _referenceSlotCount++));
         return this;
     }
 
