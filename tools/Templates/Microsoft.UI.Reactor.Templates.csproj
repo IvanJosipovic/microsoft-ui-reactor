@@ -6,6 +6,10 @@
     <Title>Project templates for Microsoft.UI.Reactor</Title>
     <Authors>Microsoft</Authors>
     <Description>Project templates for Microsoft.UI.Reactor</Description>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageTags>dotnet-new;templates;WinUI;Reactor;Windows App SDK</PackageTags>
     <TargetFramework>netstandard2.0</TargetFramework>
     <IncludeContentInPack>true</IncludeContentInPack>
@@ -16,6 +20,10 @@
     <Version Condition="'$(Version)' == ''">0.0.0-local</Version>
     <MicrosoftUIReactorVersion Condition="'$(MicrosoftUIReactorVersion)' == ''">$(Version)</MicrosoftUIReactorVersion> <!-- NuGet version template should reference -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\assets\Icon.png" Pack="true" PackagePath="" Visible="false" />
+  </ItemGroup>
 
  <ItemGroup>
     <TemplateJsonInput Include="templates\*\.template.config\template.json">

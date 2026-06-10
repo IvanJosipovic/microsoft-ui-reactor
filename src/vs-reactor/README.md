@@ -52,6 +52,21 @@ dotnet build Reactor.VsExtension\Reactor.VsExtension.csproj
 
 Structural VSIX for CI validation.
 
+## CI behavior (GitHub vs. OneBranch)
+
+These projects are `Reactor.slnx` members, so a solution-wide build touches them — but they
+are `net472` VSSDK projects and the extension ships only as a `.vsix` via
+`.github/workflows/release.yml` (never to nuget.org). The internal **OneBranch** pipeline
+restores the slnx in a feed-only container that lacks the VSSDK packages and desktop VSIX
+tooling, so the three csproj self-disable there using a guard on the Azure-DevOps-only variable
+`TF_BUILD`:
+
+- **`TF_BUILD` set (OneBranch)** → inert empty `net10.0` build, no VSSDK restore.
+- **`TF_BUILD` unset (GitHub Actions, local)** → full `net472` VSIX build, as above.
+
+Do not remove the `'$(TF_BUILD)' == 'true'` conditions — without them the OneBranch slnx
+restore fails (NU1101) on the VSSDK packages. Rationale is also inline in each csproj.
+
 ## Test commands
 
 ```powershell

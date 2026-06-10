@@ -1,13 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <!-- See Reactor.VsExtension.csproj for the TF_BUILD (Azure DevOps / OneBranch)
+         guard rationale: inert net10.0 on OB, full net472 VSIX-test project elsewhere. -->
+    <TargetFramework Condition="'$(TF_BUILD)' != 'true'">net472</TargetFramework>
+    <TargetFramework Condition="'$(TF_BUILD)' == 'true'">net10.0</TargetFramework>
+    <EnableDefaultItems Condition="'$(TF_BUILD)' == 'true'">false</EnableDefaultItems>
+    <EnableDefaultCompileItems Condition="'$(TF_BUILD)' == 'true'">false</EnableDefaultCompileItems>
     <LangVersion>latest</LangVersion>
     <IsAotCompatible>false</IsAotCompatible>
     <IsPackable>false</IsPackable>
-    <NoWarn>$(NoWarn);IL2026;IL3050;IL2104;IL2118;VSTHRD200</NoWarn>
+    <NoWarn>$(NoWarn);IL2026;IL3050;IL2104;IL2118;VSTHRD200;CS2008</NoWarn>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TF_BUILD)' != 'true'">
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" />
     <PackageReference Include="Microsoft.VisualStudio.Sdk.TestFramework.Xunit" Version="17.11.8" />
@@ -20,7 +25,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.1" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TF_BUILD)' != 'true'">
     <ProjectReference Include="..\..\Reactor.VsExtension\Reactor.VsExtension.csproj" ReferenceOutputAssembly="true" CopyLocalSatelliteAssemblies="false" PrivateAssets="all" />
   </ItemGroup>
 </Project>

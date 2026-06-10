@@ -29,9 +29,9 @@ parameters:
     type: string
     default: 'https://github-private.pkgs.visualstudio.com/microsoft/_packaging/microsoft-ui-reactor/npm/registry/'
   - name: version
-    displayName: 'Explicit version; blank => MinVer.'
+    displayName: 'Explicit version; "auto" or blank => MinVer.'
     type: string
-    default: ''
+    default: 'auto'
   - name: runTests
     displayName: 'Run headless unit tests (tests/Reactor.Tests).'
     type: boolean
@@ -44,6 +44,18 @@ parameters:
     displayName: 'ESRP-sign outputs (Authenticode binaries before pack, NuGet-sign .nupkg after). Official builds only.'
     type: boolean
     default: false
+  - name: publishNuGet
+    displayName: 'Push the packed .nupkg files to a feed from the BUILD job. Reserved for the internal nightly channel; the public nuget.org release uses the gated release stage, NOT this. Requires the NuGetApiKey secret variable.'
+    type: boolean
+    default: false
+  - name: nuGetApiKeyVariable
+    displayName: 'Name of the SECRET pipeline variable holding the target-feed API key.'
+    type: string
+    default: 'NuGetApiKey'
+  - name: nuGetFeed
+    displayName: 'Target NuGet feed (push destination). Default is nuget.org, but the build-job push is intended for the internal nightly feed.'
+    type: string
+    default: 'https://api.nuget.org/v3/index.json'
 
 steps:
   - task: UseDotNet@2
@@ -118,7 +130,7 @@ steps:
     - pwsh: |
         $manualVersion = '${{ parameters.version }}'
 
-        if (-not [string]::IsNullOrWhiteSpace($manualVersion)) {
+        if (-not [string]::IsNullOrWhiteSpace($manualVersion) -and $manualVersion.Trim() -ne 'auto') {
           # Explicit override always wins, verbatim.
           $version = $manualVersion.Trim()
         } else {
@@ -249,6 +261,19 @@ steps:
           -p:Platform=AnyCPU -p:CI=true
       displayName: 'Build Advanced (AnyCPU)'
 
+    # ── Build Reactor.Devtools (AnyCPU) for packing. ──
+    # Reactor.Devtools IS a direct slnx member, so the slnx build above produced it for the
+    # solution platform (x64/ARM64 -- the slnx declares no AnyCPU configuration) and the slnx
+    # restore already pulled its deps through the internal feed. `dotnet pack` below needs the
+    # AnyCPU output, so we build that one platform explicitly here -- same shape as the Advanced
+    # step above. --no-restore is safe (deps already restored); -p:CI=true keeps the
+    # Copilot/SignaturesGen gates off when the referenced Reactor.csproj is touched.
+    - pwsh: |
+        dotnet build src/Reactor.Devtools/Reactor.Devtools.csproj `
+          --no-restore --configuration ${{ parameters.configuration }} `
+          -p:Platform=AnyCPU -p:CI=true
+      displayName: 'Build Devtools (AnyCPU)'
+
     # ── Phase 1a: Authenticode-sign the packed assemblies BEFORE packing. ──
     # `dotnet pack --no-build` zips the existing build output into the .nupkg, so each
     # authored DLL must be signed HERE for the SIGNED copy to land inside the package.
@@ -260,6 +285,8 @@ steps:
     #   analyzers/dotnet/cs/Reactor.Localization.Generator.dll
     # And inside Microsoft.UI.Reactor.Advanced.nupkg:
     #   lib/<tfm>/Reactor.Advanced.dll
+    # And inside Microsoft.UI.Reactor.Devtools.nupkg:
+    #   lib/<tfm>/Microsoft.UI.Reactor.Devtools.dll
     # Each glob is scoped to its project's bin\ dir so we sign only our own assemblies.
     - ${{ if eq(parameters.sign, true) }}:
       - task: onebranch.pipeline.signing@1
@@ -267,7 +294,7 @@ steps:
         inputs:
           command: 'sign'
           signing_profile: external_distribution
-          files_to_sign: 'Reactor\bin\**\Reactor.dll;Reactor\bin\**\Reactor.resources.dll;Reactor.Advanced\bin\**\Reactor.Advanced.dll;Reactor.Analyzers\bin\**\Reactor.Analyzers.dll;Reactor.Localization.Generator\bin\**\Reactor.Localization.Generator.dll'
+          files_to_sign: 'Reactor\bin\**\Reactor.dll;Reactor\bin\**\Reactor.resources.dll;Reactor.Advanced\bin\**\Reactor.Advanced.dll;Reactor.Devtools\bin\**\Microsoft.UI.Reactor.Devtools.dll;Reactor.Analyzers\bin\**\Reactor.Analyzers.dll;Reactor.Localization.Generator\bin\**\Reactor.Localization.Generator.dll'
           search_root: '$(Build.SourcesDirectory)\src'
 
     - pwsh: |
@@ -286,6 +313,16 @@ steps:
           -p:Version=$(PackageVersion) `
           -o "${{ parameters.outputDirectory }}\nupkg"
       displayName: 'Pack Advanced NuGet'
+
+    # Pack the Devtools (optional devtools host) NuGet from the AnyCPU output built above.
+    # Mirrors the 'Pack Devtools NuGet' step in .github/workflows/release.yml.
+    - pwsh: |
+        dotnet pack src/Reactor.Devtools/Reactor.Devtools.csproj `
+          --no-build --configuration ${{ parameters.configuration }} `
+          -p:Platform=AnyCPU `
+          -p:Version=$(PackageVersion) `
+          -o "${{ parameters.outputDirectory }}\nupkg"
+      displayName: 'Pack Devtools NuGet'
 
     - pwsh: |
         dotnet pack tools/Templates/Microsoft.UI.Reactor.Templates.csproj `
@@ -382,3 +419,48 @@ steps:
           cp_code: 'CP-401405'
           files_to_sign: '**/*.nupkg'
           search_root: '${{ parameters.outputDirectory }}\nupkg'
+
+    # ── Build-job push to a feed (opt-in via publishNuGet). RESERVED FOR THE INTERNAL
+    # NIGHTLY CHANNEL -- NOT the public nuget.org release path. ──
+    # The public nuget.org release is handled by the approval-gated `Production_PublishNuGet`
+    # release stage in OneBranch.Official.Reactor.yml (NonAzure pathway, NuGetCommand@2 +
+    # `nuget-org` service connection). The Official pipeline always passes publishNuGet:false
+    # here, so this step never runs for the public release. Per docs/specs/057-release-channels.md
+    # this build-job push is retained for the deferred Phase B/C nightly channel, which pushes
+    # signed packages to an INTERNAL ADO feed (feed identity / NuGetAuthenticate) where a raw
+    # `dotnet nuget push` is appropriate and no approval gate is required. Note: a raw
+    # `dotnet nuget push` is NOT on the OneBranch NonAzure allow-list, so this path must target
+    # the internal feed, never nuget.org.
+    #
+    # Gated behind a parameter so a normal Official build only PRODUCES the signed packages
+    # (uploaded as artifacts). The API key comes from a SECRET pipeline variable (default name:
+    # NuGetApiKey) -- never committed. Secrets are NOT auto-exposed to script env, so it is
+    # mapped explicitly via `env:`; `--skip-duplicate` makes re-runs idempotent (a version
+    # already on the feed is immutable and would otherwise 409). `dotnet nuget push` also
+    # auto-pushes the adjacent *.snupkg symbol package for each *.nupkg when the target feed
+    # supports symbols, so symbols travel with the package without a separate glob.
+    - ${{ if eq(parameters.publishNuGet, true) }}:
+      - pwsh: |
+          $key = $env:NUGET_API_KEY
+          if ([string]::IsNullOrWhiteSpace($key)) {
+            throw "publishNuGet=true but the secret variable '${{ parameters.nuGetApiKeyVariable }}' is empty or not set. " +
+                  "Add it as a SECRET pipeline variable before queueing a publish run."
+          }
+
+          $packages = Get-ChildItem "${{ parameters.outputDirectory }}\nupkg" -Filter *.nupkg -File
+          if ($packages.Count -eq 0) { throw "No .nupkg files found to publish." }
+
+          Write-Host "Publishing $($packages.Count) package(s) to ${{ parameters.nuGetFeed }}"
+          foreach ($pkg in $packages) {
+            Write-Host "  -> $($pkg.Name)"
+          }
+
+          dotnet nuget push "${{ parameters.outputDirectory }}\nupkg\*.nupkg" `
+            --source "${{ parameters.nuGetFeed }}" `
+            --api-key $key `
+            --skip-duplicate
+        displayName: 'Publish NuGet packages (internal nightly feed)'
+        env:
+          # Map the secret pipeline variable into the script environment; secrets are not
+          # injected automatically. The variable NAME is templated; its VALUE stays secret.
+          NUGET_API_KEY: $(${{ parameters.nuGetApiKeyVariable }})

@@ -117,19 +117,6 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           -o artifacts/nupkg
 
-      - name: Pack Devtools NuGet
-        # Microsoft.UI.Reactor.Devtools is referenced by the scaffolded
-        # `dotnet new reactorapp` csproj's Debug-only ItemGroup (the
-        # devtools menu + the Reactor Visual Studio embedded-preview
-        # extension both need it). Ship it alongside the framework so the
-        # template's restore succeeds against the published feed. Version
-        # is locked to the framework version (spec 022).
-        run: >
-          dotnet pack src/Reactor.Devtools/Reactor.Devtools.csproj
-          --no-build --configuration Release
-          -p:Version=${{ steps.version.outputs.version }}
-          -o artifacts/nupkg
-
       - name: Build Advanced (AnyCPU)
         # The slnx build above produces Reactor.Advanced for ARM64 (its slnx default
         # platform) but the pack below needs the AnyCPU output. This mirrors how
@@ -144,6 +131,29 @@ jobs:
       - name: Pack Advanced NuGet
         run: >
           dotnet pack src/Reactor.Advanced/Reactor.Advanced.csproj
+          --no-build --configuration Release
+          -p:Platform=AnyCPU
+          -p:Version=${{ steps.version.outputs.version }}
+          -o artifacts/nupkg
+
+      - name: Build Devtools (AnyCPU)
+        # Reactor.Devtools is a direct slnx member, so the slnx build above produced it
+        # for the solution platform (x64/ARM64 — the slnx declares no AnyCPU config) but
+        # the pack below needs the AnyCPU output. Same shape as the Advanced step above.
+        run: >
+          dotnet build src/Reactor.Devtools/Reactor.Devtools.csproj
+          --no-restore --configuration Release
+          -p:Platform=AnyCPU
+
+      - name: Pack Devtools NuGet
+        # Microsoft.UI.Reactor.Devtools is referenced by the scaffolded
+        # `dotnet new reactorapp` csproj's Debug-only ItemGroup (the devtools menu + the
+        # Reactor Visual Studio embedded-preview extension both need it). Ship it alongside
+        # the framework so the template's restore succeeds against the published feed.
+        # Version is locked to the framework version (spec 022). Packs from the AnyCPU
+        # output built in the step above.
+        run: >
+          dotnet pack src/Reactor.Devtools/Reactor.Devtools.csproj
           --no-build --configuration Release
           -p:Platform=AnyCPU
           -p:Version=${{ steps.version.outputs.version }}
