@@ -91,7 +91,7 @@ race-condition argument in §11:
 
 ## 2. The core ADT — `AsyncValue<T>`
 
-`AsyncValue.cs:15-72`. Four sealed records under an abstract record, constructor
+`AsyncValue.cs:15-81`. Four sealed records under an abstract record, constructor
 closed with `private protected`:
 
 | Case | Payload | When entered |
@@ -101,10 +101,11 @@ closed with `private protected`:
 | `Error(Exception)` | The exception | Fetch failed (or retries exhausted); prior data discarded |
 | `Reloading(T Previous)` | Last-good value | Cache hit past `StaleTime`, OR a refetch started with `Data` on screen |
 
-`Match` is a non-hot-path convenience that lets `Reloading` fall through to the
-`data:` lambda by default (`AsyncValue.cs:59-71`). The spec's §5.1 prefers a C#
-`switch` expression per render; the switch gets exhaustiveness checking and
-avoids one delegate allocation per case.
+`Match` is a non-hot-path convenience that, by default, renders the `loading:`
+lambda for `Reloading` — pass `reloading:` explicitly for stale-while-revalidate
+(`AsyncValue.cs:68-80`). The success arm is named `loaded:`. The spec's §5.1
+prefers a C# `switch` expression per render; the switch gets exhaustiveness
+checking and avoids one delegate allocation per case.
 
 Note that `Loading` is a singleton (`Loading.Instance`) and carries no payload —
 allocation-free on transition. The hook exploits this in `StartAttempt` to

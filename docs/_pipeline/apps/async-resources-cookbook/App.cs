@@ -104,7 +104,7 @@ class AfterUseResourceExample : Component
 
         return user.Match<Element>(
             loading: () => TextBlock("Loading…").Padding(24),
-            data: u => VStack(4,
+            loaded: u => VStack(4,
                 Heading("After: one hook").FontSize(14),
                 TextBlock(u.Name).FontSize(20).Bold(),
                 TextBlock(u.Role).Opacity(0.6)
@@ -200,7 +200,7 @@ class PendingFallbackExample : Component
                 deps: new object[] { "user-1" });
             return user.Match<Element>(
                 loading: () => TextBlock("• user loading…").Opacity(0.5),
-                data: u => TextBlock($"• {u.Name} ({u.Role})"),
+                loaded: u => TextBlock($"• {u.Name} ({u.Role})"),
                 error: ex => TextBlock($"• error: {ex.Message}"));
         }
     }
@@ -229,7 +229,7 @@ class PendingFallbackExample : Component
                 deps: new object[] { "stats" });
             return user.Match(
                 loading: () => TextBlock("• stats loading…").Opacity(0.5),
-                data: _ => TextBlock("• stats ready"),
+                loaded: _ => TextBlock("• stats ready"),
                 error: ex => TextBlock($"• error: {ex.Message}"));
         }
     }

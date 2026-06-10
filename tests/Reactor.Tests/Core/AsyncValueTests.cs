@@ -53,7 +53,7 @@ public class AsyncValueTests
         AsyncValue<int> v = AsyncValue<int>.Loading.Instance;
         var result = v.Match(
             loading: () => "L",
-            data: d => $"D{d}",
+            loaded: d => $"D{d}",
             error: e => $"E{e.Message}");
         Assert.Equal("L", result);
     }
@@ -64,7 +64,7 @@ public class AsyncValueTests
         AsyncValue<int> v = new AsyncValue<int>.Data(7);
         var result = v.Match(
             loading: () => "L",
-            data: d => $"D{d}",
+            loaded: d => $"D{d}",
             error: e => $"E{e.Message}");
         Assert.Equal("D7", result);
     }
@@ -75,20 +75,20 @@ public class AsyncValueTests
         AsyncValue<int> v = new AsyncValue<int>.Error(new InvalidOperationException("boom"));
         var result = v.Match(
             loading: () => "L",
-            data: d => $"D{d}",
+            loaded: d => $"D{d}",
             error: e => $"E{e.Message}");
         Assert.Equal("Eboom", result);
     }
 
     [Fact]
-    public void Match_Reloading_Falls_Through_To_Data_When_Null()
+    public void Match_Reloading_Falls_Through_To_Loading_When_Null()
     {
         AsyncValue<int> v = new AsyncValue<int>.Reloading(9);
         var result = v.Match(
             loading: () => "L",
-            data: d => $"D{d}",
+            loaded: d => $"D{d}",
             error: e => $"E{e.Message}");
-        Assert.Equal("D9", result);
+        Assert.Equal("L", result);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class AsyncValueTests
         AsyncValue<int> v = new AsyncValue<int>.Reloading(9);
         var result = v.Match(
             loading: () => "L",
-            data: d => $"D{d}",
+            loaded: d => $"D{d}",
             error: e => $"E{e.Message}",
             reloading: r => $"R{r}");
         Assert.Equal("R9", result);

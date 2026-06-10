@@ -49,24 +49,33 @@ public abstract record AsyncValue<T>
     public sealed record Reloading(T Previous) : AsyncValue<T>;
 
     /// <summary>
-    /// Convenience match that treats <see cref="Reloading"/> as <see cref="Data"/> by default.
-    /// Pass <paramref name="reloading"/> explicitly to distinguish (e.g. dim stale content).
+    /// Convenience match that renders the <paramref name="loading"/> arm for <see cref="Reloading"/>
+    /// by default. Pass <paramref name="reloading"/> explicitly to show stale content while a
+    /// refresh is in progress (stale-while-revalidate).
     /// </summary>
     /// <remarks>
+    /// Omitting <paramref name="reloading"/> means a refresh shows the loading UI, so authors don't
+    /// have to duplicate the loading arm. Provide <paramref name="reloading"/> to keep the previous
+    /// value visible while revalidating.
+    /// <para>
+    /// The success arm is named <paramref name="loaded"/>. This is a source-breaking rename from the
+    /// previous <c>data</c> parameter for named-argument callers; a back-compat overload is impossible
+    /// because overloads cannot differ by parameter name alone.
+    /// </para>
     /// Allocates a delegate per arm at the call site; prefer a <c>switch</c> expression in
     /// per-row render paths (see spec §5.1).
     /// </remarks>
     public TResult Match<TResult>(
         Func<TResult> loading,
-        Func<T, TResult> data,
+        Func<T, TResult> loaded,
         Func<Exception, TResult> error,
         Func<T, TResult>? reloading = null)
         => this switch
         {
             Loading => loading(),
-            Data d => data(d.Value),
+            Data d => loaded(d.Value),
             Error e => error(e.Exception),
-            Reloading r => (reloading ?? data)(r.Previous),
+            Reloading r => reloading is not null ? reloading(r.Previous) : loading(),
             _ => throw new UnreachableException()
         };
 }
