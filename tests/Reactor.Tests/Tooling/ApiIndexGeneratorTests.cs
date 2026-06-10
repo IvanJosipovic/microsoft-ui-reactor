@@ -109,7 +109,28 @@ public sealed class ApiIndexGeneratorTests
         }
 
         var committed = File.ReadAllText(CommittedIndexPath());
-        Assert.Equal(committed, generated);
+        if (committed != generated)
+        {
+            throw new Xunit.Sdk.XunitException(
+                "skills/reactor.api.txt is stale. Regenerate by running:\n" +
+                "  $env:UPDATE_API_INDEX=1; dotnet test tests/Reactor.Tests --filter \"FullyQualifiedName~Tooling.ApiIndexGeneratorTests.Index_IsUpToDate\" -p:SkipSignaturesGen=true -p:SkipReactorApiGen=true -r win-arm64\n" +
+                "First diff: " + FirstDiffPreview(committed, generated));
+        }
+    }
+
+    // Returns a short snippet around the first character that differs between
+    // `expected` (committed) and `actual` (generated) — up to ~200 chars total.
+    static string FirstDiffPreview(string expected, string actual)
+    {
+        var min = Math.Min(expected.Length, actual.Length);
+        var i = 0;
+        while (i < min && expected[i] == actual[i]) i++;
+        if (i == min && expected.Length == actual.Length) return "(no diff)";
+
+        var start = Math.Max(0, i - 40);
+        string Slice(string s) =>
+            s.Substring(start, Math.Min(200, s.Length - start)).Replace("\r", "\\r").Replace("\n", "\\n");
+        return $"at offset {i}\n  expected: …{Slice(expected)}…\n  actual:   …{Slice(actual)}…";
     }
 
     // Returns the lines of a `### <kind> <ShortName>` block up to the next `###`/`##`.

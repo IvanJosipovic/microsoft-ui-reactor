@@ -159,7 +159,11 @@ public static class ApiIndexGenerator
                     key = rk?.GetValue(themeRef)?.ToString();
                 }
             }
-            catch { }
+            catch (Exception ex) when (ex is TargetInvocationException or MemberAccessException or InvalidOperationException)
+            {
+                // Theme.* property failed to reflect (e.g. WinUI resource not registered at design-time).
+                // Falling through to emit `?` for the resource key — the rest of the index is unaffected.
+            }
             sb.AppendLine($"Theme.{p.Name,-32} → {key ?? "?"}");
         }
         sb.AppendLine();
@@ -200,7 +204,28 @@ public static class ApiIndexGenerator
 
         var types = asm.GetExportedTypes()
             .Where(IsIndexablePublicType)
-            .OrderBy(t => t.FullName, StringComparer.Ordinal);
+            .ToList();
+
+        // Disambiguate `### <kind> <name>` headers for nested types and for two
+        // distinct types that share a simple name (different namespaces). A nested
+        // type is shown as `Outer.Inner`; a colliding simple name gets a trailing
+        // ` (in <namespace>)` suffix so a reader can tell them apart.
+        static string BaseDisplayName(Type t) =>
+            t.IsNested ? $"{Short(t.DeclaringType!)}.{Short(t)}" : Short(t);
+
+        var baseNameCounts = types
+            .GroupBy(BaseDisplayName)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        string DisplayName(Type t)
+        {
+            var name = BaseDisplayName(t);
+            return baseNameCounts.TryGetValue(name, out var n) && n > 1
+                ? $"{name} (in {t.Namespace})"
+                : name;
+        }
+
+        types.Sort((a, b) => StringComparer.Ordinal.Compare(DisplayName(a), DisplayName(b)));
 
         foreach (var t in types)
         {
@@ -222,7 +247,7 @@ public static class ApiIndexGenerator
                 {
                     if (!headerEmitted)
                     {
-                        sb.AppendLine($"### {KindOf(t)} {Short(t)}");
+                        sb.AppendLine($"### {KindOf(t)} {DisplayName(t)}");
                         headerEmitted = true;
                     }
                     sb.AppendLine(line);
@@ -241,8 +266,9 @@ public static class ApiIndexGenerator
                 .Select(s => s!);
             Section(props);
 
-            // Public DeclaredOnly instance methods.
-            var methods = t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            // Public DeclaredOnly methods — instance AND static (symmetric with the
+            // property query). `IsSpecialName` filters operator overloads / accessors.
+            var methods = t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
                 .Where(m => !m.IsSpecialName)
                 .Where(m => !m.Name.Contains('<') && !m.Name.Contains('>'))
                 .Where(m => !IsObsolete(m))
