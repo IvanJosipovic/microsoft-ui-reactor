@@ -31,7 +31,7 @@
     defaults here guarantees every current and future package id (framework,
     Advanced, Devtools, ProjectTemplates, …) inherits compliant metadata, so a
     new package can never silently ship without it. Individual csprojs may still
-    override (the '== ' guard makes these defaults, not forced values).
+    override (the '== '' guard makes these defaults, not forced values).
   -->
   <PropertyGroup>
     <PackageProjectUrl Condition="'$(PackageProjectUrl)' == ''">https://github.com/microsoft/microsoft-ui-reactor</PackageProjectUrl>
