@@ -62,6 +62,13 @@ When `radius` changes, the new `redrawKey` tells Reactor to invalidate the canva
 - **`Win2DVirtualCanvas(...)`** — factory for a virtualized canvas.
 - **`Win2DCanvasElement`** — immutable element produced by `Win2DCanvas`.
 
+## Best Practices
+
+- **Drive redraws with `redrawKey`.** Pass the state that affects the drawing (or a composite of it) as `redrawKey`. The canvas only invalidates when the key changes, so avoid allocating a new key object on every render when nothing changed.
+- **Create device resources in `onCreateResources`, not `onDraw`.** Load bitmaps and other GPU resources in the resource callback so they survive device-lost events; the `onDraw` callback should stay allocation-free and fast.
+- **Mind the thread for animated canvases.** `Win2DAnimatedCanvas` invokes `onUpdate`/`onDraw` on the Win2D game thread, not the UI thread. Don't touch Reactor component state directly from those callbacks — pass data in through `drawState` and marshal back with a `threadSafe: true` state setter if you need to update the UI.
+- **Keep Win2D optional.** Reference this package only from the projects that need it so apps that don't draw keep a smaller trim/AOT closure and native payload.
+
 ## Additional Documentation
 
 - [Win2D canvas guide](https://github.com/microsoft/microsoft-ui-reactor/blob/main/docs/guide/win2d-canvas.md)
