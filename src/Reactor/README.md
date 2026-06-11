@@ -76,13 +76,11 @@ internal sealed class Counter : Component
 
 ## Main Types
 
-| Type | Description |
-|------|-------------|
-| `ReactorApp` | Entry point — `Run<TRoot>(...)` creates the window and starts the render loop. |
-| `Component` | Base class for your components; override `Render()` to return an `Element` tree. |
-| `Element` | Immutable record describing a piece of UI. |
-| `Factories` | Static factory methods (`TextBlock`, `Button`, `VStack`, `HStack`, `Slider`, …) — the DSL entry point. |
-| `RenderContext` | Hosts the hooks (`UseState`, `UseEffect`, …) available inside `Render()`. |
+- **`ReactorApp`** — entry point; `Run<TRoot>(...)` creates the window and starts the render loop.
+- **`Component`** — base class for your components; override `Render()` to return an `Element` tree.
+- **`Element`** — immutable record describing a piece of UI.
+- **`Factories`** — static factory methods (`TextBlock`, `Button`, `VStack`, `HStack`, `Slider`, …); the DSL entry point.
+- **`RenderContext`** — hosts the hooks (`UseState`, `UseEffect`, …) available inside `Render()`.
 
 ## Additional Documentation
 

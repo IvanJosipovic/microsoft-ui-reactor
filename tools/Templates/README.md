@@ -26,9 +26,7 @@ This scaffolds a runnable WinUI 3 project that references `Microsoft.UI.Reactor`
 
 ## Included Templates
 
-| Template | Short name | Description |
-|----------|-----------|-------------|
-| Microsoft WinUI Reactor App | `reactorapp` | A Windows WinUI 3 application using Reactor (C#). |
+- **Microsoft WinUI Reactor App** (short name `reactorapp`) — a Windows WinUI 3 application using Reactor (C#).
 
 ## Additional Documentation
 

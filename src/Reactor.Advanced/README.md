@@ -57,12 +57,10 @@ When `radius` changes, the new `redrawKey` tells Reactor to invalidate the canva
 
 ## Main Types
 
-| Type | Description |
-|------|-------------|
-| `Win2DCanvas(...)` | Factory for a manual-invalidate Win2D canvas. |
-| `Win2DAnimatedCanvas(...)` | Factory for an animated game-loop canvas. |
-| `Win2DVirtualCanvas(...)` | Factory for a virtualized canvas. |
-| `Win2DCanvasElement` | Immutable element produced by `Win2DCanvas`. |
+- **`Win2DCanvas(...)`** — factory for a manual-invalidate Win2D canvas.
+- **`Win2DAnimatedCanvas(...)`** — factory for an animated game-loop canvas.
+- **`Win2DVirtualCanvas(...)`** — factory for a virtualized canvas.
+- **`Win2DCanvasElement`** — immutable element produced by `Win2DCanvas`.
 
 ## Additional Documentation
 
