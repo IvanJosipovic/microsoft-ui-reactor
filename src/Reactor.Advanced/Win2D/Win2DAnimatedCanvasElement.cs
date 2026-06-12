@@ -73,6 +73,8 @@ public sealed record Win2DAnimatedCanvasElement : Element
     /// drawing a shared-device resource with a control that owns a different device raises a
     /// cross-device error that surfaces as a fatal stowed exception. See
     /// <see href="docs/guide/win2d-canvas.md#shared-device">the shared-device guidance</see>.
+    /// This is a device-construction setting evaluated once when the control mounts; to change it,
+    /// remount the canvas (e.g. via a different key) rather than toggling it on a live control.
     /// </remarks>
     public bool UseSharedDevice { get; init; }
 

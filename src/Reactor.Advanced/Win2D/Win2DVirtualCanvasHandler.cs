@@ -49,8 +49,8 @@ public sealed class Win2DVirtualCanvasHandler : IElementHandler<Win2DVirtualCanv
     {
         Reconciler.SetElementTag(ctrl, newEl);
 
-        if (ctrl.UseSharedDevice != newEl.UseSharedDevice)
-            ctrl.UseSharedDevice = newEl.UseSharedDevice;
+        // UseSharedDevice is fixed at mount; toggling it on a live control can crash (see guard).
+        Win2DSharedDeviceGuard.EnsureUseSharedDeviceUnchanged(oldEl.UseSharedDevice, newEl.UseSharedDevice);
 
         if (!SizesEqual(ctrl.Width, ctrl.Height, newEl.ContentSize.Width, newEl.ContentSize.Height))
             ApplyContentSize(ctrl, newEl);

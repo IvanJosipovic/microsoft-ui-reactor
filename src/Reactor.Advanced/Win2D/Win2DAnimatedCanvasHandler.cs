@@ -82,8 +82,8 @@ public sealed class Win2DAnimatedCanvasHandler : IElementHandler<Win2DAnimatedCa
 
         Reconciler.SetElementTag(ctrl, newEl);
 
-        if (ctrl.UseSharedDevice != newEl.UseSharedDevice)
-            ctrl.UseSharedDevice = newEl.UseSharedDevice;
+        // UseSharedDevice is fixed at mount; toggling it on a live control can crash (see guard).
+        Win2DSharedDeviceGuard.EnsureUseSharedDeviceUnchanged(oldEl.UseSharedDevice, newEl.UseSharedDevice);
 
         // IsPaused is enforced inside InvokeUpdate/InvokeDraw by skipping the user's
         // delegate when the latest element says paused. We do NOT write

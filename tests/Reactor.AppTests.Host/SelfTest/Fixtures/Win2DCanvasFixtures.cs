@@ -308,10 +308,10 @@ internal static class Win2DCanvasFixtures
                         .UseSharedDevice());
             });
 
-            H.Check("Win2D_AnimatedCanvas_SharedDeviceDraws",
+            H.Check("Win2D_AnimatedCanvas_SharedDeviceResourceDraws_Draws",
                 await Harness.WaitFor(() => Volatile.Read(ref drawCount) >= 1, maxPasses: 60, perPassMs: 25));
 
-            H.Check("Win2D_AnimatedCanvas_SharedDeviceSpriteDrawn",
+            H.Check("Win2D_AnimatedCanvas_SharedDeviceResourceDraws_SpriteDrawn",
                 await Harness.WaitFor(() => Volatile.Read(ref spriteDrawn) >= 1, maxPasses: 120, perPassMs: 25));
 
             host.Mount(_ => TextBlock("Win2D shared-device resource unmounted"));

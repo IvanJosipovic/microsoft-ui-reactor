@@ -51,8 +51,8 @@ public sealed class Win2DCanvasHandler : IElementHandler<Win2DCanvasElement, Can
         Reconciler.SetElementTag(ctrl, newEl);
         var bind = ctx.BindFor(ctrl, newEl);
 
-        if (ctrl.UseSharedDevice != newEl.UseSharedDevice)
-            ctrl.UseSharedDevice = newEl.UseSharedDevice;
+        // UseSharedDevice is fixed at mount; toggling it on a live control can crash (see guard).
+        Win2DSharedDeviceGuard.EnsureUseSharedDeviceUnchanged(oldEl.UseSharedDevice, newEl.UseSharedDevice);
 
         if (ctrl.ClearColor != newEl.ClearColor)
             bind.WriteSuppressed(() => ctrl.ClearColor = newEl.ClearColor);

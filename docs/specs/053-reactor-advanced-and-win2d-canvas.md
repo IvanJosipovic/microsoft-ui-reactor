@@ -1123,12 +1123,19 @@ compositor-effects toolkit; it doesn't belong in the Win2D surface.
      set before the control realizes its device. Instead we ship a
      declarative `.UseSharedDevice()` modifier on all three canvas
      elements (`Win2DCanvas`/`Win2DAnimatedCanvas`/`Win2DVirtualCanvas`),
-     wired through each handler's Mount/Update before resource
-     creation. The hook XML docs and the
+     applied by each handler **at Mount only** — before the control
+     realizes its device. It is a device-construction setting fixed for
+     the control's lifetime: toggling it on a live control would force a
+     crash-prone in-place device recreation (observed intermittent
+     access violation), so Update does not write it; instead a debug
+     guard (`Win2DSharedDeviceGuard`) throws a clear message on change,
+     and release builds ignore it (to change devices, remount via a
+     `key`). The hook XML docs and the
      [shared-device guide section](../guide/win2d-canvas.md#shared-device)
      state the requirement. Without it the cross-device draw raises a
      fatal stowed exception (process crash). Regression-guarded by the
-     `Win2D_AnimatedCanvas_SharedDeviceResourceDraws` selftest.
+     `Win2D_AnimatedCanvas_SharedDeviceResourceDraws` selftest and the
+     `Win2DSharedDeviceGuardTests` unit tests.
 4. **Sample under AOT publish.** Verify Particle Storm publishes
    AOT-clean. Spec 048 §1 and prior AOT spec hooks expect this; Win2D
    has documented AOT compatibility from 1.2.0 forward, so the

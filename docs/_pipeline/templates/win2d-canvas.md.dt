@@ -104,6 +104,8 @@ Win2DAnimatedCanvas(onUpdate: ..., onDraw: ..., drawState: dots.Current)
 
 The modifier is available on all three canvas elements (`Win2DCanvas`, `Win2DAnimatedCanvas`, `Win2DVirtualCanvas`). Resources created and drawn entirely within a single canvas's own `OnCreateResources` (using that control's device) do not need it.
 
+`UseSharedDevice` is a **device-construction setting**: Win2D evaluates it once when the control first realizes its device. It is fixed for the control's lifetime — toggling `.UseSharedDevice()` on a live canvas across re-renders is not supported (it would force a crash-prone in-place device recreation, so Reactor ignores the change in release builds and throws a clear error in debug builds). To switch devices, remount the canvas via a different `key`.
+
 #### Choosing between `UseCanvasResources` and `OnCreateResources`
 
 Both create device-backed resources with device-loss recovery; they differ in *which* device owns the resource:
