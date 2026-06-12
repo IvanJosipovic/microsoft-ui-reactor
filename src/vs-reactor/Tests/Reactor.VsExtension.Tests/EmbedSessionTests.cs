@@ -746,8 +746,9 @@ namespace Reactor.VsExtension.Tests
             SafeAsync.Run(context.Factory, () => throw new InvalidOperationException("boom"), "Explode");
 
             await EventuallyAsync(() => lines.Count >= 2);
-            Assert.Contains(lines.ToArray(), line => line.Contains("[Explode] InvalidOperationException: boom"));
-            Assert.Contains(lines.ToArray(), line => line.Contains("InvalidOperationException"));
+            var snapshot = lines.ToArray();
+            Assert.Contains(snapshot, line => line.Contains("[Explode] InvalidOperationException: boom"));
+            Assert.Contains(snapshot, line => line.Contains("InvalidOperationException"));
         }
 
         [Fact]
