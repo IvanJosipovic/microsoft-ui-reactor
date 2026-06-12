@@ -52,6 +52,14 @@
         to deterministic roots so PDBs don't leak local paths (e.g. E:\repos\...) and
         match the committed source on GitHub. Gated to CI: turning them on locally
         rewrites paths and breaks stepping into your own working-tree builds.
+
+    NOTE on '$(CI)': despite the name, this is the universal "automated build agent"
+    flag (set by GitHub Actions, ADO, etc.), NOT "the CI/PR-gate pipeline". BOTH the
+    PR-gate (OneBranch.CI.Reactor.yml) AND the release/pack pipeline
+    (OneBranch.Official.Reactor.yml) set CI=true — so the deterministic-path arm below
+    DOES run for the signed release packages. "CI" here means "not a developer's
+    interactive working-tree build", which is exactly when we want deterministic,
+    source-linked PDBs.
   -->
   <PropertyGroup>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
