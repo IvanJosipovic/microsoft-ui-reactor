@@ -60,7 +60,7 @@ protocol values rather than guessing compatibility.
 and we keep the newest five archives. Log level is configured via
 `--devtools-log-level off|error|call|trace` (default: `call`).
 
-Line shape (tab-separated):
+Line shape (TSV — tab-separated; shown space-aligned below for readability):
 
 ```text
 2026-04-18T12:34:56.789Z  tree  r:main/btn-inc  42ms  ok  0
