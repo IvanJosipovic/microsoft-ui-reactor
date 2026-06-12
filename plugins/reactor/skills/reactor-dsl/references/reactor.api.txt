@@ -1249,7 +1249,7 @@ ToString() → string
 Equals(AsyncValue<T> other) → bool
 Equals(object obj) → bool
 GetHashCode() → int
-Match<TResult>(Func<TResult> loading, Func<T, TResult> data, Func<Exception, TResult> error, Func<T, TResult> reloading = null) → TResult
+Match<TResult>(Func<TResult> loading, Func<T, TResult> loaded, Func<Exception, TResult> error, Func<T, TResult> reloading = null) → TResult
 ToString() → string
 
 ### record AsyncValue<T>.Data<T>
