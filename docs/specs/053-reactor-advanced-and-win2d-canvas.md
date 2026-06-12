@@ -1113,6 +1113,22 @@ compositor-effects toolkit; it doesn't belong in the Win2D surface.
    into shared-device when called from a parent component above
    multiple canvases? Probably yes, but the implementation has subtle
    ordering concerns. Defer to implementation PR.
+   - **CLOSE-OUT (resolved): explicit author opt-in, not automatic.**
+     `UseCanvasResources` builds resources on the shared device
+     (`CanvasDevice.GetSharedDevice()`). Win2D resources are
+     device-affine, so a canvas drawing them must use the *same*
+     device. Auto-opt-in is unworkable: the hook lives in a parent
+     component and cannot know which (potentially several) descendant
+     canvases will draw its resources, and `UseSharedDevice` must be
+     set before the control realizes its device. Instead we ship a
+     declarative `.UseSharedDevice()` modifier on all three canvas
+     elements (`Win2DCanvas`/`Win2DAnimatedCanvas`/`Win2DVirtualCanvas`),
+     wired through each handler's Mount/Update before resource
+     creation. The hook XML docs and the
+     [shared-device guide section](../guide/win2d-canvas.md#shared-device)
+     state the requirement. Without it the cross-device draw raises a
+     fatal stowed exception (process crash). Regression-guarded by the
+     `Win2D_AnimatedCanvas_SharedDeviceResourceDraws` selftest.
 4. **Sample under AOT publish.** Verify Particle Storm publishes
    AOT-clean. Spec 048 §1 and prior AOT spec hooks expect this; Win2D
    has documented AOT compatibility from 1.2.0 forward, so the
